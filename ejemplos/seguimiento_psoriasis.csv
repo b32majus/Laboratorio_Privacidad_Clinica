@@ -1,0 +1,7 @@
+NHC,Nombre,Apellidos,DNI,Fecha_Nacimiento,Fecha_Visita,PASI,IGA,Tratamiento,Centro,Medico
+4521987,María,García López,12345678A,15/06/1970,15/01/2024,12.5,3,Adalimumab,H.U. Badajoz,Dr. Pérez
+4521987,María,García López,12345678A,15/06/1970,15/04/2024,8.2,2,Adalimumab,H.U. Badajoz,Dr. Pérez
+4521987,María,García López,12345678A,15/06/1970,15/07/2024,3.1,1,Adalimumab,H.U. Badajoz,Dr. Pérez
+7894561,Juan,Pérez Martín,87654321B,22/03/1958,20/02/2024,18.0,4,Secukinumab,H. Mérida,Dra. Gómez
+7894561,Juan,Pérez Martín,87654321B,22/03/1958,20/05/2024,9.5,2,Secukinumab,H. Mérida,Dra. Gómez
+1122334,Ana,Ruiz Sánchez,11223344C,08/11/1985,10/03/2024,15.3,3,Risankizumab,H.U. Badajoz,Dr. Pérez
