@@ -1,0 +1,20 @@
+{
+  "titulo": "Historia Clínica - Seguimiento de Enfermedad Crónica",
+  "descripcion": "Historia clínica simple con datos de seguimiento ambulatorio",
+  "texto": "Paciente Carmen Rodríguez Torres con 45 años. Última consulta 20/12/2023 por descompensación de diabetes mellitus tipo 2. Vive en Barcelona, nacida el 08/05/1978. Profesión: Maestra de educación primaria. Teléfono: 612-345-678. Email: carmen.rodriguez@email.com. Medicación actual: Metformina 850mg/12h. Próxima cita: 15/01/2024.",
+  "complejidad": "media",
+  "entidades_esperadas": {
+    "NOMBRE": ["Carmen Rodríguez Torres"],
+    "IDENTIFICADOR": ["612-345-678", "08/05/1978", "carmen.rodriguez@email.com"],
+    "FECHA": ["20/12/2023", "15/01/2024"],
+    "UBICACION": ["Barcelona"],
+    "SOSPECHOSO": ["Maestra de educación primaria"]
+  },
+  "notas_didacticas": [
+    "La fecha de nacimiento completa es un identificador directo que debe suprimirse",
+    "El email contiene el nombre y debe ser eliminado completamente",
+    "La profesión específica puede ser un cuasi-identificador en contextos pequeños",
+    "Barcelona debe generalizarse a Cataluña",
+    "Las fechas de consultas deben relativizarse"
+  ]
+}

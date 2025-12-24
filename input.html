@@ -80,16 +80,16 @@
   class="bg-background-light dark:bg-background-dark font-display text-stone-900 dark:text-stone-100 antialiased min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary-dark">
   <!-- Top App Bar -->
   <header
-    class="flex items-center justify-between px-4 pt-6 pb-2 bg-background-light dark:bg-background-dark shrink-0 z-10">
-    <h1 class="text-[#171312] dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex-1">
-      Sanitizador Clínico
-    </h1>
-    <div class="flex items-center justify-end gap-2">
-      <!-- Examples/Menu Button -->
-      <button aria-label="Menú de Ejemplos"
-        class="flex items-center justify-center rounded-full w-10 h-10 bg-transparent text-[#171312] dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
-        <span class="material-symbols-outlined" style="font-size: 24px;">format_list_bulleted</span>
-      </button>
+    class="flex items-center justify-between px-4 pt-6 pb-2 bg-surface-light dark:bg-surface-dark shrink-0 z-10 border-b border-stone-200 dark:border-stone-800">
+    <div class="flex items-center gap-3">
+      <a href="app.html" class="text-stone-500 hover:text-primary transition-colors" title="Volver al inicio">
+        <span class="material-symbols-outlined">home</span>
+      </a>
+      <h1
+        class="text-[#171312] dark:text-stone-100 text-lg font-bold leading-tight tracking-tight flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">security</span>
+        Laboratorio de Privacidad
+      </h1>
     </div>
   </header>
   <!-- Premium Batch Banner -->
@@ -111,62 +111,133 @@
     </div>
   </div>
 
-  <!-- Main Content Area -->
-  <main class="flex-1 flex flex-col px-4 pb-4 max-w-5xl mx-auto w-full">
-    <!-- Headline & Instructions -->
-    <div class="pt-2 pb-4 shrink-0">
-      <h2 class="text-[#171312] dark:text-white text-[28px] font-bold leading-tight tracking-tight">
-        Entrada de Texto
-      </h2>
-      <!-- Privacy Badge (MetaText enhanced) -->
-      <div class="flex items-center gap-1.5 mt-2 text-[#7f6b66] dark:text-[#ccb0aa] text-sm font-medium">
-        <span class="material-symbols-outlined text-primary" style="font-size: 18px;">lock</span>
-        <p>Procesamiento 100% Local. Datos seguros.</p>
-      </div>
-    </div>
-    <!-- Input Field (Canvas) -->
-    <div
-      class="relative flex flex-col min-h-[300px] h-[50vh] bg-surface-light dark:bg-surface-dark rounded-xl shadow-soft border border-stone-200 dark:border-stone-800 transition-all focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary overflow-hidden group">
-      <label class="sr-only" for="clinical-text">Texto Clínico</label>
-      <textarea
-        class="flex-1 w-full h-full resize-none bg-transparent border-0 focus:ring-0 text-[#171312] dark:text-stone-200 p-5 text-base font-normal leading-relaxed placeholder:text-[#a8a29e] dark:placeholder:text-stone-600 appearance-none"
-        id="clinical-text" placeholder="Pegue aquí el texto clínico o elija un ejemplo del menú superior..."
-        spellcheck="false"></textarea>
-      <!-- Floating Actions inside the textarea area -->
+  <!-- Main Content Area with Sidebar -->
+  <div class="flex-1 flex gap-8 px-4 py-8 max-w-7xl mx-auto w-full overflow-hidden mt-6">
+    <!-- Examples Sidebar -->
+    <aside class="w-72 shrink-0 flex flex-col gap-3 pt-2">
       <div
-        class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 flex gap-2">
-        <button id="upload-btn"
-          class="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 dark:hover:bg-stone-600 text-stone-600 dark:text-stone-300 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors border border-stone-200 dark:border-stone-600">
-          <span class="material-symbols-outlined" style="font-size: 16px;">upload_file</span>
-          Cargar archivo
-        </button>
-        <button id="paste-btn"
-          class="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 dark:hover:bg-stone-600 text-stone-600 dark:text-stone-300 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors border border-stone-200 dark:border-stone-600">
-          <span class="material-symbols-outlined" style="font-size: 16px;">content_paste</span>
-          Pegar
-        </button>
+        class="bg-surface-light dark:bg-surface-dark rounded-xl border border-stone-200 dark:border-stone-800 p-4 shadow-sm">
+        <h3
+          class="text-stone-900 dark:text-stone-100 text-sm font-bold mb-4 flex items-center gap-2 uppercase tracking-wider opacity-80">
+          <span class="material-symbols-outlined text-primary text-lg">lightbulb</span>
+          Ejemplos de Uso
+        </h3>
+        <div class="flex flex-col gap-3">
+          <!-- Ejemplo 1: Urgencias -->
+          <button
+            class="example-card text-left p-3 rounded-lg border border-stone-200 dark:border-stone-700 hover:border-primary/50 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all group"
+            data-example="urgencias">
+            <div class="flex items-start gap-3">
+              <div
+                class="p-2 rounded-md bg-stone-100 dark:bg-stone-800 text-primary-dark group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-xl">emergency</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h4
+                  class="font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-primary transition-colors">
+                  Consulta de Urgencias</h4>
+                <p class="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">Paciente
+                  derivado con dolor abdominal...</p>
+              </div>
+            </div>
+          </button>
+          <!-- Ejemplo 2: Quirúrgico -->
+          <button
+            class="example-card text-left p-3 rounded-lg border border-stone-200 dark:border-stone-700 hover:border-primary/50 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all group"
+            data-example="quirurgico">
+            <div class="flex items-start gap-3">
+              <div
+                class="p-2 rounded-md bg-stone-100 dark:bg-stone-800 text-primary-dark group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-xl">surgical</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h4
+                  class="font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-primary transition-colors">
+                  Informe Quirúrgico</h4>
+                <p class="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">Intervención
+                  realizada por especialista...</p>
+              </div>
+            </div>
+          </button>
+          <!-- Ejemplo 3: Historia Clínica -->
+          <button
+            class="example-card text-left p-3 rounded-lg border border-stone-200 dark:border-stone-700 hover:border-primary/50 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all group"
+            data-example="historia">
+            <div class="flex items-start gap-3">
+              <div
+                class="p-2 rounded-md bg-stone-100 dark:bg-stone-800 text-primary-dark group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-xl">description</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h4
+                  class="font-bold text-sm text-stone-900 dark:text-stone-100 group-hover:text-primary transition-colors">
+                  Historia Clínica</h4>
+                <p class="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2 leading-relaxed">Paciente con
+                  antecedentes médicos...</p>
+              </div>
+            </div>
+          </button>
+        </div>
       </div>
-      <!-- Input file oculto -->
-      <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx" class="hidden" />
-    </div>
-    <!-- Action Bar -->
-    <div class="pt-4 shrink-0">
-      <button id="process-btn"
-        class="relative w-full overflow-hidden rounded-xl h-14 bg-primary hover:bg-primary-dark active:scale-[0.99] transition-all duration-200 text-white shadow-lg shadow-primary/25 group">
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col min-w-0">
+      <!-- Headline & Instructions -->
+      <div class="pb-4 shrink-0">
+        <h2 class="text-[#171312] dark:text-white text-[28px] font-bold leading-tight tracking-tight">
+          Entrada de Texto
+        </h2>
+        <!-- Privacy Badge -->
+        <div class="flex items-center gap-1.5 mt-2 text-[#7f6b66] dark:text-[#ccb0aa] text-sm font-medium">
+          <span class="material-symbols-outlined text-primary" style="font-size: 18px;">lock</span>
+          <p>Procesamiento 100% Local. Datos seguros.</p>
+        </div>
+      </div>
+      <!-- Input Field (Canvas) -->
+      <div
+        class="relative flex flex-col min-h-[300px] flex-1 bg-surface-light dark:bg-surface-dark rounded-xl shadow-soft border border-stone-200 dark:border-stone-800 transition-all focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary overflow-hidden group">
+        <label class="sr-only" for="clinical-text">Texto Clínico</label>
+        <textarea
+          class="flex-1 w-full h-full resize-none bg-transparent border-0 focus:ring-0 text-[#171312] dark:text-stone-200 p-5 text-base font-normal leading-relaxed placeholder:text-[#a8a29e] dark:placeholder:text-stone-600 appearance-none"
+          id="clinical-text" placeholder="Pegue aquí el texto clínico o seleccione un ejemplo de la izquierda..."
+          spellcheck="false"></textarea>
+        <!-- Floating Actions -->
         <div
-          class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+          class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 flex gap-2">
+          <button id="upload-btn"
+            class="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 dark:hover:bg-stone-600 text-stone-600 dark:text-stone-300 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors border border-stone-200 dark:border-stone-600">
+            <span class="material-symbols-outlined" style="font-size: 16px;">upload_file</span>
+            Cargar archivo
+          </button>
+          <button id="paste-btn"
+            class="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 dark:hover:bg-stone-600 text-stone-600 dark:text-stone-300 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors border border-stone-200 dark:border-stone-600">
+            <span class="material-symbols-outlined" style="font-size: 16px;">content_paste</span>
+            Pegar
+          </button>
         </div>
-        <div class="relative flex items-center justify-center gap-2">
-          <span class="text-base font-bold tracking-wide">Procesar Texto</span>
-          <span class="material-symbols-outlined animate-pulse" style="font-size: 20px;">auto_fix_high</span>
-        </div>
-      </button>
-      <!-- Secondary/Help Text -->
-      <p class="text-center text-xs text-stone-400 dark:text-stone-600 mt-3 font-medium">
-        Seudonimización automática potenciada por IA
-      </p>
-    </div>
-  </main>
+        <!-- Input file oculto -->
+        <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx" class="hidden" />
+      </div>
+      <!-- Action Bar -->
+      <div class="pt-4 shrink-0">
+        <button id="process-btn"
+          class="relative w-full overflow-hidden rounded-xl h-14 bg-primary hover:bg-primary-dark active:scale-[0.99] transition-all duration-200 text-white shadow-lg shadow-primary/25 group">
+          <div
+            class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+          </div>
+          <div class="relative flex items-center justify-center gap-2">
+            <span class="text-base font-bold tracking-wide">Procesar Texto</span>
+            <span class="material-symbols-outlined animate-pulse" style="font-size: 20px;">auto_fix_high</span>
+          </div>
+        </button>
+        <!-- Secondary/Help Text -->
+        <p class="text-center text-xs text-stone-400 dark:text-stone-600 mt-3 font-medium">
+          Seudonimización automática potenciada por IA
+        </p>
+      </div>
+    </main>
+  </div>
   <script>
     // Configurar PDF.js worker
     if (typeof pdfjsLib !== 'undefined') {
@@ -293,33 +364,27 @@
         return result.value;
       }
 
-      // Menú de ejemplos
-      const examplesBtn = document.querySelector('button[aria-label="Menú de Ejemplos"]');
-      if (examplesBtn) {
-        examplesBtn.addEventListener('click', () => {
-          const ejemplos = [
-            {
-              titulo: 'Consulta de Urgencias',
-              texto: 'Paciente esudardo garcia, derivado a hospital virgen del rocío con 54 años y DNI 30970148B por dolor abdominal. Reside en Calle Mayor 123, Sevilla.'
-            },
-            {
-              titulo: 'Informe Quirúrgico',
-              texto: 'Intervención realizada el 15/03/2024 por Dr. Juan Martínez en paciente con 67 años. Contacto: 654321987.'
-            },
-            {
-              titulo: 'Historia Clínica Simple',
-              texto: 'Paciente Carmen Rodríguez con 45 años. Última consulta 20/12/2023. Teléfono: 612345678.'
-            }
-          ];
+      // Ejemplos - Sidebar Cards
+      const exampleCards = document.querySelectorAll('.example-card');
+      const ejemplos = {
+        urgencias: 'Paciente esudardo garcia, derivado a hospital virgen del rocío con 54 años y DNI 30970148B por dolor abdominal. Reside en Calle Mayor 123, Sevilla.',
+        quirurgico: 'Intervención realizada el 15/03/2024 por Dr. Juan Martínez en paciente con 67 años. Contacto: 654321987.',
+        historia: 'Paciente Carmen Rodríguez con 45 años. Última consulta 20/12/2023. Teléfono: 612345678.'
+      };
 
-          const seleccion = prompt(`Seleccione un ejemplo:\n\n${ejemplos.map((e, i) => `${i + 1}. ${e.titulo}`).join('\n')}\n\nEscriba el número (1-3):`);
-          const index = parseInt(seleccion) - 1;
+      exampleCards.forEach(card => {
+        card.addEventListener('click', () => {
+          const exampleType = card.dataset.example;
+          if (ejemplos[exampleType]) {
+            textArea.value = ejemplos[exampleType];
+            textArea.focus();
 
-          if (index >= 0 && index < ejemplos.length) {
-            textArea.value = ejemplos[index].texto;
+            // Visual feedback
+            exampleCards.forEach(c => c.classList.remove('ring-2', 'ring-primary'));
+            card.classList.add('ring-2', 'ring-primary');
           }
         });
-      }
+      });
     });
   </script>
   <footer

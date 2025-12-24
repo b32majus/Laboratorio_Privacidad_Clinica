@@ -61,13 +61,15 @@
     <div
         class="relative flex min-h-screen w-full max-w-7xl mx-auto flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden shadow-2xl">
         <header
-            class="sticky top-0 z-50 flex items-center bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm p-4 justify-between border-b border-stone-200/50 dark:border-stone-800 transition-colors">
+            class="sticky top-0 z-50 flex items-center bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur-sm px-6 py-3 justify-between border-b border-stone-200 dark:border-stone-800 transition-colors">
             <h2
-                class="text-[#171312] dark:text-stone-100 text-2xl font-serif font-bold leading-tight tracking-tight flex-1">
-                Sophilux</h2>
-            <div class="flex w-12 items-center justify-end">
+                class="text-stone-900 dark:text-stone-50 text-base font-bold leading-tight tracking-tight flex items-center gap-2 flex-1">
+                <span class="material-symbols-outlined text-primary">security</span>
+                Laboratorio de Privacidad
+            </h2>
+            <div class="flex items-center justify-end">
                 <button
-                    class="flex items-center justify-center rounded-lg h-10 w-10 text-[#171312] dark:text-stone-100 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors">
+                    class="flex items-center justify-center rounded-lg h-9 w-9 text-stone-500 hover:text-primary hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
                     <span class="material-symbols-outlined" style="font-size: 24px;">menu</span>
                 </button>
             </div>
@@ -99,13 +101,13 @@
                 </div>
                 <div class="flex flex-col w-full gap-3 mt-4">
                     <button id="btn-comenzar-seudonimizacion"
-                        class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 bg-primary hover:bg-primary-dark transition-colors text-[#171312] dark:text-stone-900 text-base font-bold leading-normal tracking-[0.015em] shadow-sm">
+                        class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 bg-primary hover:bg-primary-dark transition-colors text-white dark:text-white text-base font-bold leading-normal tracking-[0.015em] shadow-sm">
                         <span class="truncate">Comenzar Seudonimización</span>
                     </button>
-                    <button
+                    <a href="funcionamiento.html"
                         class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 bg-transparent border border-[#dfd9d7] dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-[#171312] dark:text-stone-100 text-base font-bold leading-normal tracking-[0.015em]">
                         <span class="truncate">Saber Más</span>
-                    </button>
+                    </a>
                 </div>
             </div>
             <div
@@ -160,133 +162,123 @@
             </div>
         </main>
         <footer
-            class="bg-[#efeceb] dark:bg-[#151211] py-8 px-6 text-center border-t border-[#dfd9d7] dark:border-stone-800">
-            <h4 class="text-[#171312] dark:text-stone-200 font-serif font-bold text-lg mb-4">Sophilux</h4>
-            <div class="flex flex-col gap-2 mb-6">
-                <p class="text-[#7f6b66] dark:text-stone-500 text-xs leading-relaxed max-w-xs mx-auto">
-                    Sus datos nunca salen de este dispositivo. Todo el procesamiento ocurre localmente en su navegador
-                    mediante WebAssembly.
-                </p>
-            </div>
-            <div class="flex justify-center gap-6">
-                <a class="text-[#7f6b66] dark:text-stone-400 hover:text-primary transition-colors text-xs font-medium"
-                    href="index.html">Inicio</a>
-                <a class="text-[#7f6b66] dark:text-stone-400 hover:text-primary transition-colors text-xs font-medium"
-                    href="guia.html">Guía</a>
-                <a class="text-[#7f6b66] dark:text-stone-400 hover:text-primary transition-colors text-xs font-medium"
-                    href="terminos.html">Términos</a>
+            class="bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800 py-4 px-6 text-center text-sm text-stone-500 dark:text-stone-400 mt-auto">
+            <div class="flex gap-4 justify-center">
+                <a href="guia.html" class="hover:text-primary transition">Guía</a>
+                <a href="terminos.html" class="hover:text-primary transition">Términos</a>
+                <a href="index.html" class="hover:text-primary transition">Inicio</a>
             </div>
         </footer>
-    </div>
 
-    <!-- Modal de Selección de Tipo -->
-    <div id="choice-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-stone-800 rounded-2xl max-w-md w-full shadow-2xl animate-scale-in">
-            <div class="p-6">
-                <h2 class="text-2xl font-serif font-bold text-stone-900 dark:text-white mb-2">
-                    ¿Qué deseas seudonimizar?
-                </h2>
-                <p class="text-sm text-stone-600 dark:text-stone-400 mb-6">
-                    Elige el tipo de datos que vas a procesar
-                </p>
+        <!-- Modal de Selección de Tipo -->
+        <div id="choice-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-stone-800 rounded-2xl max-w-md w-full shadow-2xl animate-scale-in">
+                <div class="p-6">
+                    <h2 class="text-2xl font-serif font-bold text-stone-900 dark:text-white mb-2">
+                        ¿Qué deseas seudonimizar?
+                    </h2>
+                    <p class="text-sm text-stone-600 dark:text-stone-400 mb-6">
+                        Elige el tipo de datos que vas a procesar
+                    </p>
 
-                <div class="flex flex-col gap-3">
-                    <!-- Opción Texto -->
-                    <button id="choice-text"
-                        class="flex items-center gap-4 p-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 hover:border-primary hover:bg-stone-50 dark:hover:bg-stone-700 transition-all group">
-                        <div
-                            class="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                            <span class="material-symbols-outlined" style="font-size: 28px;">description</span>
-                        </div>
-                        <div class="flex-1 text-left">
-                            <h3 class="font-bold text-stone-900 dark:text-white">Texto clínico</h3>
-                            <p class="text-xs text-stone-500 dark:text-stone-400">Notas médicas, informes, textos libres
-                            </p>
-                        </div>
-                    </button>
+                    <div class="flex flex-col gap-3">
+                        <!-- Opción Texto -->
+                        <button id="choice-text"
+                            class="flex items-center gap-4 p-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 hover:border-primary hover:bg-stone-50 dark:hover:bg-stone-700 transition-all group">
+                            <div
+                                class="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                <span class="material-symbols-outlined" style="font-size: 28px;">description</span>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-bold text-stone-900 dark:text-white">Texto clínico</h3>
+                                <p class="text-xs text-stone-500 dark:text-stone-400">Notas médicas, informes, textos
+                                    libres
+                                </p>
+                            </div>
+                        </button>
 
-                    <!-- Opción Excel -->
-                    <button id="choice-excel"
-                        class="flex items-center gap-4 p-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 hover:border-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all group">
-                        <div
-                            class="flex-shrink-0 w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-500 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                            <span class="material-symbols-outlined" style="font-size: 28px;">table_chart</span>
-                        </div>
-                        <div class="flex-1 text-left">
-                            <h3 class="font-bold text-stone-900 dark:text-white">Datos estructurados</h3>
-                            <p class="text-xs text-stone-500 dark:text-stone-400">Archivos CSV, Excel, formularios
-                                tabulares</p>
-                        </div>
+                        <!-- Opción Excel -->
+                        <button id="choice-excel"
+                            class="flex items-center gap-4 p-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 hover:border-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all group">
+                            <div
+                                class="flex-shrink-0 w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-500 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                                <span class="material-symbols-outlined" style="font-size: 28px;">table_chart</span>
+                            </div>
+                            <div class="flex-1 text-left">
+                                <h3 class="font-bold text-stone-900 dark:text-white">Datos estructurados</h3>
+                                <p class="text-xs text-stone-500 dark:text-stone-400">Archivos CSV, Excel, formularios
+                                    tabulares</p>
+                            </div>
+                        </button>
+                    </div>
+
+                    <button id="close-choice-modal"
+                        class="mt-6 w-full text-center text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors">
+                        Cancelar
                     </button>
                 </div>
-
-                <button id="close-choice-modal"
-                    class="mt-6 w-full text-center text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors">
-                    Cancelar
-                </button>
             </div>
         </div>
-    </div>
 
-    <style>
-        @keyframes scale-in {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
+        <style>
+            @keyframes scale-in {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
             }
 
-            to {
-                opacity: 1;
-                transform: scale(1);
+            .animate-scale-in {
+                animation: scale-in 0.2s ease-out;
             }
-        }
+        </style>
 
-        .animate-scale-in {
-            animation: scale-in 0.2s ease-out;
-        }
-    </style>
+        <script>
+            // Modal de selección
+            const choiceModal = document.getElementById('choice-modal');
+            const btnComenzar = document.getElementById('btn-comenzar-seudonimizacion');
+            const btnCloseModal = document.getElementById('close-choice-modal');
+            const btnChoiceText = document.getElementById('choice-text');
+            const btnChoiceExcel = document.getElementById('choice-excel');
 
-    <script>
-        // Modal de selección
-        const choiceModal = document.getElementById('choice-modal');
-        const btnComenzar = document.getElementById('btn-comenzar-seudonimizacion');
-        const btnCloseModal = document.getElementById('close-choice-modal');
-        const btnChoiceText = document.getElementById('choice-text');
-        const btnChoiceExcel = document.getElementById('choice-excel');
+            // Abrir modal
+            btnComenzar?.addEventListener('click', () => {
+                choiceModal.classList.remove('hidden');
+            });
 
-        // Abrir modal
-        btnComenzar?.addEventListener('click', () => {
-            choiceModal.classList.remove('hidden');
-        });
-
-        // Cerrar modal
-        btnCloseModal?.addEventListener('click', () => {
-            choiceModal.classList.add('hidden');
-        });
-
-        // Cerrar con Escape
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !choiceModal.classList.contains('hidden')) {
+            // Cerrar modal
+            btnCloseModal?.addEventListener('click', () => {
                 choiceModal.classList.add('hidden');
-            }
-        });
+            });
 
-        // Cerrar al hacer clic fuera
-        choiceModal?.addEventListener('click', (e) => {
-            if (e.target === choiceModal) {
-                choiceModal.classList.add('hidden');
-            }
-        });
+            // Cerrar con Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !choiceModal.classList.contains('hidden')) {
+                    choiceModal.classList.add('hidden');
+                }
+            });
 
-        // Navegar según elección
-        btnChoiceText?.addEventListener('click', () => {
-            window.location.href = 'input.html';
-        });
+            // Cerrar al hacer clic fuera
+            choiceModal?.addEventListener('click', (e) => {
+                if (e.target === choiceModal) {
+                    choiceModal.classList.add('hidden');
+                }
+            });
 
-        btnChoiceExcel?.addEventListener('click', () => {
-            window.location.href = 'batch-structured.html';
-        });
-    </script>
+            // Navegar según elección
+            btnChoiceText?.addEventListener('click', () => {
+                window.location.href = 'input.html';
+            });
+
+            btnChoiceExcel?.addEventListener('click', () => {
+                window.location.href = 'batch-structured.html';
+            });
+        </script>
 
 </body>
 

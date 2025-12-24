@@ -1,0 +1,20 @@
+{
+  "titulo": "Consulta de Urgencias - Dolor Abdominal",
+  "descripcion": "Caso típico de urgencias con datos de identificación del paciente y derivación hospitalaria",
+  "texto": "Paciente Eduardo García, derivado a Hospital Virgen del Rocío con 54 años y DNI 30970148B por dolor abdominal agudo en fosa ilíaca derecha. Reside en Calle Mayor 123, Sevilla. Antecedentes: HTA diagnosticada en 2019. Exploración: Dolor a la palpación profunda. Contacto familiar: 654-321-987.",
+  "complejidad": "media",
+  "entidades_esperadas": {
+    "NOMBRE": ["Eduardo García"],
+    "IDENTIFICADOR": ["30970148B", "654-321-987"],
+    "FECHA": ["2019"],
+    "UBICACION": ["Hospital Virgen del Rocío", "Calle Mayor 123, Sevilla"],
+    "SOSPECHOSO": []
+  },
+  "notas_didacticas": [
+    "El nombre completo es un identificador directo que debe ser seudonimizado",
+    "El DNI es un identificador único de alta sensibilidad que debe ser suprimido",
+    "La dirección exacta debe generalizarse a nivel de ciudad o provincia",
+    "El teléfono de contacto debe ser eliminado",
+    "La fecha del diagnóstico debe relativizarse"
+  ]
+}

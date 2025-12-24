@@ -1,0 +1,20 @@
+{
+  "titulo": "Informe Quirúrgico - Cirugía Programada",
+  "descripcion": "Informe de intervención quirúrgica con múltiples profesionales y fechas específicas",
+  "texto": "Intervención realizada el 15/03/2024 por Dr. Juan Martínez Sánchez en paciente María del Carmen López con 67 años. Diagnóstico preoperatorio: Colelitiasis sintomática. Técnica: Colecistectomía laparoscópica. Anestesista: Dra. Patricia Ruiz. Hospital: Complejo Hospitalario de Toledo. NHC: 2024/089756. Evolución favorable. Alta prevista 18/03/2024. Contacto: 612-345-678.",
+  "complejidad": "alta",
+  "entidades_esperadas": {
+    "NOMBRE": ["Juan Martínez Sánchez", "María del Carmen López", "Patricia Ruiz"],
+    "IDENTIFICADOR": ["2024/089756", "612-345-678"],
+    "FECHA": ["15/03/2024", "18/03/2024"],
+    "UBICACION": ["Complejo Hospitalario de Toledo"],
+    "SOSPECHOSO": []
+  },
+  "notas_didacticas": [
+    "Caso con múltiples nombres: tanto del paciente como del equipo médico",
+    "El nombre 'María del Carmen' incluye partícula 'del' que debe ser detectada correctamente",
+    "El NHC (Número de Historia Clínica) es un identificador único que debe ser suprimido",
+    "Las fechas de intervención y alta deben relativizarse manteniendo el intervalo de 3 días",
+    "El nombre del hospital debe generalizarse a la CCAA (Castilla-La Mancha)"
+  ]
+}

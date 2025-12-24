@@ -1,129 +1,95 @@
-# Laboratorio de Privacidad Clínica by Sophilux
+# 🛡️ Laboratorio de Privacidad Clínica
 
-Herramienta web client-side para seudonimizar textos clínicos, permitiendo a sanitarios usar IAs generativas de forma segura.
+**Herramienta educativa de seudonimización de datos sanitarios 100% local y segura.**
 
-## 🎯 Principios Clave
+[![Estado](https://img.shields.io/badge/Estado-Estable-success)](https://github.com/)
+[![Privacidad](https://img.shields.io/badge/Privacidad-100%25_Local-blue)](https://github.com/)
+[![Licencia](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
 
-- **100% Client-Side**: Todo el procesamiento ocurre en el navegador. Ningún dato sale del dispositivo.
-- **Zero-Friction**: No requiere instalación ni permisos especiales.
-- **Educativo**: Cada funcionalidad enseña el "por qué" además del "qué".
-- **Humanista**: Diseño cálido que evoca el Renacimiento, no tecnología fría.
+---
 
-## 🚀 Inicio Rápido
+## 📖 Descripción
 
-### Opción 1: Abrir directamente
-Simplemente abre `index.html` en tu navegador (Chrome, Firefox o Edge).
+El **Laboratorio de Privacidad Clínica** es una aplicación web diseñada para enseñar y facilitar la seudonimización de textos clínicos. Su objetivo es permitir que profesionales sanitarios y estudiantes utilicen herramientas de IA generativa de forma segura, eliminando datos identificables antes de compartir la información.
 
-### Opción 2: Servidor local (recomendado)
-```powershell
-# Desde el directorio del proyecto
-python -m http.server 8000
-```
-Luego abre http://localhost:8000 en tu navegador.
+**Principio Fundamental:** Todo el procesamiento ocurre en el navegador del cliente (Client-Side). **Ningún dato sale de tu dispositivo.**
 
-## 📁 Estructura del Proyecto
+## ✨ Características Principales
 
-```
-laboratorio-privacidad-clinica/
-├── index.html              # Landing page
-├── app.html                # Aplicación principal
-├── css/                    # Estilos CSS
-│   ├── variables.css       # Sistema de diseño
-│   ├── base.css            # Reset y tipografía
-│   ├── components.css      # Componentes UI
-│   ├── layout.css          # Grid y contenedores
-│   └── landing.css         # Estilos de landing
-├── js/                     # JavaScript (Fase 2)
-├── assets/                 # Imágenes y recursos
-├── lib/                    # Librerías locales
-└── examples/               # Casos de ejemplo
-```
+### 🏥 Procesamiento de Texto Clínico
+- **Detección Inteligente:** Identifica nombres, fechas, ubicaciones, DNIs y números de teléfono.
+- **Categorización Visual:** Sistema de colores intuitivo para revisión rápida.
+- **Revisión Manual:** Herramientas para aceptar, modificar o restaurar entidades detectadas.
+- **Ejemplos Precargados:** Casos de uso reales (Urgencias, Quirúrgico, Historia Clínica).
 
-## 🎨 Stack Técnico
+### 📊 Modo Batch (Datos Estructurados)
+- **Soporte CSV/Excel:** Procesa múltiples registros simultáneamente.
+- **Anonimización Consistente:** Mantiene la coherencia de identificadores (mismo ID original = mismo pseudónimo) para estudios longitudinales.
+- **Tabla de Correspondencia:** Genera un archivo separado para revertir el proceso si es necesario (re-identificación controlada).
 
-- **HTML/CSS/JS Vanilla**: Sin frameworks para máxima compatibilidad
-- **Tailwind CSS**: Para diseño responsive (CDN en desarrollo)
-- **Google Fonts**: Cormorant Garamond + Inter
-- **Material Symbols**: Iconografía
-- **jsPDF**: Generación de informes (Fase 4)
+### 🔒 Privacidad y Seguridad
+- **Cero Dependencias Externas:** No requiere backend ni APIs en la nube.
+- **Borrado Seguro:** Limpieza automática de sesión.
 
-## 📋 Estado del Desarrollo
+---
 
-### ✅ Fase 1: Estructura Base (COMPLETADO)
-- [x] Estructura de carpetas
-- [x] Sistema de diseño CSS
-- [x] Landing page funcional
-- [x] Página de aplicación base
+## 🚀 Despliegue en GitHub Pages
 
-### ✅ Fase 2: Motor de Procesamiento (COMPLETADO)
-- [x] Tokenizador de texto avanzado
-- [x] Patrones de detección (Nombres, fechas, lugares, identificadores)
-- [x] Transformadores (Sustitución, Generalización)
-- [x] Diccionarios extensos (INE, CCAA, etc.)
+Esta aplicación está lista para ser desplegada gratuitamente en **GitHub Pages**.
 
-### ✅ Fase 3: Interfaz de Aplicación (COMPLETADO)
-- [x] Flujo completo: Input -> Procesamiento -> Revisión
-- [x] Highlighting dinámico de entidades
-- [x] Panel de revisión interactivo
-- [x] Persistencia de sesiones
+### Instrucciones paso a paso:
 
-### ✅ Fase 4: Exportación (COMPLETADO)
-- [x] Copia segura al portapapeles
-- [x] Generación de informes PDF profesionales
-- [x] Metodología incluida en reportes
+1.  **Subir el código:** Sube este repositorio a tu cuenta de GitHub.
+2.  **Configurar Pages:**
+    *   Ve a la pestaña **Settings** (Configuración) de tu repositorio.
+    *   En el menú lateral izquierdo, haz clic en **Pages**.
+    *   En **Source**, selecciona `Deploy from a branch`.
+    *   En **Branch**, selecciona `main` (o `master`) y la carpeta `/ (root)`.
+    *   Haz clic en **Save**.
+3.  **Listo:** En unos minutos, tu aplicación estará disponible en `https://tu-usuario.github.io/tu-repositorio/`.
 
-### ✅ Fase 5, 6 y 7: Pulido y Control (COMPLETADO)
-- [x] Tooltips educativos y leyenda interactiva
-- [x] Edición manual de entidades (Modificar/Restaurar)
-- [x] Selección manual de texto no detectado
-- [x] Barra de acciones optimizada (Action Bar)
-- [x] Responsive design verificado
+---
 
-### ✅ Módulo Batch para Datos Estructurados (BETA)
-- [x] Procesamiento de archivos CSV/Excel
-- [x] Detección automática de columnas (NHC, DNI, fechas, etc.)
-- [x] Mapeo consistente de IDs de paciente para seguimientos longitudinales
-- [x] Generación de tabla de correspondencia reversible
-- [x] Exportación a Excel (datos anonimizados + correspondencia)
-- [x] Interfaz dedicada en `batch-structured.html`
+## 💻 Instalación Local
 
-**Acceso:** [batch-structured.html](./batch-structured.html) o desde el botón naranja en [app.html](./app.html)
+Si prefieres ejecutarlo en tu ordenador sin internet:
 
-## 🎨 Paleta de Colores
+1.  **Clonar:**
+    ```bash
+    git clone https://github.com/tu-usuario/laboratorio-privacidad-clinica.git
+    ```
+2.  **Ejecutar:**
+    *   Opción A: Abre el archivo `index.html` directamente en tu navegador.
+    *   Opción B (Recomendado): Usa un servidor local simple.
+        ```bash
+        # Python 3
+        python -m http.server 8000
+        ```
+    Luego visita `http://localhost:8000`.
 
-| Color | Hex | Uso |
-|-------|-----|-----|
-| Oro Rosa | `#B8897D` | Color principal |
-| Crema | `#FAF8F5` | Fondo general |
-| Piedra | `#2D2926` | Texto principal |
-| Piedra Claro | `#6B635D` | Texto secundario |
+---
 
-## 🔤 Tipografía
+## 🛠️ Stack Técnico
 
-- **Títulos**: Cormorant Garamond (serif)
-- **Cuerpo**: Inter (sans-serif)
-- **Código**: JetBrains Mono (monospace)
+*   **Core:** HTML5, CSS3, JavaScript (Vanilla ES6+).
+*   **Estilos:** Tailwind CSS (vía CDN para desarrollo, o compilado).
+*   **Librerías:**
+    *   `Mammoth.js` (procesamiento .docx)
+    *   `PDF.js` (lectura de PDFs)
+    *   `SheetJS` (procesamiento Excel/CSV)
+    *   `jsPDF` (generación de informes)
+*   **Iconos:** Google Material Symbols.
+*   **Fuentes:** Inter (UI) y Cormorant Garamond (Identidad).
 
-## 📖 Documentación
+---
 
-- `ESPECIFICACION_TECNICA.md`: Especificación técnica completa
-- `INSTRUCCIONES_CLAUDE_CODE.md`: Guía de implementación por fases
+## ⚠️ Aviso Legal y Educativo
 
-## 🤝 Contribuir
+**Esta herramienta es un proyecto educativo.**
 
-Este proyecto está en desarrollo activo. Para contribuir:
-
-1. Revisa `ESPECIFICACION_TECNICA.md` para entender la arquitectura
-2. Sigue las fases definidas en `INSTRUCCIONES_CLAUDE_CODE.md`
-3. Mantén el estilo de código consistente
-
-## 📄 Licencia
-
-© 2024 Sophilux. Todos los derechos reservados.
-
-## 🔒 Privacidad
-
-**Importante**: Esta herramienta procesa todos los datos localmente en tu navegador. Ningún dato clínico se transmite a servidores externos.
+*   **NO garantiza el cumplimiento normativo total** (RGPD, HIPAA, LOPDgdd) por sí misma.
+*   Siempre debe haber una **revisión humana** de los resultados.
+*   No debe usarse como único mecanismo de seguridad en entornos de producción crítica sin una auditoría previa.
 
 ---
 

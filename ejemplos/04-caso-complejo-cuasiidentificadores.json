@@ -1,0 +1,30 @@
+{
+  "titulo": "Caso Complejo - Cuasi-identificadores y Enfermedad Rara",
+  "descripcion": "Caso con múltiples cuasi-identificadores que combinados podrían identificar al paciente",
+  "texto": "Paciente Alejandro Fernández Gómez, único paciente diagnosticado con síndrome de Wolfram en la provincia de Teruel. Alcalde del municipio de Albarracín desde 2015. Hermano gemelo de Carlos Fernández, también residente en la localidad. Nacido 12/07/1965, DNI 25147896K. Dirección: Plaza del Ayuntamiento 1, Albarracín, Teruel. Ingresado en Hospital Universitario Miguel Servet el 23/11/2023. NHC: 2023-456789. Contacto: 978-123-456.",
+  "complejidad": "muy alta",
+  "entidades_esperadas": {
+    "NOMBRE": ["Alejandro Fernández Gómez", "Carlos Fernández"],
+    "IDENTIFICADOR": ["25147896K", "2023-456789", "978-123-456", "12/07/1965"],
+    "FECHA": ["2015", "23/11/2023"],
+    "UBICACION": ["Teruel", "Albarracín", "Plaza del Ayuntamiento 1", "Hospital Universitario Miguel Servet"],
+    "SOSPECHOSO": [
+      "único paciente",
+      "síndrome de Wolfram",
+      "Alcalde del municipio",
+      "Hermano gemelo"
+    ]
+  },
+  "notas_didacticas": [
+    "CRÍTICO: 'único paciente' + 'síndrome de Wolfram' + ubicación geográfica = identificación casi directa",
+    "El cargo de 'Alcalde' es un cuasi-identificador potente en poblaciones pequeñas",
+    "La relación 'hermano gemelo' + nombre del hermano puede permitir identificación cruzada",
+    "Enfermedades raras/ultra-raras son cuasi-identificadores muy potentes",
+    "La dirección 'Plaza del Ayuntamiento 1' confirma el cargo público",
+    "Este caso requiere supresión agresiva y/o consulta con el DPO antes de publicación",
+    "Múltiples capas de cuasi-identificadores hacen muy difícil la anonimización verdadera",
+    "Recomendación: considerar si este caso debe incluirse en cualquier dataset"
+  ],
+  "nivel_riesgo": "CRÍTICO",
+  "recomendacion": "Este caso ilustra la importancia de detectar cuasi-identificadores. La combinación de enfermedad rara + cargo público + ubicación geográfica pequeña hace casi imposible una verdadera anonimización. Se recomienda valorar la necesidad de incluir este caso o aplicar técnicas de generalización extrema."
+}

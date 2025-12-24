@@ -161,11 +161,14 @@
             <a href="app.html" class="text-stone-500 hover:text-primary transition-colors" title="Volver al inicio">
                 <span class="material-symbols-outlined">home</span>
             </a>
-            <h2
-                class="text-stone-900 dark:text-stone-50 text-lg font-bold leading-tight tracking-tight flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary">security</span>
-                Revisión Clínica
-            </h2>
+            <div class="flex flex-col">
+                <h2
+                    class="text-stone-900 dark:text-stone-50 text-base font-bold leading-tight tracking-tight flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">security</span>
+                    Laboratorio de Privacidad
+                </h2>
+                <p class="text-stone-500 dark:text-stone-400 text-xs ml-7">Revisión Clínica</p>
+            </div>
         </div>
         <div class="flex items-center justify-end gap-2">
             <button id="copy-btn"
@@ -180,10 +183,82 @@
             </button>
         </div>
     </header>
-    <div class="flex flex-1 overflow-hidden min-h-0">
+    <div class="flex flex-1 min-h-0 overflow-hidden">
+        <!-- Sidebar izquierdo (entidades) -->
+        <aside
+            class="w-72 shrink-0 bg-stone-50 dark:bg-stone-900/30 border-r border-stone-200 dark:border-stone-800 flex flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto">
+                <div class="p-4 border-b border-stone-200 dark:border-stone-800 bg-surface-light dark:bg-surface-dark">
+                    <h3
+                        class="text-sm font-bold text-stone-700 dark:text-stone-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-base">dashboard</span>
+                        Pendiente de Revisión
+                    </h3>
+                    <div class="flex flex-col gap-1">
+                        <div class="flex gap-6 justify-between items-center mb-1">
+                            <p class="text-stone-600 dark:text-stone-400 text-xs font-medium leading-normal">
+                                <span id="reviewed-count">0</span> de <span id="total-count">0</span>
+                                entidades revisadas
+                            </p>
+                            <span class="text-xs font-semibold text-primary" id="review-percentage">0%</span>
+                        </div>
+                        <div class="rounded-full bg-stone-200 dark:bg-stone-800 h-1.5 w-full overflow-hidden">
+                            <div id="review-progress-bar"
+                                class="h-full rounded-full bg-primary transition-all duration-300" style="width: 0%;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 p-4 space-y-3" id="entities-container">
+                    <!-- Las entidades se cargarán dinámicamente -->
+                </div>
+                <div class="p-4 border-t border-stone-200 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50">
+                    <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
+                        Leyenda</h4>
+                    <div class="grid grid-cols-2 gap-1 text-[10px]">
+                        <div class="flex items-center gap-1 text-stone-700 dark:text-stone-300"><span
+                                class="w-2 h-2 rounded-full bg-emerald-500"></span>Sustituido</div>
+                        <div class="flex items-center gap-1 text-stone-700 dark:text-stone-300"><span
+                                class="w-2 h-2 rounded-full bg-sky-500"></span>Relativizado</div>
+                        <div class="flex items-center gap-1 text-stone-700 dark:text-stone-300"><span
+                                class="w-2 h-2 rounded-full bg-rose-500"></span>Eliminado</div>
+                        <div class="flex items-center gap-1 text-stone-700 dark:text-stone-300"><span
+                                class="w-2 h-2 rounded-full bg-amber-500"></span>Sospechoso</div>
+                        <div class="flex items-center gap-1 text-stone-700 dark:text-stone-300"><span
+                                class="w-2 h-2 rounded-full bg-yellow-500"></span>Baja Confianza</div>
+                        <div class="flex items-center gap-1 text-stone-700 dark:text-stone-300"><span
+                                class="w-2 h-2 rounded-full bg-stone-400"></span>Revisar</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- Área principal (texto procesado) -->
         <main class="flex-1 bg-surface-light dark:bg-background-dark relative flex flex-col overflow-hidden">
-            <div class="flex-1 overflow-y-auto p-12 scroll-smooth" id="main-text-scroll-area">
+            <div class="flex-1 overflow-y-auto p-8 scroll-smooth" id="main-text-scroll-area">
                 <div class="max-w-3xl mx-auto">
+                    <!-- Instrucción de selección manual -->
+                    <div
+                        class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
+                        <span
+                            class="material-symbols-outlined text-amber-600 dark:text-amber-400 shrink-0">lightbulb</span>
+                        <p class="text-sm text-amber-800 dark:text-amber-200">
+                            <strong>Revisión manual:</strong> Si encuentras algún dato sensible que el sistema no haya
+                            detectado,
+                            <span class="underline">selecciona el texto</span> y aparecerá un menú para categorizarlo.
+                        </p>
+                    </div>
+                    <!-- Instrucción de validación de entidades -->
+                    <div
+                        class="mb-6 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-start gap-3">
+                        <span
+                            class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 shrink-0">touch_app</span>
+                        <p class="text-sm text-emerald-800 dark:text-emerald-200">
+                            <strong>Validar cambios:</strong> Haz clic en las tarjetas de la izquierda o en el texto
+                            resaltado.
+                            Usa <strong>Aceptar</strong> para confirmar, <strong>Modificar</strong> para editar, o
+                            <strong>Restaurar</strong> para volver al original.
+                        </p>
+                    </div>
                     <div class="leading-relaxed text-stone-800 dark:text-stone-200 text-lg"
                         id="processed-text-container">
                         <!-- El texto se cargará dinámicamente -->
@@ -238,112 +313,55 @@
     </div>
     </div>
     </main>
-    <aside
-        class="w-[30%] bg-stone-50 dark:bg-stone-900/30 border-l border-stone-200 dark:border-stone-800 flex flex-col shadow-inner overflow-y-auto">
-        <div class="p-4 border-b border-stone-200 dark:border-stone-800 bg-surface-light dark:bg-surface-dark shrink-0">
-            <h3
-                class="text-sm font-bold text-stone-700 dark:text-stone-300 uppercase tracking-wide mb-3 flex items-center gap-2">
-                <span class="material-symbols-outlined text-base">dashboard</span>
-                Pendiente de Revisión
-            </h3>
-            <div class="flex flex-col gap-1">
-                <div class="flex gap-6 justify-between items-center mb-1">
-                    <p class="text-stone-600 dark:text-stone-400 text-xs font-medium leading-normal">
-                        <span id="reviewed-count">0</span> de <span id="total-count">0</span>
-                        entidades revisadas
-                    </p>
-                    <span class="text-xs font-semibold text-primary" id="review-percentage">0%</span>
-                </div>
-                <div class="rounded-full bg-stone-200 dark:bg-stone-800 h-1.5 w-full overflow-hidden">
-                    <div id="review-progress-bar" class="h-full rounded-full bg-primary transition-all duration-300"
-                        style="width: 0%;"></div>
-                </div>
-            </div>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-3 shrink-0" style="max-height: 50vh;">
-            <!-- Las entidades se cargarán dinámicamente -->
-        </div>
-        <div class="p-5 border-t border-stone-200 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50">
-            <div class="mb-5">
-                <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
-                    Leyenda</h4>
-                <div class="grid grid-cols-2 gap-2">
-                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                        <span>Sustituido</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                        <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
-                        <span>Relativizado</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                        <span>Eliminado</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                        <span>Sospechoso</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
-                        <span>Baja Confianza</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
-                        <span class="w-2.5 h-2.5 rounded-full bg-stone-400"></span>
-                        <span>Revisar</span>
-                    </div>
-                </div>
-            </div>
-            <div class="w-full h-px bg-stone-200 dark:bg-stone-700 mb-5"></div>
-            <div>
-                <div class="flex items-center gap-3 mb-2">
-                    <div
-                        class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                        <span class="material-symbols-outlined text-lg">description</span>
-                    </div>
-                    <div class="flex flex-col">
-                        <p class="text-stone-900 dark:text-stone-100 text-sm font-semibold">Sesión #CL-2024-89</p>
-                        <div class="flex items-center gap-1">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                            <span class="text-stone-500 dark:text-stone-400 text-xs">Local (Seguro)</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px] text-stone-400 ml-11">
-                    <div>ID: proc_8829a</div>
-                    <div>Modelo: MediBERT</div>
-                    <div>T: 1.2s</div>
-                    <div>Exp: JSON/HL7</div>
-                </div>
-            </div>
-        </div>
-    </aside>
     </div>
     <div class="absolute bottom-0 left-0 w-full z-30 hidden" id="original-bottom-sheet"></div>
 
     <!-- Tooltip de Selección Manual -->
-    <div class="fixed z-50 hidden bg-stone-800 text-white rounded-lg shadow-xl py-1 px-1 flex gap-1 animate-scale-in"
-        id="manual-selection-tooltip">
-        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-            data-type="NOMBRE">
-            <span class="material-symbols-outlined text-emerald-400 text-lg">person</span>
-            <span class="text-[10px] font-medium">Nombre</span>
-        </button>
-        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-            data-type="UBICACION">
-            <span class="material-symbols-outlined text-indigo-400 text-lg">Lugar</span>
-            <span class="text-[10px] font-medium">Lugar</span>
-        </button>
-        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-            data-type="FECHA">
-            <span class="material-symbols-outlined text-sky-400 text-lg">calendar_month</span>
-            <span class="text-[10px] font-medium">Fecha</span>
-        </button>
-        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-            data-type="IDENTIFICADOR">
-            <span class="material-symbols-outlined text-rose-400 text-lg">badge</span>
-            <span class="text-[10px] font-medium">ID</span>
-        </button>
+    <div class="fixed z-[200] hidden" id="manual-selection-tooltip">
+        <div
+            class="bg-white dark:bg-stone-800 rounded-xl shadow-2xl border border-stone-200 dark:border-stone-700 p-2 animate-scale-in">
+            <p
+                class="text-[10px] text-stone-500 dark:text-stone-400 uppercase tracking-wide font-bold px-2 pb-2 border-b border-stone-200 dark:border-stone-700 mb-2">
+                Marcar como:</p>
+            <div class="grid grid-cols-3 gap-1">
+                <button
+                    class="manual-type-btn p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors flex flex-col items-center gap-1"
+                    data-type="NOMBRE">
+                    <span class="material-symbols-outlined text-emerald-500 text-xl">person</span>
+                    <span class="text-[10px] font-medium text-stone-700 dark:text-stone-300">Nombre</span>
+                </button>
+                <button
+                    class="manual-type-btn p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors flex flex-col items-center gap-1"
+                    data-type="UBICACION">
+                    <span class="material-symbols-outlined text-indigo-500 text-xl">location_on</span>
+                    <span class="text-[10px] font-medium text-stone-700 dark:text-stone-300">Ubicación</span>
+                </button>
+                <button
+                    class="manual-type-btn p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors flex flex-col items-center gap-1"
+                    data-type="FECHA">
+                    <span class="material-symbols-outlined text-sky-500 text-xl">calendar_month</span>
+                    <span class="text-[10px] font-medium text-stone-700 dark:text-stone-300">Fecha</span>
+                </button>
+                <button
+                    class="manual-type-btn p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors flex flex-col items-center gap-1"
+                    data-type="IDENTIFICADOR">
+                    <span class="material-symbols-outlined text-rose-500 text-xl">badge</span>
+                    <span class="text-[10px] font-medium text-stone-700 dark:text-stone-300">DNI/ID</span>
+                </button>
+                <button
+                    class="manual-type-btn p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors flex flex-col items-center gap-1"
+                    data-type="SOSPECHOSO">
+                    <span class="material-symbols-outlined text-amber-500 text-xl">warning</span>
+                    <span class="text-[10px] font-medium text-stone-700 dark:text-stone-300">Sospechoso</span>
+                </button>
+                <button
+                    class="manual-type-btn p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors flex flex-col items-center gap-1"
+                    data-type="OTROS">
+                    <span class="material-symbols-outlined text-stone-500 text-xl">more_horiz</span>
+                    <span class="text-[10px] font-medium text-stone-700 dark:text-stone-300">Otros</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal de Edición -->
@@ -410,47 +428,10 @@
     </div>
 
     <script>
+        // Note: Card click handlers are added dynamically in renderSidePanel
         document.addEventListener('DOMContentLoaded', () => {
-            const pendingEntityCards = document.querySelectorAll('.pending-entity-card');
-            const mainTextScrollArea = document.getElementById('main-text-scroll-area');
-            const reviewActionBar = document.getElementById('review-action-bar');
-            const originalBottomSheet = document.getElementById('original-bottom-sheet'); // Keep original sheet hidden
-            if (originalBottomSheet) originalBottomSheet.classList.add('hidden'); // Ensure the original bottom sheet is hidden on load
-            pendingEntityCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    // Remove selected state from all cards
-                    pendingEntityCards.forEach(c => c.removeAttribute('data-selected'));
-                    // Add selected state to the clicked card
-                    card.setAttribute('data-selected', 'true');
-                    const targetId = card.getAttribute('data-target-id');
-                    const targetElement = document.getElementById(targetId);
-                    if (targetElement) {
-                        // Remove previous highlights
-                        document.querySelectorAll('.highlighted-for-scroll').forEach(el => {
-                            el.classList.remove('highlighted-for-scroll');
-                            el.classList.remove('selected-entity');
-                        });
-                        // Add highlight to the selected entity
-                        targetElement.classList.add('highlighted-for-scroll');
-                        targetElement.classList.add('selected-entity'); // Trigger animation
-                        // Scroll to the target element within the main text content area
-                        // Simple alignment to center or slightly above center
-                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        // Update and show the smaller action bar
-                        const entityName = card.querySelector('p:nth-child(2)') ? card.querySelector('p:nth-child(2)').textContent : card.querySelector('.font-medium').textContent;
-                        // Try to find text within brackets for suggestion, fallback to placeholder
-                        const suggestionMatch = card.querySelector('p:last-of-type').textContent.match(/Sugerencia: (\[.*?\])/);
-                        const suggestionText = suggestionMatch ? suggestionMatch[1] : "[Sugerencia]";
-                        reviewActionBar.querySelector('h4 span:last-child').textContent = entityName;
-                        reviewActionBar.querySelector('p span').textContent = suggestionText;
-                        reviewActionBar.classList.remove('hidden');
-                        // Reset highlight animation listener
-                        targetElement.addEventListener('animationend', () => {
-                            targetElement.classList.remove('selected-entity');
-                        }, { once: true });
-                    }
-                });
-            });
+            const originalBottomSheet = document.getElementById('original-bottom-sheet');
+            if (originalBottomSheet) originalBottomSheet.classList.add('hidden');
         });
     </script>
     <style type="text/tailwindcss">
@@ -502,14 +483,14 @@
             const entities = [...result.entities].sort((a, b) => b.position.start - a.position.start);
 
             for (const entity of entities) {
-                // Buscamos el índice original para mantener consistencia con el panel lateral
                 const originalIndex = result.entities.indexOf(entity);
                 const span = createEntitySpan(entity, originalIndex);
                 html = html.substring(0, entity.position.start) + span + html.substring(entity.position.end);
             }
 
             const paragraphs = html.split(/\n\s*\n/).filter(p => p.trim());
-            container.innerHTML = paragraphs.map(p => `<p class="mb-6">${p}</p>`).join('') + '<div class="h-32"></div>';
+            const finalHtml = paragraphs.map(p => `<p class="mb-6">${p}</p>`).join('') + '<div class="h-32"></div>';
+            container.innerHTML = finalHtml;
 
             // Add click listeners to new spans
             container.querySelectorAll('span[id^="entity-"]').forEach(span => {
@@ -537,8 +518,11 @@
         }
 
         function renderSidePanel(result) {
-            const listContainer = document.querySelector('.flex-1.overflow-y-auto.p-4.space-y-3');
-            if (!listContainer) return;
+            const listContainer = document.getElementById('entities-container');
+            if (!listContainer) {
+                console.error('entities-container not found!');
+                return;
+            }
 
             listContainer.innerHTML = '';
 
@@ -594,8 +578,8 @@
 
                 // Logic for click handling
                 card.addEventListener('click', () => {
-                    // Remover highlights anteriores
-                    document.querySelectorAll('.highlighted-for-scroll').forEach(el => {
+                    // Remover highlights anteriores - IMPORTANTE: limpiar TODAS las clases de selección
+                    document.querySelectorAll('.selected-entity, .highlighted-for-scroll').forEach(el => {
                         el.classList.remove('highlighted-for-scroll', 'selected-entity', 'ring-2', 'ring-primary');
                     });
                     document.querySelectorAll('.pending-entity-card').forEach(el => {
@@ -1273,10 +1257,18 @@
 
             let currentSelectionRange = null;
 
-            // Detectar selección
+            // Prevenir menú contextual de Windows al seleccionar texto
+            mainText.addEventListener('contextmenu', (e) => {
+                const selection = window.getSelection();
+                if (!selection.isCollapsed && selection.toString().trim().length > 0) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Detectar selección con mouseup
             document.addEventListener('mouseup', (e) => {
                 const selection = window.getSelection();
-                console.log('MouseUp detected. Selection:', selection.toString());
 
                 // Si la selección está vacía o no es dentro del área de texto, ocultar
                 // Relaxed check for debugging: just check if text is selected

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funcionamiento - Laboratorio de Privacidad</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b88a7f",
+                        "primary-dark": "#966a60",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#2a2524",
+                        "background-light": "#fdfcf8",
+                        "background-dark": "#1c1816"
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-sans text-stone-900 dark:text-stone-100 antialiased">
+    <!-- Standard Header -->
+    <header
+        class="bg-surface-light dark:bg-surface-dark border-b border-stone-200 dark:border-stone-800 py-3 px-6 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <a href="app.html" class="text-stone-500 hover:text-primary transition-colors" title="Volver al inicio">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </a>
+            <h1
+                class="text-stone-900 dark:text-white text-base font-bold leading-tight tracking-tight flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">security</span>
+                Laboratorio de Privacidad
+            </h1>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto py-12 px-6">
+        <h1 class="text-3xl md:text-4xl font-bold text-stone-900 dark:text-white mb-6">Cómo Funciona</h1>
+        <p class="text-lg text-stone-600 dark:text-stone-400 mb-10 leading-relaxed">
+            Esta herramienta está diseñada para procesar datos clínicos sensibles de forma segura y local.
+            A continuación explicamos sus capacidades, métodos de validación y fundamentos legales.
+        </p>
+
+        <!-- Seudonimización de Texto Simple -->
+        <section class="mb-12">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-primary text-3xl">edit_note</span>
+                <h2 class="text-2xl font-bold text-stone-900 dark:text-white">Procesamiento de Texto</h2>
+            </div>
+            <div
+                class="bg-surface-light dark:bg-surface-dark border border-stone-200 dark:border-stone-800 rounded-xl p-6 shadow-sm">
+                <p class="text-stone-700 dark:text-stone-300 mb-4 leading-relaxed">
+                    Nuestra IA analiza el texto en lenguaje natural para detectar identificadores personales.
+                    Para facilitar el aprendizaje, la herramienta incluye
+                    <strong class="text-primary">ejemplos precargados</strong> (Urgencias, Quirúrgico, Historia Clínica)
+                    que puedes seleccionar directamente desde el menú lateral en la pantalla de entrada.
+                </p>
+                <ul class="space-y-3 mt-4">
+                    <li class="flex items-start gap-3">
+                        <span class="material-symbols-outlined text-emerald-500 shrink-0">check_circle</span>
+                        <span class="text-stone-600 dark:text-stone-400 text-sm">Detección automática de Nombres,
+                            Fechas, Ubicaciones e IDs.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <span class="material-symbols-outlined text-emerald-500 shrink-0">check_circle</span>
+                        <span class="text-stone-600 dark:text-stone-400 text-sm">Categorización por colores para
+                            revisión visual rápida.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Batch & Archivos Estructurados -->
+        <section class="mb-12">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-amber-600 text-3xl">table_view</span>
+                <h2 class="text-2xl font-bold text-stone-900 dark:text-white">Archivos Estructurados (Batch)</h2>
+            </div>
+            <div
+                class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-6 shadow-sm">
+                <p class="text-stone-700 dark:text-stone-300 mb-4 leading-relaxed">
+                    Para grandes volúmenes de datos, el modo Batch permite procesar archivos <strong>CSV y
+                        Excel</strong>.
+                    El sistema escanea columnas completas buscando patrones sensibles.
+                </p>
+                <div class="grid md:grid-cols-2 gap-4 mt-4">
+                    <div
+                        class="bg-white dark:bg-surface-dark p-4 rounded-lg border border-amber-100 dark:border-amber-900/50">
+                        <h4 class="font-bold text-stone-900 dark:text-white mb-2 text-sm uppercase">Formatos Soportados
+                        </h4>
+                        <p class="text-xs text-stone-500 dark:text-stone-400">.csv, .xls, .xlsx</p>
+                    </div>
+                    <div
+                        class="bg-white dark:bg-surface-dark p-4 rounded-lg border border-amber-100 dark:border-amber-900/50">
+                        <h4 class="font-bold text-stone-900 dark:text-white mb-2 text-sm uppercase">Procesamiento</h4>
+                        <p class="text-xs text-stone-500 dark:text-stone-400">Análisis columna por columna respetando la
+                            estructura tabular.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Validaciones y Modificaciones -->
+        <section class="mb-12">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-indigo-500 text-3xl">fact_check</span>
+                <h2 class="text-2xl font-bold text-stone-900 dark:text-white">Validación y Control Humano</h2>
+            </div>
+            <p class="text-stone-600 dark:text-stone-400 mb-4">
+                La herramienta prioriza el control del usuario sobre la automatización. En la pantalla de revisión
+                puedes:
+            </p>
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Aceptar -->
+                <div
+                    class="p-5 rounded-xl bg-surface-light dark:bg-surface-dark border border-stone-200 dark:border-stone-800">
+                    <div
+                        class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 mb-3">
+                        <span class="material-symbols-outlined">check</span>
+                    </div>
+                    <h3 class="font-bold text-stone-900 dark:text-white mb-2">Aceptar</h3>
+                    <p class="text-sm text-stone-500 dark:text-stone-400">Confirma que la entidad detectada es correcta
+                        y debe ser anonimizada.</p>
+                </div>
+                <!-- Modificar -->
+                <div
+                    class="p-5 rounded-xl bg-surface-light dark:bg-surface-dark border border-stone-200 dark:border-stone-800">
+                    <div
+                        class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 mb-3">
+                        <span class="material-symbols-outlined">edit</span>
+                    </div>
+                    <h3 class="font-bold text-stone-900 dark:text-white mb-2">Modificar</h3>
+                    <p class="text-sm text-stone-500 dark:text-stone-400">Cambia la categoría o ajusta el rango de texto
+                        seleccionado manualmente.</p>
+                </div>
+                <!-- Restaurar -->
+                <div
+                    class="p-5 rounded-xl bg-surface-light dark:bg-surface-dark border border-stone-200 dark:border-stone-800">
+                    <div
+                        class="w-10 h-10 rounded-full bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-600 mb-3">
+                        <span class="material-symbols-outlined">undo</span>
+                    </div>
+                    <h3 class="font-bold text-stone-900 dark:text-white mb-2">Restaurar</h3>
+                    <p class="text-sm text-stone-500 dark:text-stone-400">Descarta un falso positivo y devuelve el texto
+                        a su estado original.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Marco Legal -->
+        <section class="mb-12">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="material-symbols-outlined text-rose-500 text-3xl">gavel</span>
+                <h2 class="text-2xl font-bold text-stone-900 dark:text-white">Fundamento Legal y Criterios</h2>
+            </div>
+            <div class="bg-stone-50 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 rounded-xl p-6">
+                <p class="text-stone-700 dark:text-stone-300 mb-4 leading-relaxed">
+                    La eliminación de términos se basa en el principio de <strong>minimización de datos</strong> del
+                    RGPD y la LOPDgdd.
+                    El objetivo es romper el vínculo entre el dato y el individuo (desvinculación).
+                </p>
+                <div class="space-y-4">
+                    <details
+                        class="group bg-white dark:bg-surface-dark rounded-lg border border-stone-200 dark:border-stone-800 open:ring-2 open:ring-primary/20">
+                        <summary
+                            class="flex items-center justify-between p-4 cursor-pointer font-medium text-stone-900 dark:text-white">
+                            <span>¿Por qué eliminamos fechas y ubicaciones?</span>
+                            <span
+                                class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+                        </summary>
+                        <div
+                            class="px-4 pb-4 text-stone-600 dark:text-stone-400 text-sm leading-relaxed border-t border-stone-100 dark:border-stone-800 pt-3">
+                            Las fechas exactas de ingreso o nacimiento, combinadas con códigos postales o ubicaciones
+                            (cuasi-identificadores),
+                            pueden permitir la re-identificación mediante ataques de enlace con bases de datos públicas.
+                        </div>
+                    </details>
+                    <details
+                        class="group bg-white dark:bg-surface-dark rounded-lg border border-stone-200 dark:border-stone-800 open:ring-2 open:ring-primary/20">
+                        <summary
+                            class="flex items-center justify-between p-4 cursor-pointer font-medium text-stone-900 dark:text-white">
+                            <span>Concepto de Privacidad Diferencial</span>
+                            <span
+                                class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+                        </summary>
+                        <div
+                            class="px-4 pb-4 text-stone-600 dark:text-stone-400 text-sm leading-relaxed border-t border-stone-100 dark:border-stone-800 pt-3">
+                            Alteramos ligeramente ciertos valores numéricos o generalizamos categorías (ej. cambiar
+                            "24/12/2024" por "[FECHA]")
+                            para garantizar que la presencia de un individuo en el conjunto de datos no afecte
+                            significativamente al resultado del análisis.
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer
+        class="bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800 py-6 px-6 text-center text-sm text-stone-500 dark:text-stone-400 mt-auto">
+        <div class="flex gap-4 justify-center">
+            <a href="guia.html" class="hover:text-primary transition">Guía</a>
+            <a href="terminos.html" class="hover:text-primary transition">Términos</a>
+            <a href="index.html" class="hover:text-primary transition">Inicio</a>
+        </div>
+    </footer>
+</body>
+
+</html>

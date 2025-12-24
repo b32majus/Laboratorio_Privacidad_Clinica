@@ -1,0 +1,288 @@
+/* ===================================================================
+   LABORATORIO DE PRIVACIDAD CLÍNICA - COMPONENTES UI
+   Botones, cards, badges, inputs, y otros componentes reutilizables
+   =================================================================== */
+
+/* ===== BOTONES ===== */
+
+.btn-primary {
+    background: var(--oro-rosa);
+    color: var(--text-inverse);
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-weight: var(--font-medium);
+    font-size: var(--text-base);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition-normal);
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-primary:hover {
+    background: var(--oro-rosa-hover);
+    color: var(--text-inverse);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-medium);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: inline-block;
+    text-align: center;
+    font-weight: var(--font-medium);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-card);
+    border-color: var(--oro-rosa);
+    color: var(--text-primary);
+}
+
+.btn-text {
+    background: transparent;
+    color: var(--oro-rosa);
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    cursor: pointer;
+    font-weight: var(--font-medium);
+    transition: opacity var(--transition-normal);
+}
+
+.btn-text:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
+/* ===== CARDS ===== */
+
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-light);
+    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--oro-rosa-ultra-light);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--oro-rosa);
+    font-size: var(--text-xl);
+    flex-shrink: 0;
+}
+
+.card-title {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.card-description {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    margin: 0;
+}
+
+/* ===== BADGES ===== */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-weight: var(--font-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-success {
+    background: var(--success-light);
+    color: var(--success);
+}
+
+.badge-warning {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+.badge-info {
+    background: var(--info-light);
+    color: var(--info);
+}
+
+.badge-neutral {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+/* ===== INPUTS Y TEXTAREAS ===== */
+
+.input,
+.textarea {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-md);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    background: var(--bg-card);
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.input:focus,
+.textarea:focus {
+    outline: none;
+    border-color: var(--oro-rosa);
+    box-shadow: 0 0 0 3px var(--oro-rosa-ultra-light);
+}
+
+.textarea {
+    min-height: 200px;
+    resize: vertical;
+    line-height: var(--leading-relaxed);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* ===== LEYENDA DE COLORES ===== */
+
+.legend {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+.legend-dot.sustituido {
+    background: var(--dot-sustituido);
+}
+
+.legend-dot.relativizado {
+    background: var(--dot-relativizado);
+}
+
+.legend-dot.eliminado {
+    background: var(--dot-eliminado);
+}
+
+.legend-dot.revisar {
+    background: var(--dot-revisar);
+}
+
+/* ===== PROGRESS BAR ===== */
+
+.progress-container {
+    margin-bottom: var(--space-2);
+}
+
+.progress-bar {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--oro-rosa);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-slow);
+}
+
+.progress-text {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+}
+
+/* ===== SESSION INDICATOR ===== */
+
+.session-indicator {
+    padding: var(--space-3);
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.session-id {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.session-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--success);
+}
+
+.session-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--success);
+    border-radius: var(--radius-full);
+}
+
+.session-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-light);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
