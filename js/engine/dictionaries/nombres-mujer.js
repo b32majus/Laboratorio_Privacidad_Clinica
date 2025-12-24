@@ -1,0 +1,22 @@
+export const NOMBRES_MUJER = [
+    "María", "Carmen", "Ana", "Isabel", "Laura", "Cristina", "Marta", "Lucía", "Elena", "Pilar",
+    "Dolores", "Josefa", "Teresa", "Rosa", "Francisca", "Antonia", "Paula", "Sara", "Raquel", "Beatriz",
+    "Patricia", "Julia", "Adriana", "Silvia", "Mónica", "Andrea", "Rocío", "Alicia", "Alba", "Ángela",
+    "Sonia", "Sandra", "Marina", "Susana", "Natalia", "Yolanda", "Margarita", "Claudia", "Eva", "Sofia",
+    "Noelia", "Lorena", "Nuria", "Ainhoa", "Miriam", "Lidia", "Clara", "Celia", "Victoria", "Amparo",
+    "Inés", "Mercedes", "Gloria", "Lourdes", "Alejandra", "Carolina", "Begoña", "Rosario", "Juana", "Manuela",
+    "Concepción", "Verónica", "Nerea", "Esther", "Irene", "Gema", "Daniela", "Blanca", "Carla", "Elisa",
+    "Vanesa", "Virginia", "Fátima", "Bárbara", "Belén", "Matilde", "Consuelo", "Asunción", "Esperanza", "Milagros",
+    "Aurora", "Soledad", "Vicenta", "Adela", "Luisa", "Emilia", "Pura", "Remedios", "Trinidad", "Eugenia",
+    "Valentina", "Valeria", "Martina", "Aitana", "Candela", "Vega", "Lola", "Jimena", "Triana", "Macarena",
+    "Alma", "Olivia", "Chloe", "Abril", "Gala", "Julieta", "Mia", "Zoe", "Noa", "Laia",
+    "Carlota", "Cayetana", "Ariadna", "Gabriela", "Mar", "Azucena", "Estefanía", "Tamara", "Rebeca", "Diana",
+    "Olga", "Fabiola", "Guadalupe", "Inmaculada", "Jacinta", "Leonor", "Magdalena", "Nicol", "Paloma", "Ramona",
+    "Sabina", "Teodora", "Ursula", "Ximena", "Yaisa", "Zaida", "Amalia", "Amelia", "Bernarda", "Catalina",
+    "Dora", "Elvira", "Felisa", "Genoveva", "Hortensia", "Ilaria", "Josefina", "Katia", "Leandra", "Modesta",
+    "Narcisa", "Ofelia", "Petra", "Quiteria", "Rufina", "Salomé", "Tomasa", "Urraca", "Violeta", "Wanda",
+    "Yvonne", "Zulema", "Aida", "Benita", "Casandra", "Dalia", "Elousa", "Filomena", "Griselda", "Herminia",
+    "Isidora", "Joaquina", "Leocadia", "Marcelina", "Nieves", "Otilia", "Priscila", "Rafaela", "Severina", "Teófila",
+    "Ainara", "Ariadna", "Brenda", "Cecilia", "Débora", "Emma", "Fiona", "Gemma", "Helena", "Iris",
+    "Jana", "Leticia", "Montserrat", "Natasha", "Nadia", "Oona", "Penélope", "Queralt", "Ruth", "Soraya"
+];

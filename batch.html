@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modo Batch Premium - Sanitizador Clínico</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Crimson+Pro:ital,wght@0,200..900;1,200..900&amp;display=swap"
+    rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Mammoth.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- Tailwind Config -->
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#B8897D",
+            "primary-dark": "#A07669",
+            "surface-light": "#FAF8F5",
+            "surface-dark": "#1C1917"
+          },
+          fontFamily: {
+            sans: ["Inter", "system-ui", "sans-serif"],
+            serif: ["Crimson Pro", "Georgia", "serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+    }
+
+    .drop-zone {
+      border: 2px dashed #B8897D;
+      transition: all 0.3s ease;
+    }
+
+    .drop-zone.drag-over {
+      background-color: rgba(184, 137, 125, 0.1);
+      border-color: #A07669;
+      transform: scale(1.02);
+    }
+
+    .doc-item {
+      transition: all 0.2s ease;
+    }
+
+    .doc-item:hover {
+      transform: translateX(4px);
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(184, 137, 125, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(184, 137, 125, 0.6); }
+    }
+
+    .processing {
+      animation: pulse-glow 2s infinite;
+    }
+  </style>
+</head>
+
+<body class="bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white dark:bg-stone-800 shadow-sm border-b border-stone-200 dark:border-stone-700">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="./input.html" class="text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </a>
+        <div>
+          <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100">Modo Batch Premium</h1>
+          <p class="text-sm text-stone-500 dark:text-stone-400">Procesamiento múltiple de documentos clínicos</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900 dark:to-amber-800 rounded-lg border border-amber-200 dark:border-amber-700">
+        <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">workspace_premium</span>
+        <span class="text-sm font-bold text-amber-900 dark:text-amber-100">Premium</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Upload Zone -->
+    <section class="mb-8">
+      <div class="bg-white dark:bg-stone-800 rounded-2xl shadow-lg p-8 border border-stone-200 dark:border-stone-700">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">upload_file</span>
+          Cargar Documentos
+        </h2>
+
+        <div id="drop-zone" class="drop-zone rounded-xl p-12 text-center cursor-pointer bg-surface-light dark:bg-stone-900">
+          <span class="material-symbols-outlined text-6xl text-primary mb-4 block">cloud_upload</span>
+          <p class="text-lg font-medium text-stone-700 dark:text-stone-300 mb-2">
+            Arrastra archivos aquí o haz click para seleccionar
+          </p>
+          <p class="text-sm text-stone-500 dark:text-stone-400">
+            Formatos soportados: TXT, PDF, DOCX • Máximo 50 archivos • 5MB por archivo
+          </p>
+          <input type="file" id="file-input" multiple accept=".txt,.pdf,.doc,.docx" class="hidden" />
+        </div>
+
+        <!-- Queue List -->
+        <div id="queue-container" class="mt-6 hidden">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold">Documentos en Cola</h3>
+            <button id="clear-queue" class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">delete</span>
+              Limpiar Cola
+            </button>
+          </div>
+          <ul id="queue-list" class="space-y-2 max-h-96 overflow-y-auto">
+            <!-- Documentos se insertarán aquí dinámicamente -->
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Batch Options -->
+    <section class="mb-8">
+      <div class="bg-white dark:bg-stone-800 rounded-2xl shadow-lg p-8 border border-stone-200 dark:border-stone-700">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">settings</span>
+          Configuración del Batch
+        </h2>
+
+        <div class="space-y-6">
+          <!-- Consistencia -->
+          <div class="flex items-start gap-4 p-4 bg-stone-50 dark:bg-stone-900 rounded-lg">
+            <input type="checkbox" id="maintain-consistency" checked
+              class="mt-1 h-5 w-5 text-primary border-stone-300 rounded focus:ring-primary" />
+            <div class="flex-1">
+              <label for="maintain-consistency" class="font-medium text-stone-900 dark:text-stone-100 cursor-pointer">
+                Mantener consistencia entre documentos
+              </label>
+              <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
+                Si está activado, el mismo nombre (ej: "Juan García") se transformará al mismo sustituto en todos los documentos del batch.
+                Útil cuando los documentos pertenecen al mismo contexto clínico.
+              </p>
+            </div>
+          </div>
+
+          <!-- Formato de Exportación -->
+          <div class="p-4 bg-stone-50 dark:bg-stone-900 rounded-lg">
+            <label for="export-format" class="font-medium text-stone-900 dark:text-stone-100 block mb-2">
+              Formato de Exportación
+            </label>
+            <select id="export-format"
+              class="w-full px-4 py-2 border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-primary">
+              <option value="pdf-consolidated">PDF Consolidado (Recomendado)</option>
+              <option value="pdf-individual">PDFs Individuales (ZIP)</option>
+              <option value="excel">Excel/CSV con Resumen</option>
+            </select>
+            <p class="text-sm text-stone-500 dark:text-stone-400 mt-2">
+              PDF Consolidado genera un único informe con todos los documentos e índice navegable.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Progress Section -->
+    <section id="progress-section" class="mb-8 hidden">
+      <div class="bg-white dark:bg-stone-800 rounded-2xl shadow-lg p-8 border border-stone-200 dark:border-stone-700">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">pending_actions</span>
+          Progreso del Procesamiento
+        </h2>
+
+        <div class="space-y-4">
+          <!-- Progress Bar -->
+          <div>
+            <div class="flex justify-between text-sm text-stone-600 dark:text-stone-400 mb-2">
+              <span id="progress-text">0 de 0 documentos procesados</span>
+              <span id="progress-percentage">0%</span>
+            </div>
+            <div class="w-full bg-stone-200 dark:bg-stone-700 rounded-full h-3 overflow-hidden">
+              <div id="progress-bar" class="bg-gradient-to-r from-primary to-primary-dark h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Current Document -->
+          <div id="current-doc-info" class="p-4 bg-stone-50 dark:bg-stone-900 rounded-lg hidden">
+            <p class="text-sm text-stone-500 dark:text-stone-400">Procesando:</p>
+            <p id="current-doc-name" class="font-medium text-stone-900 dark:text-stone-100"></p>
+          </div>
+
+          <!-- Stats -->
+          <div class="grid grid-cols-3 gap-4 mt-6">
+            <div class="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+              <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" id="completed-count">0</p>
+              <p class="text-sm text-stone-600 dark:text-stone-400">Completados</p>
+            </div>
+            <div class="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <p class="text-3xl font-bold text-amber-600 dark:text-amber-400" id="pending-count">0</p>
+              <p class="text-sm text-stone-600 dark:text-stone-400">Pendientes</p>
+            </div>
+            <div class="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <p class="text-3xl font-bold text-red-600 dark:text-red-400" id="error-count">0</p>
+              <p class="text-sm text-stone-600 dark:text-stone-400">Errores</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Action Buttons -->
+    <section>
+      <div class="flex gap-4">
+        <button id="start-batch"
+          class="flex-1 h-14 bg-primary hover:bg-primary-dark active:scale-[0.99] transition-all duration-200 text-white rounded-xl shadow-lg shadow-primary/25 font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled>
+          <span class="material-symbols-outlined">play_arrow</span>
+          Procesar Batch
+        </button>
+        <button id="review-batch"
+          class="flex-1 h-14 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] transition-all duration-200 text-white rounded-xl shadow-lg font-bold text-lg flex items-center justify-center gap-2 hidden">
+          <span class="material-symbols-outlined">rate_review</span>
+          Revisar Documentos
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script>
+    // Configurar PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <script src="./js/standalone-processor.js"></script>
+  <script src="./js/batch-processor.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropZone = document.getElementById('drop-zone');
+      const fileInput = document.getElementById('file-input');
+      const queueContainer = document.getElementById('queue-container');
+      const queueList = document.getElementById('queue-list');
+      const clearQueueBtn = document.getElementById('clear-queue');
+      const startBatchBtn = document.getElementById('start-batch');
+      const reviewBatchBtn = document.getElementById('review-batch');
+      const progressSection = document.getElementById('progress-section');
+
+      let uploadedFiles = [];
+
+      // Click en drop zone
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      // Prevenir comportamiento por defecto de drag
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      // Highlight en drag over
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+          dropZone.classList.add('drag-over');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+          dropZone.classList.remove('drag-over');
+        });
+      });
+
+      // Handle drop
+      dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+      });
+
+      // Handle file input change
+      fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+        fileInput.value = ''; // Reset input
+      });
+
+      function handleFiles(files) {
+        const filesArray = Array.from(files);
+
+        // Validar límite de archivos
+        if (uploadedFiles.length + filesArray.length > 50) {
+          alert('Máximo 50 archivos permitidos. Actualmente tienes ' + uploadedFiles.length + ' archivos.');
+          return;
+        }
+
+        // Validar formato y tamaño
+        const validFiles = filesArray.filter(file => {
+          const ext = file.name.split('.').pop().toLowerCase();
+          const validExtensions = ['txt', 'pdf', 'doc', 'docx'];
+
+          if (!validExtensions.includes(ext)) {
+            alert(`Formato no soportado: ${file.name}`);
+            return false;
+          }
+
+          if (file.size > 5 * 1024 * 1024) { // 5MB
+            alert(`Archivo muy grande (máx 5MB): ${file.name}`);
+            return false;
+          }
+
+          return true;
+        });
+
+        uploadedFiles = uploadedFiles.concat(validFiles);
+        renderQueue();
+        updateStartButton();
+      }
+
+      function renderQueue() {
+        if (uploadedFiles.length === 0) {
+          queueContainer.classList.add('hidden');
+          return;
+        }
+
+        queueContainer.classList.remove('hidden');
+        queueList.innerHTML = '';
+
+        uploadedFiles.forEach((file, index) => {
+          const li = document.createElement('li');
+          li.className = 'doc-item flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700';
+
+          const formatSize = (bytes) => {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+          };
+
+          const ext = file.name.split('.').pop().toLowerCase();
+          const icon = ext === 'pdf' ? 'picture_as_pdf' : ext === 'docx' || ext === 'doc' ? 'description' : 'text_snippet';
+
+          li.innerHTML = `
+            <div class="flex items-center gap-3 flex-1">
+              <span class="material-symbols-outlined text-primary text-2xl">${icon}</span>
+              <div>
+                <p class="font-medium text-stone-900 dark:text-stone-100">${file.name}</p>
+                <p class="text-sm text-stone-500 dark:text-stone-400">${formatSize(file.size)}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 rounded-full">
+                Pendiente
+              </span>
+              <button class="remove-file text-stone-400 hover:text-red-600 dark:hover:text-red-400" data-index="${index}">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          `;
+
+          queueList.appendChild(li);
+        });
+
+        // Event listeners para botones de eliminar
+        document.querySelectorAll('.remove-file').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const index = parseInt(e.currentTarget.dataset.index);
+            uploadedFiles.splice(index, 1);
+            renderQueue();
+            updateStartButton();
+          });
+        });
+      }
+
+      function updateStartButton() {
+        startBatchBtn.disabled = uploadedFiles.length === 0;
+      }
+
+      // Clear queue
+      clearQueueBtn.addEventListener('click', () => {
+        if (confirm('¿Estás seguro de que quieres eliminar todos los archivos de la cola?')) {
+          uploadedFiles = [];
+          renderQueue();
+          updateStartButton();
+        }
+      });
+
+      // Start batch processing
+      startBatchBtn.addEventListener('click', async () => {
+        if (uploadedFiles.length === 0) return;
+
+        const maintainConsistency = document.getElementById('maintain-consistency').checked;
+        const exportFormat = document.getElementById('export-format').value;
+
+        // Mostrar sección de progreso
+        progressSection.classList.remove('hidden');
+        startBatchBtn.disabled = true;
+        startBatchBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Procesando...';
+
+        // Inicializar BatchProcessor
+        window.BatchProcessor.initialize(maintainConsistency, updateProgress);
+
+        // Añadir archivos a la cola
+        uploadedFiles.forEach(file => {
+          window.BatchProcessor.queue.addDocument(file);
+        });
+
+        // Procesar
+        try {
+          const results = await window.BatchProcessor.processAll();
+
+          // Guardar resultados en localStorage para batch-review.html
+          const batchData = {
+            documents: results.map(doc => ({
+              id: doc.id,
+              name: doc.name,
+              result: doc.result,
+              reviewed: false
+            })),
+            mapper: maintainConsistency ? {
+              globalMappings: window.BatchProcessor.mapper.getAllMappings()
+            } : null,
+            exportFormat: exportFormat,
+            totalProcessingTime: results.reduce((sum, doc) => sum + (doc.processingTime || 0), 0)
+          };
+
+          localStorage.setItem('batchResults', JSON.stringify(batchData));
+
+          // Mostrar botón de revisión
+          reviewBatchBtn.classList.remove('hidden');
+          startBatchBtn.classList.add('hidden');
+
+          alert('¡Procesamiento completado! Ahora puedes revisar los documentos.');
+
+        } catch (error) {
+          console.error('Error en batch processing:', error);
+          alert('Error durante el procesamiento: ' + error.message);
+          startBatchBtn.disabled = false;
+          startBatchBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Procesar Batch';
+        }
+      });
+
+      function updateProgress(progressData) {
+        const { current, total, percentage, currentDoc } = progressData;
+
+        // Actualizar textos
+        document.getElementById('progress-text').textContent = `${current} de ${total} documentos procesados`;
+        document.getElementById('progress-percentage').textContent = `${percentage}%`;
+
+        // Actualizar barra
+        document.getElementById('progress-bar').style.width = `${percentage}%`;
+
+        // Actualizar documento actual
+        if (currentDoc) {
+          document.getElementById('current-doc-info').classList.remove('hidden');
+          document.getElementById('current-doc-name').textContent = currentDoc.name;
+        }
+
+        // Actualizar stats
+        const stats = window.BatchProcessor.queue.getTotalStats();
+        document.getElementById('completed-count').textContent = stats.completed;
+        document.getElementById('pending-count').textContent = stats.pending;
+        document.getElementById('error-count').textContent = stats.errors;
+      }
+
+      // Ir a revisión
+      reviewBatchBtn.addEventListener('click', () => {
+        window.location.href = './batch-review.html';
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Uso - Laboratorio de Privacidad Clínica</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b88a7f",
+                        "primary-dark": "#966a60"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-stone-50 font-sans">
+    <header class="bg-white border-b border-stone-200 py-4 px-6">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <h1 class="text-xl font-bold text-stone-900">Laboratorio de Privacidad Clínica</h1>
+            <a href="index.html" class="text-primary hover:text-primary-dark">← Volver</a>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto py-12 px-6">
+        <h1 class="text-4xl font-bold text-stone-900 mb-6">Guía de Uso</h1>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold text-stone-800 mb-4">¿Cómo usar la herramienta?</h2>
+            <ol class="list-decimal list-inside space-y-4 text-stone-700">
+                <li><strong>Accede a la aplicación</strong> desde la página principal y haz clic en "Comenzar
+                    Seudonimización".</li>
+                <li><strong>Introduce el texto clínico</strong> que deseas procesar. Puedes escribirlo, pegarlo o
+                    seleccionar un ejemplo del menú.</li>
+                <li><strong>Procesa el texto</strong> haciendo clic en "Procesar Texto". El sistema analizará
+                    automáticamente el contenido.</li>
+                <li><strong>Revisa los resultados</strong>. Verás el texto transformado con entidades resaltadas en
+                    colores según el tipo de dato sensible.</li>
+                <li><strong>Exporta</strong> el resultado copiando el texto o descargando un informe PDF.</li>
+            </ol>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold text-stone-800 mb-4">¿Qué detecta esta herramienta?</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg border border-stone-200">
+                    <h3 class="font-semibold text-emerald-700 mb-2">✓ Identifica</h3>
+                    <ul class="space-y-2 text-stone-600">
+                        <li>• Nombres de personas</li>
+                        <li>• DNI y documentos de identidad</li>
+                        <li>• Fechas y edades</li>
+                        <li>• Hospitales y centros sanitarios</li>
+                        <li>• Teléfonos</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg border border-stone-200">
+                    <h3 class="font-semibold text-rose-700 mb-2">✗ No detecta (todavía)</h3>
+                    <ul class="space-y-2 text-stone-600">
+                        <li>• Códigos médicos complejos</li>
+                        <li>• Referencias indirectas</li>
+                        <li>• Contextos muy específicos</li>
+                        <li>• Nombres de medicamentos raros</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold text-stone-800 mb-4">Buenas Prácticas</h2>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-6">
+                <ul class="space-y-3 text-stone-700">
+                    <li><strong>📋 Siempre revisa manualmente</strong> los resultados antes de compartir el texto.</li>
+                    <li><strong>🔍 No confíes ciegamente</strong> en la detección automática. Es una herramienta de
+                        apoyo educativo.</li>
+                    <li><strong>🔒 Tus datos nunca salen del navegador</strong>. Todo el procesamiento es local.</li>
+                    <li><strong>💾 Guarda copias</strong> del texto original antes de procesarlo.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold text-stone-800 mb-4">Preguntas Frecuentes</h2>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="font-semibold text-stone-900 mb-2">¿Es seguro subir datos reales?</h3>
+                    <p class="text-stone-600">Sí. Todo el procesamiento ocurre en tu navegador. No se envía ningún dato
+                        a servidores externos.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-stone-900 mb-2">¿Puedo usar esto para cumplir con el RGPD?</h3>
+                    <p class="text-stone-600">No. Esta es una herramienta educativa. Para cumplimiento normativo,
+                        consulta con expertos legales y usa sistemas certificados.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-stone-900 mb-2">¿Funciona sin conexión a internet?</h3>
+                    <p class="text-stone-600">Una vez cargada la página, la herramienta funciona completamente offline.
+                        Solo necesitas conexión para la primera carga.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-white border-t border-stone-200 py-6 mt-12">
+        <div class="max-w-4xl mx-auto px-6 text-center text-stone-600 text-sm">
+            <p>© 2024 Sophilux - Laboratorio de Privacidad Clínica</p>
+            <p class="mt-2">
+                <a href="terminos.html" class="text-primary hover:underline">Términos y Condiciones</a>
+            </p>
+        </div>
+    </footer>
+</body>
+
+</html>

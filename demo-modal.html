@@ -1,0 +1,137 @@
+<!-- Modal de Demostración (se muestra al hacer clic en "Ver Demostración") -->
+<div id="demo-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="sticky top-0 bg-white border-b border-stone-200 p-6 flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-stone-900">Cómo usar el Laboratorio</h2>
+            <button id="close-modal" class="text-stone-400 hover:text-stone-600 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- Paso 1 -->
+            <div class="border-l-4 border-primary pl-4">
+                <h3 class="font-semibold text-lg text-stone-900 mb-2">1. Introduce tu texto clínico</h3>
+                <p class="text-stone-600 mb-3">Pega o escribe el texto que contiene datos sensibles. Puedes usar los
+                    ejemplos predefinidos para probar.</p>
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='150' viewBox='0 0 400 150'%3E%3Crect width='400' height='150' fill='%23f5f5f4'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%2378716c' font-family='Arial' font-size='14'%3EPantalla de Entrada%3C/text%3E%3C/svg%3E"
+                    alt="Paso 1" class="rounded-lg border border-stone-200 w-full">
+            </div>
+
+            <!-- Paso 2 -->
+            <div class="border-l-4 border-emerald-500 pl-4">
+                <h3 class="font-semibold text-lg text-stone-900 mb-2">2. Procesa el texto</h3>
+                <p class="text-stone-600 mb-3">El sistema detecta automáticamente nombres, DNIs, fechas, hospitales y
+                    otros datos sensibles.</p>
+                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                    <p class="text-sm text-emerald-800">🔒 Todo el procesamiento ocurre en tu navegador. Tus datos nunca
+                        salen de tu dispositivo.</p>
+                </div>
+            </div>
+
+            <!-- Paso 3 -->
+            <div class="border-l-4 border-sky-500 pl-4">
+                <h3 class="font-semibold text-lg text-stone-900 mb-2">3. Revisa los resultados</h3>
+                <p class="text-stone-600 mb-3">El texto procesado muestra las transformaciones con colores:</p>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-4 h-4 rounded bg-emerald-200"></div>
+                        <span class="text-sm text-stone-700"><strong>Verde:</strong> Nombres sustituidos</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-4 h-4 rounded bg-sky-200"></div>
+                        <span class="text-sm text-stone-700"><strong>Azul:</strong> Fechas relativizadas</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-4 h-4 rounded bg-rose-200"></div>
+                        <span class="text-sm text-stone-700"><strong>Rojo:</strong> Identificadores eliminados</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paso 4 -->
+            <div class="border-l-4 border-amber-500 pl-4">
+                <h3 class="font-semibold text-lg text-stone-900 mb-2">4. Exporta o descarga</h3>
+                <p class="text-stone-600 mb-3">Copia el texto procesado o descarga un informe PDF con el resumen de la
+                    sesión.</p>
+            </div>
+
+            <div class="bg-rose-50 border border-rose-200 rounded-lg p-4 mt-6">
+                <p class="text-sm text-rose-800">
+                    <strong>⚠️ Importante:</strong> Esta herramienta es educativa. Siempre revisa manualmente los
+                    resultados antes de compartir información sensible.
+                </p>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button id="try-demo"
+                    class="flex-1 bg-primary hover:bg-primary-dark text-white font-medium py-3 rounded-lg transition">
+                    Probar ahora
+                </button>
+                <button id="close-modal-btn"
+                    class="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-3 rounded-lg transition">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Modal de demostración
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('demo-modal');
+        const demoBtn = document.querySelector('a[href*="demo"], button:has-text("Ver Demostración")');
+        const closeBtns = document.querySelectorAll('#close-modal, #close-modal-btn');
+        const tryBtn = document.getElementById('try-demo');
+
+        // Buscar el botón "Ver Demostración" en la página
+        const allLinks = document.querySelectorAll('a, button');
+        let demoButton = null;
+        allLinks.forEach(el => {
+            if (el.textContent.includes('Ver Demostración')) {
+                demoButton = el;
+            }
+        });
+
+        if (demoButton && modal) {
+            demoButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                modal.classList.remove('hidden');
+            });
+        }
+
+        // Cerrar modal
+        closeBtns.forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    modal.classList.add('hidden');
+                });
+            }
+        });
+
+        // Probar demo
+        if (tryBtn) {
+            tryBtn.addEventListener('click', () => {
+                window.location.href = 'app.html';
+            });
+        }
+
+        // Cerrar con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+            }
+        });
+
+        // Cerrar al hacer clic fuera
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    });
+</script>

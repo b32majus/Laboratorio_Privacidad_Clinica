@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>App Principal - Revisión Desktop</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b88a7f",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1716",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#292524",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d6d3d1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e;
+        }
+
+        .highlight-review {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-bottom: 2px solid #f59e0b;
+            cursor: pointer;
+        }
+
+        .dark .highlight-review {
+            background-color: rgba(146, 64, 14, 0.4);
+            color: #fcd34d;
+            border-bottom: 2px solid #fbbf24;
+        }
+
+        .highlight-sub {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .dark .highlight-sub {
+            background-color: rgba(6, 95, 70, 0.4);
+            color: #6ee7b7;
+        }
+
+        .highlight-rel {
+            background-color: #e0f2fe;
+            color: #075985;
+        }
+
+        .dark .highlight-rel {
+            background-color: rgba(7, 89, 133, 0.4);
+            color: #7dd3fc;
+        }
+
+        .highlight-del {
+            background-color: rgba(244, 63, 94, 0.2);
+            color: #e11d48;
+            text-decoration: line-through;
+        }
+
+        .dark .highlight-del {
+            background-color: rgba(159, 18, 57, 0.4);
+            color: #fda4af;
+        }
+
+        .highlight-warning {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: #d97706;
+            border-bottom: 2px dashed #f59e0b;
+        }
+
+        .dark .highlight-warning {
+            background-color: rgba(245, 158, 11, 0.4);
+            color: #fcd34d;
+            border-bottom: 2px dashed #fbbf24;
+        }
+
+        .selected-entity {
+            animation: pulse-highlight 1s ease-out forwards;
+        }
+
+        @keyframes pulse-highlight {
+            0% {
+                background-color: rgba(251, 191, 36, 0.3);
+                transform: scale(1.02);
+            }
+
+            50% {
+                background-color: rgba(251, 191, 36, 0.5);
+                transform: scale(1.00);
+            }
+
+            100% {
+                background-color: rgba(251, 191, 36, 0.3);
+            }
+        }
+
+        @keyframes scale-in {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .animate-scale-in {
+            animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-stone-50 dark:bg-stone-950 font-display antialiased flex flex-col h-screen overflow-hidden text-stone-900 dark:text-stone-100">
+    <header
+        class="flex items-center bg-surface-light dark:bg-surface-dark px-6 py-3 justify-between border-b border-stone-200 dark:border-stone-800 z-20 shrink-0">
+        <div class="flex items-center gap-4">
+            <a href="app.html" class="text-stone-500 hover:text-primary transition-colors" title="Volver al inicio">
+                <span class="material-symbols-outlined">home</span>
+            </a>
+            <h2
+                class="text-stone-900 dark:text-stone-50 text-lg font-bold leading-tight tracking-tight flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">security</span>
+                Revisión Clínica
+            </h2>
+        </div>
+        <div class="flex items-center justify-end gap-2">
+            <button id="copy-btn"
+                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm">
+                <span class="material-symbols-outlined text-[20px]">content_copy</span>
+                <span class="text-sm font-medium">Copiar Texto</span>
+            </button>
+            <button id="pdf-btn"
+                class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white transition-colors shadow-sm">
+                <span class="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                <span class="text-sm font-medium">Informe de Seudonimización</span>
+            </button>
+        </div>
+    </header>
+    <div class="flex flex-1 overflow-hidden min-h-0">
+        <main class="flex-1 bg-surface-light dark:bg-background-dark relative flex flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto p-12 scroll-smooth" id="main-text-scroll-area">
+                <div class="max-w-3xl mx-auto">
+                    <div class="leading-relaxed text-stone-800 dark:text-stone-200 text-lg"
+                        id="processed-text-container">
+                        <!-- El texto se cargará dinámicamente -->
+                        <div class="flex flex-col items-center justify-center py-20 text-stone-400">
+                            <span class="material-symbols-outlined text-4xl mb-2 animate-spin">progress_activity</span>
+                            <p>Cargando texto...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-50 hidden animate-slide-up-small"
+                id="review-action-bar">
+                <div
+                    class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-2xl border border-stone-200 dark:border-stone-800 p-3 pr-4 flex items-center justify-between gap-4 w-full">
+
+                    <!-- Left: Entity Info -->
+                    <div class="flex flex-col min-w-0 flex-1 border-r border-stone-200 dark:border-stone-700 mr-2 pr-4">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="material-symbols-outlined text-amber-600 text-[18px]">warning</span>
+                            <h4 class="text-sm font-bold text-stone-900 dark:text-stone-100 truncate flex-1">
+                                <span id="action-bar-title">Juan Pérez</span>
+                            </h4>
+                        </div>
+                        <div class="flex items-center gap-2 pl-6">
+                            <span class="text-xs text-stone-500 font-medium">Sugerencia:</span>
+                            <span id="action-bar-type"
+                                class="text-xs text-primary font-semibold bg-primary/10 px-1.5 py-0.5 rounded">[Familiar]</span>
+                        </div>
+                    </div>
+
+                    <!-- Right: Actions -->
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button id="ignore-btn"
+                            class="h-8 px-3 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 flex items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors text-xs font-semibold gap-1.5 shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">undo</span>
+                            Restaurar
+                        </button>
+                        <button id="modify-btn"
+                            class="h-8 px-3 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 flex items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors text-xs font-semibold gap-1.5 shadow-sm">
+                            <span class="material-symbols-outlined text-[16px]">edit</span>
+                            Modificar
+                        </button>
+                        <button id="accept-btn"
+                            class="h-8 px-4 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-colors text-xs font-semibold gap-1.5">
+                            <span class="material-symbols-outlined text-[16px]">check</span>
+                            Aceptar
+                        </button>
+                    </div>
+                </div>
+                </button>
+            </div>
+    </div>
+    </div>
+    </main>
+    <aside
+        class="w-[30%] bg-stone-50 dark:bg-stone-900/30 border-l border-stone-200 dark:border-stone-800 flex flex-col shadow-inner overflow-y-auto">
+        <div class="p-4 border-b border-stone-200 dark:border-stone-800 bg-surface-light dark:bg-surface-dark shrink-0">
+            <h3
+                class="text-sm font-bold text-stone-700 dark:text-stone-300 uppercase tracking-wide mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">dashboard</span>
+                Pendiente de Revisión
+            </h3>
+            <div class="flex flex-col gap-1">
+                <div class="flex gap-6 justify-between items-center mb-1">
+                    <p class="text-stone-600 dark:text-stone-400 text-xs font-medium leading-normal">
+                        <span id="reviewed-count">0</span> de <span id="total-count">0</span>
+                        entidades revisadas
+                    </p>
+                    <span class="text-xs font-semibold text-primary" id="review-percentage">0%</span>
+                </div>
+                <div class="rounded-full bg-stone-200 dark:bg-stone-800 h-1.5 w-full overflow-hidden">
+                    <div id="review-progress-bar" class="h-full rounded-full bg-primary transition-all duration-300"
+                        style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-3 shrink-0" style="max-height: 50vh;">
+            <!-- Las entidades se cargarán dinámicamente -->
+        </div>
+        <div class="p-5 border-t border-stone-200 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50">
+            <div class="mb-5">
+                <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2">
+                    Leyenda</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span>Sustituido</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+                        <span>Relativizado</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                        <span>Eliminado</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span>Sospechoso</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                        <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                        <span>Baja Confianza</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-stone-700 dark:text-stone-300">
+                        <span class="w-2.5 h-2.5 rounded-full bg-stone-400"></span>
+                        <span>Revisar</span>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full h-px bg-stone-200 dark:bg-stone-700 mb-5"></div>
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <div
+                        class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <span class="material-symbols-outlined text-lg">description</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <p class="text-stone-900 dark:text-stone-100 text-sm font-semibold">Sesión #CL-2024-89</p>
+                        <div class="flex items-center gap-1">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="text-stone-500 dark:text-stone-400 text-xs">Local (Seguro)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-y-1 gap-x-2 text-[10px] text-stone-400 ml-11">
+                    <div>ID: proc_8829a</div>
+                    <div>Modelo: MediBERT</div>
+                    <div>T: 1.2s</div>
+                    <div>Exp: JSON/HL7</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+    </div>
+    <div class="absolute bottom-0 left-0 w-full z-30 hidden" id="original-bottom-sheet"></div>
+
+    <!-- Tooltip de Selección Manual -->
+    <div class="fixed z-50 hidden bg-stone-800 text-white rounded-lg shadow-xl py-1 px-1 flex gap-1 animate-scale-in"
+        id="manual-selection-tooltip">
+        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
+            data-type="NOMBRE">
+            <span class="material-symbols-outlined text-emerald-400 text-lg">person</span>
+            <span class="text-[10px] font-medium">Nombre</span>
+        </button>
+        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
+            data-type="UBICACION">
+            <span class="material-symbols-outlined text-indigo-400 text-lg">Lugar</span>
+            <span class="text-[10px] font-medium">Lugar</span>
+        </button>
+        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
+            data-type="FECHA">
+            <span class="material-symbols-outlined text-sky-400 text-lg">calendar_month</span>
+            <span class="text-[10px] font-medium">Fecha</span>
+        </button>
+        <button class="p-2 hover:bg-stone-700 rounded transition-colors flex flex-col items-center gap-1 min-w-[60px]"
+            data-type="IDENTIFICADOR">
+            <span class="material-symbols-outlined text-rose-400 text-lg">badge</span>
+            <span class="text-[10px] font-medium">ID</span>
+        </button>
+    </div>
+
+    <!-- Modal de Edición -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden items-center justify-center">
+        <div class="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-scale-in">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-stone-200 dark:border-stone-800">
+                <h3 class="text-lg font-bold text-stone-900 dark:text-stone-100">Editar Entidad</h3>
+                <button id="modal-close-btn" class="text-stone-500 hover:text-stone-700 dark:hover:text-stone-300">
+                    <span class="material-symbols-outlined text-2xl">close</span>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2">Original:</label>
+                    <p id="modal-original-text"
+                        class="text-stone-900 dark:text-stone-100 bg-stone-100 dark:bg-stone-800 p-3 rounded-lg"></p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2">Texto
+                        Anonimizado:</label>
+                    <input type="text" id="modal-edit-input"
+                        class="w-full px-4 py-3 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        placeholder="Editar texto...">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2">Notas
+                        (opcional):</label>
+                    <textarea id="modal-notes-input" rows="2"
+                        class="w-full px-4 py-3 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
+                        placeholder="¿Por qué modificaste/eliminaste esta entidad?"></textarea>
+                </div>
+
+                <div
+                    class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+                    <span class="material-symbols-outlined text-amber-600 text-lg">info</span>
+                    <p class="text-xs text-amber-800 dark:text-amber-200">Puedes modificar el texto o eliminarlo
+                        completamente dejando el campo vacío.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-end gap-3 p-6 border-t border-stone-200 dark:border-stone-800">
+                <button id="modal-cancel-btn"
+                    class="px-4 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors font-medium">
+                    Cancelar
+                </button>
+                <button id="modal-delete-btn"
+                    class="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition-colors font-medium flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">delete</span>
+                    Eliminar
+                </button>
+                <button id="modal-save-btn"
+                    class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors font-medium flex items-center gap-2">
+                    <span class="material-symbols-outlined text-lg">save</span>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pendingEntityCards = document.querySelectorAll('.pending-entity-card');
+            const mainTextScrollArea = document.getElementById('main-text-scroll-area');
+            const reviewActionBar = document.getElementById('review-action-bar');
+            const originalBottomSheet = document.getElementById('original-bottom-sheet'); // Keep original sheet hidden
+            if (originalBottomSheet) originalBottomSheet.classList.add('hidden'); // Ensure the original bottom sheet is hidden on load
+            pendingEntityCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    // Remove selected state from all cards
+                    pendingEntityCards.forEach(c => c.removeAttribute('data-selected'));
+                    // Add selected state to the clicked card
+                    card.setAttribute('data-selected', 'true');
+                    const targetId = card.getAttribute('data-target-id');
+                    const targetElement = document.getElementById(targetId);
+                    if (targetElement) {
+                        // Remove previous highlights
+                        document.querySelectorAll('.highlighted-for-scroll').forEach(el => {
+                            el.classList.remove('highlighted-for-scroll');
+                            el.classList.remove('selected-entity');
+                        });
+                        // Add highlight to the selected entity
+                        targetElement.classList.add('highlighted-for-scroll');
+                        targetElement.classList.add('selected-entity'); // Trigger animation
+                        // Scroll to the target element within the main text content area
+                        // Simple alignment to center or slightly above center
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Update and show the smaller action bar
+                        const entityName = card.querySelector('p:nth-child(2)') ? card.querySelector('p:nth-child(2)').textContent : card.querySelector('.font-medium').textContent;
+                        // Try to find text within brackets for suggestion, fallback to placeholder
+                        const suggestionMatch = card.querySelector('p:last-of-type').textContent.match(/Sugerencia: (\[.*?\])/);
+                        const suggestionText = suggestionMatch ? suggestionMatch[1] : "[Sugerencia]";
+                        reviewActionBar.querySelector('h4 span:last-child').textContent = entityName;
+                        reviewActionBar.querySelector('p span').textContent = suggestionText;
+                        reviewActionBar.classList.remove('hidden');
+                        // Reset highlight animation listener
+                        targetElement.addEventListener('animationend', () => {
+                            targetElement.classList.remove('selected-entity');
+                        }, { once: true });
+                    }
+                });
+            });
+        });
+    </script>
+    <style type="text/tailwindcss">
+        @keyframes slide-up-small {
+            from { transform: translateY(100%) translateX(-50%); opacity: 0; }
+            to { transform: translateY(0) translateX(-50%); opacity: 1; }
+        }
+        .animate-slide-up-small {
+            animation: slide-up-small 0.3s ease-out forwards;
+        }
+    </style>
+
+    </style>
+    <script src="lib/jspdf.umd.min.js"></script>
+    <script src="js/standalone-processor.js"></script>
+    <script>
+        // Standalone review logic (no modules)
+        let processingResult = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const originalText = localStorage.getItem('clinicalText');
+            if (!originalText) {
+                // Si no hay texto, redirigir al inicio o alertar
+                alert('No se encontró texto para procesar. Por favor inicie desde la página principal.');
+                window.location.href = './input.html';
+                return;
+            }
+
+            console.time('Processing');
+            const result = window.PrivacyProcessor.process(originalText);
+            processingResult = result;
+            console.timeEnd('Processing');
+
+            console.log('Result:', result);
+
+            renderMainText(result);
+            renderSidePanel(result);
+            setupExportButtons();
+        });
+
+        function renderMainText(result) {
+            const container = document.getElementById('processed-text-container');
+            if (!container) {
+                console.error('processed-text-container not found!');
+                return;
+            }
+
+            let html = result.original;
+            const entities = [...result.entities].sort((a, b) => b.position.start - a.position.start);
+
+            for (const entity of entities) {
+                // Buscamos el índice original para mantener consistencia con el panel lateral
+                const originalIndex = result.entities.indexOf(entity);
+                const span = createEntitySpan(entity, originalIndex);
+                html = html.substring(0, entity.position.start) + span + html.substring(entity.position.end);
+            }
+
+            const paragraphs = html.split(/\n\s*\n/).filter(p => p.trim());
+            container.innerHTML = paragraphs.map(p => `<p class="mb-6">${p}</p>`).join('') + '<div class="h-32"></div>';
+
+            // Add click listeners to new spans
+            container.querySelectorAll('span[id^="entity-"]').forEach(span => {
+                span.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const entityId = span.id;
+                    const card = document.querySelector(`.pending-entity-card[data-target-id="${entityId}"]`);
+                    if (card) card.click();
+                });
+            });
+        }
+
+        function createEntitySpan(entity, index) {
+            let classes = "px-1 rounded-sm cursor-pointer hover:opacity-80 transition-opacity whitespace-pre-wrap";
+            if (entity.type === 'NOMBRE') classes += " highlight-sub";
+            else if (entity.type === 'IDENTIFICADOR') classes += " highlight-del";
+            else if (entity.type === 'FECHA') classes += " highlight-rel";
+            else if (entity.type === 'UBICACION') classes += " highlight-sub"; // Usar sub para ubicaciones
+            else if (entity.type === 'SOSPECHOSO') classes += " highlight-warning";
+            else classes += " highlight-review";
+
+            // Usamos un ID único basado en el índice
+            const uniqueId = `entity-${index}`;
+            return `<span id="${uniqueId}" class="${classes}" data-type="${entity.type}" data-original="${entity.original || entity.text}">${entity.transformed}</span>`;
+        }
+
+        function renderSidePanel(result) {
+            const listContainer = document.querySelector('.flex-1.overflow-y-auto.p-4.space-y-3');
+            if (!listContainer) return;
+
+            listContainer.innerHTML = '';
+
+            const reviewActionBar = document.getElementById('review-action-bar');
+
+            result.entities.forEach((entity, index) => {
+                const card = document.createElement('div');
+                card.className = "pending-entity-card flex flex-col bg-surface-light dark:bg-surface-dark rounded-lg shadow-sm border border-stone-200 dark:border-stone-800 p-3 cursor-pointer hover:bg-white dark:hover:bg-stone-800 transition-all";
+                // Vinculamos con el ID del span
+                card.dataset.targetId = `entity-${index}`;
+
+                let colorClass = "text-stone-500", iconName = "help";
+                if (entity.type === 'NOMBRE') { colorClass = "text-emerald-600"; iconName = "person"; }
+                else if (entity.type === 'IDENTIFICADOR') { colorClass = "text-rose-600"; iconName = "badge"; }
+                else if (entity.type === 'FECHA') { colorClass = "text-sky-600"; iconName = "calendar_month"; }
+                else if (entity.type === 'UBICACION') { colorClass = "text-indigo-600"; iconName = "location_on"; }
+                else if (entity.type === 'SOSPECHOSO') { colorClass = "text-amber-600"; iconName = "warning"; }
+
+                // Tooltip educativo según el tipo de entidad
+                const educationalTooltips = {
+                    'NOMBRE': '🔐 Los nombres son identificadores directos que pueden revelar la identidad del paciente. Se reemplazan por nombres ficticios.',
+                    'IDENTIFICADOR': '🆔 DNIs, números de historia clínica y otros códigos únicos se ocultan por ser identificadores directos de alta sensibilidad.',
+                    'FECHA': '📅 Las fechas se relativizan para mantener intervalos temporales sin exponer fechas exactas que puedan identificar eventos.',
+                    'UBICACION': '📍 Las ubicaciones se generalizan (ciudad → provincia → CCAA) para proteger la privacidad geográfica del paciente.',
+                    'SOSPECHOSO': '⚠️ Términos detectados que podrían ser cuasi-identificadores: combinaciones que juntas pueden identificar al paciente.'
+                };
+
+                const tooltip = educationalTooltips[entity.type] || 'Información protegida por RGPD';
+
+                card.innerHTML = `
+            <div class="flex items-center gap-2 mb-1">
+              <span class="material-symbols-outlined ${colorClass} text-lg">${iconName}</span>
+              <p class="text-stone-900 dark:text-stone-100 font-medium text-sm truncate">${entity.transformed}</p>
+              <span class="ml-auto text-xs font-medium ${colorClass}">${entity.type}</span>
+              <button class="info-tooltip-btn group relative ml-1 shrink-0" type="button" aria-label="Información">
+                <span class="material-symbols-outlined text-stone-400 hover:text-primary text-sm">info</span>
+                <div class="tooltip-content hidden group-hover:block absolute right-0 top-6 w-64 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 text-xs rounded-lg p-3 shadow-xl z-50 pointer-events-none">
+                  <div class="absolute -top-1 right-2 w-2 h-2 bg-stone-900 dark:bg-stone-100 rotate-45"></div>
+                  ${tooltip}
+                </div>
+              </button>
+            </div>
+            <p class="text-stone-500 dark:text-stone-400 text-xs">Original: <span class="font-semibold">${entity.original || entity.text}</span></p>
+          `;
+
+                // Prevenir que el click en el botón de info active el click de la card
+                const infoBtn = card.querySelector('.info-tooltip-btn');
+                if (infoBtn) {
+                    infoBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
+                }
+
+                // Logic for click handling
+                card.addEventListener('click', () => {
+                    // Remover highlights anteriores
+                    document.querySelectorAll('.highlighted-for-scroll').forEach(el => {
+                        el.classList.remove('highlighted-for-scroll', 'selected-entity', 'ring-2', 'ring-primary');
+                    });
+                    document.querySelectorAll('.pending-entity-card').forEach(el => {
+                        el.dataset.selected = 'false';
+                        el.classList.remove('ring-2', 'ring-primary', 'ring-offset-1');
+                    });
+
+                    // Highlight card
+                    card.dataset.selected = 'true';
+                    card.classList.add('ring-2', 'ring-primary', 'ring-offset-1');
+
+                    // Find and highlight target span
+                    const targetId = card.dataset.targetId;
+                    const targetElement = document.getElementById(targetId);
+
+                    if (targetElement) {
+                        targetElement.classList.add('highlighted-for-scroll', 'selected-entity', 'ring-2', 'ring-primary');
+                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                        // Reset animation listener
+                        targetElement.addEventListener('animationend', () => {
+                            targetElement.classList.remove('highlighted-for-scroll');
+                        }, { once: true });
+                    }
+
+                    // Show Action Bar
+                    if (reviewActionBar) {
+                        const titleEl = document.getElementById('action-bar-title');
+                        const typeEl = document.getElementById('action-bar-type');
+
+                        if (titleEl) titleEl.textContent = entity.transformed;
+                        if (typeEl) typeEl.textContent = `[${entity.type}]`;
+
+                        reviewActionBar.classList.remove('hidden');
+
+                        // Update Accept button logic context if needed, or just rely on DOM matching
+                    }
+                });
+
+                listContainer.appendChild(card);
+            });
+
+            // Actualizar el contador inicial
+            updateReviewCounter();
+        }
+
+        function setupExportButtons() {
+            const copyBtn = document.getElementById('copy-btn');
+            const pdfBtn = document.getElementById('pdf-btn');
+
+            if (copyBtn) {
+                copyBtn.addEventListener('click', async () => {
+                    if (!processingResult) return;
+                    try {
+                        await navigator.clipboard.writeText(processingResult.processed);
+                        const originalHTML = copyBtn.innerHTML;
+                        copyBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">check</span><span class="text-sm font-medium">¡Copiado!</span>';
+                        copyBtn.classList.add('bg-emerald-700');
+                        setTimeout(() => {
+                            copyBtn.innerHTML = originalHTML;
+                            copyBtn.classList.remove('bg-emerald-700');
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Error copying:', err);
+                    }
+                });
+            }
+
+            if (pdfBtn) {
+                pdfBtn.addEventListener('click', () => {
+                    if (!processingResult || !window.jspdf) return;
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    const margin = 20;
+                    let y = 20;
+                    const result = processingResult;
+
+                    // Header
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(22);
+                    doc.setTextColor(5, 150, 105); // Emerald 600
+                    doc.text("Informe de Privacidad Clínica", margin, y);
+                    y += 10;
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(100);
+                    doc.text("Laboratorio de Privacidad Clínica by Sophilux", margin, y);
+                    y += 15;
+
+                    // Info de Sesión
+                    doc.setDrawColor(200);
+                    doc.line(margin, y, 190, y);
+                    y += 10;
+
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(11);
+                    doc.setTextColor(0);
+                    doc.text(`ID de Sesión: ${result.sessionId || 'N/A'}`, margin, y);
+                    doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, margin + 80, y);
+                    y += 8;
+                    doc.text(`Total Entidades: ${result.stats.totalEntities}`, margin, y);
+                    y += 15;
+
+                    // Resumen de Entidades
+                    doc.setFillColor(245, 245, 245);
+                    doc.rect(margin, y - 5, 170, 25, 'F');
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Resumen de Detección", margin + 5, y);
+                    y += 8;
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(10);
+
+                    const stats = result.stats.byType;
+                    doc.text(`• Nombres/Profesionales: ${stats.nombres || 0}`, margin + 10, y);
+                    doc.text(`• Identificadores: ${stats.identificadores || 0}`, margin + 90, y);
+                    y += 6;
+                    doc.text(`• Ubicaciones: ${stats.ubicaciones || 0}`, margin + 10, y);
+                    doc.text(`• Fechas/Edades: ${stats.fechas || 0}`, margin + 90, y);
+                    y += 20;
+
+                    // Metodología
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(14);
+                    doc.setTextColor(5, 150, 105);
+                    doc.text("Metodología de Anonimización", margin, y);
+                    y += 10;
+
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(10);
+                    doc.setTextColor(60);
+                    const methodologyText = [
+                        "Este documento certifica que el texto clínico original ha sido sometido a un proceso de anonimización automatizado siguiendo los siguientes principios:",
+                        "",
+                        "1. Sustitución (Pseudonimización):",
+                        "   Los nombres propios de pacientes y profesionales han sido reemplazados por equivalentes sintéticos o etiquetas genéricas para preservar la legibilidad sin revelar identidades reales.",
+                        "",
+                        "2. Generalización (K-anonimato):",
+                        "   Las edades específicas y fechas precisas se han generalizado a rangos o tiempos relativos (ej. '40-49 años' o 'hace 2 años') para reducir el riesgo de re-identificación.",
+                        "",
+                        "3. Supresión:",
+                        "   Los identificadores directos de alta sensibilidad (DNI, NHC, Direcciones exactas) han sido eliminados o reemplazados por etiquetas de categoría.",
+                        "",
+                        "4. Revisión Humana:",
+                        "   El proceso automatizado ha sido supervisado y validado por el profesional sanitario responsable."
+                    ];
+
+                    let lineHeight = 5;
+                    methodologyText.forEach(line => {
+                        if (y > 270) { doc.addPage(); y = 20; }
+                        const splitText = doc.splitTextToSize(line, 170);
+                        doc.text(splitText, margin, y);
+                        y += splitText.length * lineHeight + (line === "" ? 2 : 2);
+                    });
+
+                    // === NUEVA SECCIÓN: TABLA DE MAPEO ===
+                    if (y > 240) { doc.addPage(); y = 20; }
+
+                    y += 10;
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(14);
+                    doc.setTextColor(5, 150, 105);
+                    doc.text("Tabla de Transformaciones", margin, y);
+                    y += 10;
+
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(9);
+                    doc.setTextColor(60);
+                    doc.text("Registro detallado de las transformaciones aplicadas al texto original:", margin, y);
+                    y += 8;
+
+                    // Encabezados de la tabla
+                    doc.setFont("helvetica", "bold");
+                    doc.setFillColor(240, 240, 240);
+                    doc.rect(margin, y - 4, 170, 8, 'F');
+                    doc.setFontSize(9);
+                    doc.text("Original", margin + 2, y);
+                    doc.text("Transformado", margin + 60, y);
+                    doc.text("Tipo", margin + 120, y);
+                    doc.text("Notas", margin + 145, y);
+                    y += 8;
+
+                    // Líneas de la tabla
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(8);
+                    doc.setTextColor(0);
+
+                    let tableRowCount = 0;
+                    const maxRowsPerPage = 20;
+
+                    result.entities.forEach((entity, idx) => {
+                        if (tableRowCount >= maxRowsPerPage || y > 270) {
+                            doc.addPage();
+                            y = 20;
+                            tableRowCount = 0;
+
+                            // Repetir encabezados en nueva página
+                            doc.setFont("helvetica", "bold");
+                            doc.setFillColor(240, 240, 240);
+                            doc.rect(margin, y - 4, 170, 8, 'F');
+                            doc.setFontSize(9);
+                            doc.text("Original", margin + 2, y);
+                            doc.text("Transformado", margin + 60, y);
+                            doc.text("Tipo", margin + 120, y);
+                            doc.text("Notas", margin + 145, y);
+                            y += 8;
+                            doc.setFont("helvetica", "normal");
+                            doc.setFontSize(8);
+                        }
+
+                        // Dibujar fila
+                        if (tableRowCount % 2 === 0) {
+                            doc.setFillColor(250, 250, 250);
+                            doc.rect(margin, y - 4, 170, 6, 'F');
+                        }
+
+                        // Truncar textos largos
+                        const originalText = (entity.original || entity.text || '').substring(0, 25);
+                        const transformedText = (entity.transformed || '').substring(0, 25);
+                        const typeText = entity.type.substring(0, 10);
+
+                        // Obtener notas si existen
+                        const entityNote = entity.notes || '';
+                        const noteIcon = entityNote ? '✓' : '';
+
+                        doc.text(originalText, margin + 2, y);
+                        doc.text(transformedText, margin + 60, y);
+                        doc.text(typeText, margin + 120, y);
+                        doc.text(noteIcon, margin + 147, y);
+
+                        y += 6;
+                        tableRowCount++;
+                    });
+
+                    // === SECCIÓN DE NOTAS ===
+                    const entitiesWithNotes = result.entities.filter(e => e.notes && e.notes.trim());
+
+                    if (entitiesWithNotes.length > 0) {
+                        if (y > 240) { doc.addPage(); y = 20; }
+
+                        y += 10;
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(12);
+                        doc.setTextColor(5, 150, 105);
+                        doc.text("Notas de Revisión", margin, y);
+                        y += 8;
+
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(9);
+                        doc.setTextColor(60);
+
+                        entitiesWithNotes.forEach((entity, idx) => {
+                            if (y > 270) { doc.addPage(); y = 20; }
+
+                            doc.setFont("helvetica", "bold");
+                            doc.text(`${idx + 1}. ${entity.original || entity.text}`, margin, y);
+                            y += 5;
+
+                            doc.setFont("helvetica", "normal");
+                            doc.setTextColor(100);
+                            doc.text(`   Tipo: ${entity.type} | Transformado a: ${entity.transformed}`, margin, y);
+                            y += 5;
+
+                            doc.setTextColor(0);
+                            const noteLines = doc.splitTextToSize(`   Nota: ${entity.notes}`, 165);
+                            noteLines.forEach(line => {
+                                if (y > 275) { doc.addPage(); y = 20; }
+                                doc.text(line, margin, y);
+                                y += 4;
+                            });
+
+                            y += 3;
+                        });
+                    }
+
+                    // Footer
+                    doc.addPage();
+                    y = 20;
+                    doc.setFontSize(10);
+                    doc.setTextColor(100);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Certificación de Proceso", margin, y);
+                    y += 8;
+
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(9);
+                    const certText = [
+                        "Este informe certifica que el texto clínico adjunto ha sido procesado mediante el",
+                        "Sanitizador Clínico desarrollado por Sophilux, aplicando técnicas de anonimización",
+                        "automatizadas conforme a los principios del RGPD y LOPDGDD.",
+                        "",
+                        "La tabla de transformaciones anterior documenta cada cambio realizado para garantizar",
+                        "la trazabilidad del proceso. Las notas de revisión reflejan las decisiones del profesional",
+                        "sanitario responsable durante la supervisión humana del proceso automatizado.",
+                        "",
+                        "Este documento tiene carácter informativo y NO sustituye la responsabilidad del",
+                        "titular del tratamiento en la evaluación final del riesgo de re-identificación."
+                    ];
+
+                    certText.forEach(line => {
+                        doc.text(line, margin, y);
+                        y += 5;
+                    });
+
+                    y = 285;
+                    doc.setFontSize(8);
+                    doc.setTextColor(150);
+                    doc.text("Generado automáticamente - La responsabilidad final recae en el usuario", margin, y);
+
+                    doc.save(`informe-${result.sessionId}.pdf`);
+                });
+            }
+        }
+
+        // Función para actualizar contador de revisión
+        function updateReviewCounter() {
+            const cards = document.querySelectorAll('.pending-entity-card');
+            const reviewedCards = Array.from(cards).filter(c => c.dataset.reviewed === 'true');
+            const total = cards.length;
+            const reviewed = reviewedCards.length;
+            const percentage = total > 0 ? Math.round((reviewed / total) * 100) : 0;
+
+            document.getElementById('reviewed-count').textContent = reviewed;
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('review-percentage').textContent = percentage + '%';
+            document.getElementById('review-progress-bar').style.width = percentage + '%';
+        }
+
+        // Inicializar contador al cargar la página
+        updateReviewCounter();
+
+        // Función para actualizar posiciones de entidades basándose en el DOM
+        function updateEntityPositions() {
+            if (!processingResult || !processingResult.entities) return;
+
+            const mainTextArea = document.getElementById('main-text-scroll-area');
+            if (!mainTextArea) return;
+
+            // Obtener todo el texto completo del área
+            const fullText = mainTextArea.textContent || mainTextArea.innerText;
+
+            // Para cada entidad, buscar su posición en el texto
+            processingResult.entities.forEach((entity, index) => {
+                const entitySpan = document.getElementById(`entity-${index}`);
+
+                if (entitySpan) {
+                    // Calcular posición basándose en el texto anterior en el DOM
+                    let position = 0;
+                    let currentNode = mainTextArea.firstChild;
+                    let found = false;
+
+                    // Recorrer nodos hasta encontrar el span
+                    while (currentNode && !found) {
+                        if (currentNode === entitySpan) {
+                            found = true;
+                            break;
+                        }
+
+                        if (currentNode.nodeType === Node.TEXT_NODE) {
+                            position += currentNode.textContent.length;
+                        } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+                            if (currentNode.id && currentNode.id.startsWith('entity-')) {
+                                // Es otro span de entidad
+                                position += currentNode.textContent.length;
+                            } else {
+                                // Elemento contenedor, recorrer sus hijos
+                                position += currentNode.textContent.length;
+                            }
+                        }
+
+                        currentNode = currentNode.nextSibling;
+                    }
+
+                    if (found) {
+                        const textLength = entitySpan.textContent.length;
+                        entity.position = {
+                            start: position,
+                            end: position + textLength
+                        };
+                    }
+                }
+            });
+        }
+
+        // Botones Aceptar/Ignorar/Modificar en action bar
+        const actionBar = document.getElementById('review-action-bar');
+        if (actionBar) {
+            const acceptBtn = document.getElementById('accept-btn');
+            const ignoreBtn = document.getElementById('ignore-btn');
+
+            const modifyBtn = document.getElementById('modify-btn');
+            let currentEditingEntity = null;
+
+            if (acceptBtn) {
+                acceptBtn.addEventListener('click', () => {
+                    if (acceptBtn.dataset.mode === 'save' && currentEditingEntity) {
+                        const input = actionBar.querySelector('input');
+                        if (input) {
+                            const newValue = input.value.trim();
+                            if (newValue) {
+                                currentEditingEntity.transformed = newValue;
+                                const span = document.getElementById(currentEditingEntity.domId);
+                                if (span) span.textContent = newValue;
+                                resetActionBarMode();
+                            }
+                        }
+                    }
+
+                    const titleSpan = document.getElementById('action-bar-title');
+                    if (!titleSpan) return;
+                    const entityName = currentEditingEntity ? currentEditingEntity.transformed : titleSpan.textContent;
+
+                    // Feedback visual: cambiar icono temporalmente
+                    const originalHTML = acceptBtn.innerHTML;
+                    acceptBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">done</span> ¡Aceptado!';
+                    acceptBtn.disabled = true;
+
+                    // Marcar card como revisada
+                    const cards = document.querySelectorAll('.pending-entity-card');
+                    let currentIndex = -1;
+
+                    cards.forEach((card, idx) => {
+                        if (card.dataset.targetId && document.getElementById(card.dataset.targetId) && document.getElementById(card.dataset.targetId).classList.contains('selected-entity')) {
+                            card.dataset.reviewed = 'true';
+                            card.classList.add('opacity-50', 'bg-emerald-50', 'dark:bg-emerald-950');
+                            card.classList.remove('hover:bg-white', 'dark:hover:bg-stone-800');
+                            card.querySelector('.material-symbols-outlined').textContent = 'check_circle';
+                            card.querySelector('.material-symbols-outlined').classList.replace('text-amber-600', 'text-emerald-600');
+
+                            if (currentEditingEntity) {
+                                const cardTitle = card.querySelector('.font-medium');
+                                if (cardTitle) cardTitle.textContent = currentEditingEntity.transformed;
+                            }
+                            currentIndex = idx;
+                        }
+                    });
+
+                    updateReviewCounter();
+
+                    // Pequeño delay para feedback visual antes de pasar a la siguiente
+                    setTimeout(() => {
+                        acceptBtn.innerHTML = originalHTML;
+                        acceptBtn.disabled = false;
+
+                        // Buscar siguiente no revisada
+                        const nextCard = Array.from(cards).find((c, i) => i > currentIndex && c.dataset.reviewed !== 'true');
+                        if (nextCard) {
+                            nextCard.click();
+                        } else {
+                            actionBar.classList.add('hidden');
+                        }
+                    }, 400);
+                });
+            }
+
+            if (ignoreBtn) {
+                ignoreBtn.addEventListener('click', () => {
+                    if (ignoreBtn.dataset.mode === 'cancel') {
+                        resetActionBarMode();
+                        return;
+                    }
+
+                    // Si ya está en modo confirmación, ejecutar la acción
+                    if (ignoreBtn.dataset.mode === 'confirm') {
+                        let selectedSpan = document.querySelector('.selected-entity');
+                        if (!selectedSpan) {
+                            const selectedCard = document.querySelector('.pending-entity-card[data-selected="true"]');
+                            if (selectedCard && selectedCard.dataset.targetId) {
+                                selectedSpan = document.getElementById(selectedCard.dataset.targetId);
+                            }
+                        }
+
+                        if (selectedSpan) {
+                            const originalText = selectedSpan.dataset.original;
+                            if (originalText) {
+                                const textNode = document.createTextNode(originalText);
+                                selectedSpan.parentNode.replaceChild(textNode, selectedSpan);
+
+                                const activeCard = document.querySelector('.pending-entity-card[data-selected="true"]');
+                                if (activeCard) {
+                                    activeCard.dataset.reviewed = 'true';
+                                    activeCard.classList.add('opacity-50', 'line-through', 'bg-stone-200', 'dark:bg-stone-800');
+                                    activeCard.querySelector('.material-symbols-outlined').textContent = 'cancel';
+                                    updateReviewCounter();
+                                }
+
+                                // Limpiar modo de confirmación
+                                delete ignoreBtn.dataset.mode;
+                                ignoreBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">undo</span> Restaurar';
+                                ignoreBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                                ignoreBtn.classList.add('bg-stone-600', 'hover:bg-stone-700');
+
+                                actionBar.classList.add('hidden');
+                            }
+                        }
+                        return;
+                    }
+
+                    // Primera vez: activar modo confirmación
+                    ignoreBtn.dataset.mode = 'confirm';
+                    ignoreBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">warning</span> ¿Confirmar?';
+                    ignoreBtn.classList.remove('bg-stone-600', 'hover:bg-stone-700');
+                    ignoreBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+
+                    // Auto-cancelar después de 3 segundos si no confirma
+                    setTimeout(() => {
+                        if (ignoreBtn.dataset.mode === 'confirm') {
+                            delete ignoreBtn.dataset.mode;
+                            ignoreBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">undo</span> Restaurar';
+                            ignoreBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                            ignoreBtn.classList.add('bg-stone-600', 'hover:bg-stone-700');
+                        }
+                    }, 3000);
+                });
+            }
+
+            // === MODAL DE EDICIÓN ===
+            const editModal = document.getElementById('edit-modal');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const modalSaveBtn = document.getElementById('modal-save-btn');
+            const modalDeleteBtn = document.getElementById('modal-delete-btn');
+            const modalEditInput = document.getElementById('modal-edit-input');
+            const modalNotesInput = document.getElementById('modal-notes-input');
+            const modalOriginalText = document.getElementById('modal-original-text');
+
+            let currentEditingSpan = null;
+
+            if (modifyBtn) {
+                modifyBtn.addEventListener('click', () => {
+                    let selectedSpan = document.querySelector('.selected-entity');
+                    if (!selectedSpan) {
+                        const selectedCard = document.querySelector('.pending-entity-card[data-selected="true"]');
+                        if (selectedCard && selectedCard.dataset.targetId) {
+                            selectedSpan = document.getElementById(selectedCard.dataset.targetId);
+                        }
+                    }
+
+                    if (selectedSpan) {
+                        currentEditingSpan = selectedSpan;
+                        currentEditingEntity = {
+                            original: selectedSpan.dataset.original,
+                            transformed: selectedSpan.textContent,
+                            domId: selectedSpan.id
+                        };
+
+                        modalOriginalText.textContent = currentEditingEntity.original;
+                        modalEditInput.value = currentEditingEntity.transformed;
+                        modalNotesInput.value = '';
+
+                        editModal.classList.remove('hidden');
+                        editModal.classList.add('flex');
+                        modalEditInput.focus();
+                        modalEditInput.select();
+                    }
+                });
+            }
+
+            function closeModal() {
+                editModal.classList.add('hidden');
+                editModal.classList.remove('flex');
+                currentEditingEntity = null;
+                currentEditingSpan = null;
+            }
+
+            modalCloseBtn.addEventListener('click', closeModal);
+            modalCancelBtn.addEventListener('click', closeModal);
+
+            modalSaveBtn.addEventListener('click', () => {
+                const newValue = modalEditInput.value.trim();
+                const notes = modalNotesInput.value.trim();
+
+                if (newValue && currentEditingSpan) {
+                    currentEditingSpan.textContent = newValue;
+                    if (notes) {
+                        currentEditingSpan.dataset.notes = notes;
+                    }
+
+                    // Sincronizar con processingResult.entities
+                    const entityId = currentEditingSpan.id;
+                    const entityIndex = parseInt(entityId.replace('entity-', ''));
+                    if (processingResult && processingResult.entities && processingResult.entities[entityIndex]) {
+                        processingResult.entities[entityIndex].transformed = newValue;
+                        if (notes) {
+                            processingResult.entities[entityIndex].notes = notes;
+                        }
+                    }
+
+                    const card = document.querySelector(`.pending-entity-card[data-target-id="${currentEditingSpan.id}"]`);
+                    if (card) {
+                        const cardTitle = card.querySelector('.font-medium');
+                        if (cardTitle) cardTitle.textContent = newValue;
+                    }
+
+                    const actionBarTitle = document.getElementById('action-bar-title');
+                    if (actionBarTitle) {
+                        actionBarTitle.textContent = newValue;
+                    }
+                }
+
+                closeModal();
+            });
+
+            modalDeleteBtn.addEventListener('click', () => {
+                if (currentEditingSpan) {
+                    const originalText = currentEditingSpan.dataset.original;
+                    const notes = modalNotesInput.value.trim();
+
+                    // Sincronizar con processingResult.entities antes de eliminar
+                    const entityId = currentEditingSpan.id;
+                    const entityIndex = parseInt(entityId.replace('entity-', ''));
+                    if (processingResult && processingResult.entities && processingResult.entities[entityIndex]) {
+                        processingResult.entities[entityIndex].deleted = true;
+                        processingResult.entities[entityIndex].transformed = originalText; // Restaurar original
+                        if (notes) {
+                            processingResult.entities[entityIndex].notes = notes;
+                        }
+                    }
+
+                    const textNode = document.createTextNode(originalText);
+                    currentEditingSpan.parentNode.replaceChild(textNode, currentEditingSpan);
+
+                    const card = document.querySelector(`.pending-entity-card[data-target-id="${currentEditingSpan.id}"]`);
+                    if (card) {
+                        card.dataset.reviewed = 'true';
+                        card.dataset.action = 'deleted';
+                        if (notes) card.dataset.notes = notes;
+                        card.classList.add('opacity-50', 'line-through', 'bg-stone-200', 'dark:bg-stone-800');
+                        card.querySelector('.material-symbols-outlined').textContent = 'cancel';
+                        updateReviewCounter();
+                    }
+
+                    actionBar.classList.add('hidden');
+                }
+
+                closeModal();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !editModal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+
+            modalEditInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    modalSaveBtn.click();
+                }
+            });
+
+            function resetActionBarMode() {
+                acceptBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check</span> Aceptar';
+                delete acceptBtn.dataset.mode;
+
+                ignoreBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">undo</span> Restaurar';
+                delete ignoreBtn.dataset.mode;
+
+                modifyBtn.classList.remove('hidden');
+
+                const titleSpan = document.getElementById('action-bar-title');
+
+                if (titleSpan.querySelector('input')) {
+                    const textToShow = currentEditingEntity ? currentEditingEntity.transformed : titleSpan.querySelector('input').value;
+                    titleSpan.textContent = textToShow;
+                }
+            }
+        }
+
+        initializeManualSelection();
+
+        function initializeManualSelection() {
+            const mainText = document.getElementById('main-text-scroll-area');
+            const tooltip = document.getElementById('manual-selection-tooltip');
+
+            if (!mainText || !tooltip) return;
+
+            let currentSelectionRange = null;
+
+            // Detectar selección
+            document.addEventListener('mouseup', (e) => {
+                const selection = window.getSelection();
+                console.log('MouseUp detected. Selection:', selection.toString());
+
+                // Si la selección está vacía o no es dentro del área de texto, ocultar
+                // Relaxed check for debugging: just check if text is selected
+                if (selection.isCollapsed) {
+                    if (!tooltip.contains(e.target)) {
+                        tooltip.classList.add('hidden');
+                    }
+                    return;
+                }
+
+                // Strict check: if (!mainText.contains(selection.anchorNode))
+                // Relaxed check: Allow if it's within the main container wrapper or body for now to test
+                // But let's keep it reasonable. 
+                const anchor = selection.anchorNode;
+                const isInside = mainText.contains(anchor.nodeType === 3 ? anchor.parentNode : anchor);
+                console.log('Is inside main text?', isInside);
+
+                if (!isInside) {
+                    if (!tooltip.contains(e.target)) {
+                        tooltip.classList.add('hidden');
+                    }
+                    return;
+                }
+
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                const text = selection.toString().trim();
+
+                if (text.length > 0) {
+                    currentSelectionRange = range;
+
+                    // Posicionar tooltip con validación de límites del viewport
+                    const tooltipWidth = 200; // Ancho aproximado del tooltip
+                    const tooltipHeight = 50;
+
+                    // Calcular posición centrada
+                    let top = rect.top - tooltipHeight - 8; // 8px gap
+                    let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+
+                    // Validar límites del viewport
+                    const margin = 16; // margen de seguridad
+
+                    // Si se sale por la izquierda
+                    if (left < margin) {
+                        left = margin;
+                    }
+
+                    // Si se sale por la derecha
+                    if (left + tooltipWidth > window.innerWidth - margin) {
+                        left = window.innerWidth - tooltipWidth - margin;
+                    }
+
+                    // Si se sale por arriba, mostrar debajo de la selección
+                    if (top < margin) {
+                        top = rect.bottom + 8;
+                    }
+
+                    tooltip.style.top = `${top}px`;
+                    tooltip.style.left = `${left}px`;
+                    tooltip.classList.remove('hidden');
+                }
+            });
+
+            // Manejar clicks en botones del tooltip
+            tooltip.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const type = btn.dataset.type;
+
+                    if (currentSelectionRange && processingResult) {
+                        const text = currentSelectionRange.toString();
+
+                        // 1. Crear nueva entidad
+                        const newEntity = {
+                            type: type,
+                            subtype: 'manual',
+                            text: text,
+                            original: text,
+                            position: { start: 0, end: 0 },
+                            confidence: 1.0,
+                            manual: true
+                        };
+
+                        // 2. Transformar
+                        if (window.PrivacyProcessor) {
+                            newEntity.transformed = window.PrivacyProcessor.transformEntity(newEntity);
+                        } else {
+                            newEntity.transformed = `[${type}]`;
+                        }
+
+                        // 3. Añadir a datos
+                        processingResult.entities.push(newEntity);
+
+                        // 4. Modificar DOM (Insertar Span)
+                        const span = document.createElement('span');
+                        span.textContent = newEntity.transformed;
+                        // Usar clases del tipo
+                        // Recalcular índice
+                        const newIndex = processingResult.entities.length - 1;
+                        // Hack para obtener clases: usar createEntitySpan y extraer
+                        const tempHtml = createEntitySpan(newEntity, newIndex);
+                        const classMatch = tempHtml.match(/class="([^"]+)"/);
+                        if (classMatch) span.className = classMatch[1];
+
+                        span.id = `entity-${newIndex}`;
+                        span.dataset.type = type;
+                        span.dataset.original = text;
+
+                        span.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const entityId = span.id;
+                            const card = document.querySelector(`.pending-entity-card[data-target-id="${entityId}"]`);
+                            if (card) card.click();
+                        });
+
+                        // Insertar
+                        currentSelectionRange.deleteContents();
+                        currentSelectionRange.insertNode(span);
+
+                        // Actualizar posiciones de todas las entidades basándose en el DOM
+                        updateEntityPositions();
+
+                        // 5. Actualizar Sidebar
+                        renderSidePanel(processingResult);
+
+                        // Auto-seleccionar para permitir modificación inmediata
+                        span.click();
+
+
+
+                        // Limpieza
+                        tooltip.classList.add('hidden');
+                        window.getSelection().removeAllRanges();
+                        updateReviewCounter();
+                    }
+                });
+            });
+        }
+    </script>
+
+    <!-- Footer -->
+    <footer
+        class="bg-white dark:bg-stone-900 border-t border-stone-200 dark:border-stone-800 py-4 px-6 text-center text-sm text-stone-500 dark:text-stone-400 shrink-0">
+        <div class="flex gap-4 justify-center">
+            <a href="guia.html" class="hover:text-primary transition">Guía</a>
+            <a href="terminos.html" class="hover:text-primary transition">Términos</a>
+            <a href="app.html" class="hover:text-primary transition">Inicio</a>
+        </div>
+    </footer>
+</body>
+
+</html>

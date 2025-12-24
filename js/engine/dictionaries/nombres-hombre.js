@@ -1,0 +1,23 @@
+export const NOMBRES_HOMBRE = [
+    "José", "Antonio", "Juan", "Manuel", "Francisco", "David", "Javier", "Daniel", "Carlos", "Pedro",
+    "Alejandro", "Miguel", "Rafael", "Fernando", "Luís", "Ángel", "Pablo", "Sergio", "Jorge", "Jesús",
+    "Alberto", "Rubén", "Diego", "Adrián", "Álvaro", "Enrique", "Iván", "Ramón", "Vicente", "Oscar",
+    "Andrés", "Joaquín", "Santiago", "Eduardo", "Víctor", "Roberto", "Jaime", "Ignacio", "Mario", "Alfonso",
+    "Salvador", "Ricardo", "Marcos", "Emilio", "Julián", "Julio", "Tomás", "Agustín", "Guillermo", "Gabriel",
+    "Félix", "César", "Hugo", "Gonzalo", "Marc", "Mohamed", "Bernardo", "Mariano", "Domingo", "Eusebio",
+    "Gregorio", "Lorenzo", "Cristóbal", "Esteban", "Ismael", "Samuel", "Iker", "Joel", "Héctor", "Alex",
+    "Lucas", "Martín", "Nicolás", "Mateo", "Leo", "Unai", "Pau", "Arnau", "Aitor", "Xavier",
+    "Albert", "Miquel", "Jordi", "Pol", "Biel", "Nil", "Jan", "Gerard", "Lluís", "Oriol",
+    "Joan", "Carles", "Sergi", "Francesc", "Josep", "Antoni", "Ramon", "Vicenç", "Jaume", "Pere",
+    "Andreu", "Miquel", "Rafael", "Manel", "Joaquim", "Sebastián", "Felipe", "Alfredo", "Raúl", "Arturo",
+    "Eugenio", "Federico", "Gerardo", "Humberto", "Isaac", "Jacobo", "Leandro", "Moisés", "Néstor", "Oliver",
+    "Patricio", "Quirino", "Raimundo", "Saúl", "Teodoro", "Ulises", "Valerio", "Walter", "Xavier", "Yago",
+    "Zacarías", "Abel", "Benjamín", "Camilo", "Darío", "Elías", "Fabián", "Gaspar", "Horacio", "Isidro",
+    "Jerónimo", "Kevin", "Lázaro", "Marcelo", "Noé", "Octavio", "Pascual", "Rodolfo", "Simón", "Tito",
+    "Urbano", "Valentín", "Wilfredo", "Xenaro", "Yusef", "Zenón", "Adolfo", "Basilio", "Claudio", "Damián",
+    "Eloy", "Fausto", "Gilberto", "Hernán", "Iñigo", "Jon", "Kilian", "Leonardo", "Maximiliano", "Norberto",
+    "Osvaldo", "Pablo", "Rodrigo", "René", "Timoteo", "Valentino", "Wenceslao", "Xavi", "Yeray", "Zacarias",
+    "Aaron", "Bruno", "Dante", "Emmanuel", "Fabio", "Gael", "Hugo", "Ivan", "Julian", "Karim",
+    "Leon", "Matías", "Nathan", "Omar", "Óscar", "Paolo", "Quique", "Raúl", "Samir", "Thiago",
+    "Ulises", "Valentín"
+];

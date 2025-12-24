@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Laboratorio de Privacidad Clínica by Sophilux</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#b88a7f",
+                        "primary-dark": "#a67b70",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1716",
+                        "stone-dark": "#1c1917",
+                        "lavender-subtle": "#eaddd9",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Cormorant Garamond", "serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.375rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body class="bg-stone-200 dark:bg-stone-950 font-display">
+    <div
+        class="relative flex min-h-screen w-full max-w-7xl mx-auto flex-col bg-background-light dark:bg-background-dark group/design-root overflow-x-hidden shadow-2xl">
+        <header
+            class="sticky top-0 z-50 flex items-center bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm p-4 justify-between border-b border-stone-200/50 dark:border-stone-800 transition-colors">
+            <h2
+                class="text-[#171312] dark:text-stone-100 text-2xl font-serif font-bold leading-tight tracking-tight flex-1">
+                Sophilux</h2>
+            <div class="flex w-12 items-center justify-end">
+                <button
+                    class="flex items-center justify-center rounded-lg h-10 w-10 text-[#171312] dark:text-stone-100 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors">
+                    <span class="material-symbols-outlined" style="font-size: 24px;">menu</span>
+                </button>
+            </div>
+        </header>
+        <main class="flex flex-col">
+            <div class="flex flex-col items-center justify-center pt-8 pb-4 px-6 gap-4 text-center">
+                <h1
+                    class="text-[#171312] dark:text-stone-50 text-[40px] font-serif font-bold leading-[1.1] tracking-[-0.02em]">
+                    Use IA con sus pacientes. <span class="italic text-primary block mt-1">Sin riesgos.</span>
+                </h1>
+                <span
+                    class="text-primary dark:text-primary font-serif font-bold text-3xl md:text-4xl tracking-tight uppercase leading-tight mt-4">Laboratorio
+                    de Privacidad</span>
+            </div>
+            <div
+                class="w-full h-px bg-gradient-to-r from-transparent via-[#dfd9d7] dark:via-stone-700 to-transparent my-2">
+            </div>
+            <div class="flex flex-col items-center justify-center pb-8 px-6 gap-6 text-center">
+                <p class="text-[#57534e] dark:text-stone-300 text-base font-normal leading-relaxed max-w-sm">
+                    Seudonimización automática en su navegador. Garantizamos que ningún dato clínico salga de su
+                    dispositivo.
+                </p>
+                <div
+                    class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-full bg-[#efeceb] dark:bg-stone-800 border border-stone-200 dark:border-stone-700 pl-3 pr-4 mt-2">
+                    <span class="material-symbols-outlined text-[#171312] dark:text-stone-200"
+                        style="font-size: 16px;">lock</span>
+                    <p class="text-[#171312] dark:text-stone-200 text-xs font-semibold leading-normal">Procesamiento
+                        100% Local</p>
+                </div>
+                <div class="flex flex-col w-full gap-3 mt-4">
+                    <button id="btn-comenzar-seudonimizacion"
+                        class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 bg-primary hover:bg-primary-dark transition-colors text-[#171312] dark:text-stone-900 text-base font-bold leading-normal tracking-[0.015em] shadow-sm">
+                        <span class="truncate">Comenzar Seudonimización</span>
+                    </button>
+                    <button
+                        class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 px-5 bg-transparent border border-[#dfd9d7] dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-[#171312] dark:text-stone-100 text-base font-bold leading-normal tracking-[0.015em]">
+                        <span class="truncate">Saber Más</span>
+                    </button>
+                </div>
+            </div>
+            <div
+                class="w-full h-px bg-gradient-to-r from-transparent via-[#dfd9d7] dark:via-stone-700 to-transparent my-2">
+            </div>
+            <div class="px-4 py-8 text-center">
+                <h2 class="text-[#171312] dark:text-stone-50 text-3xl font-serif font-bold leading-tight">Cómo Funciona
+                </h2>
+                <p class="text-[#7f6b66] dark:text-stone-400 text-sm mt-2">Tres pasos simples hacia la seguridad</p>
+            </div>
+            <div class="flex flex-col gap-6 px-4 pb-12 md:grid md:grid-cols-3 md:gap-8 lg:px-12">
+                <div
+                    class="flex flex-col items-center text-center gap-4 rounded-xl border border-[#dfd9d7] dark:border-stone-700 bg-white dark:bg-stone-800/60 p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div
+                        class="flex flex-col items-center justify-center w-20 h-20 rounded-full bg-[#efeceb] dark:bg-stone-700 text-[#171312] dark:text-white mb-2">
+                        <span class="material-symbols-outlined" style="font-size: 48px;">content_paste</span>
+                    </div>
+                    <h3 class="text-[#171312] dark:text-stone-100 text-xl font-bold leading-tight">1. Pegue el texto
+                    </h3>
+                    <p class="text-[#7f6b66] dark:text-stone-400 text-base font-normal leading-relaxed max-w-sm">Pegue
+                        el texto clínico original en el editor seguro.</p>
+                </div>
+                <div
+                    class="flex flex-col items-center text-center gap-4 rounded-xl border border-[#dfd9d7] dark:border-stone-700 bg-white dark:bg-stone-800/60 p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div
+                        class="flex flex-col items-center justify-center w-20 h-20 rounded-full bg-[#efeceb] dark:bg-stone-700 text-[#171312] dark:text-white mb-2">
+                        <span class="material-symbols-outlined" style="font-size: 48px;">verified_user</span>
+                    </div>
+                    <h3 class="text-[#171312] dark:text-stone-100 text-xl font-bold leading-tight">2. Procesamiento</h3>
+                    <p class="text-[#7f6b66] dark:text-stone-400 text-base font-normal leading-relaxed max-w-sm">Nuestra
+                        herramienta elimina identificadores automáticamente.</p>
+                </div>
+                <div
+                    class="flex flex-col items-center text-center gap-4 rounded-xl border border-[#dfd9d7] dark:border-stone-700 bg-white dark:bg-stone-800/60 p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div
+                        class="flex flex-col items-center justify-center w-20 h-20 rounded-full bg-[#efeceb] dark:bg-stone-700 text-[#171312] dark:text-white mb-2">
+                        <span class="material-symbols-outlined" style="font-size: 48px;">content_copy</span>
+                    </div>
+                    <h3 class="text-[#171312] dark:text-stone-100 text-xl font-bold leading-tight">3. Copie seguro</h3>
+                    <p class="text-[#7f6b66] dark:text-stone-400 text-base font-normal leading-relaxed max-w-sm">Copie
+                        el texto seudonimizado para usar en ChatGPT.</p>
+                </div>
+            </div>
+            <div class="relative w-full h-40 mt-auto"
+                data-alt="Soft focused beige and rose gold abstract textures representing calm and safety">
+                <div
+                    class="absolute inset-0 bg-gradient-to-t from-background-light dark:from-background-dark to-transparent z-10">
+                </div>
+                <div
+                    class="w-full h-full bg-[url('https://images.unsplash.com/photo-1541453267758-1f6063428d05?q=80&amp;w=1000&amp;auto=format&amp;fit=crop')] bg-cover bg-center opacity-60 dark:opacity-30 sepia-[.3]">
+                </div>
+            </div>
+        </main>
+        <footer
+            class="bg-[#efeceb] dark:bg-[#151211] py-8 px-6 text-center border-t border-[#dfd9d7] dark:border-stone-800">
+            <h4 class="text-[#171312] dark:text-stone-200 font-serif font-bold text-lg mb-4">Sophilux</h4>
+            <div class="flex flex-col gap-2 mb-6">
+                <p class="text-[#7f6b66] dark:text-stone-500 text-xs leading-relaxed max-w-xs mx-auto">
+                    Sus datos nunca salen de este dispositivo. Todo el procesamiento ocurre localmente en su navegador
+                    mediante WebAssembly.
+                </p>
+            </div>
+            <div class="flex justify-center gap-6">
+                <a class="text-[#7f6b66] dark:text-stone-400 hover:text-primary transition-colors text-xs font-medium"
+                    href="index.html">Inicio</a>
+                <a class="text-[#7f6b66] dark:text-stone-400 hover:text-primary transition-colors text-xs font-medium"
+                    href="guia.html">Guía</a>
+                <a class="text-[#7f6b66] dark:text-stone-400 hover:text-primary transition-colors text-xs font-medium"
+                    href="terminos.html">Términos</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal de Selección de Tipo -->
+    <div id="choice-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-stone-800 rounded-2xl max-w-md w-full shadow-2xl animate-scale-in">
+            <div class="p-6">
+                <h2 class="text-2xl font-serif font-bold text-stone-900 dark:text-white mb-2">
+                    ¿Qué deseas seudonimizar?
+                </h2>
+                <p class="text-sm text-stone-600 dark:text-stone-400 mb-6">
+                    Elige el tipo de datos que vas a procesar
+                </p>
+
+                <div class="flex flex-col gap-3">
+                    <!-- Opción Texto -->
+                    <button id="choice-text"
+                        class="flex items-center gap-4 p-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 hover:border-primary hover:bg-stone-50 dark:hover:bg-stone-700 transition-all group">
+                        <div
+                            class="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                            <span class="material-symbols-outlined" style="font-size: 28px;">description</span>
+                        </div>
+                        <div class="flex-1 text-left">
+                            <h3 class="font-bold text-stone-900 dark:text-white">Texto clínico</h3>
+                            <p class="text-xs text-stone-500 dark:text-stone-400">Notas médicas, informes, textos libres
+                            </p>
+                        </div>
+                    </button>
+
+                    <!-- Opción Excel -->
+                    <button id="choice-excel"
+                        class="flex items-center gap-4 p-4 rounded-xl border-2 border-stone-200 dark:border-stone-700 hover:border-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all group">
+                        <div
+                            class="flex-shrink-0 w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-500 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                            <span class="material-symbols-outlined" style="font-size: 28px;">table_chart</span>
+                        </div>
+                        <div class="flex-1 text-left">
+                            <h3 class="font-bold text-stone-900 dark:text-white">Datos estructurados</h3>
+                            <p class="text-xs text-stone-500 dark:text-stone-400">Archivos CSV, Excel, formularios
+                                tabulares</p>
+                        </div>
+                    </button>
+                </div>
+
+                <button id="close-choice-modal"
+                    class="mt-6 w-full text-center text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes scale-in {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .animate-scale-in {
+            animation: scale-in 0.2s ease-out;
+        }
+    </style>
+
+    <script>
+        // Modal de selección
+        const choiceModal = document.getElementById('choice-modal');
+        const btnComenzar = document.getElementById('btn-comenzar-seudonimizacion');
+        const btnCloseModal = document.getElementById('close-choice-modal');
+        const btnChoiceText = document.getElementById('choice-text');
+        const btnChoiceExcel = document.getElementById('choice-excel');
+
+        // Abrir modal
+        btnComenzar?.addEventListener('click', () => {
+            choiceModal.classList.remove('hidden');
+        });
+
+        // Cerrar modal
+        btnCloseModal?.addEventListener('click', () => {
+            choiceModal.classList.add('hidden');
+        });
+
+        // Cerrar con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !choiceModal.classList.contains('hidden')) {
+                choiceModal.classList.add('hidden');
+            }
+        });
+
+        // Cerrar al hacer clic fuera
+        choiceModal?.addEventListener('click', (e) => {
+            if (e.target === choiceModal) {
+                choiceModal.classList.add('hidden');
+            }
+        });
+
+        // Navegar según elección
+        btnChoiceText?.addEventListener('click', () => {
+            window.location.href = 'input.html';
+        });
+
+        btnChoiceExcel?.addEventListener('click', () => {
+            window.location.href = 'batch-structured.html';
+        });
+    </script>
+
+</body>
+
+</html>
