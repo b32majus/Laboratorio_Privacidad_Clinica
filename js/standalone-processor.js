@@ -720,11 +720,24 @@ window.PrivacyProcessor = {
     calculateStats: function (entities) {
         const stats = {
             totalEntities: entities.length,
-            byType: { nombres: 0, fechas: 0, identificadores: 0, ubicaciones: 0 }
+            byType: {
+                pacientes: 0,
+                profesionales: 0,
+                familiares: 0,
+                fechas: 0,
+                identificadores: 0,
+                ubicaciones: 0,
+                nombres: 0 // Mantener para compatibilidad
+            }
         };
 
         entities.forEach(e => {
-            if (e.type === 'NOMBRE') stats.byType.nombres++;
+            if (e.type === 'NOMBRE') {
+                stats.byType.nombres++;
+                if (e.subtype === 'paciente') stats.byType.pacientes++;
+                else if (e.subtype === 'profesional') stats.byType.profesionales++;
+                else if (e.subtype === 'familiar') stats.byType.familiares++;
+            }
             if (e.type === 'FECHA') stats.byType.fechas++;
             if (e.type === 'IDENTIFICADOR') stats.byType.identificadores++;
             if (e.type === 'UBICACION') stats.byType.ubicaciones++;
@@ -732,6 +745,7 @@ window.PrivacyProcessor = {
 
         return stats;
     },
+
 
     createEmptyResult: function (sessionId) {
         return {
