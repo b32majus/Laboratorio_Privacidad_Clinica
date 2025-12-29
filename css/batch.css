@@ -15,8 +15,15 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .step-header {
@@ -224,13 +231,40 @@
   font-weight: 500;
 }
 
-.type-badge.patient-id { background: #E3F2FD; color: #1565C0; }
-.type-badge.name { background: #FFEBEE; color: #C62828; }
-.type-badge.dni { background: #FFEBEE; color: #C62828; }
-.type-badge.phone { background: #FFEBEE; color: #C62828; }
-.type-badge.date { background: #E8F5E9; color: #2E7D32; }
-.type-badge.center { background: #FFF3E0; color: #EF6C00; }
-.type-badge.unknown { background: #F5F5F5; color: #616161; }
+.type-badge.patient-id {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
+.type-badge.name {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.type-badge.dni {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.type-badge.phone {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.type-badge.date {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.type-badge.center {
+  background: #FFF3E0;
+  color: #EF6C00;
+}
+
+.type-badge.unknown {
+  background: #F5F5F5;
+  color: #616161;
+}
 
 /* Action select */
 .action-select {
@@ -289,43 +323,79 @@
 .btn-download {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
   width: 100%;
-  max-width: 500px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
+  max-width: 520px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
   text-align: left;
-  border-radius: 8px;
-  border: none;
+  border-radius: 12px;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
 }
 
 .btn-download.btn-primary {
-  background: #4CAF50;
-  color: white;
+  background: white;
+  border-color: #e2e8f0;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.btn-download.btn-primary .btn-icon {
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .btn-download.btn-primary:hover {
-  background: #45A049;
+  border-color: #10b981;
+  background: #f8fafc;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1);
 }
 
-.btn-download.btn-secondary {
-  background: #FF9800;
+.btn-download.btn-primary:hover .btn-icon {
+  background: #10b981;
   color: white;
 }
 
+.btn-download.btn-secondary {
+  background: white;
+  border-color: #e2e8f0;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.btn-download.btn-secondary .btn-icon {
+  background: #fffbeb;
+  color: #d97706;
+}
+
 .btn-download.btn-secondary:hover {
-  background: #F57C00;
+  border-color: #f59e0b;
+  background: #f8fafc;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+  box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.1);
+}
+
+.btn-download.btn-secondary:hover .btn-icon {
+  background: #f59e0b;
+  color: white;
 }
 
 .btn-download .btn-icon {
-  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 24px !important;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
 }
 
 .btn-download .btn-text {
@@ -334,22 +404,40 @@
 }
 
 .btn-download .btn-text strong {
-  font-size: 1rem;
-  margin-bottom: 0.25rem;
+  font-size: 1.05rem;
+  margin-bottom: 0.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .btn-download .btn-text small {
-  font-size: 0.875rem;
-  opacity: 0.9;
-  font-weight: normal;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 400;
 }
 
 .download-warning {
+  display: flex;
+  gap: 0.75rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 1rem;
+  border-radius: 10px;
+  max-width: 520px;
+  margin: 1.5rem 0;
+}
+
+.download-warning span {
+  color: #d97706;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.download-warning p {
   font-size: 0.875rem;
-  color: #F57C00;
-  max-width: 500px;
-  margin: 0.5rem 0 1.5rem 0;
+  color: #92400e;
   line-height: 1.5;
+  margin: 0;
 }
 
 /* Result stats */
@@ -432,7 +520,9 @@
   border-top: 1px solid #E5E0DD;
 }
 
-.btn-secondary, .btn-primary, .btn-text {
+.btn-secondary,
+.btn-primary,
+.btn-text {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   border: none;

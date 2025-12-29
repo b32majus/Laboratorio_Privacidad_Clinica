@@ -11,30 +11,81 @@ const CIUDADES = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Má
 // ==================== ASIGNADOR DE SUSTITUTOS ====================
 const AsignadorSustitutos = {
     mapaAsignaciones: new Map(),
-    nombresUsados: { M: new Set(), F: new Set() },
-    apellidosUsados: new Set(),
+    profesionalesMap: new Map(),
+    familiaresMap: new Map(),
+    contadorProfesionales: 0,
+    contadorFamiliares: 0,
 
     reset() {
         this.mapaAsignaciones.clear();
-        this.nombresUsados = { M: new Set(), F: new Set() };
-        this.apellidosUsados.clear();
+        this.profesionalesMap.clear();
+        this.familiaresMap.clear();
+        this.contadorProfesionales = 0;
+        this.contadorFamiliares = 0;
     },
 
+    // Para PACIENTES: "Paciente Hombre" o "Paciente Mujer"
     obtenerSustituto(nombreOriginal, genero = null) {
+        if (!nombreOriginal || nombreOriginal.trim() === '') return '';
+
         const key = nombreOriginal.toLowerCase().trim();
         if (this.mapaAsignaciones.has(key)) {
             return this.mapaAsignaciones.get(key);
         }
 
         const generoDetectado = genero || this.detectarGenero(nombreOriginal);
-        const nuevoNombre = this.seleccionarNombre(generoDetectado);
-        const apellido1 = this.seleccionarApellido();
-        const apellido2 = this.seleccionarApellido();
-        const sustituto = `${nuevoNombre} ${apellido1} ${apellido2}`;
+        const sustituto = generoDetectado === 'F' ? 'Paciente Mujer' : 'Paciente Hombre';
 
         this.mapaAsignaciones.set(key, sustituto);
         return sustituto;
     },
+
+    // Para PROFESIONALES: "Profesional Sanitario 1, 2..."
+    obtenerSustitutoProfesional(nombreOriginal) {
+        if (!nombreOriginal || nombreOriginal.trim() === '') return '';
+
+        const key = nombreOriginal.toLowerCase().trim();
+        if (this.profesionalesMap.has(key)) {
+            return this.profesionalesMap.get(key);
+        }
+
+        this.contadorProfesionales++;
+        const sustituto = `Profesional Sanitario ${this.contadorProfesionales}`;
+        this.profesionalesMap.set(key, sustituto);
+        return sustituto;
+    },
+
+    // Para FAMILIARES: "Familiar 1, 2..."
+    // La coherencia se basa en el TIPO de relación (madre, esposa, etc.)
+    obtenerSustitutoFamiliar(nombreOriginal) {
+        if (!nombreOriginal || nombreOriginal.trim() === '') return '';
+
+        // Extraer la palabra de relación familiar del texto
+        const relacionesFamiliares = ['esposa', 'esposo', 'madre', 'padre', 'hijo', 'hija', 'hermano', 'hermana', 'abuelo', 'abuela', 'tío', 'tía', 'primo', 'prima', 'sobrino', 'sobrina', 'cuñado', 'cuñada', 'suegro', 'suegra', 'yerno', 'nuera', 'pareja', 'cónyuge', 'tutor', 'tutora'];
+
+        const textoLower = nombreOriginal.toLowerCase();
+        let relacionEncontrada = null;
+
+        for (const relacion of relacionesFamiliares) {
+            if (textoLower.includes(relacion)) {
+                relacionEncontrada = relacion;
+                break;
+            }
+        }
+
+        // Usar la relación como clave, o el texto completo si no se encuentra
+        const key = relacionEncontrada || textoLower.trim();
+
+        if (this.familiaresMap.has(key)) {
+            return this.familiaresMap.get(key);
+        }
+
+        this.contadorFamiliares++;
+        const sustituto = `Familiar ${this.contadorFamiliares}`;
+        this.familiaresMap.set(key, sustituto);
+        return sustituto;
+    },
+
 
     detectarGenero(nombre) {
         const primerNombre = nombre.split(' ')[0].toLowerCase();
@@ -42,36 +93,179 @@ const AsignadorSustitutos = {
             if (['luca', 'bautista', 'borja', 'santiago', 'garcía'].includes(primerNombre)) return 'M';
             return 'F';
         }
-        if (['carmen', 'rocío', 'consuelo', 'rosario', 'raquel', 'isabel'].includes(primerNombre)) return 'F';
+        const nombresFemeninos = ['carmen', 'rocío', 'consuelo', 'rosario', 'raquel', 'isabel', 'pilar', 'mar', 'mercedes', 'dolores', 'nieves', 'milagros', 'belen', 'belén'];
+        if (nombresFemeninos.includes(primerNombre)) return 'F';
         return 'M';
+    }
+};
+
+// ==================== COHERENCIA UBICACIONES ====================
+const UbicacionesManager = {
+    centrosMap: new Map(),
+    ciudadesMap: new Map(),
+    contadorCentros: 0,
+    contadorCiudades: 0,
+
+    reset() {
+        this.centrosMap.clear();
+        this.ciudadesMap.clear();
+        this.contadorCentros = 0;
+        this.contadorCiudades = 0;
     },
 
-    seleccionarNombre(genero) {
-        const lista = genero === 'F' ? NOMBRES_MUJER : NOMBRES_HOMBRE;
-        const usados = this.nombresUsados[genero];
-        for (let i = 0; i < 50; i++) {
-            const nombre = lista[Math.floor(Math.random() * lista.length)];
-            if (!usados.has(nombre)) {
-                usados.add(nombre);
-                return nombre;
-            }
+    obtenerCentro(centroOriginal) {
+        if (!centroOriginal || centroOriginal.trim() === '') return '';
+
+        const key = centroOriginal.toLowerCase().trim();
+        if (this.centrosMap.has(key)) {
+            return this.centrosMap.get(key);
         }
-        return lista[Math.floor(Math.random() * lista.length)];
+
+        this.contadorCentros++;
+        const letra = String.fromCharCode(64 + this.contadorCentros); // A, B, C...
+        const sustituto = `Centro ${letra}`;
+        this.centrosMap.set(key, sustituto);
+        return sustituto;
     },
 
-    seleccionarApellido() {
-        for (let i = 0; i < 50; i++) {
-            const apellido = APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)];
-            if (!this.apellidosUsados.has(apellido)) {
-                this.apellidosUsados.add(apellido);
-                return apellido;
-            }
+    obtenerCiudad(ciudadOriginal) {
+        if (!ciudadOriginal || ciudadOriginal.trim() === '') return '';
+
+        const key = ciudadOriginal.toLowerCase().trim();
+        if (this.ciudadesMap.has(key)) {
+            return this.ciudadesMap.get(key);
         }
-        return APELLIDOS[Math.floor(Math.random() * APELLIDOS.length)];
+
+        this.contadorCiudades++;
+        const letra = String.fromCharCode(64 + this.contadorCiudades); // A, B, C...
+        const sustituto = `Ciudad ${letra}`;
+        this.ciudadesMap.set(key, sustituto);
+        return sustituto;
+    }
+};
+
+// ==================== RELATIVIZACIÓN DE FECHAS ====================
+const FechasManager = {
+    visitasOrdenadas: [], // Array de { fecha: Date, original: string }
+    visitasMap: new Map(),
+    hoy: new Date(),
+
+    reset() {
+        this.visitasOrdenadas = [];
+        this.visitasMap.clear();
+        this.hoy = new Date();
+    },
+
+    parseFecha(texto) {
+        if (!texto) return null;
+        // dd/mm/yyyy o dd-mm-yyyy
+        const matchNumerico = texto.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (matchNumerico) {
+            const day = parseInt(matchNumerico[1]);
+            const month = parseInt(matchNumerico[2]) - 1;
+            let year = parseInt(matchNumerico[3]);
+            if (year < 100) year += (year > 50 ? 1900 : 2000);
+            return new Date(year, month, day);
+        }
+        return null;
+    },
+
+    calcularDiasDiferencia(fecha1, fecha2) {
+        const diffTime = fecha2 - fecha1;
+        return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    },
+
+    procesarVisita(fechaOriginal) {
+        const key = fechaOriginal.trim();
+
+        if (this.visitasMap.has(key)) {
+            return this.visitasMap.get(key);
+        }
+
+        const fechaParsed = this.parseFecha(fechaOriginal);
+        if (!fechaParsed) {
+            // Si no se puede parsear, relativizar respecto a hoy
+            return this.relativizarRespHoy(fechaOriginal);
+        }
+
+        // Añadir a la lista de visitas
+        this.visitasOrdenadas.push({ fecha: fechaParsed, original: key });
+
+        // Ordenar por fecha
+        this.visitasOrdenadas.sort((a, b) => a.fecha - b.fecha);
+
+        // Recalcular todas las etiquetas
+        this.recalcularEtiquetas();
+
+        return this.visitasMap.get(key);
+    },
+
+    recalcularEtiquetas() {
+        this.visitasMap.clear();
+
+        for (let i = 0; i < this.visitasOrdenadas.length; i++) {
+            const visita = this.visitasOrdenadas[i];
+            const numVisita = i + 1;
+
+            let etiqueta;
+            if (i === 0) {
+                // Primera visita: mostrar tiempo relativo a hoy
+                const diasDesdeHoy = this.calcularDiasDiferencia(visita.fecha, this.hoy);
+                let tiempoRelativo = '';
+                if (diasDesdeHoy === 0) tiempoRelativo = 'hoy';
+                else if (diasDesdeHoy === 1) tiempoRelativo = 'hace 1 día';
+                else if (diasDesdeHoy < 7) tiempoRelativo = `hace ${diasDesdeHoy} días`;
+                else if (diasDesdeHoy < 30) tiempoRelativo = `hace ${Math.round(diasDesdeHoy / 7)} semanas`;
+                else if (diasDesdeHoy < 365) tiempoRelativo = `hace ${Math.round(diasDesdeHoy / 30)} meses`;
+                else tiempoRelativo = `hace ${Math.round(diasDesdeHoy / 365)} años`;
+
+                etiqueta = `Visita ${numVisita} (${tiempoRelativo})`;
+            } else {
+                const visitaAnterior = this.visitasOrdenadas[i - 1];
+                const diasDif = this.calcularDiasDiferencia(visitaAnterior.fecha, visita.fecha);
+
+                if (diasDif === 0) {
+                    etiqueta = `Visita ${numVisita} (mismo día que Visita ${i})`;
+                } else if (diasDif === 1) {
+                    etiqueta = `Visita ${numVisita} (1 día después de Visita ${i})`;
+                } else if (diasDif < 7) {
+                    etiqueta = `Visita ${numVisita} (${diasDif} días después de Visita ${i})`;
+                } else if (diasDif < 30) {
+                    const semanas = Math.round(diasDif / 7);
+                    etiqueta = `Visita ${numVisita} (${semanas} semana${semanas > 1 ? 's' : ''} después de Visita ${i})`;
+                } else if (diasDif < 365) {
+                    const meses = Math.round(diasDif / 30);
+                    etiqueta = `Visita ${numVisita} (${meses} mes${meses > 1 ? 'es' : ''} después de Visita ${i})`;
+                } else {
+                    const años = Math.round(diasDif / 365);
+                    etiqueta = `Visita ${numVisita} (${años} año${años > 1 ? 's' : ''} después de Visita ${i})`;
+                }
+            }
+
+            this.visitasMap.set(visita.original, etiqueta);
+        }
+    },
+
+
+    relativizarRespHoy(fechaOriginal) {
+        const fecha = this.parseFecha(fechaOriginal);
+        if (!fecha) return fechaOriginal;
+
+        const dias = this.calcularDiasDiferencia(fecha, this.hoy);
+
+        if (dias === 0) return 'hoy';
+        if (dias === 1) return 'ayer';
+        if (dias > 0 && dias < 7) return `hace ${dias} días`;
+        if (dias >= 7 && dias < 30) return `hace ${Math.round(dias / 7)} semanas`;
+        if (dias >= 30 && dias < 365) return `hace ${Math.round(dias / 30)} meses`;
+        if (dias >= 365) return `hace ${Math.round(dias / 365)} años`;
+
+        return fechaOriginal;
     }
 };
 
 // ==================== NORMALIZACIÓN DE TEXTO ====================
+
 const TextNormalizer = {
     // Mapa de caracteres con tildes a sin tildes
     accentMap: {
@@ -117,13 +311,34 @@ window.PrivacyProcessor = {
         const startTime = performance.now();
         const sessionId = this.generateId();
 
-        // Reset del asignador para nueva sesión
+        // Reset de todos los managers para nueva sesión
         AsignadorSustitutos.reset();
+        UbicacionesManager.reset();
+        FechasManager.reset();
+
 
         if (!text) return this.createEmptyResult(sessionId);
 
         const entities = this.detectEntities(text);
         const resolved = this.resolveConflicts(entities);
+
+        // PRE-PASO: Registrar todas las fechas primero para calcular visitas correctamente
+        // Las fechas deben procesarse en orden cronológico, no en orden de aparición
+        const fechaEntities = resolved.filter(e => e.type === 'FECHA' &&
+            (e.subtype === 'fecha_completa' || /^\d{1,2}[\/\-]/.test(e.text)));
+
+        // Ordenar por fecha real (cronológico)
+        fechaEntities.sort((a, b) => {
+            const fechaA = FechasManager.parseFecha(a.text);
+            const fechaB = FechasManager.parseFecha(b.text);
+            if (!fechaA || !fechaB) return 0;
+            return fechaA - fechaB;
+        });
+
+        // Registrar todas las fechas en orden cronológico
+        fechaEntities.forEach(e => {
+            FechasManager.procesarVisita(e.text);
+        });
 
         let processedText = text;
         const sortedEntities = [...resolved].sort((a, b) => b.position.start - a.position.start);
@@ -134,6 +349,7 @@ window.PrivacyProcessor = {
                 entity.transformed +
                 processedText.slice(entity.position.end);
         }
+
 
         sortedEntities.sort((a, b) => a.position.start - b.position.start);
 
@@ -156,10 +372,21 @@ window.PrivacyProcessor = {
         const entities = [];
 
         // 1. DNI y Identificadores
+        // Patrón clásico: 8 dígitos + letra
         const dniRegex = /\b\d{8}[A-Z]\b/gi;
         let match;
         while ((match = dniRegex.exec(text)) !== null) {
             entities.push({ type: 'IDENTIFICADOR', subtype: 'dni', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.99 });
+        }
+
+        // DNI después de etiqueta "Documento:" o "DNI:" o "NIF:"
+        const docLabelRegex = /(?:Documento|DNI|NIF)\s*:\s*([^\n\r]+?)(?=\s*$|\s*\n|\r)/gmi;
+        while ((match = docLabelRegex.exec(text)) !== null) {
+            const doc = match[1].trim();
+            if (doc.length > 0) {
+                const startPos = match.index + match[0].indexOf(doc);
+                entities.push({ type: 'IDENTIFICADOR', subtype: 'dni', text: doc, original: doc, position: { start: startPos, end: startPos + doc.length }, confidence: 0.95 });
+            }
         }
 
         // NHC (Historia Clínica) - Patrón común
@@ -167,6 +394,108 @@ window.PrivacyProcessor = {
         while ((match = nhcRegex.exec(text)) !== null) {
             entities.push({ type: 'IDENTIFICADOR', subtype: 'nhc', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.95 });
         }
+
+        // 1d. Teléfonos (españoles)
+        const telefonoRegex = /\b(?:\+34\s?)?[679]\d{2}[\s\.\-]?\d{3}[\s\.\-]?\d{3}\b/g;
+        while ((match = telefonoRegex.exec(text)) !== null) {
+            entities.push({ type: 'IDENTIFICADOR', subtype: 'telefono', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.95 });
+        }
+
+        // También detectar teléfonos después de etiquetas
+        const telLabelRegex = /(?:Tel[eé]fono|Tfno|M[oó]vil|Tel)\s*:?\s*([\d\s\.\-\+]+)/gi;
+        while ((match = telLabelRegex.exec(text)) !== null) {
+            const tel = match[1].trim();
+            if (tel.length >= 9) {
+                const startPos = match.index + match[0].indexOf(tel);
+                entities.push({ type: 'IDENTIFICADOR', subtype: 'telefono', text: tel, original: tel, position: { start: startPos, end: startPos + tel.length }, confidence: 0.90 });
+            }
+        }
+
+        // 1e. Emails
+        const emailRegex = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
+        while ((match = emailRegex.exec(text)) !== null) {
+            entities.push({ type: 'IDENTIFICADOR', subtype: 'email', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.99 });
+        }
+
+        // También detectar emails después de etiquetas
+        const emailLabelRegex = /(?:Email|Correo|E-mail)\s*:?\s*([^\s,\n\r]+@[^\s,\n\r]+)/gi;
+        while ((match = emailLabelRegex.exec(text)) !== null) {
+            const email = match[1].trim();
+            const startPos = match.index + match[0].indexOf(email);
+            entities.push({ type: 'IDENTIFICADOR', subtype: 'email', text: email, original: email, position: { start: startPos, end: startPos + email.length }, confidence: 0.95 });
+        }
+
+        // 1f. Direcciones (calle, avenida, plaza + contenido)
+        const direccionRegex = /\b(?:Calle|C\/|Avda\.?|Avenida|Plaza|Pza\.?|Paseo|Camino)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)*(?:,?\s*(?:n[º°]?\.?\s*)?\d+)?(?:\s*,?\s*(?:\d+[º°]?|piso\s+\d+|bajo|ático))?/gi;
+        while ((match = direccionRegex.exec(text)) !== null) {
+            entities.push({ type: 'UBICACION', subtype: 'direccion', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.85 });
+        }
+
+        // Direcciones después de etiqueta "Dirección:" o "Domicilio:"
+        const dirLabelRegex = /(?:Direcci[oó]n|Domicilio)\s*:\s*(.+?)(?=\s*$|\s*\n|\r)/gmi;
+        while ((match = dirLabelRegex.exec(text)) !== null) {
+            const dir = match[1].trim();
+            if (dir.length > 5) {
+                const startPos = match.index + match[0].indexOf(dir);
+                entities.push({ type: 'UBICACION', subtype: 'direccion', text: dir, original: dir, position: { start: startPos, end: startPos + dir.length }, confidence: 0.90 });
+            }
+        }
+
+        // 1g. Códigos Postales
+        const cpRegex = /\b(?:C\.?P\.?\s*:?\s*)?(\d{5})\b/g;
+        while ((match = cpRegex.exec(text)) !== null) {
+            // Verificar que parece un CP español (01000-52999)
+            const cp = match[1] || match[0];
+            const cpNum = parseInt(cp.replace(/\D/g, ''));
+            if (cpNum >= 1000 && cpNum <= 52999) {
+                entities.push({ type: 'IDENTIFICADOR', subtype: 'codigo_postal', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.80 });
+            }
+        }
+
+
+        // 1b. Familiares después de etiquetas como "Acompañante:" - captura toda la línea incluyendo nombres
+        const familiarFullRegex = /(?:Acompañante|Familiar|Contacto)\s*:?\s*\n?\s*(.+?)(?=\s*$|\s*\n|\r)/gmi;
+        while ((match = familiarFullRegex.exec(text)) !== null) {
+            const contenido = match[1].trim();
+            if (contenido.length > 0 && !/^[A-Z]{2,}/.test(contenido)) { // Excluir si es un título en mayúsculas
+                const startPos = match.index + match[0].indexOf(contenido);
+                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: contenido, original: contenido, position: { start: startPos, end: startPos + contenido.length }, confidence: 0.95 });
+            }
+        }
+
+        // 1c. Palabras de relación familiar seguidas de paréntesis con nombres (ej: "Esposa (Laura Sánchez)")
+        const relacionesFamiliares = ['esposa', 'esposo', 'madre', 'padre', 'hijo', 'hija', 'hermano', 'hermana', 'abuelo', 'abuela', 'tío', 'tía', 'primo', 'prima', 'sobrino', 'sobrina', 'cuñado', 'cuñada', 'suegro', 'suegra', 'yerno', 'nuera', 'pareja', 'cónyuge', 'tutor', 'tutora'];
+
+        // Detectar "Esposa (nombre, edad)" como un bloque completo
+        relacionesFamiliares.forEach(relacion => {
+            const regexConParentesis = new RegExp(`\\b(${relacion})\\s*\\([^)]+\\)`, 'gmi');
+            while ((match = regexConParentesis.exec(text)) !== null) {
+                const bloque = match[0];
+                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: bloque, original: bloque, position: { start: match.index, end: match.index + bloque.length }, confidence: 0.98 });
+            }
+        });
+
+        // 1d. Palabras de relación familiar que aparecen solas en una línea
+        relacionesFamiliares.forEach(relacion => {
+            const regex = new RegExp(`(?:^|\\n|\\r)\\s*(${relacion})\\s*(?:$|\\n|\\r)`, 'gmi');
+            while ((match = regex.exec(text)) !== null) {
+                const palabra = match[1];
+                const startPos = match.index + match[0].indexOf(palabra);
+                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: palabra, original: palabra, position: { start: startPos, end: startPos + palabra.length }, confidence: 0.90 });
+            }
+        });
+
+        // 1e. Menciones inline como "La madre refiere", "La esposa comenta"
+        relacionesFamiliares.forEach(relacion => {
+            const regexInline = new RegExp(`\\b[Ll]a\\s+(${relacion})\\s+(?:refiere|comenta|indica|dice|menciona|señala)`, 'gmi');
+            while ((match = regexInline.exec(text)) !== null) {
+                const palabra = match[1];
+                const startPos = match.index + match[0].indexOf(palabra);
+                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: palabra, original: palabra, position: { start: startPos, end: startPos + palabra.length }, confidence: 0.85 });
+            }
+        });
+
+
 
         // 2. Ubicaciones (Hospitales, Centros, Ciudades)
         // Detección explicita de Hospital/Clínica
@@ -207,26 +536,57 @@ window.PrivacyProcessor = {
             entities.push({ type: 'UBICACION', subtype: 'contexto', text: lugar, original: lugar, position: { start: startPos, end: startPos + lugar.length }, confidence: 0.75 });
         }
 
-        // 3. Profesionales de Salud
-        const doctorRegex = /\b(?:Dr\.|Dra\.|Doctor|Doctora|Facultativo)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2})/g;
+        // 3. Profesionales de Salud (hasta 4 palabras: nombre + apellidos)
+        const doctorRegex = /\b(?:Dr\.|Dra\.|Doctor|Doctora|Facultativo)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,3})/g;
         while ((match = doctorRegex.exec(text)) !== null) {
             entities.push({ type: 'NOMBRE', subtype: 'profesional', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.9 });
         }
 
-        // 4. Pacientes (Contexto de "paciente X", permitiendo partículas como "del", "de la")
-        const pacienteRegex = /\bpaciente\s+(?:es\s+|se\s+llama\s+)?([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+(?:del?|de\s+la|de\s+los\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/gi;
+
+        // 4. Pacientes (Contexto de "paciente X", SOLO si va seguido de nombre propio)
+        // Excluir palabras comunes que siguen a "paciente"
+        const palabrasExcluidas = ['que', 'refiere', 'estable', 'consciente', 'orientado', 'presenta', 'muestra', 'niega', 'afirma', 'con', 'sin', 'ha', 'fue', 'es', 'no'];
+        const pacienteRegex = /\bpaciente\s+(?:es\s+|se\s+llama\s+)?([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/gi;
         while ((match = pacienteRegex.exec(text)) !== null) {
             const nombre = match[1];
-            const startPos = match.index + match[0].indexOf(nombre);
-            entities.push({ type: 'NOMBRE', subtype: 'paciente', text: nombre, original: nombre, position: { start: startPos, end: startPos + nombre.length }, confidence: 0.85 });
+            const primeraPalabra = nombre.split(/\s+/)[0].toLowerCase();
+            // Excluir si la primera palabra es común
+            if (!palabrasExcluidas.includes(primeraPalabra)) {
+                const startPos = match.index + match[0].indexOf(nombre);
+                entities.push({ type: 'NOMBRE', subtype: 'paciente', text: nombre, original: nombre, position: { start: startPos, end: startPos + nombre.length }, confidence: 0.85 });
+            }
         }
 
-        // 5. Fechas y Edades
-        // Edad (ej: "54 años")
-        const edadRegex = /\b(\d{1,3})\s+años?\b/gi;
-        while ((match = edadRegex.exec(text)) !== null) {
-            entities.push({ type: 'FECHA', subtype: 'edad', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.85 });
+        // 4b. Nombres después de "Nombre:" (captura hasta 4 palabras: nombre + hasta 3 apellidos)
+        const nombreLabelRegex = /Nombre\s*:\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,3})(?=\s*$|\s*\n|\r)/gmi;
+        while ((match = nombreLabelRegex.exec(text)) !== null) {
+            const nombre = match[1];
+            const startPos = match.index + match[0].indexOf(nombre);
+            entities.push({ type: 'NOMBRE', subtype: 'paciente', text: nombre, original: nombre, position: { start: startPos, end: startPos + nombre.length }, confidence: 0.95 });
         }
+
+
+
+        // 4c. Detección por diccionario de nombres conocidos (solo si van seguidos de apellidos)
+        const nombresDiccionario = [...NOMBRES_MUJER, ...NOMBRES_HOMBRE];
+        nombresDiccionario.forEach(nombre => {
+            // Buscar nombre seguido de al menos un apellido potencial
+            const nombreRegex = new RegExp(`\\b${nombre}\\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)\\b`, 'g');
+            let nombreMatch;
+            while ((nombreMatch = nombreRegex.exec(text)) !== null) {
+                const nombreCompleto = nombreMatch[0];
+                entities.push({
+                    type: 'NOMBRE',
+                    subtype: 'paciente',
+                    text: nombreCompleto,
+                    original: nombreCompleto,
+                    position: { start: nombreMatch.index, end: nombreMatch.index + nombreCompleto.length },
+                    confidence: 0.80
+                });
+            }
+        });
+
+        // 5. Fechas Completas (dd/mm/yyyy o dd de mes de yyyy) - NO detectamos edad, se mantiene tal cual
 
         // Fechas Completas (dd/mm/yyyy o dd de mes de yyyy)
         const fechaFullRegex = /\b(?:\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})|\b(?:\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+(?:de\s+|del\s+)?\d{4})\b/gi;
@@ -234,53 +594,8 @@ window.PrivacyProcessor = {
             entities.push({ type: 'FECHA', subtype: 'fecha_completa', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.95 });
         }
 
-        // 6. Entidades Sospechosas (Cuasi-identificadores)
-        const patronesSospechosos = [
-            // Profesiones únicas/cargos públicos
-            /\b(?:alcalde|concejal|director|presidente|gerente)\s+(?:del?|de\s+la)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+)/gi,
-            // Enfermedades raras
-            /\b(?:enfermedad|síndrome|patología)\s+(?:rara|ultra[\s\-]?rara|huérfana|poco\s+frecuente)/gi,
-            // Referencias a unicidad
-            /\b(?:único|única|solo|sola)\s+(?:paciente|caso|persona|enfermo)/gi,
-            // Nacimientos múltiples
-            /\b(?:gemelo|trillizo|mellizo)/gi,
-            // Relaciones familiares con nombres
-            /\b(?:hermano|hermana|padre|madre|hijo|hija|esposo|esposa)\s+(?:de|del)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/gi
-        ];
-
-        patronesSospechosos.forEach(pattern => {
-            let match2;
-            while ((match2 = pattern.exec(text)) !== null) {
-                const textoCompleto = match2[0];
-                entities.push({
-                    type: 'SOSPECHOSO',
-                    subtype: 'cuasi_identificador',
-                    text: textoCompleto,
-                    original: textoCompleto,
-                    position: { start: match2.index, end: match2.index + textoCompleto.length },
-                    confidence: 0.6,
-                    requiresReview: true
-                });
-            }
-        });
-
-        // Mantener detector de mayúsculas inesperadas
-        const sospechosoRegex = /(?<!^|[.!?]\s)\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)\b/g;
-        while ((match = sospechosoRegex.exec(text)) !== null) {
-            const palabra = match[1];
-            const palabrasComunes = ['El', 'La', 'Los', 'Las', 'Un', 'Una', 'Y', 'O', 'Pero', 'Sin', 'Con', 'Por', 'Según', 'Durante'];
-            if (palabra.length > 2 && !palabrasComunes.includes(palabra)) {
-                entities.push({
-                    type: 'SOSPECHOSO',
-                    subtype: 'mayuscula_inesperada',
-                    text: palabra,
-                    original: palabra,
-                    position: { start: match.index + match[0].indexOf(palabra), end: match.index + match[0].indexOf(palabra) + palabra.length },
-                    confidence: 0.3,
-                    requiresReview: true
-                });
-            }
-        }
+        // NOTA: Detección de SOSPECHOSOS deshabilitada para evitar falsos positivos
+        // El profesional sanitario revisará manualmente cualquier dato no detectado
 
         return entities;
     },
@@ -316,47 +631,54 @@ window.PrivacyProcessor = {
 
     transformEntity: function (entity) {
         if (entity.type === 'NOMBRE') {
-            if (entity.subtype === 'profesional') return '[Facultativo]';
-
-            // USAR AsignadorSustitutos para mantener consistencia
+            if (entity.subtype === 'profesional') {
+                const nombreOriginal = entity.original || entity.text;
+                return AsignadorSustitutos.obtenerSustitutoProfesional(nombreOriginal);
+            }
+            if (entity.subtype === 'familiar') {
+                const nombreOriginal = entity.original || entity.text;
+                return AsignadorSustitutos.obtenerSustitutoFamiliar(nombreOriginal);
+            }
+            // Pacientes
             const nombreOriginal = entity.original || entity.text;
             return AsignadorSustitutos.obtenerSustituto(nombreOriginal);
         }
         if (entity.type === 'FECHA') {
-            if (entity.subtype === 'edad') {
-                const edadMatch = entity.text.match(/(\d+)/);
-                if (edadMatch) {
-                    const edad = parseInt(edadMatch[1]);
-                    const rangoMin = Math.floor(edad / 10) * 10;
-                    const rangoMax = rangoMin + 9;
-                    return `${rangoMin}-${rangoMax} años`;
+            if (entity.subtype === 'fecha_completa' || /^\d{1,2}[\/\-]/.test(entity.text)) {
+                // Fechas ya fueron pre-procesadas, solo hacer lookup
+                const key = entity.text.trim();
+                if (FechasManager.visitasMap.has(key)) {
+                    return FechasManager.visitasMap.get(key);
                 }
-                return '[rango edad]';
+                // Fallback si no está en el mapa
+                return FechasManager.relativizarRespHoy(entity.text);
             }
-            if (entity.subtype === 'fecha_completa' || /^\d{1,2}[\/-]/.test(entity.text)) {
-                // Intentar calcular tiempo relativo
-                const relativo = this.calculateRelativeTime(entity.text);
-                if (relativo) return `[${relativo}]`;
-                return '[Fecha]';
-            }
-            return '[Fecha]';
+            return entity.text; // Otras fechas, mantener
         }
+
         if (entity.type === 'IDENTIFICADOR') {
-            if (entity.subtype === 'dni') return '[DNI]';
-            if (entity.subtype === 'nhc') return '[NHC]';
-            return '[ID]';
+            // Eliminación silenciosa: sin corchetes
+            return '';
         }
         if (entity.type === 'UBICACION') {
-            if (entity.subtype === 'hospital') return '[Centro Sanitario]';
-            if (entity.subtype === 'ciudad') return '[Localidad]';
-            return '[Ubicación]';
+            if (entity.subtype === 'hospital') {
+                return UbicacionesManager.obtenerCentro(entity.original || entity.text);
+            }
+            if (entity.subtype === 'ciudad' || entity.subtype === 'contexto') {
+                return UbicacionesManager.obtenerCiudad(entity.original || entity.text);
+            }
+            // Otras ubicaciones
+            return UbicacionesManager.obtenerCiudad(entity.original || entity.text);
         }
         if (entity.type === 'SOSPECHOSO') {
-            // Las entidades sospechosas NO se transforman automáticamente, 
-            // pero si llegan a transformarse (usuario acepta) se ocultan genéricamente
-            return '[Dato Personal]';
+            // Sospechosos: si subtype indica familiar
+            if (entity.text && /\b(?:hermano|hermana|padre|madre|hijo|hija|esposo|esposa)\b/i.test(entity.text)) {
+                return AsignadorSustitutos.obtenerSustitutoFamiliar(entity.original || entity.text);
+            }
+            // Otros sospechosos: mantener para revisión manual
+            return entity.text;
         }
-        return `[${entity.type}]`;
+        return entity.text; // Por defecto, mantener original
     },
 
     calculateRelativeTime: function (dateStr) {

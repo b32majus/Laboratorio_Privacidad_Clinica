@@ -170,7 +170,7 @@
                 <h3>Descargas</h3>
 
                 <button class="btn-download btn-primary" id="btn-download-anon">
-                    <span class="btn-icon">📊</span>
+                    <span class="btn-icon material-symbols-outlined">download_for_offline</span>
                     <span class="btn-text">
                         <strong>Descargar datos anonimizados</strong>
                         <small>.xlsx - Listo para análisis</small>
@@ -178,16 +178,19 @@
                 </button>
 
                 <button class="btn-download btn-secondary" id="btn-download-corr">
-                    <span class="btn-icon">🔑</span>
+                    <span class="btn-icon material-symbols-outlined">vpn_key</span>
                     <span class="btn-text">
                         <strong>Descargar tabla de correspondencia</strong>
                         <small>.xlsx - Guardar en lugar seguro</small>
                     </span>
                 </button>
-                <p class="download-warning">
-                    ⚠️ La tabla de correspondencia permite revertir la seudonimización.
-                    Guárdala en un lugar seguro y separado de los datos anonimizados.
-                </p>
+                <div class="download-warning">
+                    <span class="material-symbols-outlined">warning</span>
+                    <p>
+                        La tabla de correspondencia permite revertir la seudonimización.
+                        Guárdala en un lugar seguro y separado de los datos anonimizados.
+                    </p>
+                </div>
             </div>
 
             <div class="step-actions">
