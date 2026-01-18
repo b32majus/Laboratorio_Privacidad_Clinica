@@ -3,9 +3,40 @@
 
 // ==================== DICTIONARIES ====================
 // ==================== DICTIONARIES ====================
-const NOMBRES_MUJER = ['María', 'Carmen', 'Josefa', 'Isabel', 'Dolores', 'Pilar', 'Teresa', 'Ana', 'Francisca', 'Laura', 'Cristina', 'Marta', 'Lucía', 'Elena', 'Mercedes', 'Luisa', 'Rosario', 'Juana', 'Raquel', 'Sara', 'Paula', 'Beatriz', 'Eva', 'Patricia', 'Julia', 'Andrea', 'Rocío', 'Mónica', 'Rosa', 'Silvia'];
-const NOMBRES_HOMBRE = ['Antonio', 'José', 'Manuel', 'Francisco', 'Juan', 'David', 'Daniel', 'Carlos', 'Miguel', 'Pedro', 'Javier', 'Rafael', 'Fernando', 'Ángel', 'Luis', 'Pablo', 'Sergio', 'Jorge', 'Alberto', 'Diego', 'Adrián', 'Álvaro', 'Rubén', 'Iván', 'Enrique', 'Ramón', 'Vicente', 'Andrés', 'Joaquín', 'Santiago'];
-const APELLIDOS = ['García', 'Rodríguez', 'González', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Martín', 'Jiménez', 'Ruiz', 'Hernández', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez', 'Navarro', 'Torres', 'Domínguez', 'Vázquez', 'Ramos', 'Gil', 'Ramírez', 'Serrano', 'Blanco', 'Molina'];
+// Diccionarios ampliados de nombres españoles (top 100 más comunes)
+const NOMBRES_MUJER = [
+    'María', 'Carmen', 'Josefa', 'Isabel', 'Dolores', 'Pilar', 'Teresa', 'Ana', 'Francisca', 'Laura',
+    'Cristina', 'Marta', 'Lucía', 'Elena', 'Mercedes', 'Luisa', 'Rosario', 'Juana', 'Raquel', 'Sara',
+    'Paula', 'Beatriz', 'Eva', 'Patricia', 'Julia', 'Andrea', 'Rocío', 'Mónica', 'Rosa', 'Silvia',
+    'Antonia', 'Manuela', 'Encarnación', 'Concepción', 'Amparo', 'Inmaculada', 'Ángela', 'Margarita',
+    'Victoria', 'Josefina', 'Aurora', 'Emilia', 'Nuria', 'Alicia', 'Sofía', 'Irene', 'Claudia', 'Natalia',
+    'Esther', 'Verónica', 'Susana', 'Marina', 'Sonia', 'Lorena', 'Noelia', 'Alba', 'Yolanda', 'Sandra',
+    'Ángeles', 'Consuelo', 'Esperanza', 'Milagros', 'Asunción', 'Belén', 'Montserrat', 'Nieves', 'Soledad',
+    'Gloria', 'Olga', 'Lidia', 'Ainhoa', 'Miriam', 'Nerea', 'Carla', 'Emma', 'Valentina', 'Martina',
+    'Inés', 'Adriana', 'Clara', 'Elsa', 'Lola', 'Maite', 'Blanca', 'Celia', 'Ainara', 'Aitana'
+];
+const NOMBRES_HOMBRE = [
+    'Antonio', 'José', 'Manuel', 'Francisco', 'Juan', 'David', 'Daniel', 'Carlos', 'Miguel', 'Pedro',
+    'Javier', 'Rafael', 'Fernando', 'Ángel', 'Luis', 'Pablo', 'Sergio', 'Jorge', 'Alberto', 'Diego',
+    'Adrián', 'Álvaro', 'Rubén', 'Iván', 'Enrique', 'Ramón', 'Vicente', 'Andrés', 'Joaquín', 'Santiago',
+    'Jesús', 'Eduardo', 'Alejandro', 'Mario', 'Óscar', 'Roberto', 'Raúl', 'Ricardo', 'Tomás', 'Guillermo',
+    'Salvador', 'Emilio', 'Ignacio', 'Alfonso', 'Marcos', 'Víctor', 'Gonzalo', 'Jaime', 'Agustín', 'Arturo',
+    'Félix', 'Gabriel', 'Julián', 'Mariano', 'Nicolás', 'Sebastián', 'Felipe', 'Lorenzo', 'Esteban', 'Hugo',
+    'Martín', 'Lucas', 'Leo', 'Mateo', 'Izan', 'Marc', 'Pol', 'Bruno', 'Álex', 'Iker',
+    'Aitor', 'Jon', 'Mikel', 'Unai', 'Asier', 'Gorka', 'Xavi', 'Pau', 'Oriol', 'Joan'
+];
+const APELLIDOS = [
+    'García', 'Rodríguez', 'González', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Martín',
+    'Jiménez', 'Ruiz', 'Hernández', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez',
+    'Navarro', 'Torres', 'Domínguez', 'Vázquez', 'Ramos', 'Gil', 'Ramírez', 'Serrano', 'Blanco', 'Molina',
+    'Morales', 'Suárez', 'Ortega', 'Delgado', 'Castro', 'Ortiz', 'Rubio', 'Marín', 'Sanz', 'Iglesias',
+    'Núñez', 'Medina', 'Garrido', 'Cortés', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto',
+    'Méndez', 'Cruz', 'Calvo', 'Gallego', 'Vidal', 'León', 'Márquez', 'Herrera', 'Peña', 'Flores',
+    'Cabrera', 'Campos', 'Vega', 'Fuentes', 'Carrasco', 'Diez', 'Caballero', 'Reyes', 'Nieto', 'Aguilar',
+    'Pascual', 'Santana', 'Herrero', 'Montero', 'Lorenzo', 'Hidalgo', 'Giménez', 'Ibáñez', 'Ferrer', 'Durán',
+    'Santiago', 'Benítez', 'Vargas', 'Mora', 'Vicente', 'Arias', 'Carmona', 'Crespo', 'Rivas', 'Casas',
+    'Crehuet', 'Cortés', 'Casas', 'Márquez', 'Belén'
+];
 const CIUDADES = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Murcia', 'Palma', 'Las Palmas', 'Bilbao', 'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón', 'Hospitalet', 'Vitoria', 'Coruña', 'Elche', 'Granada', 'Terrassa', 'Badalona', 'Oviedo', 'Cartagena', 'Sabadell', 'Jerez', 'Móstoles', 'Pamplona', 'Almería', 'Alcalá', 'Fuenlabrada', 'Leganés', 'Donostia', 'San Sebastián', 'Getafe', 'Burgos', 'Santander', 'Albacete', 'Castellón', 'Alcorcón', 'Logroño', 'Badajoz', 'Huelva', 'Salamanca', 'Marbella', 'Lleida', 'Mataró', 'Tarragona', 'León', 'Cádiz', 'Pozoblanco', 'Dos Hermanas', 'Santa Coloma', 'Jaén', 'Algeciras'];
 
 // ==================== ASIGNADOR DE SUSTITUTOS ====================
@@ -41,17 +72,75 @@ const AsignadorSustitutos = {
     },
 
     // Para PROFESIONALES: "Profesional Sanitario 1, 2..."
+    // Normaliza para que "Dra. Ruiz" y "Dra. Carmen Ruiz" sean el mismo profesional
+    normalizarProfesional(nombre) {
+        if (!nombre) return '';
+        let normalized = nombre.toLowerCase().trim();
+
+        // Eliminar prefijos Dr./Dra./Doctor/Doctora
+        normalized = normalized.replace(/^(dr\.|dra\.|doctor|doctora|facultativo)\s*/i, '');
+
+        // Extraer apellidos (las palabras que empiezan con mayúscula después del nombre)
+        // Normalizar espacios
+        normalized = normalized.replace(/\s+/g, ' ').trim();
+
+        return normalized;
+    },
+
+    // Extrae el apellido principal (último apellido mencionado o único apellido)
+    extraerApellidoPrincipal(nombre) {
+        const normalized = this.normalizarProfesional(nombre);
+        const palabras = normalized.split(' ');
+        // El apellido suele ser la última palabra, o la segunda si hay nombre + apellido
+        if (palabras.length >= 1) {
+            // Buscar en APELLIDOS conocidos
+            for (let i = palabras.length - 1; i >= 0; i--) {
+                const palabra = palabras[i];
+                const palabraCapitalizada = palabra.charAt(0).toUpperCase() + palabra.slice(1);
+                if (APELLIDOS.some(a => a.toLowerCase() === palabra)) {
+                    return palabra;
+                }
+            }
+            // Si no encontramos apellido conocido, devolver la última palabra
+            return palabras[palabras.length - 1];
+        }
+        return normalized;
+    },
+
     obtenerSustitutoProfesional(nombreOriginal) {
         if (!nombreOriginal || nombreOriginal.trim() === '') return '';
 
-        const key = nombreOriginal.toLowerCase().trim();
-        if (this.profesionalesMap.has(key)) {
-            return this.profesionalesMap.get(key);
+        const keyCompleta = this.normalizarProfesional(nombreOriginal);
+        const apellidoPrincipal = this.extraerApellidoPrincipal(nombreOriginal);
+
+        // Primero buscar coincidencia exacta
+        if (this.profesionalesMap.has(keyCompleta)) {
+            return this.profesionalesMap.get(keyCompleta);
+        }
+
+        // Buscar si alguna clave existente representa al mismo profesional
+        // CRITERIO: Solo unificar si la versión corta está contenida en la larga
+        // Ej: "ruiz" unifica con "carmen ruiz" pero NO con "pedro ruiz"
+        for (const [existingKey, value] of this.profesionalesMap.entries()) {
+            // Verificar si uno es versión corta del otro (ej: "ruiz" vs "carmen ruiz")
+            const keyMasCorta = keyCompleta.length < existingKey.length ? keyCompleta : existingKey;
+            const keyMasLarga = keyCompleta.length >= existingKey.length ? keyCompleta : existingKey;
+
+            // Solo unificar si la clave corta es un sufijo de la larga (apellido al final)
+            // O si la clave corta está contenida completamente
+            if (keyMasLarga.endsWith(keyMasCorta) ||
+                (keyMasCorta.split(' ').length === 1 && keyMasLarga.includes(` ${keyMasCorta}`))) {
+                // Verificar que la clave corta es significativa (más de 2 caracteres)
+                if (keyMasCorta.length > 2) {
+                    this.profesionalesMap.set(keyCompleta, value);
+                    return value;
+                }
+            }
         }
 
         this.contadorProfesionales++;
         const sustituto = `Profesional Sanitario ${this.contadorProfesionales}`;
-        this.profesionalesMap.set(key, sustituto);
+        this.profesionalesMap.set(keyCompleta, sustituto);
         return sustituto;
     },
 
@@ -113,10 +202,45 @@ const UbicacionesManager = {
         this.contadorCiudades = 0;
     },
 
+    // Normaliza el nombre del centro para consistencia
+    normalizarCentro(centro) {
+        if (!centro) return '';
+        let normalized = centro.toLowerCase().trim();
+
+        // Eliminar palabras que no son parte del nombre del centro
+        const palabrasRuido = ['período', 'periodo', 'médico', 'medico', 'del', 'de', 'la', 'el', 'los', 'las'];
+        // Solo eliminar si están al final y no forman parte del nombre
+        normalized = normalized.replace(/\s+(período|periodo|médico|medico)\s*$/gi, '');
+
+        // Normalizar variantes comunes de hospitales
+        // "H.U." = "Hospital Universitario", "H." = "Hospital"
+        normalized = normalized.replace(/^h\.\s*u\.\s*/i, 'hospital universitario ');
+        normalized = normalized.replace(/^h\.\s*/i, 'hospital ');
+
+        // Eliminar "de día" y similares que son modificadores, no nombres
+        normalized = normalized.replace(/\s+de\s+día\s*/gi, ' ');
+
+        // Normalizar espacios múltiples
+        normalized = normalized.replace(/\s+/g, ' ').trim();
+
+        return normalized;
+    },
+
     obtenerCentro(centroOriginal) {
         if (!centroOriginal || centroOriginal.trim() === '') return '';
 
-        const key = centroOriginal.toLowerCase().trim();
+        const key = this.normalizarCentro(centroOriginal);
+
+        // Buscar si ya existe una clave similar (para manejar variantes)
+        for (const [existingKey, value] of this.centrosMap.entries()) {
+            // Si una clave contiene a la otra o viceversa, usar el mismo código
+            if (existingKey.includes(key) || key.includes(existingKey)) {
+                // Guardar también esta variante para futuras búsquedas
+                this.centrosMap.set(key, value);
+                return value;
+            }
+        }
+
         if (this.centrosMap.has(key)) {
             return this.centrosMap.get(key);
         }
@@ -253,12 +377,20 @@ const FechasManager = {
 
         const dias = this.calcularDiasDiferencia(fecha, this.hoy);
 
+        // Fechas pasadas
         if (dias === 0) return 'hoy';
         if (dias === 1) return 'ayer';
         if (dias > 0 && dias < 7) return `hace ${dias} días`;
         if (dias >= 7 && dias < 30) return `hace ${Math.round(dias / 7)} semanas`;
         if (dias >= 30 && dias < 365) return `hace ${Math.round(dias / 30)} meses`;
         if (dias >= 365) return `hace ${Math.round(dias / 365)} años`;
+
+        // Fechas futuras (dias negativos)
+        if (dias === -1) return 'mañana';
+        if (dias < 0 && dias > -7) return `en ${Math.abs(dias)} días`;
+        if (dias <= -7 && dias > -30) return `en ${Math.round(Math.abs(dias) / 7)} semanas`;
+        if (dias <= -30 && dias > -365) return `en ${Math.round(Math.abs(dias) / 30)} meses`;
+        if (dias <= -365) return `en ${Math.round(Math.abs(dias) / 365)} años`;
 
         return fechaOriginal;
     }
@@ -316,8 +448,15 @@ window.PrivacyProcessor = {
         UbicacionesManager.reset();
         FechasManager.reset();
 
+        // Validación de entrada
+        if (!text || typeof text !== 'string') return this.createEmptyResult(sessionId);
 
-        if (!text) return this.createEmptyResult(sessionId);
+        // Límite de seguridad: textos muy largos (> 1MB) podrían causar problemas
+        const MAX_TEXT_LENGTH = 1000000; // 1 millón de caracteres
+        if (text.length > MAX_TEXT_LENGTH) {
+            console.warn('Texto demasiado largo, truncando a 1MB');
+            text = text.substring(0, MAX_TEXT_LENGTH);
+        }
 
         const entities = this.detectEntities(text);
         const resolved = this.resolveConflicts(entities);
@@ -372,11 +511,29 @@ window.PrivacyProcessor = {
         const entities = [];
 
         // 1. DNI y Identificadores
-        // Patrón clásico: 8 dígitos + letra
-        const dniRegex = /\b\d{8}[A-Z]\b/gi;
+        // Patrón clásico DNI: 8 dígitos + letra
+        const dniRegex = /\b\d{8}[A-Za-z]\b/g;
         let match;
         while ((match = dniRegex.exec(text)) !== null) {
             entities.push({ type: 'IDENTIFICADOR', subtype: 'dni', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.99 });
+        }
+
+        // NIE (Número de Identidad de Extranjero): X/Y/Z + 7 dígitos + letra
+        const nieRegex = /\b[XYZxyz]\d{7}[A-Za-z]\b/g;
+        while ((match = nieRegex.exec(text)) !== null) {
+            entities.push({ type: 'IDENTIFICADOR', subtype: 'nie', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.99 });
+        }
+
+        // NUSS (Número de Seguridad Social): 12 dígitos
+        const nussRegex = /\b\d{12}\b/g;
+        while ((match = nussRegex.exec(text)) !== null) {
+            entities.push({ type: 'IDENTIFICADOR', subtype: 'nuss', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.85 });
+        }
+
+        // Número de afiliación SS con formato: XX/XXXXXXXX/XX
+        const nussFormatRegex = /\b\d{2}\/\d{8}\/\d{2}\b/g;
+        while ((match = nussFormatRegex.exec(text)) !== null) {
+            entities.push({ type: 'IDENTIFICADOR', subtype: 'nuss', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.95 });
         }
 
         // DNI después de etiqueta "Documento:" o "DNI:" o "NIF:"
@@ -453,56 +610,68 @@ window.PrivacyProcessor = {
         }
 
 
-        // 1b. Familiares después de etiquetas como "Acompañante:" - captura toda la línea incluyendo nombres
-        const familiarFullRegex = /(?:Acompañante|Familiar|Contacto)\s*:?\s*\n?\s*(.+?)(?=\s*$|\s*\n|\r)/gmi;
+        // 1b. Familiares después de etiquetas como "Acompañante:" - captura SOLO si contiene un nombre propio
+        // Debe contener al menos una palabra capitalizada que parezca nombre
+        const familiarFullRegex = /(?:Acompañante|Familiar|Contacto)\s*:?\s*\n?\s*([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,4})/gmi;
         while ((match = familiarFullRegex.exec(text)) !== null) {
             const contenido = match[1].trim();
-            if (contenido.length > 0 && !/^[A-Z]{2,}/.test(contenido)) { // Excluir si es un título en mayúsculas
+            // Validar que parece un nombre (al menos 3 caracteres, no es palabra común)
+            const palabrasExcluidasFamiliar = ['telefónico', 'telefono', 'teléfono', 'presencial', 'urgente', 'pendiente', 'ninguno', 'desconocido', 'no', 'si', 'sí'];
+            if (contenido.length >= 3 &&
+                !palabrasExcluidasFamiliar.includes(contenido.toLowerCase()) &&
+                /^[A-ZÁÉÍÓÚÑ]/.test(contenido)) {
                 const startPos = match.index + match[0].indexOf(contenido);
                 entities.push({ type: 'NOMBRE', subtype: 'familiar', text: contenido, original: contenido, position: { start: startPos, end: startPos + contenido.length }, confidence: 0.95 });
             }
         }
 
-        // 1c. Palabras de relación familiar seguidas de paréntesis con nombres (ej: "Esposa (Laura Sánchez)")
+        // 1c. Palabras de relación familiar seguidas de paréntesis con nombres (ej: "Madre (María González, 68 años)")
         const relacionesFamiliares = ['esposa', 'esposo', 'madre', 'padre', 'hijo', 'hija', 'hermano', 'hermana', 'abuelo', 'abuela', 'tío', 'tía', 'primo', 'prima', 'sobrino', 'sobrina', 'cuñado', 'cuñada', 'suegro', 'suegra', 'yerno', 'nuera', 'pareja', 'cónyuge', 'tutor', 'tutora'];
 
-        // Detectar "Esposa (nombre, edad)" como un bloque completo
+        // Detectar "Madre (María González, 68 años)" como un bloque completo
+        // Validar que el paréntesis contiene algo que parece nombre (letra mayúscula)
         relacionesFamiliares.forEach(relacion => {
-            const regexConParentesis = new RegExp(`\\b(${relacion})\\s*\\([^)]+\\)`, 'gmi');
+            const regexConParentesis = new RegExp(`\\b(${relacion})\\s*\\(([^)]+)\\)`, 'gmi');
             while ((match = regexConParentesis.exec(text)) !== null) {
-                const bloque = match[0];
-                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: bloque, original: bloque, position: { start: match.index, end: match.index + bloque.length }, confidence: 0.98 });
+                const contenidoParentesis = match[2];
+                // Solo incluir si el paréntesis contiene un nombre (palabra capitalizada)
+                if (/[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/.test(contenidoParentesis)) {
+                    const bloque = match[0];
+                    entities.push({ type: 'NOMBRE', subtype: 'familiar', text: bloque, original: bloque, position: { start: match.index, end: match.index + bloque.length }, confidence: 0.98 });
+                }
             }
         });
 
-        // 1d. Palabras de relación familiar que aparecen solas en una línea
-        relacionesFamiliares.forEach(relacion => {
-            const regex = new RegExp(`(?:^|\\n|\\r)\\s*(${relacion})\\s*(?:$|\\n|\\r)`, 'gmi');
-            while ((match = regex.exec(text)) !== null) {
-                const palabra = match[1];
-                const startPos = match.index + match[0].indexOf(palabra);
-                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: palabra, original: palabra, position: { start: startPos, end: startPos + palabra.length }, confidence: 0.90 });
-            }
-        });
+        // 1d. NO detectar palabras de relación familiar solas - causan demasiados falsos positivos
+        // Solo detectamos cuando van acompañadas de nombres
 
-        // 1e. Menciones inline como "La madre refiere", "La esposa comenta"
-        relacionesFamiliares.forEach(relacion => {
-            const regexInline = new RegExp(`\\b[Ll]a\\s+(${relacion})\\s+(?:refiere|comenta|indica|dice|menciona|señala)`, 'gmi');
-            while ((match = regexInline.exec(text)) !== null) {
-                const palabra = match[1];
-                const startPos = match.index + match[0].indexOf(palabra);
-                entities.push({ type: 'NOMBRE', subtype: 'familiar', text: palabra, original: palabra, position: { start: startPos, end: startPos + palabra.length }, confidence: 0.85 });
-            }
-        });
+        // 1e. Menciones inline como "La madre refiere" - NO anonimizar la palabra "madre" sola
+        // porque es una relación genérica, no identifica a nadie específico
 
 
 
         // 2. Ubicaciones (Hospitales, Centros, Ciudades)
         // Detección explicita de Hospital/Clínica
-        const hospitalRegex = /\b(?:hospital|clínica|centro de salud|consultorio)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+(?:de\s+|del\s+)?(?:[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+|\d+))*/gi;
+        // Palabras que terminan el nombre del hospital (no son parte del nombre)
+        const palabrasFinHospital = ['período', 'periodo', 'médico', 'medico', 'enfermera', 'enfermero',
+            'doctor', 'doctora', 'paciente', 'tratamiento', 'consulta', 'cita', 'urgencias',
+            'ingreso', 'alta', 'derivación', 'derivacion', 'semana', 'mes', 'año', 'día', 'dia',
+            'criterios', 'valoración', 'valoracion', 'evaluación', 'evaluacion', 'gravedad',
+            'cumplidos', 'cumplidas', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+        const palabrasFinHospitalRegex = new RegExp(`\\s+(del?\\s+\\d+\\s+)?(${palabrasFinHospital.join('|')}).*$`, 'gi');
+
+        // Regex mejorado para hospitales: incluye Universitario, Infantil, General, Regional, etc.
+        const hospitalRegex = /\b(?:hospital|clínica|centro de salud|consultorio|h\.u\.|h\.)\s+(?:(?:universitario|infantil|general|regional|comarcal|provincial|materno|clínico)\s+)*(?:de\s+(?:día\s+)?)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+(?:de\s+|del\s+)?(?:[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+|\d+))*/gi;
         while ((match = hospitalRegex.exec(text)) !== null) {
-            const hosp = match[0].trim();
-            // Evitar falsos positivos como "Hospital de día" si es muy genérico, pero por seguridad anonimizamos
+            let hosp = match[0].trim();
+
+            // Limpiar palabras que no son parte del nombre del hospital
+            hosp = hosp.replace(palabrasFinHospitalRegex, '').trim();
+
+            // Si quedó muy corto después de limpiar, descartar
+            if (hosp.length < 10) continue;
+
             entities.push({ type: 'UBICACION', subtype: 'hospital', text: hosp, original: hosp, position: { start: match.index, end: match.index + hosp.length }, confidence: 0.9 });
         }
 
@@ -537,21 +706,42 @@ window.PrivacyProcessor = {
         }
 
         // 3. Profesionales de Salud (hasta 4 palabras: nombre + apellidos)
-        const doctorRegex = /\b(?:Dr\.|Dra\.|Doctor|Doctora|Facultativo)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,3})/g;
-        while ((match = doctorRegex.exec(text)) !== null) {
+        // Incluir doctores, enfermeras y otros profesionales sanitarios
+        // Flag 'gi' para case-insensitive (detectar "DRA.", "DOCTOR", etc.)
+        const profesionalRegex = /\b(?:Dr\.|Dra\.|Doctor|Doctora|Facultativo|Enfermero|Enfermera|Enf\.|Fisioterapeuta|Psic[oó]log[oa]|Matrona|Farmac[eé]utic[oa]|Auxiliar|Técnico|T[eé]cnica)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,3})/gi;
+        while ((match = profesionalRegex.exec(text)) !== null) {
             entities.push({ type: 'NOMBRE', subtype: 'profesional', text: match[0], original: match[0], position: { start: match.index, end: match.index + match[0].length }, confidence: 0.9 });
         }
 
 
         // 4. Pacientes (Contexto de "paciente X", SOLO si va seguido de nombre propio)
-        // Excluir palabras comunes que siguen a "paciente"
-        const palabrasExcluidas = ['que', 'refiere', 'estable', 'consciente', 'orientado', 'presenta', 'muestra', 'niega', 'afirma', 'con', 'sin', 'ha', 'fue', 'es', 'no'];
+        // Lista ampliada de palabras a excluir (términos clínicos comunes)
+        const palabrasExcluidasPaciente = [
+            // Verbos y estados
+            'que', 'refiere', 'estable', 'consciente', 'orientado', 'orientada', 'presenta', 'muestra',
+            'niega', 'afirma', 'con', 'sin', 'ha', 'fue', 'es', 'no', 'si', 'sí', 'está', 'siendo',
+            // Adjetivos clínicos
+            'tratado', 'tratada', 'derivado', 'derivada', 'diagnosticado', 'diagnosticada',
+            'ingresado', 'ingresada', 'dado', 'dada', 'competente', 'capacitado', 'capacitada',
+            'valorado', 'valorada', 'evaluado', 'evaluada', 'estabilizado', 'estabilizada',
+            // Palabras que empiezan con mayúscula pero no son nombres
+            'mujer', 'hombre', 'varón', 'adulto', 'adulta', 'joven', 'anciano', 'anciana',
+            'menor', 'niño', 'niña', 'bebé', 'recién', 'lactante', 'gestante', 'embarazada',
+            // Otros términos médicos
+            'crónico', 'crónica', 'agudo', 'aguda', 'terminal', 'grave', 'leve', 'moderado', 'moderada',
+            'pluripatológico', 'pluripatológica', 'polimedicado', 'polimedicada', 'crítico', 'crítica'
+        ];
+
         const pacienteRegex = /\bpaciente\s+(?:es\s+|se\s+llama\s+)?([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})/gi;
         while ((match = pacienteRegex.exec(text)) !== null) {
             const nombre = match[1];
-            const primeraPalabra = nombre.split(/\s+/)[0].toLowerCase();
-            // Excluir si la primera palabra es común
-            if (!palabrasExcluidas.includes(primeraPalabra)) {
+            const palabras = nombre.split(/\s+/);
+            const primeraPalabra = palabras[0].toLowerCase();
+
+            // Excluir si la primera palabra está en la lista de exclusión
+            // O si todas las palabras están en la lista de exclusión
+            const todasExcluidas = palabras.every(p => palabrasExcluidasPaciente.includes(p.toLowerCase()));
+            if (!palabrasExcluidasPaciente.includes(primeraPalabra) && !todasExcluidas) {
                 const startPos = match.index + match[0].indexOf(nombre);
                 entities.push({ type: 'NOMBRE', subtype: 'paciente', text: nombre, original: nombre, position: { start: startPos, end: startPos + nombre.length }, confidence: 0.85 });
             }
@@ -565,24 +755,56 @@ window.PrivacyProcessor = {
             entities.push({ type: 'NOMBRE', subtype: 'paciente', text: nombre, original: nombre, position: { start: startPos, end: startPos + nombre.length }, confidence: 0.95 });
         }
 
-
-
         // 4c. Detección por diccionario de nombres conocidos (solo si van seguidos de apellidos)
+        // Palabras que NO son apellidos aunque estén capitalizadas
+        const noApellidos = [
+            'derivada', 'derivado', 'desde', 'hacia', 'hasta', 'para', 'entre',
+            'fármaco', 'farmaco', 'tratamiento', 'medicación', 'medicacion', 'terapia', 'dosis',
+            'administración', 'administracion', 'autoadministración', 'autoadministracion',
+            'hospital', 'clínica', 'clinica', 'centro', 'servicio', 'unidad', 'consulta'
+        ];
+
         const nombresDiccionario = [...NOMBRES_MUJER, ...NOMBRES_HOMBRE];
         nombresDiccionario.forEach(nombre => {
             // Buscar nombre seguido de al menos un apellido potencial
             const nombreRegex = new RegExp(`\\b${nombre}\\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)\\b`, 'g');
             let nombreMatch;
             while ((nombreMatch = nombreRegex.exec(text)) !== null) {
-                const nombreCompleto = nombreMatch[0];
-                entities.push({
-                    type: 'NOMBRE',
-                    subtype: 'paciente',
-                    text: nombreCompleto,
-                    original: nombreCompleto,
-                    position: { start: nombreMatch.index, end: nombreMatch.index + nombreCompleto.length },
-                    confidence: 0.80
-                });
+                let nombreCompleto = nombreMatch[0];
+                const apellidoPotencial = nombreMatch[1];
+
+                // Verificar que el apellido potencial parece real
+                const palabrasApellido = apellidoPotencial.split(/\s+/);
+                const primerApellido = palabrasApellido[0].toLowerCase();
+
+                // Excluir si el "apellido" está en la lista de palabras excluidas
+                if (!noApellidos.includes(primerApellido) &&
+                    !palabrasExcluidasPaciente.includes(primerApellido)) {
+
+                    // Limpiar palabras finales que no son apellidos (derivada, desde, etc.)
+                    const palabrasNombre = nombreCompleto.split(/\s+/);
+                    const palabrasLimpias = [];
+                    for (const palabra of palabrasNombre) {
+                        const palabraLower = palabra.toLowerCase();
+                        if (noApellidos.includes(palabraLower) || palabrasExcluidasPaciente.includes(palabraLower)) {
+                            break; // Parar al encontrar palabra no válida
+                        }
+                        palabrasLimpias.push(palabra);
+                    }
+
+                    // Solo incluir si quedaron al menos 2 palabras (nombre + apellido)
+                    if (palabrasLimpias.length >= 2) {
+                        nombreCompleto = palabrasLimpias.join(' ');
+                        entities.push({
+                            type: 'NOMBRE',
+                            subtype: 'paciente',
+                            text: nombreCompleto,
+                            original: nombreCompleto,
+                            position: { start: nombreMatch.index, end: nombreMatch.index + nombreCompleto.length },
+                            confidence: 0.80
+                        });
+                    }
+                }
             }
         });
 
@@ -601,7 +823,21 @@ window.PrivacyProcessor = {
     },
 
     resolveConflicts: function (entities) {
-        entities.sort((a, b) => {
+        // Validación: asegurar que entities es un array
+        if (!Array.isArray(entities) || entities.length === 0) {
+            return [];
+        }
+
+        // Filtrar entidades malformadas (sin posición válida)
+        const validEntities = entities.filter(e =>
+            e && e.position &&
+            typeof e.position.start === 'number' &&
+            typeof e.position.end === 'number' &&
+            e.position.start >= 0 &&
+            e.position.end > e.position.start
+        );
+
+        validEntities.sort((a, b) => {
             if (b.confidence !== a.confidence) return b.confidence - a.confidence;
             return (b.position.end - b.position.start) - (a.position.end - a.position.start);
         });
@@ -609,7 +845,7 @@ window.PrivacyProcessor = {
         const resolved = [];
         const occupied = new Set();
 
-        for (const entity of entities) {
+        for (const entity of validEntities) {
             let collision = false;
             for (let i = entity.position.start; i < entity.position.end; i++) {
                 if (occupied.has(i)) {
