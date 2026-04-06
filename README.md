@@ -1,10 +1,10 @@
-# 🛡️ Laboratorio de Privacidad Clínica v2.0
+# 🛡️ Laboratorio de Privacidad Clínica v3.0
 
 **Herramienta educativa de seudonimización de datos sanitarios 100% local y segura.**
 
 [![Estado](https://img.shields.io/badge/Estado-Estable-success)](https://github.com/)
 [![Privacidad](https://img.shields.io/badge/Privacidad-100%25_Local-blue)](https://github.com/)
-[![Versión](https://img.shields.io/badge/Versi%C3%B3n-2.0-purple)](https://github.com/)
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-3.0-purple)](https://github.com/)
 [![Licencia](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
 
 ---
@@ -23,12 +23,12 @@ El **Laboratorio de Privacidad Clínica** es una aplicación web diseñada para 
 
 ---
 
-## ✨ Novedades en v2.0
+## ✨ Novedades en v3.0
 
 ### 🔄 Pseudónimos Legibles
 El sistema ahora genera **texto coherente y legible** en lugar de marcadores con corchetes:
 
-| Tipo de Dato | Versión 1.x | Versión 2.0 |
+| Tipo de Dato | Versión 1.x | Versión 3.0 |
 |--------------|-------------|-------------|
 | Pacientes | `[NOMBRE]` | "Paciente Hombre" / "Paciente Mujer" |
 | Profesionales | `[Facultativo]` | "Profesional Sanitario 1, 2..." |
@@ -60,6 +60,12 @@ Ahora detecta y elimina:
 - **Auto-detección de cabeceras**: Salta automáticamente filas explicativas al inicio
 - Busca la fila de datos real en las primeras 10 filas
 - Compatible con exportaciones hospitalarias con metadatos
+
+### 🧱 Arquitectura Local-First
+- **Tailwind compilado localmente** en `css/tailwind.generated.css`
+- **Fuentes e iconos locales** servidos desde `fonts/`
+- **Librerías críticas locales** para PDF, DOCX y ZIP sin CDN runtime
+- **Motor consolidado** en `js/core/*` con interfaz modular estable
 
 ---
 
@@ -184,6 +190,13 @@ npm run build
 - 🏠 Detección de direcciones completas
 - 📊 Auto-detección de cabeceras en Excel
 - 🧹 Código consolidado y limpieza de archivos no usados
+
+### v3.0 (Abril 2026)
+- 🧱 Consolidación local-first sin CDN runtime
+- 🔒 Refuerzo de render seguro y sanitización de metadatos visibles
+- 🧠 Más cobertura de ubicaciones, barrios y tarjetas sanitarias
+- 🧭 Disclaimers reforzados con responsabilidad del usuario y revisión humana obligatoria
+- 🚀 Preparación para GitHub Pages desde la rama `3.0`
 
 ### v1.x
 - Versión inicial con detección básica y marcadores
