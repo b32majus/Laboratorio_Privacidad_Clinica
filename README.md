@@ -182,7 +182,7 @@ npm run build
 
 ## 📋 Changelog
 
-### v2.0 (Diciembre 2024)
+### Histórico previo a v3.0
 - ✨ Pseudónimos legibles en lugar de marcadores con corchetes
 - 🔄 Coherencia de entidades (mismo original = mismo pseudónimo)
 - 📅 Relativización de fechas con intervalos entre visitas

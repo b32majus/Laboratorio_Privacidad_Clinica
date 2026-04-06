@@ -154,7 +154,7 @@ export class PDFReportGenerator {
         doc.setFontSize(8);
         doc.setTextColor(155, 149, 143);
         doc.text('Generado por Laboratorio de Privacidad Clínica', margin, y);
-        doc.text('© 2024 Sophilux', pageWidth - margin - 30, y);
+        doc.text('© 2026 Sophilux', pageWidth - margin - 30, y);
 
         // Descargar
         const filename = `informe-privacidad-${processingResult.sessionId}.pdf`;

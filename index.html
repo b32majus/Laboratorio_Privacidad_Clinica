@@ -42,16 +42,16 @@
                     </h2>
                 </div>
                 <nav class="hidden md:flex items-center gap-10">
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Inicio</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Herramienta</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Cursos</a>
-                    <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Contacto</a>
+                    <a class="text-sm font-medium hover:text-primary transition-colors" href="index.html">Inicio</a>
+                    <a class="text-sm font-medium hover:text-primary transition-colors" href="app.html">Herramienta</a>
+                    <a class="text-sm font-medium hover:text-primary transition-colors" href="guia.html">Guía</a>
+                    <a class="text-sm font-medium hover:text-primary transition-colors" href="terminos.html">Términos</a>
                 </nav>
                 <div class="hidden md:block">
-                    <button
+                    <a href="app.html"
                         class="flex items-center justify-center rounded-full h-10 px-6 border border-primary text-primary hover:bg-primary hover:text-white transition-all duration-300 text-sm font-bold tracking-wide">
-                        Acceder a Cursos
-                    </button>
+                        Abrir herramienta
+                    </a>
                 </div>
                 <button class="md:hidden text-gray-900 dark:text-white">
                     <span class="material-symbols-outlined">menu</span>
@@ -90,10 +90,10 @@
                                 <span class="material-symbols-outlined mr-2">medical_services</span>
                                 Comenzar Seudonimización
                             </button>
-                            <button
+                            <a href="guia.html"
                                 class="flex items-center justify-center h-14 px-8 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300 font-medium">
-                                Ver Demostración
-                            </button>
+                                Ver Guía
+                            </a>
                         </div>
                         <div class="flex flex-wrap items-center gap-4 mt-4">
                             <div
@@ -274,161 +274,71 @@
                 </div>
             </div>
         </section>
-        <section class="py-24 bg-white dark:bg-background-dark relative overflow-hidden">
-            <div class="absolute inset-0 bg-primary/5 dark:bg-primary/5 z-0"></div>
-            <div
-                class="absolute -top-[20%] -right-[10%] w-[50%] h-[150%] bg-white dark:bg-gray-900 rotate-12 z-0 opacity-50 blur-3xl rounded-[100px]">
-            </div>
-            <div class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 relative z-10">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-                    <div>
-                        <span
-                            class="inline-block py-1 px-3 rounded-full bg-white dark:bg-gray-800 border border-primary/20 text-primary text-xs font-bold tracking-widest uppercase mb-6 shadow-sm">
-                            Formación Complementaria
-                        </span>
-                        <h2
-                            class="text-4xl md:text-5xl font-serif font-medium text-gray-900 dark:text-white mb-6 leading-[1.15]">
-                            Programa Sophilux de <br /> <span class="italic text-primary">Privacidad Clínica</span>
-                        </h2>
-                        <p class="text-lg text-gray-600 dark:text-gray-300 mb-8 font-light leading-relaxed">
-                            La herramienta es solo el comienzo. Únete al programa integral diseñado para profesionales
-                            que lideran la transformación digital en salud con ética y seguridad. Domina el arte de la
-                            IA clínica.
-                        </p>
-                        <ul class="space-y-4 mb-10">
-                            <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
-                                <span class="material-symbols-outlined text-primary">check_circle</span>
-                                <span>Ingeniería de Prompts Médicos Seguros</span>
-                            </li>
-                            <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
-                                <span class="material-symbols-outlined text-primary">check_circle</span>
-                                <span>Normativas GDPR e HIPAA en la era IA</span>
-                            </li>
-                            <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
-                                <span class="material-symbols-outlined text-primary">check_circle</span>
-                                <span>Protocolos de Anonimización Avanzada</span>
-                            </li>
-                        </ul>
-                        <form class="flex flex-col sm:flex-row gap-3 max-w-md">
-                            <input
-                                class="flex-1 h-12 px-4 rounded-lg border-gray-300 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm dark:border-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-primary shadow-sm"
-                                placeholder="tu@email.com" required="" type="email" />
-                            <button
-                                class="h-12 px-6 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors whitespace-nowrap shadow-lg"
-                                type="submit">
-                                Solicitar Programa
-                            </button>
-                        </form>
-                        <p class="mt-4 text-xs text-gray-500">Plazas limitadas para la edición 2024. Acceso prioritario
-                            para usuarios de la herramienta.</p>
-                    </div>
-                    <div class="relative w-full">
-                        <div
-                            class="relative w-full aspect-[4/3] bg-background-stone dark:bg-[#1c1816] rounded-2xl shadow-2xl border border-white/50 dark:border-gray-700 overflow-hidden flex flex-col transform hover:scale-[1.02] transition-transform duration-500">
-                            <div
-                                class="h-12 border-b border-gray-200 dark:border-gray-700 flex items-center px-6 gap-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-md">
-                                <div class="w-3 h-3 rounded-full bg-red-400"></div>
-                                <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
-                                <div class="w-3 h-3 rounded-full bg-green-400"></div>
-                            </div>
-                            <div class="flex-1 p-8 flex flex-col justify-center relative">
-                                <div class="absolute top-0 right-0 p-8 opacity-10">
-                                    <span class="material-symbols-outlined text-9xl text-primary">school</span>
-                                </div>
-                                <div class="relative z-10 mb-6">
-                                    <span class="text-xs font-bold text-primary uppercase tracking-wide">Módulo
-                                        01</span>
-                                    <h3 class="text-2xl font-serif font-bold text-gray-900 dark:text-white mt-1">
-                                        Fundamentos de Privacidad</h3>
-                                </div>
-                                <div class="w-20 h-1 bg-primary mb-8 rounded-full relative z-10"></div>
-                                <div class="space-y-4 relative z-10 opacity-60">
-                                    <div class="flex items-center gap-3">
-                                        <div class="h-2 w-2 bg-gray-400 rounded-full"></div>
-                                        <div class="h-2 w-3/4 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <div class="h-2 w-2 bg-gray-400 rounded-full"></div>
-                                        <div class="h-2 w-1/2 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <div class="h-2 w-2 bg-gray-400 rounded-full"></div>
-                                        <div class="h-2 w-5/6 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-                                    </div>
-                                </div>
-                                <div
-                                    class="mt-auto pt-8 flex items-center gap-4 relative z-10 border-t border-gray-200 dark:border-gray-700">
-                                    <div class="flex -space-x-3">
-                                        <div
-                                            class="w-10 h-10 rounded-full bg-gray-200 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">
-                                            JD</div>
-                                        <div
-                                            class="w-10 h-10 rounded-full bg-gray-300 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-gray-500">
-                                            MA</div>
-                                        <div
-                                            class="w-10 h-10 rounded-full bg-gray-400 border-2 border-white dark:border-gray-800 flex items-center justify-center text-xs font-bold text-white">
-                                            +2k</div>
-                                    </div>
-                                    <div class="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                        Comunidad Activa
-                                    </div>
-                                </div>
-                            </div>
+        <section class="py-24 bg-white dark:bg-background-dark">
+            <div class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
+                <div class="text-center max-w-3xl mx-auto mb-16">
+                    <span
+                        class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest">
+                        Acceso rápido
+                    </span>
+                    <h2 class="text-4xl md:text-5xl font-serif font-medium mt-5 mb-4 text-gray-900 dark:text-white">
+                        Navega sin fricción
+                    </h2>
+                    <p class="text-lg text-gray-500 dark:text-gray-400 font-light">
+                        La portada solo muestra lo que realmente existe hoy: la herramienta, la guía y los términos.
+                        Nada de cursos, nada de contacto ficticio.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <a href="app.html"
+                        class="group rounded-2xl border border-gray-200 dark:border-gray-800 bg-stone-50 dark:bg-gray-900 p-6 hover:border-primary hover:shadow-lg transition-all">
+                        <div class="size-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary transition-colors">
+                            <span class="material-symbols-outlined text-primary group-hover:text-white">medical_services</span>
                         </div>
-                        <div
-                            class="absolute -bottom-6 -left-4 md:-left-8 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 flex items-center gap-3 animate-bounce-slow">
-                            <div class="bg-primary/10 p-2 rounded-lg text-primary">
-                                <span class="material-symbols-outlined">workspace_premium</span>
-                            </div>
-                            <div>
-                                <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Certificación
-                                </div>
-                                <div class="font-serif font-bold text-gray-900 dark:text-white leading-none">Oficial
-                                    Sophilux</div>
-                            </div>
+                        <h3 class="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-2">Herramienta</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Abre la experiencia principal de seudonimización para texto clínico.</p>
+                    </a>
+                    <a href="guia.html"
+                        class="group rounded-2xl border border-gray-200 dark:border-gray-800 bg-stone-50 dark:bg-gray-900 p-6 hover:border-primary hover:shadow-lg transition-all">
+                        <div class="size-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary transition-colors">
+                            <span class="material-symbols-outlined text-primary group-hover:text-white">menu_book</span>
                         </div>
-                    </div>
+                        <h3 class="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-2">Guía</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Consulta el uso recomendado, límites y buenas prácticas.</p>
+                    </a>
+                    <a href="terminos.html"
+                        class="group rounded-2xl border border-gray-200 dark:border-gray-800 bg-stone-50 dark:bg-gray-900 p-6 hover:border-primary hover:shadow-lg transition-all">
+                        <div class="size-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary transition-colors">
+                            <span class="material-symbols-outlined text-primary group-hover:text-white">gavel</span>
+                        </div>
+                        <h3 class="text-2xl font-serif font-bold text-gray-900 dark:text-white mb-2">Términos</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">Aviso legal claro sobre responsabilidad y revisión humana.</p>
+                    </a>
                 </div>
             </div>
         </section>
-        <footer class="bg-[#161413] text-white pt-20 pb-10 border-t border-gray-800">
+        <footer class="bg-[#161413] text-white pt-14 pb-10 border-t border-gray-800">
             <div class="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
-                    <div class="md:col-span-4 flex flex-col gap-6">
-                        <div class="flex items-center gap-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
                             <span class="material-symbols-outlined text-3xl text-primary">security</span>
                             <h3 class="font-serif text-2xl font-bold">Laboratorio de Privacidad</h3>
                         </div>
-                        <p class="text-gray-400 text-sm leading-relaxed max-w-sm">
-                            Una iniciativa de Sophilux para democratizar el acceso seguro a la inteligencia artificial
-                            en el entorno sanitario. Diseño ético, ejecución privada.
+                        <p class="text-gray-400 text-sm leading-relaxed">
+                            Herramienta local-first para seudonimización clínica con revisión humana obligatoria.
                         </p>
-                        <div class="flex gap-4">
-                            <a class="text-gray-400 hover:text-white transition-colors" href="#"><span
-                                    class="material-symbols-outlined">mail</span></a>
-                            <a class="text-gray-400 hover:text-white transition-colors" href="#"><span
-                                    class="material-symbols-outlined">public</span></a>
-                        </div>
                     </div>
-                    <div class="md:col-span-2">
-                        <h4 class="font-serif text-lg font-medium mb-4 text-primary">Plataforma</h4>
+                    <div>
+                        <h4 class="font-serif text-lg font-medium mb-4 text-primary">Navegación</h4>
                         <ul class="space-y-3 text-sm text-gray-400">
-                            <li><a class="hover:text-white transition-colors" href="#">Herramienta</a></li>
-                            <li><a class="hover:text-white transition-colors" href="#">Cómo funciona</a></li>
-                            <li><a class="hover:text-white transition-colors" href="#">Seguridad</a></li>
-                            <li><a class="hover:text-white transition-colors" href="#">Precios</a></li>
+                            <li><a class="hover:text-white transition-colors" href="index.html">Inicio</a></li>
+                            <li><a class="hover:text-white transition-colors" href="app.html">Herramienta</a></li>
+                            <li><a class="hover:text-white transition-colors" href="guia.html">Guía</a></li>
+                            <li><a class="hover:text-white transition-colors" href="terminos.html">Términos</a></li>
                         </ul>
                     </div>
-                    <div class="md:col-span-2">
-                        <h4 class="font-serif text-lg font-medium mb-4 text-primary">Recursos</h4>
-                        <ul class="space-y-3 text-sm text-gray-400">
-                            <li><a class="hover:text-white transition-colors" href="#">Blog</a></li>
-                            <li><a class="hover:text-white transition-colors" href="#">Cursos</a></li>
-                            <li><a class="hover:text-white transition-colors" href="#">Guías PDF</a></li>
-                            <li><a class="hover:text-white transition-colors" href="#">Comunidad</a></li>
-                        </ul>
-                    </div>
-                    <div class="md:col-span-4 bg-gray-900/50 p-6 rounded-lg border border-gray-800">
+                    <div class="bg-gray-900/50 p-6 rounded-lg border border-gray-800">
                         <h4 class="font-serif text-lg font-medium mb-2 text-white">Estado del Sistema</h4>
                         <div class="flex items-center gap-2 mb-4">
                             <span class="relative flex h-3 w-3">
@@ -438,14 +348,14 @@
                             </span>
                             <span class="text-sm text-green-400 font-medium">Operativo - Client-Side</span>
                         </div>
-                        <p class="text-xs text-gray-500">
+                        <p class="text-xs text-gray-500 leading-relaxed">
                             Todas las operaciones de seudonimización se ejecutan dentro de este navegador. Ningún dato
                             clínico se transmite a nuestros servidores.
                         </p>
                     </div>
                 </div>
-                <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p class="text-sm text-gray-500">© 2024 Sophilux. Todos los derechos reservados.</p>
+                <div class="border-t border-gray-800 pt-8 mt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <p class="text-sm text-gray-500">© 2026 Sophilux. Todos los derechos reservados.</p>
                     <div class="flex gap-6 text-sm text-gray-500">
                         <a class="hover:text-white transition-colors" href="guia.html">Guía</a>
                         <a class="hover:text-white transition-colors" href="terminos.html">Términos</a>
@@ -460,104 +370,8 @@
         </footer>
     </main>
 
-    <!-- Modal de Demostración -->
-    <div id="demo-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="sticky top-0 bg-white border-b border-stone-200 p-6 flex items-center justify-between z-10">
-                <h2 class="text-2xl font-bold text-stone-900">Cómo usar el Laboratorio</h2>
-                <button id="close-modal" class="text-stone-400 hover:text-stone-600 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                        </path>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="p-6 space-y-6">
-                <div class="border-l-4 border-primary pl-4">
-                    <h3 class="font-semibold text-lg text-stone-900 mb-2">1. Introduce tu texto clínico</h3>
-                    <p class="text-stone-600">Pega o escribe el texto que contiene datos sensibles. Puedes usar los
-                        ejemplos predefinidos.</p>
-                </div>
-
-                <div class="border-l-4 border-emerald-500 pl-4">
-                    <h3 class="font-semibold text-lg text-stone-900 mb-2">2. Procesa el texto</h3>
-                    <p class="text-stone-600 mb-3">El sistema detecta automáticamente nombres, DNIs, fechas,
-                        hospitales...</p>
-                    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                        <p class="text-sm text-emerald-800">🔒 Todo el procesamiento ocurre en tu navegador.</p>
-                    </div>
-                </div>
-
-                <div class="border-l-4 border-sky-500 pl-4">
-                    <h3 class="font-semibold text-lg text-stone-900 mb-2">3. Revisa los resultados</h3>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-3">
-                            <div class="w-4 h-4 rounded bg-emerald-200"></div>
-                            <span class="text-sm text-stone-700"><strong>Verde:</strong> Nombres sustituidos</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="w-4 h-4 rounded bg-sky-200"></div>
-                            <span class="text-sm text-stone-700"><strong>Azul:</strong> Fechas relativizadas</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="w-4 h-4 rounded bg-rose-200"></div>
-                            <span class="text-sm text-stone-700"><strong>Rojo:</strong> Identificadores
-                                eliminados</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-rose-50 border border-rose-200 rounded-lg p-4">
-                    <p class="text-sm text-rose-800">
-                        <strong>⚠️ Importante:</strong> Herramienta educativa. Revisa siempre manualmente.
-                    </p>
-                </div>
-
-                <div class="flex gap-3 pt-4">
-                    <a href="app.html"
-                        class="flex-1 bg-primary hover:bg-primary-dark text-white font-medium py-3 rounded-lg transition text-center">
-                        Probar ahora
-                    </a>
-                    <button id="close-modal-btn"
-                        class="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-3 rounded-lg transition">
-                        Cerrar
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="./js/shared/app-session.js"></script>
     <script src="./js/shared/session-controls.js"></script>
-    <script>
-        // Modal de demostración
-        const modal = document.getElementById('demo-modal');
-        const closeBtns = [document.getElementById('close-modal'), document.getElementById('close-modal-btn')];
-
-        // Buscar botón "Ver Demostración"
-        const allLinks = document.querySelectorAll('a, button');
-        allLinks.forEach(el => {
-            if (el.textContent.includes('Ver Demostración')) {
-                el.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    modal.classList.remove('hidden');
-                });
-            }
-        });
-
-        closeBtns.forEach(btn => {
-            if (btn) btn.addEventListener('click', () => modal.classList.add('hidden'));
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') modal.classList.add('hidden');
-        });
-
-        modal?.addEventListener('click', (e) => {
-            if (e.target === modal) modal.classList.add('hidden');
-        });
-    </script>
 </body>
 
 </html>
