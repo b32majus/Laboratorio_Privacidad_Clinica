@@ -5,41 +5,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Modo Batch Premium - Sanitizador Clínico</title>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=Crimson+Pro:ital,wght@0,200..900;1,200..900&amp;display=swap"
-    rel="stylesheet" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-    rel="stylesheet" />
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- Mammoth.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <!-- Tailwind Config -->
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            primary: "#B8897D",
-            "primary-dark": "#A07669",
-            "surface-light": "#FAF8F5",
-            "surface-dark": "#1C1917"
-          },
-          fontFamily: {
-            sans: ["Inter", "system-ui", "sans-serif"],
-            serif: ["Crimson Pro", "Georgia", "serif"]
-          }
-        }
-      }
-    };
-  </script>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
+  <!-- PDF.js y Mammoth locales (offline-first) -->
+  <script src="./lib/pdf.min.js"></script>
+  <script src="./lib/mammoth.browser.min.js"></script>
   <style>
     body {
       font-family: "Inter", sans-serif;
@@ -88,12 +58,24 @@
           <p class="text-sm text-stone-500 dark:text-stone-400">Procesamiento múltiple de documentos clínicos</p>
         </div>
       </div>
-      <div class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900 dark:to-amber-800 rounded-lg border border-amber-200 dark:border-amber-700">
+      <div class="flex items-center gap-2">
+        <a href="./batch.html?mode=structured" class="px-3 py-2 text-sm font-medium rounded-lg bg-stone-200 hover:bg-stone-300 dark:bg-stone-700 dark:hover:bg-stone-600">
+          Modo estructurado
+        </a>
+        <div class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-900 dark:to-amber-800 rounded-lg border border-amber-200 dark:border-amber-700">
         <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">workspace_premium</span>
         <span class="text-sm font-bold text-amber-900 dark:text-amber-100">Premium</span>
+        </div>
       </div>
     </div>
   </header>
+  <div class="px-6 py-2 bg-rose-50 dark:bg-rose-900/20 border-b border-rose-200 dark:border-rose-800">
+    <p class="max-w-7xl mx-auto text-xs text-rose-900 dark:text-rose-200 leading-relaxed">
+      Aviso legal: esta herramienta facilita la seudonimización, pero la responsabilidad del tratamiento de datos y
+      de la anonimización final recae exclusivamente en la persona usuaria. Revisión humana final obligatoria.
+      <a href="./terminos.html" class="underline font-semibold hover:text-rose-700 dark:hover:text-rose-100">Ver términos</a>.
+    </p>
+  </div>
 
   <!-- Main Content -->
   <main class="max-w-7xl mx-auto px-6 py-8">
@@ -152,6 +134,20 @@
               <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
                 Si está activado, el mismo nombre (ej: "Juan García") se transformará al mismo sustituto en todos los documentos del batch.
                 Útil cuando los documentos pertenecen al mismo contexto clínico.
+              </p>
+            </div>
+          </div>
+
+          <!-- Modo estricto -->
+          <div class="flex items-start gap-4 p-4 bg-stone-50 dark:bg-stone-900 rounded-lg">
+            <input type="checkbox" id="strict-mode"
+              class="mt-1 h-5 w-5 text-primary border-stone-300 rounded focus:ring-primary" />
+            <div class="flex-1">
+              <label for="strict-mode" class="font-medium text-stone-900 dark:text-stone-100 cursor-pointer">
+                Modo estricto de anonimización
+              </label>
+              <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
+                Aumenta la supresión de cuasi-identificadores y generaliza más las ubicaciones para reducir riesgo de reidentificación.
               </p>
             </div>
           </div>
@@ -242,13 +238,54 @@
   <script>
     // Configurar PDF.js worker
     if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './lib/pdf.worker.min.js';
     }
   </script>
-  <script src="./js/standalone-processor.js"></script>
-  <script src="./js/batch-processor.js"></script>
+  <script src="./js/shared/app-session.js"></script>
+  <script src="./js/shared/errors.js"></script>
+  <script src="./js/shared/session-controls.js"></script>
+  <script type="module" src="./js/modular-processor.js"></script>
+  <script src="./js/batch-module.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      const mode = new URLSearchParams(window.location.search).get('mode');
+      if (mode === 'structured') {
+        const main = document.querySelector('main');
+        if (main) {
+          main.innerHTML = `
+            <section class="bg-white dark:bg-stone-800 rounded-2xl shadow-lg p-4 border border-stone-200 dark:border-stone-700">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold">Batch Unificado - Modo Estructurado</h2>
+                <a href="./batch.html" class="px-3 py-2 text-sm rounded-lg bg-stone-200 hover:bg-stone-300 dark:bg-stone-700 dark:hover:bg-stone-600">Volver a documentos</a>
+              </div>
+              <iframe src="./batch-structured-legacy.html" class="w-full min-h-[80vh] rounded-xl border border-stone-200 dark:border-stone-700"></iframe>
+            </section>
+          `;
+        }
+        return;
+      }
+
+      if (mode === 'review') {
+        const main = document.querySelector('main');
+        if (main) {
+          main.innerHTML = `
+            <section class="bg-white dark:bg-stone-800 rounded-2xl shadow-lg p-4 border border-stone-200 dark:border-stone-700">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold">Batch Unificado - Revisión</h2>
+                <a href="./batch.html" class="px-3 py-2 text-sm rounded-lg bg-stone-200 hover:bg-stone-300 dark:bg-stone-700 dark:hover:bg-stone-600">Volver a documentos</a>
+              </div>
+              <iframe src="./batch-review-legacy.html" class="w-full min-h-[80vh] rounded-xl border border-stone-200 dark:border-stone-700"></iframe>
+            </section>
+          `;
+        }
+        return;
+      }
+
+      if (!window.PrivacyProcessor || !window.BatchModule) {
+        alert('Error cargando el motor batch. Recarga la pagina.');
+        return;
+      }
+
       const dropZone = document.getElementById('drop-zone');
       const fileInput = document.getElementById('file-input');
       const queueContainer = document.getElementById('queue-container');
@@ -257,8 +294,14 @@
       const startBatchBtn = document.getElementById('start-batch');
       const reviewBatchBtn = document.getElementById('review-batch');
       const progressSection = document.getElementById('progress-section');
+      const strictModeCheckbox = document.getElementById('strict-mode');
 
       let uploadedFiles = [];
+
+      if (strictModeCheckbox) {
+        const savedOptions = AppSession.getProcessingOptions();
+        strictModeCheckbox.checked = !!savedOptions?.modoEstricto;
+      }
 
       // Click en drop zone
       dropZone.addEventListener('click', () => {
@@ -344,6 +387,7 @@
         uploadedFiles.forEach((file, index) => {
           const li = document.createElement('li');
           li.className = 'doc-item flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-700';
+          const safeFileName = escapeHtml(file.name);
 
           const formatSize = (bytes) => {
             if (bytes < 1024) return bytes + ' B';
@@ -358,7 +402,7 @@
             <div class="flex items-center gap-3 flex-1">
               <span class="material-symbols-outlined text-primary text-2xl">${icon}</span>
               <div>
-                <p class="font-medium text-stone-900 dark:text-stone-100">${file.name}</p>
+                <p class="font-medium text-stone-900 dark:text-stone-100">${safeFileName}</p>
                 <p class="text-sm text-stone-500 dark:text-stone-400">${formatSize(file.size)}</p>
               </div>
             </div>
@@ -386,6 +430,15 @@
         });
       }
 
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
       function updateStartButton() {
         startBatchBtn.disabled = uploadedFiles.length === 0;
       }
@@ -404,26 +457,32 @@
         if (uploadedFiles.length === 0) return;
 
         const maintainConsistency = document.getElementById('maintain-consistency').checked;
+        const strictMode = !!strictModeCheckbox?.checked;
         const exportFormat = document.getElementById('export-format').value;
+        AppSession.setProcessingOptions({ modoEstricto: strictMode });
 
         // Mostrar sección de progreso
         progressSection.classList.remove('hidden');
         startBatchBtn.disabled = true;
         startBatchBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Procesando...';
 
-        // Inicializar BatchProcessor
-        window.BatchProcessor.initialize(maintainConsistency, updateProgress);
+        // Inicializar BatchModule
+        window.BatchModule.initialize(
+          maintainConsistency,
+          updateProgress,
+          { modoEstricto: strictMode }
+        );
 
         // Añadir archivos a la cola
         uploadedFiles.forEach(file => {
-          window.BatchProcessor.queue.addDocument(file);
+          window.BatchModule.queue.addDocument(file);
         });
 
         // Procesar
         try {
-          const results = await window.BatchProcessor.processAll();
+          const results = await window.BatchModule.processAll();
 
-          // Guardar resultados en localStorage para batch-review.html
+          // Guardar resultados en almacenamiento de sesion para la revisión batch
           const batchData = {
             documents: results.map(doc => ({
               id: doc.id,
@@ -432,13 +491,14 @@
               reviewed: false
             })),
             mapper: maintainConsistency ? {
-              globalMappings: window.BatchProcessor.mapper.getAllMappings()
+              globalMappings: window.BatchModule.mapper.getAllMappings()
             } : null,
+            processorOptions: { modoEstricto: strictMode },
             exportFormat: exportFormat,
             totalProcessingTime: results.reduce((sum, doc) => sum + (doc.processingTime || 0), 0)
           };
 
-          localStorage.setItem('batchResults', JSON.stringify(batchData));
+          AppSession.setBatchResults(batchData);
 
           // Mostrar botón de revisión
           reviewBatchBtn.classList.remove('hidden');
@@ -447,8 +507,7 @@
           alert('¡Procesamiento completado! Ahora puedes revisar los documentos.');
 
         } catch (error) {
-          console.error('Error en batch processing:', error);
-          alert('Error durante el procesamiento: ' + error.message);
+          AppErrors.alertError('Error en procesamiento batch', error, 'No se pudo completar el batch');
           startBatchBtn.disabled = false;
           startBatchBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span> Procesar Batch';
         }
@@ -471,7 +530,7 @@
         }
 
         // Actualizar stats
-        const stats = window.BatchProcessor.queue.getTotalStats();
+        const stats = window.BatchModule.queue.getTotalStats();
         document.getElementById('completed-count').textContent = stats.completed;
         document.getElementById('pending-count').textContent = stats.pending;
         document.getElementById('error-count').textContent = stats.errors;
@@ -479,7 +538,7 @@
 
       // Ir a revisión
       reviewBatchBtn.addEventListener('click', () => {
-        window.location.href = './batch-review.html';
+        window.location.href = './batch.html?mode=review';
       });
     });
   </script>

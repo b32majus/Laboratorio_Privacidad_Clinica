@@ -67,15 +67,20 @@ export class PDFReportGenerator {
         doc.setFontSize(10);
         doc.setTextColor(107, 99, 93);
 
-        doc.text(`• Nombres sustituidos: ${stats.byType.nombres || 0}`, margin + 5, y);
+        doc.text(`• Pacientes seudonimizados: ${stats.byType.pacientes || stats.byType.nombres || 0}`, margin + 5, y);
+        y += 6;
+        doc.text(`• Profesionales sanitarios: ${stats.byType.profesionales || 0}`, margin + 5, y);
+        y += 6;
+        doc.text(`• Familiares: ${stats.byType.familiares || 0}`, margin + 5, y);
         y += 6;
         doc.text(`• Fechas relativizadas: ${stats.byType.fechas || 0}`, margin + 5, y);
         y += 6;
-        doc.text(`• Identificadores eliminados: ${stats.byType.identificadores || 0}`, margin + 5, y);
+        doc.text(`• Identificadores eliminados (DNI/NHC/Tel/Email): ${stats.byType.identificadores || 0}`, margin + 5, y);
         y += 6;
-        doc.text(`• Ubicaciones generalizadas: ${stats.byType.ubicaciones || 0}`, margin + 5, y);
+        doc.text(`• Ubicaciones generalizadas (Centros/Ciudades): ${stats.byType.ubicaciones || 0}`, margin + 5, y);
         y += 6;
-        doc.text(`• Total de entidades: ${stats.totalEntities}`, margin + 5, y);
+        doc.text(`• Total de entidades procesadas: ${stats.totalEntities}`, margin + 5, y);
+
 
         y += 15;
 

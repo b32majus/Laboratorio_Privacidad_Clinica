@@ -1,0 +1,27 @@
+{
+  "name": "laboratorio-privacidad-clinica",
+  "version": "1.0.0",
+  "description": "**Herramienta educativa de seudonimización de datos sanitarios 100% local y segura.**",
+  "scripts": {
+    "build:tailwind": "tailwindcss -c tailwind.config.cjs -i ./css/tailwind-input.css -o ./css/tailwind.generated.css --minify",
+    "build": "npm run build:tailwind",
+    "check:links": "node scripts/ci/check-links.mjs",
+    "check:storage": "node scripts/ci/check-storage-policy.mjs",
+    "check:smoke": "node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs",
+    "test": "npm run check:links && npm run check:storage && npm run check:smoke"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/material-symbols-outlined": "^5.2.40",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^3.11.174",
+    "tailwindcss": "^3.4.16"
+  }
+}

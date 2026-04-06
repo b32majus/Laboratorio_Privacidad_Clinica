@@ -5,22 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guía de Uso - Laboratorio de Privacidad Clínica</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#b88a7f",
-                        "primary-dark": "#966a60"
-                    }
-                }
-            }
-        }
-    </script>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
 </head>
 
 <body class="bg-stone-50 font-sans">
@@ -38,6 +24,13 @@
 
     <main class="max-w-4xl mx-auto py-12 px-6">
         <h1 class="text-4xl font-bold text-stone-900 mb-6">Guía de Uso</h1>
+        <div class="mb-8 p-4 rounded-xl border border-rose-200 bg-rose-50">
+            <p class="text-sm text-rose-900 leading-relaxed">
+                Aviso legal: esta herramienta ayuda a automatizar parte de la anonimización, pero la responsabilidad
+                del tratamiento de datos y de la anonimización final recae exclusivamente en la persona usuaria.
+                Revisión humana final obligatoria.
+            </p>
+        </div>
 
         <section class="mb-12">
             <h2 class="text-2xl font-semibold text-stone-800 mb-4">¿Cómo usar la herramienta?</h2>
@@ -119,6 +112,10 @@
             <p>© 2024 Sophilux - Laboratorio de Privacidad Clínica</p>
             <p class="mt-2">
                 <a href="terminos.html" class="text-primary hover:underline">Términos y Condiciones</a>
+            </p>
+            <p class="mt-3 text-xs leading-relaxed">
+                La responsabilidad del tratamiento de datos y de la anonimización final corresponde exclusivamente a la
+                persona usuaria.
             </p>
         </div>
     </footer>

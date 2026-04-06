@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Procesamiento Estructurado - Laboratorio de Privacidad</title>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="./css/batch.css" />
+
+    <!-- SheetJS Library -->
+    <script src="./lib/xlsx.full.min.js"></script>
+</head>
+
+<body class="bg-stone-50 dark:bg-stone-950 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-3xl text-primary">table_chart</span>
+                <div>
+                    <h1 class="font-serif text-2xl font-bold text-stone-900 dark:text-white">Procesamiento Estructurado
+                    </h1>
+                    <p class="text-xs text-stone-500">Datos Tabulares (CSV/Excel)</p>
+                </div>
+            </div>
+            <a href="app.html" class="text-stone-600 hover:text-primary transition-colors text-sm font-medium">
+                ← Volver al inicio
+            </a>
+        </div>
+    </header>
+    <div class="max-w-7xl mx-auto px-6 py-2 bg-rose-50 dark:bg-rose-900/20 border-x border-b border-rose-200 dark:border-rose-800">
+        <p class="text-xs text-rose-900 dark:text-rose-200 leading-relaxed">
+            Aviso legal: esta herramienta ayuda en la seudonimización, pero la responsabilidad del tratamiento de
+            datos y de la anonimización final recae exclusivamente en la persona usuaria. Revisión humana final
+            obligatoria.
+            <a href="./terminos.html" class="underline font-semibold hover:text-rose-700 dark:hover:text-rose-100">Ver términos</a>.
+        </p>
+    </div>
+
+    <main class="batch-module">
+        <!-- Paso 1: Carga de Archivo -->
+        <div class="batch-step active" id="step-upload">
+            <div class="step-header">
+                <span class="step-number">1</span>
+                <h2>Carga de Archivo</h2>
+            </div>
+
+            <p class="step-description">
+                Sube un archivo CSV o Excel con datos estructurados de formularios clínicos.
+                <strong>No uses esta herramienta para textos de libre escritura</strong> -
+                para eso está el <a href="input.html" class="text-primary underline">procesador de texto</a>.
+            </p>
+
+            <div class="upload-zone" id="upload-zone">
+                <span class="material-symbols-outlined text-6xl text-primary mb-4 block">cloud_upload</span>
+                <p class="text-lg font-medium text-stone-700 dark:text-stone-300 mb-2">
+                    Arrastra archivos aquí o haz click para seleccionar
+                </p>
+                <p class="text-sm text-stone-500 dark:text-stone-400">
+                    Formatos: .csv, .xlsx, .xls (máx. 10MB)
+                </p>
+                <input type="file" id="file-input" accept=".csv,.xlsx,.xls" hidden />
+            </div>
+
+            <div class="file-info hidden" id="file-info">
+                <span class="file-name" id="file-name"></span>
+                <button class="btn-text" id="btn-change-file">Cambiar archivo</button>
+            </div>
+        </div>
+
+        <!-- Paso 2: Configuración -->
+        <div class="batch-step" id="step-config">
+            <div class="step-header">
+                <span class="step-number">2</span>
+                <h2>Configuración de Columnas</h2>
+            </div>
+
+            <!-- Selector de columna identificadora -->
+            <div class="config-section config-patient-id">
+                <h3>🔑 Columna Identificadora de Paciente</h3>
+                <p>Selecciona la columna que identifica de forma única a cada paciente
+                    (aunque tenga múltiples visitas):</p>
+
+                <select id="patient-id-column" class="select-large">
+                    <option value="">-- Selecciona una columna --</option>
+                </select>
+
+                <div class="validation-summary hidden" id="validation-summary"></div>
+            </div>
+
+            <!-- Tabla de configuración de columnas -->
+            <div class="config-section">
+                <h3>Configuración de Columnas</h3>
+
+                <table class="column-config-table" id="column-table">
+                    <thead>
+                        <tr>
+                            <th>Columna</th>
+                            <th>Muestra</th>
+                            <th>Tipo Detectado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="column-tbody">
+                        <!-- Generado dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Opciones adicionales -->
+            <div class="config-section config-options">
+                <h3>Opciones Adicionales</h3>
+
+                <label class="checkbox-label">
+                    <input type="checkbox" id="opt-visit-number" checked />
+                    Añadir columna "Visita_Num" (número secuencial de visita por paciente)
+                </label>
+
+                <label class="inline-label">
+                    Prefijo para IDs de paciente:
+                    <input type="text" id="opt-id-prefix" value="PAC" maxlength="10" class="input-small" />
+                </label>
+            </div>
+
+            <!-- Warnings de validación -->
+            <div class="validation-warnings hidden" id="validation-warnings">
+                <h4>⚠️ Avisos</h4>
+                <ul id="warnings-list"></ul>
+            </div>
+
+            <!-- Errores de validación -->
+            <div class="validation-errors hidden" id="validation-errors">
+                <h4>🚫 Errores (deben corregirse)</h4>
+                <ul id="errors-list"></ul>
+            </div>
+
+            <div class="step-actions">
+                <button class="btn-secondary" id="btn-back-upload">← Volver</button>
+                <button class="btn-primary" id="btn-process" disabled>Procesar archivo →</button>
+            </div>
+        </div>
+
+        <!-- Paso 3: Resultado -->
+        <div class="batch-step" id="step-result">
+            <div class="step-header">
+                <span class="step-number">3</span>
+                <h2>✓ Archivo Procesado</h2>
+            </div>
+
+            <div class="result-stats" id="result-stats">
+                <!-- Generado dinámicamente -->
+            </div>
+
+            <div class="download-section">
+                <h3>Descargas</h3>
+
+                <button class="btn-download btn-primary" id="btn-download-anon">
+                    <span class="btn-icon material-symbols-outlined">download_for_offline</span>
+                    <span class="btn-text">
+                        <strong>Descargar datos anonimizados</strong>
+                        <small>.xlsx - Listo para análisis</small>
+                    </span>
+                </button>
+
+                <button class="btn-download btn-secondary" id="btn-download-corr">
+                    <span class="btn-icon material-symbols-outlined">vpn_key</span>
+                    <span class="btn-text">
+                        <strong>Descargar tabla de correspondencia</strong>
+                        <small>.xlsx - Guardar en lugar seguro</small>
+                    </span>
+                </button>
+                <div class="download-warning">
+                    <span class="material-symbols-outlined">warning</span>
+                    <p>
+                        La tabla de correspondencia permite revertir la seudonimización.
+                        Guárdala en un lugar seguro y separado de los datos anonimizados.
+                    </p>
+                </div>
+            </div>
+
+            <div class="step-actions">
+                <button class="btn-secondary" id="btn-new-file">Procesar otro archivo</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Shared session controls -->
+    <script src="./js/shared/app-session.js"></script>
+    <script src="./js/shared/session-controls.js"></script>
+
+    <!-- Load Batch Structured Module Scripts (in dependency order) -->
+    <script src="./js/batch-structured/file-reader.js"></script>
+    <script src="./js/batch-structured/column-analyzer.js"></script>
+    <script src="./js/batch-structured/longitudinal-validator.js"></script>
+    <script src="./js/batch-structured/file-processor.js"></script>
+    <script src="./js/batch-structured/xlsx-exporter.js"></script>
+    <script src="./js/batch-structured/index.js"></script>
+</body>
+
+</html>

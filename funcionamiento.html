@@ -5,32 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Funcionamiento - Laboratorio de Privacidad</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#b88a7f",
-                        "primary-dark": "#966a60",
-                        "surface-light": "#ffffff",
-                        "surface-dark": "#2a2524",
-                        "background-light": "#fdfcf8",
-                        "background-dark": "#1c1816"
-                    },
-                    fontFamily: {
-                        "sans": ["Inter", "sans-serif"]
-                    }
-                }
-            }
-        }
-    </script>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
 </head>
 
 <body class="bg-background-light dark:bg-background-dark font-sans text-stone-900 dark:text-stone-100 antialiased">
@@ -55,6 +31,13 @@
             Esta herramienta está diseñada para procesar datos clínicos sensibles de forma segura y local.
             A continuación explicamos sus capacidades, métodos de validación y fundamentos legales.
         </p>
+        <div class="mb-10 p-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20">
+            <p class="text-sm text-rose-900 dark:text-rose-200 leading-relaxed">
+                Aviso legal: el Laboratorio de Privacidad es una herramienta de apoyo. La responsabilidad del
+                tratamiento de datos y de la anonimización final recae exclusivamente en la persona usuaria. La
+                revisión humana final es obligatoria antes de compartir resultados.
+            </p>
+        </div>
 
         <!-- Seudonimización de Texto Simple -->
         <section class="mb-12">

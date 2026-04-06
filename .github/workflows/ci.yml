@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check HTML local links
+        run: node scripts/ci/check-links.mjs
+
+      - name: Check sensitive storage policy
+        run: node scripts/ci/check-storage-policy.mjs
+
+      - name: Smoke anonymization
+        run: node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs
+
+      - name: Smoke check entrypoints
+        run: |
+          test -f index.html
+          test -f app.html
+          test -f input.html
+          test -f review.html
+          test -f batch.html
+          test -f batch-structured.html
+          test -f batch-review.html

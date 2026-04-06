@@ -46,7 +46,7 @@ class StructuredFileReader {
     /**
      * Lee archivo Excel
      * @param {File} file
-     * @returns {Promise<{headers: string[], rows: any[][]}>}
+     * @returns {Promise<{headers: string[], rows: any[][], skippedRows: number}>}
      */
     async readExcel(file) {
         if (typeof XLSX === 'undefined') {
@@ -62,11 +62,70 @@ class StructuredFileReader {
             throw new Error('El archivo Excel está vacío');
         }
 
+        // Detectar automáticamente la fila de cabeceras
+        const headerRowIndex = this.detectHeaderRow(data);
+
         return {
-            headers: data[0],
-            rows: data.slice(1)
+            headers: data[headerRowIndex],
+            rows: data.slice(headerRowIndex + 1),
+            skippedRows: headerRowIndex // Información sobre cuántas filas se saltaron
         };
     }
+
+    /**
+     * Detecta la fila que contiene las cabeceras reales
+     * Busca la primera fila que parece una cabecera (múltiples celdas con texto, patrones conocidos)
+     * @param {any[][]} data - Datos del Excel
+     * @returns {number} - Índice de la fila de cabeceras (0-based)
+     */
+    detectHeaderRow(data) {
+        // Patrones comunes en nombres de columnas de datos clínicos
+        const headerPatterns = [
+            /^(nhc|nombre|apellido|fecha|dni|paciente|id|codigo|edad|sexo|telefono|email|direccion|centro|medico|diagnostico|procedimiento|visita)/i
+        ];
+
+        for (let i = 0; i < Math.min(data.length, 10); i++) { // Revisar hasta las primeras 10 filas
+            const row = data[i];
+
+            // Contar celdas con contenido de texto
+            const textCells = row.filter(cell =>
+                cell !== null &&
+                cell !== undefined &&
+                String(cell).trim() !== '' &&
+                typeof cell === 'string'
+            );
+
+            // Criterios para considerar una fila como cabecera:
+            // 1. Tiene al menos 3 celdas con texto
+            // 2. Al menos una celda coincide con patrones conocidos de cabeceras
+            // 3. Las celdas son mayormente texto (no números)
+
+            if (textCells.length >= 3) {
+                const matchesPattern = row.some(cell =>
+                    headerPatterns.some(pattern => pattern.test(String(cell || '')))
+                );
+
+                // Verificar que la mayoría de celdas no son números puros
+                const numericCells = row.filter(cell =>
+                    cell !== null &&
+                    cell !== undefined &&
+                    !isNaN(cell) &&
+                    String(cell).trim() !== ''
+                );
+
+                const isLikelyHeader = textCells.length > numericCells.length;
+
+                if (matchesPattern || (isLikelyHeader && textCells.length >= 3)) {
+                    console.log(`📋 Cabeceras detectadas en fila ${i + 1}${i > 0 ? ` (saltando ${i} filas explicativas)` : ''}`);
+                    return i;
+                }
+            }
+        }
+
+        // Si no se detectó, usar la primera fila como cabecera
+        return 0;
+    }
+
 
     /**
      * Detecta el separador más probable en un CSV

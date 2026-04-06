@@ -5,52 +5,9 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Laboratorio de Privacidad Clínica by Sophilux</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#b88a7f",
-                        "primary-dark": "#a67b70",
-                        "background-light": "#f7f7f6",
-                        "background-dark": "#1c1716",
-                        "stone-dark": "#1c1917",
-                        "lavender-subtle": "#eaddd9",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"],
-                        "serif": ["Cormorant Garamond", "serif"],
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.375rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "2xl": "1rem",
-                        "full": "9999px"
-                    },
-                },
-            },
-        }
-    </script>
-    <style>
-        body {
-            min-height: max(884px, 100dvh);
-        }
-    </style>
-    <style>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
+  <style>
         body {
             min-height: max(884px, 100dvh);
         }
@@ -157,7 +114,11 @@
                     class="absolute inset-0 bg-gradient-to-t from-background-light dark:from-background-dark to-transparent z-10">
                 </div>
                 <div
-                    class="w-full h-full bg-[url('https://images.unsplash.com/photo-1541453267758-1f6063428d05?q=80&amp;w=1000&amp;auto=format&amp;fit=crop')] bg-cover bg-center opacity-60 dark:opacity-30 sepia-[.3]">
+                    class="w-full h-full opacity-60 dark:opacity-30"
+                    style="background:
+                        radial-gradient(circle at 18% 22%, rgba(184, 138, 127, 0.40), transparent 42%),
+                        radial-gradient(circle at 78% 72%, rgba(120, 93, 86, 0.32), transparent 40%),
+                        linear-gradient(135deg, #f5efe8 0%, #e9ddd3 38%, #d8c8bc 100%);">
                 </div>
             </div>
         </main>
@@ -168,6 +129,11 @@
                 <a href="terminos.html" class="hover:text-primary transition">Términos</a>
                 <a href="index.html" class="hover:text-primary transition">Inicio</a>
             </div>
+            <p class="mt-3 text-xs leading-relaxed max-w-4xl mx-auto">
+                Aviso legal: esta herramienta facilita la seudonimización, pero la responsabilidad del tratamiento de
+                datos y de la anonimización final recae exclusivamente en la persona usuaria. Revisión humana final
+                obligatoria antes de compartir contenido.
+            </p>
         </footer>
 
         <!-- Modal de Selección de Tipo -->
@@ -238,6 +204,8 @@
             }
         </style>
 
+        <script src="./js/shared/app-session.js"></script>
+        <script src="./js/shared/session-controls.js"></script>
         <script>
             // Modal de selección
             const choiceModal = document.getElementById('choice-modal');

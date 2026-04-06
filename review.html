@@ -5,35 +5,9 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>App Principal - Revisión Desktop</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#b88a7f",
-                        "background-light": "#f7f7f6",
-                        "background-dark": "#1c1716",
-                        "surface-light": "#ffffff",
-                        "surface-dark": "#292524",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
-                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
-                },
-            },
-        }
-    </script>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap"
-        rel="stylesheet" />
-    <style>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
+  <style>
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -183,6 +157,13 @@
             </button>
         </div>
     </header>
+    <div class="shrink-0 px-6 py-2 bg-rose-50 dark:bg-rose-900/20 border-b border-rose-200 dark:border-rose-800">
+        <p class="text-xs text-rose-900 dark:text-rose-200 leading-relaxed">
+            Aviso legal: esta herramienta es de apoyo. La responsabilidad del tratamiento de datos y de la anonimización
+            final recae exclusivamente en la persona usuaria. La revisión humana final es obligatoria.
+            <a href="./terminos.html" class="underline font-semibold hover:text-rose-700 dark:hover:text-rose-100">Ver términos</a>.
+        </p>
+    </div>
     <div class="flex flex-1 min-h-0 overflow-hidden">
         <!-- Sidebar izquierdo (entidades) -->
         <aside
@@ -434,7 +415,7 @@
             if (originalBottomSheet) originalBottomSheet.classList.add('hidden');
         });
     </script>
-    <style type="text/tailwindcss">
+    <style>
         @keyframes slide-up-small {
             from { transform: translateY(100%) translateX(-50%); opacity: 0; }
             to { transform: translateY(0) translateX(-50%); opacity: 1; }
@@ -443,16 +424,29 @@
             animation: slide-up-small 0.3s ease-out forwards;
         }
     </style>
-
-    </style>
     <script src="lib/jspdf.umd.min.js"></script>
-    <script src="js/standalone-processor.js"></script>
-    <script>
-        // Standalone review logic (no modules)
+    <script src="js/shared/app-session.js"></script>
+    <script src="js/shared/errors.js"></script>
+    <script src="js/shared/safe-render.js"></script>
+    <script src="js/shared/session-controls.js"></script>
+    <!-- Sistema modular de anonimización v4.0 -->
+    <script type="module" src="js/modular-processor.js"></script>
+    <script type="module">
+        // Review logic usando sistema modular
         let processingResult = null;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const originalText = localStorage.getItem('clinicalText');
+        // Esperar a que el módulo cargue y DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Pequeña espera para asegurar que el módulo se cargó
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            if (!window.PrivacyProcessor) {
+                console.error('PrivacyProcessor no cargado');
+                alert('Error cargando el procesador. Recargue la página.');
+                return;
+            }
+            const originalText = AppSession.getClinicalText();
+            const processingOptions = AppSession.getProcessingOptions();
             if (!originalText) {
                 // Si no hay texto, redirigir al inicio o alertar
                 alert('No se encontró texto para procesar. Por favor inicie desde la página principal.');
@@ -461,7 +455,7 @@
             }
 
             console.time('Processing');
-            const result = window.PrivacyProcessor.process(originalText);
+            const result = window.PrivacyProcessor.process(originalText, processingOptions);
             processingResult = result;
             console.timeEnd('Processing');
 
@@ -479,18 +473,10 @@
                 return;
             }
 
-            let html = result.original;
-            const entities = [...result.entities].sort((a, b) => b.position.start - a.position.start);
-
-            for (const entity of entities) {
-                const originalIndex = result.entities.indexOf(entity);
-                const span = createEntitySpan(entity, originalIndex);
-                html = html.substring(0, entity.position.start) + span + html.substring(entity.position.end);
-            }
-
-            const paragraphs = html.split(/\n\s*\n/).filter(p => p.trim());
-            const finalHtml = paragraphs.map(p => `<p class="mb-6">${p}</p>`).join('') + '<div class="h-32"></div>';
-            container.innerHTML = finalHtml;
+            const html = SafeRender.buildHighlightedHtmlFromOriginal(result, (entity, index, escapers) => {
+                return createEntitySpan(entity, index, escapers);
+            });
+            container.innerHTML = SafeRender.toParagraphsHtml(html);
 
             // Add click listeners to new spans
             container.querySelectorAll('span[id^="entity-"]').forEach(span => {
@@ -503,7 +489,7 @@
             });
         }
 
-        function createEntitySpan(entity, index) {
+        function createEntitySpan(entity, index, escapers) {
             let classes = "px-1 rounded-sm cursor-pointer hover:opacity-80 transition-opacity whitespace-pre-wrap";
             if (entity.type === 'NOMBRE') classes += " highlight-sub";
             else if (entity.type === 'IDENTIFICADOR') classes += " highlight-del";
@@ -514,7 +500,9 @@
 
             // Usamos un ID único basado en el índice
             const uniqueId = `entity-${index}`;
-            return `<span id="${uniqueId}" class="${classes}" data-type="${entity.type}" data-original="${entity.original || entity.text}">${entity.transformed}</span>`;
+            const escapeAttr = escapers?.escapeAttr || SafeRender.escapeAttr;
+            const escapeHtml = escapers?.escapeHtml || SafeRender.escapeHtml;
+            return `<span id="${escapeAttr(uniqueId)}" class="${escapeAttr(classes)}" data-type="${escapeAttr(entity.type)}" data-original="${escapeAttr(entity.original || entity.text)}">${escapeHtml(entity.transformed)}</span>`;
         }
 
         function renderSidePanel(result) {
@@ -551,11 +539,13 @@
                 };
 
                 const tooltip = educationalTooltips[entity.type] || 'Información protegida por RGPD';
+                const safeTransformed = SafeRender.escapeHtml(entity.transformed || '');
+                const safeOriginal = SafeRender.escapeHtml(entity.original || entity.text || '');
 
                 card.innerHTML = `
             <div class="flex items-center gap-2 mb-1">
               <span class="material-symbols-outlined ${colorClass} text-lg">${iconName}</span>
-              <p class="text-stone-900 dark:text-stone-100 font-medium text-sm truncate">${entity.transformed}</p>
+              <p class="text-stone-900 dark:text-stone-100 font-medium text-sm truncate">${safeTransformed}</p>
               <span class="ml-auto text-xs font-medium ${colorClass}">${entity.type}</span>
               <button class="info-tooltip-btn group relative ml-1 shrink-0" type="button" aria-label="Información">
                 <span class="material-symbols-outlined text-stone-400 hover:text-primary text-sm">info</span>
@@ -565,7 +555,7 @@
                 </div>
               </button>
             </div>
-            <p class="text-stone-500 dark:text-stone-400 text-xs">Original: <span class="font-semibold">${entity.original || entity.text}</span></p>
+            <p class="text-stone-500 dark:text-stone-400 text-xs">Original: <span class="font-semibold">${safeOriginal}</span></p>
           `;
 
                 // Prevenir que el click en el botón de info active el click de la card

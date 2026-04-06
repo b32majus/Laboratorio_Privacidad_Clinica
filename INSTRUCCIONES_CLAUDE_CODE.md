@@ -68,11 +68,11 @@ Objetivos:
 5. Crear orquestador principal
 
 Archivos a crear:
-- js/engine/processor.js
-- js/engine/tokenizer.js
-- js/engine/patterns/*.js
-- js/engine/transformers/*.js
-- js/engine/dictionaries/*.js
+- js/core/processor.js
+- js/core/detectors/*.js
+- js/core/managers/*.js
+- js/core/scoring/*.js
+- js/data/*.js
 
 Entregable: Motor testeable desde consola
 ```

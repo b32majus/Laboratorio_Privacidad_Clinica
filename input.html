@@ -6,48 +6,11 @@
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>App Principal - Entrada de Texto</title>
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com" rel="preconnect" />
-  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-    rel="stylesheet" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-    rel="stylesheet" />
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <!-- PDF.js para lectura de PDFs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- Mammoth.js para lectura de DOCX -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <!-- Tailwind Config -->
-  <script id="tailwind-config">
-    tailwind.config = {
-      darkMode: "class",
-      theme: {
-        extend: {
-          colors: {
-            "primary": "#b88a7f",
-            "primary-dark": "#966a60",
-            "background-light": "#f7f7f6",
-            "background-dark": "#1c1716",
-            "surface-light": "#ffffff",
-            "surface-dark": "#2a2524",
-          },
-          fontFamily: {
-            "display": ["Inter", "sans-serif"]
-          },
-          borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px" },
-          boxShadow: {
-            'soft': '0 4px 20px -2px rgba(184, 138, 127, 0.1)',
-            'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
-          }
-        },
-      },
-    }
-  </script>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
+  <!-- PDF.js y Mammoth locales (offline-first) -->
+  <script src="./lib/pdf.min.js"></script>
+  <script src="./lib/mammoth.browser.min.js"></script>
   <style>
     /* Custom scrollbar for textarea to maintain clean aesthetic */
     textarea::-webkit-scrollbar {
@@ -109,6 +72,13 @@
         Activar
       </a>
     </div>
+  </div>
+  <div class="px-4 py-2 bg-rose-50/80 dark:bg-rose-900/20 border-b border-rose-200 dark:border-rose-800">
+    <p class="max-w-7xl mx-auto text-xs text-rose-900 dark:text-rose-200 leading-relaxed">
+      Aviso legal: la herramienta ayuda a automatizar parte de la anonimización. La responsabilidad del tratamiento
+      de datos y de la anonimización final es exclusivamente de la persona usuaria. Revisión humana final obligatoria.
+      <a href="./terminos.html" class="underline font-semibold hover:text-rose-700 dark:hover:text-rose-100">Ver términos</a>.
+    </p>
   </div>
 
   <!-- Main Content Area with Sidebar -->
@@ -231,6 +201,10 @@
             <span class="material-symbols-outlined animate-pulse" style="font-size: 20px;">auto_fix_high</span>
           </div>
         </button>
+        <label class="mt-3 flex items-center justify-center gap-2 text-xs text-stone-600 dark:text-stone-400">
+          <input id="strict-mode-input" type="checkbox" class="h-4 w-4 rounded border-stone-300 text-primary focus:ring-primary" />
+          Modo estricto (anonimización más agresiva)
+        </label>
         <!-- Secondary/Help Text -->
         <p class="text-center text-xs text-stone-400 dark:text-stone-600 mt-3 font-medium">
           Seudonimización automática potenciada por IA
@@ -238,23 +212,33 @@
       </div>
     </main>
   </div>
+  <script src="./js/shared/app-session.js"></script>
+  <script src="./js/shared/errors.js"></script>
+  <script src="./js/shared/session-controls.js"></script>
   <script>
     // Configurar PDF.js worker
     if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = './lib/pdf.worker.min.js';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       const processBtn = document.getElementById('process-btn');
       const textArea = document.getElementById('clinical-text');
+      const strictModeInput = document.getElementById('strict-mode-input');
 
       if (!processBtn || !textArea) {
         console.error('Required elements not found');
         return;
       }
 
+      if (strictModeInput) {
+        const savedOptions = AppSession.getProcessingOptions();
+        strictModeInput.checked = !!savedOptions?.modoEstricto;
+      }
+
       processBtn.addEventListener('click', () => {
         const text = textArea.value;
+        const strictModeEnabled = !!strictModeInput?.checked;
 
         if (!text.trim()) {
           alert('Por favor, introduzca un texto clínico para procesar.');
@@ -263,8 +247,9 @@
 
         console.log('Saving text to localStorage:', text.substring(0, 50) + '...');
 
-        // Guardar en Local Storage
-        localStorage.setItem('clinicalText', text);
+        // Guardar en sesion efimera
+        AppSession.setClinicalText(text);
+        AppSession.setProcessingOptions({ modoEstricto: strictModeEnabled });
 
         // Navegar a la página de revisión
         console.log('Navigating to review.html');
@@ -280,8 +265,7 @@
             textArea.value = clipboardText;
             textArea.focus();
           } catch (err) {
-            console.error('Error al pegar:', err);
-            alert('No se pudo acceder al portapapeles. Use Ctrl+V.');
+            AppErrors.alertError('Error al pegar', err, 'No se pudo acceder al portapapeles. Use Ctrl+V.');
           }
         });
       }
@@ -330,8 +314,7 @@
             uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">upload_file</span> Cargar archivo';
 
           } catch (err) {
-            console.error('Error al cargar archivo:', err);
-            alert('Error al leer el archivo: ' + err.message);
+            AppErrors.alertError('Error al cargar archivo', err, 'No se pudo leer el archivo');
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">upload_file</span> Cargar archivo';
           }
@@ -343,6 +326,9 @@
 
       // Función para leer PDFs
       async function readPDF(file) {
+        if (typeof pdfjsLib === 'undefined') {
+          throw new Error('PDF.js no está disponible en local.');
+        }
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
@@ -359,6 +345,9 @@
 
       // Función para leer DOCX
       async function readDOCX(file) {
+        if (typeof mammoth === 'undefined') {
+          throw new Error('Mammoth no está disponible en local.');
+        }
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         return result.value;

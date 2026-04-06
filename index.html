@@ -5,46 +5,9 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Laboratorio de Privacidad Clínica - Inicio</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&amp;family=Inter:wght@300;400;500;600&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#b88d7f",
-                        "primary-dark": "#9a7266",
-                        "background-light": "#fdfcf8", "background-stone": "#f2f0ed", "background-dark": "#1c1816",
-                        "text-stone": "#4a4543",
-                        "lavender": "#e6e6fa",
-                    },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"],
-                        "serif": ["Cormorant Garamond", "serif"],
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.375rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "2xl": "1rem",
-                        "full": "9999px"
-                    },
-                    backgroundImage: {
-                        'gradient-warm': 'linear-gradient(135deg, #fdfcf8 0%, #f2f0ed 100%)',
-                    }
-                },
-            },
-        }
-    </script>
-    <style>
+  <link rel="stylesheet" href="./css/local-fonts.css" />
+  <link rel="stylesheet" href="./css/tailwind.generated.css" />
+  <style>
         body {
             font-family: 'Inter', sans-serif;
             color: #4a4543;
@@ -154,9 +117,15 @@
                         <div
                             class="relative aspect-[4/5] w-full max-w-md mx-auto lg:max-w-none rounded-2xl overflow-hidden shadow-2xl">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10"></div>
-                            <img alt="Abstract artistic representation of a classical sculpture face partially obscured by soft digital privacy veil"
-                                class="w-full h-full object-cover"
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzBks1Tg7QXra6FUq0fNlDwPM1sBYSZB6Es5RRcWkwbAC7GoddNFTMMKPn7frECjFv1fvFEQYmtyWwrTIYbtP64xqXZsPUrLCDXlcxtdDqkB8jfP0qRLILw0pc8avqOoTqK4ncUZzfsp7_M6RqRSO6w8ZsGv5ZqAQ3YCsNmXJhI6-ICveg8eQ3c3pPsxA4dgKbD9jwQE1mPBmOXH-mpN3uLSn-1afSCF68JSDqmhmmFsQz9kDN0GfhV1jmd8IYCngXOYxhvoxV1Gzi" />
+                            <div class="w-full h-full"
+                                role="img"
+                                aria-label="Representación abstracta de privacidad clínica con formas suaves"
+                                style="background:
+                                    radial-gradient(circle at 22% 20%, rgba(184, 138, 127, 0.42), transparent 36%),
+                                    radial-gradient(circle at 68% 30%, rgba(255, 255, 255, 0.40), transparent 44%),
+                                    radial-gradient(circle at 70% 78%, rgba(74, 69, 67, 0.28), transparent 42%),
+                                    linear-gradient(155deg, #efe5dd 0%, #dac8bb 45%, #ae9487 100%);">
+                            </div>
                             <div class="absolute bottom-6 left-6 z-20 text-white">
                                 <p class="font-serif italic text-2xl">Renaissance of Privacy</p>
                                 <p class="text-sm opacity-90 font-light">Tecnología invisible, protección tangible.</p>
@@ -482,6 +451,11 @@
                         <a class="hover:text-white transition-colors" href="terminos.html">Términos</a>
                     </div>
                 </div>
+                <p class="mt-4 text-xs text-gray-500 leading-relaxed max-w-4xl">
+                    Disclaimer: la herramienta es un apoyo para seudonimización. La responsabilidad del tratamiento de
+                    datos y de la anonimización final recae exclusivamente en la persona usuaria que procesa la
+                    información. La revisión humana final es obligatoria.
+                </p>
             </div>
         </footer>
     </main>
@@ -554,6 +528,8 @@
         </div>
     </div>
 
+    <script src="./js/shared/app-session.js"></script>
+    <script src="./js/shared/session-controls.js"></script>
     <script>
         // Modal de demostración
         const modal = document.getElementById('demo-modal');
