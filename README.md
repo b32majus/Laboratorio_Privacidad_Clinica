@@ -96,9 +96,11 @@ Esta aplicación está lista para ser desplegada gratuitamente en **GitHub Pages
     *   Ve a la pestaña **Settings** de tu repositorio.
     *   En el menú lateral, haz clic en **Pages**.
     *   En **Source**, selecciona `Deploy from a branch`.
-    *   En **Branch**, selecciona `main` y la carpeta `/ (root)`.
+    *   En **Branch**, selecciona `3.0` y la carpeta `/ (root)`.
     *   Haz clic en **Save**.
 3.  **Listo:** En unos minutos, tu aplicación estará en `https://tu-usuario.github.io/tu-repositorio/`.
+
+**Nota:** GitHub Pages sirve la web desde `index.html`; el `README.md` sigue siendo la portada del repositorio en GitHub, no la página pública del sitio.
 
 ---
 
