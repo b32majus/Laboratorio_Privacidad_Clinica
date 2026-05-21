@@ -35,16 +35,37 @@
         <section class="mb-12">
             <h2 class="text-2xl font-semibold text-stone-800 mb-4">¿Cómo usar la herramienta?</h2>
             <ol class="list-decimal list-inside space-y-4 text-stone-700">
-                <li><strong>Accede a la aplicación</strong> desde la página principal y haz clic en "Comenzar
-                    Seudonimización".</li>
-                <li><strong>Introduce el texto clínico</strong> que deseas procesar. Puedes escribirlo, pegarlo o
-                    seleccionar un ejemplo del menú.</li>
-                <li><strong>Procesa el texto</strong> haciendo clic en "Procesar Texto". El sistema analizará
-                    automáticamente el contenido.</li>
+                <li><strong>Accede a la aplicación</strong> desde la página principal y haz clic en "Revisar
+                    información".</li>
+                <li><strong>Elige la ruta de trabajo</strong>: texto o documento clínico para notas, informes,
+                    abstracts y comunicaciones; o datos estructurados para CSV/Excel, formularios y bases de
+                    seguimiento.</li>
+                <li><strong>Introduce la información sanitaria</strong> que deseas preparar. Puedes escribir, pegar,
+                    cargar un documento o subir una tabla según el flujo elegido.</li>
+                <li><strong>Procesa y revisa</strong>. El sistema analizará el contenido y propondrá transformaciones
+                    para apoyar la seudonimización.</li>
                 <li><strong>Revisa los resultados</strong>. Verás el texto transformado con entidades resaltadas en
                     colores según el tipo de dato sensible.</li>
-                <li><strong>Exporta</strong> el resultado copiando el texto o descargando un informe PDF.</li>
+                <li><strong>Exporta</strong> el resultado copiando el texto, descargando un informe o generando una
+                    salida revisable para tu flujo de análisis.</li>
             </ol>
+        </section>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold text-stone-800 mb-4">Rutas de uso habituales</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg border border-stone-200">
+                    <h3 class="font-semibold text-stone-900 mb-2">Texto o documento clínico</h3>
+                    <p class="text-stone-600">Notas, informes, abstracts, comunicaciones científicas, pósters,
+                        proyectos de calidad, informes docentes y textos clínicos que quieres estructurar después con
+                        IA.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg border border-stone-200">
+                    <h3 class="font-semibold text-stone-900 mb-2">Datos estructurados (CSV/Excel)</h3>
+                    <p class="text-stone-600">Formularios, bases de seguimiento, registros longitudinales o tablas con
+                        una fila por paciente, episodio, visita o respuesta.</p>
+                </div>
+            </div>
         </section>
 
         <section class="mb-12">
@@ -89,9 +110,10 @@
             <h2 class="text-2xl font-semibold text-stone-800 mb-4">Preguntas Frecuentes</h2>
             <div class="space-y-6">
                 <div>
-                    <h3 class="font-semibold text-stone-900 mb-2">¿Es seguro subir datos reales?</h3>
-                    <p class="text-stone-600">Sí. Todo el procesamiento ocurre en tu navegador. No se envía ningún dato
-                        a servidores externos.</p>
+                    <h3 class="font-semibold text-stone-900 mb-2">¿Qué ocurre con mis datos?</h3>
+                    <p class="text-stone-600">El procesamiento ocurre en tu navegador y no depende de APIs externas.
+                        Aun así, usa la herramienta como apoyo a la revisión: valida siempre el resultado antes de
+                        compartirlo o llevarlo a otra IA.</p>
                 </div>
                 <div>
                     <h3 class="font-semibold text-stone-900 mb-2">¿Puedo usar esto para cumplir con el RGPD?</h3>

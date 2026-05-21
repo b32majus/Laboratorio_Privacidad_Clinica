@@ -1,6 +1,6 @@
 # 🛡️ Laboratorio de Privacidad Clínica v3.0
 
-**Herramienta educativa de seudonimización de datos sanitarios 100% local y segura.**
+**Herramienta educativa local-first para preparar información sanitaria antes de usar IA.**
 
 [![Estado](https://img.shields.io/badge/Estado-Estable-success)](https://github.com/)
 [![Privacidad](https://img.shields.io/badge/Privacidad-100%25_Local-blue)](https://github.com/)
@@ -11,15 +11,16 @@
 
 ## 📖 Descripción
 
-El **Laboratorio de Privacidad Clínica** es una aplicación web diseñada para enseñar y facilitar la seudonimización de textos clínicos. Su objetivo es permitir que profesionales sanitarios y estudiantes utilicen herramientas de IA generativa de forma segura, eliminando datos identificables antes de compartir la información.
+El **Laboratorio de Privacidad Clínica** es una aplicación web diseñada para enseñar y facilitar la preparación de textos, documentos y datos estructurados antes de usar herramientas como ChatGPT, Claude o Gemini. Ayuda a detectar identificadores, revisar seudonimización y trabajar con información sanitaria con un enfoque privacy-first.
 
-**Principio Fundamental:** Todo el procesamiento ocurre en el navegador del cliente (Client-Side). **Ningún dato sale de tu dispositivo.**
+**Principio fundamental:** todo el procesamiento ocurre en el navegador del cliente (local-first). La herramienta no sustituye la revisión humana ni garantiza cumplimiento normativo por sí sola.
 
 ### ⚠️ Disclaimer de Responsabilidad
 
 - Esta herramienta es de apoyo para automatizar parte de la seudonimización.
 - La responsabilidad del tratamiento de datos y de la anonimización final recae **exclusivamente en la persona usuaria** que procesa la información.
 - La revisión humana final es **crítica y obligatoria** antes de compartir cualquier contenido.
+- No garantiza cumplimiento normativo ni reemplaza los circuitos legales, de seguridad o de gobernanza de datos de cada organización.
 
 ---
 
@@ -71,6 +72,11 @@ Ahora detecta y elimina:
 
 ## 🏥 Características Principales
 
+### Preparación antes de IA
+- **Texto, documentos y datos estructurados:** Revisa notas, informes, abstracts, comunicaciones, pósters, proyectos de calidad, formularios y bases CSV/Excel.
+- **Casos sanitarios prácticos:** Útil para comunicación científica, docencia, investigación, mejora de procesos y estructuración de textos clínicos con IA.
+- **Revisión humana obligatoria:** La salida debe validarse antes de compartirla o introducirla en cualquier herramienta externa.
+
 ### Procesamiento de Texto Clínico
 - **Detección Inteligente:** Identifica nombres, fechas, ubicaciones, DNIs, teléfonos y emails.
 - **Coherencia:** Mismo dato original = mismo pseudónimo en todo el documento.
@@ -88,6 +94,7 @@ Ahora detecta y elimina:
 - **Procesamiento Local:** No requiere backend ni APIs de procesamiento en la nube.
 - **Sesión Efímera:** Datos clínicos en almacenamiento de sesión con borrado manual global.
 - **Librerías críticas locales:** PDF.js, Mammoth y JSZip servidos desde `/lib` (sin dependencia de CDN para procesar).
+- **Apoyo privacy-first:** Diseñado como paso previo de revisión, no como certificación automática de anonimización o cumplimiento.
 
 ---
 
