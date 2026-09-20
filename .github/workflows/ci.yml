@@ -26,10 +26,10 @@ jobs:
       - name: Smoke anonymization
         run: node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs
 
-      - name: Contract tests: ReviewSession domain
+      - name: "Contract tests: ReviewSession domain"
         run: npm run test:domain
 
-      - name: Unit tests: privacy-eval matcher and metrics
+      - name: "Unit tests: privacy-eval matcher and metrics"
         run: npm run test:privacy-eval
 
       - name: Privacy regression harness (ground-truth corpus)
