@@ -67,7 +67,26 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | GOV-002 | P1 | Governance | Branch protection y CI required | OPEN |
 | GOV-003 | P1 | Versioning | Unificar versión README/package/runtime | OPEN |
 | DOC-001 | P1 | Docs | Actualizar especificación técnica a arquitectura real | OPEN |
-| UX-001 | P1 | UX | Auditoría completa SPA/app-shell y navegación | PLANNED |
+| UX-001 | P1 | UX | Auditoría completa SPA/app-shell y navegación | DONE |
+| UX-002 | P1 | Journey | Eliminar doble landing index → app antes del workspace | OPEN |
+| UX-003 | P1 | Journey | Unificar entrada en New Privacy Job con inferencia por tipo de input | OPEN |
+| UX-004 | P1 | Batch | Integrar batch como capacidad natural, eliminar framing Premium/Activar | OPEN |
+| UX-005 | P1 | Design System | Unificar texto/documentos/batch/structured en un único sistema visual | OPEN |
+| UX-006 | P0 | Export UX | No mostrar/habilitar Safe Export antes de completar Privacy Gate | OPEN |
+| UX-007 | P2 | Content | Sustituir disclaimer rojo permanente por aviso contextual | OPEN |
+| UX-008 | P1 | Policy UX | Sustituir Strict Mode opaco por Privacy Policies explicables | OPEN |
+| UX-009 | P1 | Review | Consolidar cards/action bar/modal en un único Entity Inspector | OPEN |
+| UX-010 | P1 | Responsive | Diseñar layouts desktop/tablet/mobile para superficies operativas | OPEN |
+| UX-011 | P1 | Accessibility | Corregir contraste del primary operativo y estados de foco | OPEN |
+| UX-012 | P1 | Accessibility | Hacer tooltips/actions accesibles por teclado y touch | OPEN |
+| UX-013 | P2 | Review | Añadir shortcuts de revisión y navegación de pendientes | OPEN |
+| UX-014 | P1 | Review | Convertir low-confidence/descartados en workflow visible | OPEN |
+| UX-015 | P1 | Structured | Rediseñar configuración de columnas como classification workspace | OPEN |
+| UX-016 | P1 | Session | Mostrar job/policy/local-only/clear session persistentemente en app shell | OPEN |
+| ARCH-009 | P1 | Frontend | Migración incremental a SPA Vite + TypeScript + React | PLANNED |
+| ARCH-010 | P1 | Frontend | Mantener core detrás de adapter durante migración; no big-bang rewrite | PLANNED |
+| HOST-001 | P0 | Origins | Separar marketing/docs y aplicación clínica en orígenes distintos | OPEN |
+| HOST-002 | P1 | Deploy | Adoptar target estático con security headers; Cloudflare Pages recomendado | PLANNED |
 | PRODUCT-001 | P3 | Dates | Date shifting consistente | OPEN |
 | PRODUCT-002 | P3 | Identity | Pseudónimos deterministas sin inferir género | OPEN |
 | PRODUCT-003 | P3 | Policy | Perfiles de política de privacidad | OPEN |
