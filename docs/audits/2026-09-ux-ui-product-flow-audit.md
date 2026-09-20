@@ -552,33 +552,46 @@ El origen clínico:
 
 ## 14. Hosting recomendado
 
-### 1. Cloudflare Pages — recomendado
+### 1. Render Static — recomendado para la fase actual
 
-Usar solo hosting estático, sin Pages Functions.
+Usar Render únicamente como **static site**: sirve HTML/CSS/JS y no participa en el procesamiento clínico.
 
 Motivos:
-- custom security headers mediante `_headers`;
-- custom domain;
-- preview deployments;
+- deploy automático desde Git;
+- custom domain y TLS gestionado;
+- custom response headers;
 - CDN;
-- assets estáticos sin necesidad de backend;
-- encaja con una SPA Vite totalmente client-side.
+- cero servidor que administrar;
+- compatible con una SPA Vite totalmente client-side;
+- permite mantener al proveedor de hosting fuera del data plane clínico.
 
-No activar Web Analytics/Zaraz en el origen clínico.
+El frontend clínico debe seguir cumpliendo la regla: no analytics, no logging remoto de PHI, no APIs externas inesperadas y no datos sensibles en URL/query/hash.
 
-### 2. Vercel — técnicamente excelente, segunda opción
+### 2. Cloudflare Pages — solo candidato experimental, sujeto a prueba específica en España
 
-Soporta Vite, previews y headers mediante `vercel.json`.
+No adoptarlo como production target por defecto mientras exista riesgo de bloqueo colateral de IP compartidas durante ventanas de LaLiga.
 
-No aporta una ventaja sustancial frente a Cloudflare para este producto sin backend/SSR. Si el proyecto se explota comercialmente, revisar el plan adecuado en lugar de asumir Hobby.
+Antes de reconsiderarlo:
+- desplegar un mirror sintético sin datos clínicos;
+- comprobar accesibilidad desde varios ISP españoles;
+- ejecutar pruebas específicamente durante ventanas de partidos;
+- documentar resultados y plan de fallback.
 
-### 3. Render Static Sites — válido
+Cloudflare puede seguir siendo útil para experimentación, pero no debe convertirse en dependencia de disponibilidad clínica sin ese gate.
 
-Soporta custom headers, HTTPS, Brotli y CDN. Correcto, pero no ofrece una ventaja clara que justifique preferirlo sobre Cloudflare Pages para este caso.
+### 3. Netlify / Vercel — alternativas, no solución automática al riesgo de bloqueo
 
-### 4. GitHub Pages — mantener para docs/demo, no como origen clínico objetivo
+El problema no es exclusivo de Cloudflare: otros proveedores multi-tenant/CDN también han sufrido bloqueos colaterales en España.
 
-Es muy cómodo para demos, pero la aplicación necesita un origen dedicado y control explícito de security headers. También conviene evitar un origen de usuario compartido con otros project sites.
+Vercel es técnicamente excelente, pero su Hobby debe revisarse en función del uso profesional/comercial. Netlify es válido, aunque su modelo de créditos añade otra variable operativa.
+
+### 4. GitHub Pages — documentación/demo, no origen clínico objetivo
+
+Es cómodo para docs y demos sintéticas. Para una herramienta clínica estable interesa un origen dedicado, security headers controlados y evitar depender de un project-site compartido.
+
+### 5. VPS / origen con IP propia — fallback futuro para máxima independencia
+
+No es la primera opción ahora porque introduce operación y mantenimiento. Pero si la disponibilidad en España se vuelve crítica y los hosts multi-tenant siguen sufriendo bloqueos, servir la SPA desde una IP propia vuelve a ser una alternativa estratégica válida.
 
 ## 15. Build / deploy objetivo
 
@@ -594,9 +607,9 @@ CI
 ├── no external network
 └── build
    ↓
-Cloudflare Preview
+Render Preview
    ↓ merge main
-Cloudflare Production
+Render Production
 ```
 
 Build:
@@ -654,7 +667,8 @@ El rediseño está conseguido cuando:
 
 - Adoptar SPA/app shell.
 - Adoptar Vite + TypeScript + React.
-- Adoptar Cloudflare Pages estático como production target.
+- Adoptar Render Static como production target inicial gestionado.
+- Mantener Cloudflare Pages como experimento sujeto a test específico de disponibilidad en España durante ventanas LaLiga.
 - Separar marketing y app en orígenes.
 - Mantener el core actual y migrarlo incrementalmente.
 - Rediseñar primero las pantallas objetivo y después comenzar la migración.
