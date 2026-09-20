@@ -104,7 +104,11 @@ function normalizeDetection(raw, originalText, index) {
   }
   // Fail-closed default (D-009): requireReview unless explicitly false.
   const requiresReview = raw.requiresReview === undefined ? true : Boolean(raw.requiresReview);
-  const normalized = { type: raw.type, start, end, source, requiresReview, original: raw.original === undefined ? originalText.slice(start, end) : String(raw.original) };
+  // Canonical source span (authority: exact text comes from source offsets):
+  // `original` is ALWAYS derived from the immutable source text, so stale or
+  // inconsistent detector metadata can never alter pending preview, restored
+  // final output or any other rendered span.
+  const normalized = { type: raw.type, start, end, source, requiresReview, original: originalText.slice(start, end) };
   // Omit optional keys entirely when undefined so deep-equality snapshots
   // of the session stay stable.
   if (raw.subtype !== undefined) normalized.subtype = raw.subtype;
@@ -138,13 +142,28 @@ export function createReviewSession({ originalText, detections, sessionId }) {
   const normalized = detections.map((raw, index) => normalizeDetection(raw, originalText, index));
 
   // Deterministic ID assignment; duplicates (identical content) get an
-  // ordinal that depends only on content, not array position.
+  // ordinal that depends only on content, not array position. A finite
+  // content hash can map two distinct detections onto the same id, so each
+  // resolved id is checked against the ids already assigned in this session
+  // and deterministically disambiguated when taken by different content.
+  // Uniqueness within the session is therefore enforced, not assumed; the
+  // algorithm depends only on detection content and array order, so the same
+  // inputs always produce the same ids and existing ids never change when
+  // detections are added later.
   const contentCounts = new Map();
+  const usedIds = new Map();
   const withIds = normalized.map((detection) => {
     const contentKey = [detection.source, detection.type, detection.start, detection.end, detection.original].join('\u0000');
     const ordinal = contentCounts.get(contentKey) ?? 0;
     contentCounts.set(contentKey, ordinal + 1);
-    return Object.freeze({ id: computeStableId(namespace, detection, ordinal), ...detection });
+    let id = computeStableId(namespace, detection, ordinal);
+    if (usedIds.has(id) && usedIds.get(id) !== contentKey) {
+      let n = 1;
+      while (usedIds.has(`${id}-x${n}`) && usedIds.get(`${id}-x${n}`) !== contentKey) n += 1;
+      id = `${id}-x${n}`;
+    }
+    usedIds.set(id, contentKey);
+    return Object.freeze({ id, ...detection });
   });
 
   return Object.freeze({
@@ -257,11 +276,26 @@ export function addManualDetection(session, { start, end, type, subtype, note })
   const detection = normalizeDetection(raw, session.originalText, 'manual');
 
   const namespace = session.sessionId;
+  // Rebuild the resolved-id registry from the existing session so the new
+  // detection cannot alias an existing identity; existing ids are never
+  // recomputed or renumbered.
+  const usedIds = new Map();
+  for (const d of session.detections) {
+    if (!usedIds.has(d.id)) {
+      usedIds.set(d.id, [d.source, d.type, d.start, d.end, d.original].join('\u0000'));
+    }
+  }
   const contentKey = [detection.source, detection.type, detection.start, detection.end, detection.original].join('\u0000');
   const ordinal = session.detections.filter(
     (d) => [d.source, d.type, d.start, d.end, d.original].join('\u0000') === contentKey,
   ).length;
-  const withId = Object.freeze({ id: computeStableId(namespace, detection, ordinal), ...detection });
+  let id = computeStableId(namespace, detection, ordinal);
+  if (usedIds.has(id) && usedIds.get(id) !== contentKey) {
+    let n = 1;
+    while (usedIds.has(`${id}-x${n}`) && usedIds.get(`${id}-x${n}`) !== contentKey) n += 1;
+    id = `${id}-x${n}`;
+  }
+  const withId = Object.freeze({ id, ...detection });
 
   return Object.freeze({
     ...session,

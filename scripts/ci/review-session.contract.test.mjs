@@ -423,3 +423,155 @@ describe('error contract', () => {
     assert.equal(error.message, 'message');
   });
 });
+
+// ---------------------------------------------------------------------------
+// 11. Canonical source span (WU-C1 blocker 1)
+//
+// Authority: restored/keep-original reintroduces the EXACT SOURCE SPAN and
+// the exact final text is calculated from immutable source offsets. Detector
+// metadata (`original`) must never be able to alter rendered content.
+// ---------------------------------------------------------------------------
+
+describe('canonical source span', () => {
+  const build = () =>
+    createReviewSession({
+      originalText: 'ABCDE',
+      sessionId: 'meta-canon',
+      detections: [
+        {
+          type: 'NOMBRE',
+          start: 1,
+          end: 4,
+          original: 'WRONG', // stale/inconsistent external metadata
+          proposed: '[X]',
+        },
+      ],
+    });
+
+  test('pending preview renders the exact source span, not detector metadata', () => {
+    const session = build();
+    assert.equal(getPreview(session), 'ABCDE');
+  });
+
+  test('restored final output reintroduces the exact source span', () => {
+    let session = build();
+    session = applyDecision(session, session.detections[0].id, 'restored');
+    assert.equal(getFinalText(session), 'ABCDE');
+  });
+
+  test('accepted still uses the engine proposal, unaffected by metadata', () => {
+    let session = build();
+    session = applyDecision(session, session.detections[0].id, 'accepted');
+    assert.equal(getFinalText(session), 'A[X]E');
+  });
+
+  test('modified still uses the explicit replacement', () => {
+    let session = build();
+    session = applyDecision(session, session.detections[0].id, 'modified', { replacement: 'Z' });
+    assert.equal(getFinalText(session), 'AZE');
+  });
+
+  test('detection.original is normalized to the canonical source slice', () => {
+    const session = build();
+    assert.equal(session.detections[0].original, 'BCD');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. Collision-safe detection identity (WU-C1 blocker 2)
+//
+// Authority: ids are deterministic per session + detections, unique for
+// distinct detections within one session, decisions never alias, ids survive
+// decisions, and adding a manual detection never renumbers existing ids.
+// ---------------------------------------------------------------------------
+
+describe('collision-safe detection identity', () => {
+  // Reproduced fixed deterministic FNV-32 collision (verified computationally):
+  // both detections hash to db8a16a3 under session 'fixed-type-collision'
+  // with engine/NOMBRE source-consistent 10-char spans.
+  const build = () => {
+    const pad = (n) => 'x'.repeat(n);
+    const originalText =
+      pad(280192) + 'j1oetu1l0v' + pad(315304 - 280202) + '1b4a0ci1be' + pad(20000);
+    return createReviewSession({
+      originalText,
+      sessionId: 'fixed-type-collision',
+      detections: [
+        { type: 'NOMBRE', start: 280192, end: 280202, proposed: '[A]' },
+        { type: 'NOMBRE', start: 315304, end: 315314, proposed: '[B]' },
+      ],
+    });
+  };
+
+  test('reproduced FNV collision resolves to distinct deterministic ids', () => {
+    const session = build();
+    const [a, b] = session.detections;
+    assert.equal(a.id, 'det-fixed-type-collision-db8a16a3');
+    assert.notEqual(a.id, b.id);
+    assert.match(b.id, /^det-fixed-type-collision-db8a16a3-x\d+$/);
+    assert.equal(new Set(session.detections.map((d) => d.id)).size, session.detections.length);
+  });
+
+  test('identity is deterministic across identical session construction', () => {
+    const s1 = build();
+    const s2 = build();
+    assert.deepEqual(
+      s1.detections.map((d) => d.id),
+      s2.detections.map((d) => d.id),
+    );
+  });
+
+  test('decisions never alias across colliding identities', () => {
+    let session = build();
+    const [a, b] = session.detections;
+    session = applyDecision(session, a.id, 'accepted');
+    session = applyDecision(session, b.id, 'restored');
+    assert.equal(getDecision(session, a.id).status, 'accepted');
+    assert.equal(getDecision(session, b.id).status, 'restored');
+    // A's span is replaced by its proposal; B's exact source span is restored.
+    const text = getFinalText(session);
+    const source = session.originalText;
+    assert.equal(text.slice(0, 280192), source.slice(0, 280192));
+    assert.equal(text.slice(280192, 280195), '[A]');
+    assert.ok(text.includes('1b4a0ci1be'));
+    assert.ok(!text.includes('[B]'));
+    // Exactly one 10-char span replaced by a 3-char proposal.
+    assert.equal(text.length, source.length - 10 + 3);
+  });
+
+  test('ids survive decisions', () => {
+    let session = build();
+    const before = session.detections.map((d) => d.id);
+    session = applyDecision(session, session.detections[0].id, 'accepted');
+    assert.deepEqual(
+      session.detections.map((d) => d.id),
+      before,
+    );
+  });
+
+  test('adding a manual detection never renumbers existing ids', () => {
+    const session = build();
+    const before = session.detections.map((d) => d.id);
+    const extended = addManualDetection(session, { start: 0, end: 5, type: 'DNI' });
+    assert.deepEqual(
+      extended.detections.slice(0, before.length).map((d) => d.id),
+      before,
+    );
+    assert.equal(new Set(extended.detections.map((d) => d.id)).size, extended.detections.length);
+  });
+
+  test('identical duplicate content still gets distinct ordinal ids', () => {
+    const session = createReviewSession({
+      originalText: 'AAAA',
+      sessionId: 'dupes',
+      detections: [
+        { type: 'NOMBRE', start: 0, end: 2, proposed: '[N]' },
+        { type: 'NOMBRE', start: 0, end: 2, proposed: '[N]' },
+      ],
+    });
+    const [a, b] = session.detections;
+    assert.notEqual(a.id, b.id);
+    assert.match(a.id, /^det-dupes-[0-9a-f]{8}$/);
+    assert.match(b.id, /^det-dupes-[0-9a-f]{8}-2$/);
+  });
+});
