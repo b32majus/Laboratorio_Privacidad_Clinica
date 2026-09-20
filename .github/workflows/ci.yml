@@ -29,6 +29,12 @@ jobs:
       - name: Contract tests: ReviewSession domain
         run: npm run test:domain
 
+      - name: Unit tests: privacy-eval matcher and metrics
+        run: npm run test:privacy-eval
+
+      - name: Privacy regression harness (ground-truth corpus)
+        run: npm run check:privacy-eval
+
       - name: Smoke check entrypoints
         run: |
           test -f index.html
