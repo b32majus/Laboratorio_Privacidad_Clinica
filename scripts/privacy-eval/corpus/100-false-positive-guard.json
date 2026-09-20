@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "case_id": "100-false-positive-guard",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "False-positive guard: routine clinical content with no identifiers. Any detection over this text is a regression. MUST_KEEP annotations document the values that must never be flagged.",
+  "text": "Revisión ambulatoria. El paciente refiere mejoría clínica. Talla 178 cm, peso 82 kg, tensión arterial 130/85 mmHg. Constantes estables. Se pauta Paracetamol 1 g cada 8 horas si dolor. Se mantiene tratamiento habitual con Atorvastatina 20 mg en monoterapia. Control analítico en tres meses. Sin signos de alarma.",
+  "annotations": [
+    { "label": "MUST_KEEP", "entity_type": "IDENTIFICADOR", "value": "Paracetamol 1 g cada 8 horas", "note": "Dosage pattern must never be flagged as an identifier." },
+    { "label": "MUST_KEEP", "entity_type": "IDENTIFICADOR", "value": "Atorvastatina 20 mg", "note": "Medication and dose must never be flagged as an identifier." },
+    { "label": "MUST_KEEP", "entity_type": "IDENTIFICADOR", "value": "130/85 mmHg", "note": "Blood-pressure reading must never be flagged as a clinical record number." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "mejoría clínica", "note": "Generic clinical course statement." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "Sin signos de alarma", "note": "Generic clinical course statement." }
+  ]
+}

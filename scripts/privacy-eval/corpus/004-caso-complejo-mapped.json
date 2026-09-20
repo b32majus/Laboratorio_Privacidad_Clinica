@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "case_id": "004-caso-complejo-mapped",
+  "tier": "core",
+  "source": "mapped from ejemplos/04-caso-complejo-cuasiidentificadores.json (synthetic example committed to this repository; no real PHI)",
+  "description": "Complex case: rare disease, public office, twin relationship and full address; strong re-identification risk via combined quasi-identifiers.",
+  "text": "Paciente Alejandro Fernández Gómez, único paciente diagnosticado con síndrome de Wolfram en la provincia de Teruel. Alcalde del municipio de Albarracín desde 2015. Hermano gemelo de Carlos Fernández, también residente en la localidad. Nacido 12/07/1965, DNI 25147896K. Dirección: Plaza del Ayuntamiento 1, Albarracín, Teruel. Ingresado en Hospital Universitario Miguel Servet el 23/11/2023. NHC: 2023-456789. Contacto: 978-123-456.",
+  "annotations": [
+    { "label": "MUST_REMOVE", "entity_type": "NOMBRE", "value": "Alejandro Fernández Gómez", "note": "Patient name." },
+    { "label": "MUST_REMOVE", "entity_type": "NOMBRE", "value": "Carlos Fernández", "note": "Relative's name." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "25147896K", "note": "Synthetic DNI." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "2023-456789", "note": "Synthetic NHC." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "978-123-456", "note": "Contact phone." },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "12/07/1965", "note": "Birth date." },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "2015", "note": "Year in public-office context." },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "23/11/2023", "note": "Admission date." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Plaza del Ayuntamiento 1, Albarracín, Teruel", "note": "Full address; listed before the generic location values so the exact-match phase claims it first." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Hospital Universitario Miguel Servet", "note": "Named hospital." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Teruel", "note": "Province." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Albarracín", "note": "Small municipality: high re-identification risk." },
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "síndrome de Wolfram", "note": "Rare disease: quasi-identifier requiring review." },
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "Alcalde del municipio", "note": "Public office: quasi-identifier requiring review." },
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "Hermano gemelo", "note": "Twin relationship: quasi-identifier requiring review." }
+  ],
+  "notes": "The quasi-identifier phrase 'único paciente' from the source example is NOT annotated here because the current engine does not surface it; it is tracked in the adversarial corpus notes and its promotion to the gated tier is a privacy-engine decision (fail-closed, not silently omitted)."
+}
