@@ -9,7 +9,8 @@
     "check:storage": "node scripts/ci/check-storage-policy.mjs",
     "check:smoke": "node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs",
     "check:positioning": "node scripts/ci/check-positioning-copy.mjs",
-    "test": "npm run check:links && npm run check:storage && npm run check:smoke && npm run check:positioning"
+    "test": "npm run check:links && npm run check:storage && npm run check:smoke && npm run check:positioning && npm run check:review",
+    "check:review": "node scripts/ci/review-session.mjs"
   },
   "keywords": [],
   "author": "",
