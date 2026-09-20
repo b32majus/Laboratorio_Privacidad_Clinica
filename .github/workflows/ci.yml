@@ -26,6 +26,9 @@ jobs:
       - name: Smoke anonymization
         run: node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs
 
+      - name: Contract tests: ReviewSession domain
+        run: npm run test:domain
+
       - name: Smoke check entrypoints
         run: |
           test -f index.html
