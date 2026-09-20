@@ -1,5 +1,5 @@
 // Unit tests for the privacy-eval matching logic (node --test).
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
@@ -147,4 +147,54 @@ test('assignDetections: each annotation and detection is consumed at most once',
   // 'Albarracín' detection matches no annotation: false positive.
   assert.equal(result.false_positives.length, 1);
   assert.equal(result.false_positives[0].detection.text, 'Albarracín');
+});
+
+describe('global two-phase matching', () => {
+  test('exact phase prevents a short annotation from stealing a later exact match', () => {
+    const annotations = [
+      { label: 'MUST_REMOVE', entity_type: 'NOMBRE', value: 'Juan' },
+      { label: 'MUST_REMOVE', entity_type: 'NOMBRE', value: 'Juan Martinez' },
+    ];
+    const detections = [
+      { type: 'NOMBRE', text: 'Juan Martinez' },
+      { type: 'NOMBRE', text: 'Dr. Juan' },
+    ];
+    const result = assignDetections(annotations, detections);
+    assert.equal(result.missed.length, 0);
+    assert.equal(result.false_positives.length, 0);
+    assert.equal(result.matched.length, 2);
+    const byValue = new Map(result.matched.map((m) => [m.annotation.value, m]));
+    assert.equal(byValue.get('Juan Martinez').via, 'detection');
+    assert.equal(byValue.get('Juan').via, 'detection');
+  });
+
+  test('remains order-insensitive when annotations are given in reverse order', () => {
+    const annotations = [
+      { label: 'MUST_REMOVE', entity_type: 'NOMBRE', value: 'Juan Martinez' },
+      { label: 'MUST_REMOVE', entity_type: 'NOMBRE', value: 'Juan' },
+    ];
+    const detections = [
+      { type: 'NOMBRE', text: 'Juan Martinez' },
+      { type: 'NOMBRE', text: 'Dr. Juan' },
+    ];
+    const result = assignDetections(annotations, detections);
+    assert.equal(result.missed.length, 0);
+    assert.equal(result.false_positives.length, 0);
+    assert.equal(result.matched.length, 2);
+  });
+
+  test('semantics preserved: keep violations, flagged-only remove, unmatched flagged', () => {
+    const annotations = [
+      { label: 'MUST_KEEP', entity_type: 'NOMBRE', value: 'Hospital Central' },
+      { label: 'MUST_REMOVE', entity_type: 'DNI', value: '12345678Z' },
+    ];
+    const detections = [{ type: 'NOMBRE', text: 'Hospital Central' }];
+    const flaggedItems = [{ type: 'DNI', text: '12345678Z' }];
+    const result = assignDetections(annotations, detections, flaggedItems);
+    assert.equal(result.false_positives.length, 1);
+    assert.equal(result.false_positives[0].reason, 'must_keep_violation');
+    assert.equal(result.flagged_only.length, 1);
+    assert.equal(result.missed.length, 1);
+    assert.equal(result.unmatched_flagged.length, 0);
+  });
 });

@@ -118,11 +118,27 @@ export function assignDetections(annotations, detections, flaggedItems = []) {
     return -1;
   };
 
+  // True two-phase global matching (documented algorithm):
+  // Phase 1: EVERY positive annotation first gets the opportunity to claim
+  // an exact detection, before any containment claim happens. This removes
+  // order sensitivity: a shorter annotation evaluated first can no longer
+  // steal (by containment) the exact detection of a later annotation.
+  const unmatched = [];
   for (const annotation of positives) {
-    let detectionIndex = findExact(annotation);
-    if (detectionIndex < 0) {
-      detectionIndex = findContaining(annotation);
+    const detectionIndex = findExact(annotation);
+    if (detectionIndex >= 0) {
+      consumedDetections.add(detectionIndex);
+      matched.push({ annotation, via: 'detection' });
+    } else {
+      unmatched.push(annotation);
     }
+  }
+
+  // Phase 2: only still-unmatched annotations may claim remaining detections
+  // through containment, then the flagged (low-confidence) surface. Annotation
+  // and detection order are otherwise preserved (first unconsumed match wins).
+  for (const annotation of unmatched) {
+    const detectionIndex = findContaining(annotation);
 
     if (detectionIndex >= 0) {
       consumedDetections.add(detectionIndex);
