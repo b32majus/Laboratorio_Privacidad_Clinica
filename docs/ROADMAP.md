@@ -11,7 +11,7 @@ Entregables:
 - [x] Auditoría funcional/código/arquitectura/performance.
 - [x] Auditoría UX/UI, navegación y modelo de aplicación.
 - [~] Stack recomendado documentado: Vite + TypeScript + React; pendiente aceptación antes de implementar.
-- [~] Hosting/orígenes recomendado: Cloudflare Pages estático + origen clínico separado; pendiente aceptación.
+- [~] Hosting/orígenes recomendado: Render Static como target inicial + origen clínico separado; Cloudflare queda sujeto a test de disponibilidad en España/LaLiga.
 - [ ] Arquitectura objetivo aprobada.
 - [ ] Convertir deuda final en issues ejecutables con criterios de aceptación.
 
@@ -24,8 +24,9 @@ Después de aceptar arquitectura, antes de mover lógica sensible:
 3. Crear Job model y navegación Input → Configure → Review → Export.
 4. Montar PrivacyEngine actual detrás de un adapter sin modificar comportamiento.
 5. Preparar Web Worker boundary.
-6. Crear deployment preview en target estático.
-7. Mantener legacy disponible en paralelo hasta alcanzar paridad E2E.
+6. Crear deployment preview en Render Static.
+7. Ejecutar smoke tests de disponibilidad desde España; Cloudflare solo como experimento comparativo durante ventanas LaLiga.
+8. Mantener legacy disponible en paralelo hasta alcanzar paridad E2E.
 
 **Regla:** esta fase no "arregla" recognizers todavía; crea el lugar correcto donde integrar las correcciones de Fase 1.
 
