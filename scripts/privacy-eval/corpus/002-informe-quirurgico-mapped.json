@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "case_id": "002-informe-quirurgico-mapped",
+  "tier": "core",
+  "source": "mapped from ejemplos/02-informe-quirurgico.json (synthetic example committed to this repository; no real PHI)",
+  "description": "Surgical report: multiple health professionals, patient name, NHC, related dates and hospital.",
+  "text": "Intervención realizada el 15/03/2024 por Dr. Juan Martínez Sánchez en paciente María del Carmen López con 67 años. Diagnóstico preoperatorio: Colelitiasis sintomática. Técnica: Colecistectomía laparoscópica. Anestesista: Dra. Patricia Ruiz. Hospital: Complejo Hospitalario de Toledo. NHC: 2024/089756. Evolución favorable. Alta prevista 18/03/2024. Contacto: 612-345-678.",
+  "annotations": [
+    { "label": "MUST_REMOVE", "entity_type": "NOMBRE", "value": "Juan Martínez Sánchez", "note": "Professional name; the engine may include the honorific in the span (tolerated by containment matching)." },
+    { "label": "MUST_REMOVE", "entity_type": "NOMBRE", "value": "María del Carmen López", "note": "Patient name with particles." },
+    { "label": "MUST_REMOVE", "entity_type": "NOMBRE", "value": "Patricia Ruiz", "note": "Anesthetist name." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "2024/089756", "note": "Synthetic NHC with separator." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "612-345-678", "note": "Contact phone." },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "15/03/2024", "note": "Intervention date." },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "18/03/2024", "note": "Discharge date." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Complejo Hospitalario de Toledo", "note": "Named hospital." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "Colelitiasis sintomática", "note": "Diagnosis, not an identifier." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "Colecistectomía laparoscópica", "note": "Procedure, not an identifier." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "Evolución favorable", "note": "Clinical evolution note." }
+  ]
+}

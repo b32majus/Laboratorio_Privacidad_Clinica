@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "case_id": "001-consulta-urgencias-mapped",
+  "tier": "core",
+  "source": "mapped from ejemplos/01-consulta-urgencias.json (synthetic example committed to this repository; no real PHI)",
+  "description": "Urgencies consultation: direct identifiers, contact data, location and a contextual year.",
+  "text": "Paciente Eduardo García, derivado a Hospital Virgen del Rocío con 54 años y DNI 30970148B por dolor abdominal agudo en fosa ilíaca derecha. Reside en Calle Mayor 123, Sevilla. Antecedentes: HTA diagnosticada en 2019. Exploración: Dolor a la palpación profunda. Contacto familiar: 654-321-987.",
+  "annotations": [
+    { "label": "MUST_REMOVE", "entity_type": "NOMBRE", "value": "Eduardo García", "note": "Full patient name: direct identifier." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "30970148B", "note": "Synthetic DNI: high-sensitivity direct identifier." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "654-321-987", "note": "Contact phone." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Hospital Virgen del Rocío", "note": "Named hospital: location quasi-identifier." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Calle Mayor 123, Sevilla", "note": "Exact street address must be generalized." },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "2019", "note": "Diagnosis year must be relativized." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "dolor abdominal agudo", "note": "Clinical finding, not an identifier." },
+    { "label": "MUST_KEEP", "entity_type": "SOSPECHOSO", "value": "HTA", "note": "Clinical condition abbreviation, not an identifier." },
+    { "label": "MUST_KEEP", "entity_type": "IDENTIFICADOR", "value": "Dolor a la palpación profunda", "note": "Exploration finding must remain verbatim." }
+  ]
+}

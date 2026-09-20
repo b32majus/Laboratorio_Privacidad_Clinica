@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "case_id": "901-adversarial-identifier-formats",
+  "tier": "adversarial",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Adversarial false-negative fixture: identifiers in obfuscated or alternative formats (dotted DNI, NIE, IBAN, international phone prefix, obfuscated email, full address). Misses here are reported as known gaps and do not gate CI; promoting them to the gated core tier requires recognizer work under a separate privacy-engine ticket.",
+  "text": "Paciente trasladada por servicio de urgencias. DNI 30.970.148-B. NIE X-7442329-Z. IBAN ES12 1234 5678 9012 3456 7890. Contacto: +34 654 321 987. Email personal: lucia.martinez at correoejemplo.es. Domicilio: Calle de la Palma 24, 3º B, 28004 Madrid.",
+  "annotations": [
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "30.970.148-B", "note": "DNI with dot separators." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "X-7442329-Z", "note": "NIE format." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "ES12 1234 5678 9012 3456 7890", "note": "IBAN: financial identifier." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "+34 654 321 987", "note": "Phone with international prefix; partial span detection is tolerated by containment matching." },
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "lucia.martinez at correoejemplo.es", "note": "Obfuscated email." },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Calle de la Palma 24, 3º B, 28004 Madrid", "note": "Full address with floor, portal and postal code." }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "case_id": "902-adversarial-contextual-quasiidentifiers",
+  "tier": "adversarial",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Adversarial false-negative fixture: contextual quasi-identifiers with no lexical marker (social/contact context). Misses here are reported as known gaps and do not gate CI.",
+  "text": "Consulta de seguimiento. La paciente fue valorada esta mañana por la especialista de guardia, que confirmó el alta domiciliaria. Acudió acompañada de su vecina, que vive en el mismo portal. Se repite analítica en dos semanas.",
+  "annotations": [
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "vecina", "note": "Contact/cohabitation quasi-identifier with no lexical marker." },
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "mismo portal", "note": "Shared-building quasi-identifier." }
+  ],
+  "notes": "Related known gap: the quasi-identifier phrase 'único paciente' from ejemplos/04 is not surfaced by the current engine either. Promotion of any adversarial annotation to the gated core tier is a privacy-engine decision, not a harness decision."
+}

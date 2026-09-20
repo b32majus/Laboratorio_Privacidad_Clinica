@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "corpus_version": "1.0.0",
+  "description": "Ground-truth synthetic annotated corpus for privacy-detection regression (Work Order V4/T02). All content is synthetic; no real PHI. Cases 001-004 map the pre-existing synthetic examples in ejemplos/*.json; case 100 is a false-positive guard; cases 901-902 are adversarial false-negative fixtures tracked as known gaps.",
+  "taxonomy": ["NOMBRE", "IDENTIFICADOR", "FECHA", "UBICACION", "SOSPECHOSO"],
+  "labels": ["MUST_REMOVE", "MUST_KEEP", "MUST_FLAG_FOR_REVIEW"]
+}

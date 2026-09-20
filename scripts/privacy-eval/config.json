@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "rationale": "Thresholds pin the current detection baseline of the gated core corpus (mapped synthetic examples + false-positive guard). Because the corpus is small, a single missed detection or spurious detection is visible: the gate exists to fail on regressions, not to grade absolute quality. Adversarial cases (tier 'adversarial') are reported as known gaps and never gate. Any corpus addition must re-evaluate these thresholds explicitly in the corresponding ticket.",
+  "gate": {
+    "overall": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+    "per_type": {
+      "NOMBRE": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "IDENTIFICADOR": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "FECHA": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "UBICACION": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "SOSPECHOSO": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 }
+    }
+  }
+}
