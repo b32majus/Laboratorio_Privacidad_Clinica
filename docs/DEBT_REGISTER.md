@@ -86,7 +86,10 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | ARCH-009 | P1 | Frontend | Migración incremental a SPA Vite + TypeScript + React | PLANNED |
 | ARCH-010 | P1 | Frontend | Mantener core detrás de adapter durante migración; no big-bang rewrite | PLANNED |
 | HOST-001 | P0 | Origins | Separar marketing/docs y aplicación clínica en orígenes distintos | OPEN |
-| HOST-002 | P1 | Deploy | Adoptar target estático con security headers; Cloudflare Pages recomendado | PLANNED |
+| HOST-002 | P1 | Deploy | Adoptar target estático con security headers; Render Static recomendado para fase actual | PLANNED |
+| HOST-003 | P1 | Availability | Evaluar riesgo LaLiga/bloqueo IP compartida por proveedor antes de producción clínica | OPEN |
+| HOST-004 | P2 | Experiment | Test controlado de Cloudflare durante ventanas de partido antes de reconsiderarlo | OPEN |
+| HOST-005 | P2 | Resilience | Definir fallback a origen/IP propia si la disponibilidad clínica lo exige | OPEN |
 | PRODUCT-001 | P3 | Dates | Date shifting consistente | OPEN |
 | PRODUCT-002 | P3 | Identity | Pseudónimos deterministas sin inferir género | OPEN |
 | PRODUCT-003 | P3 | Policy | Perfiles de política de privacidad | OPEN |
