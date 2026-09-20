@@ -9,11 +9,25 @@
 Entregables:
 - [x] Auditoría privacidad/seguridad.
 - [x] Auditoría funcional/código/arquitectura/performance.
-- [ ] Auditoría UX/UI, navegación y modelo de aplicación.
-- [ ] Decisión de stack frontend.
-- [ ] Decisión de hosting/orígenes/dominio.
+- [x] Auditoría UX/UI, navegación y modelo de aplicación.
+- [~] Stack recomendado documentado: Vite + TypeScript + React; pendiente aceptación antes de implementar.
+- [~] Hosting/orígenes recomendado: Cloudflare Pages estático + origen clínico separado; pendiente aceptación.
 - [ ] Arquitectura objetivo aprobada.
 - [ ] Convertir deuda final en issues ejecutables con criterios de aceptación.
+
+## Fase 0.5 — Product shell y migration scaffold
+
+Después de aceptar arquitectura, antes de mover lógica sensible:
+
+1. Crear app shell SPA.
+2. Definir design tokens operativos accesibles.
+3. Crear Job model y navegación Input → Configure → Review → Export.
+4. Montar PrivacyEngine actual detrás de un adapter sin modificar comportamiento.
+5. Preparar Web Worker boundary.
+6. Crear deployment preview en target estático.
+7. Mantener legacy disponible en paralelo hasta alcanzar paridad E2E.
+
+**Regla:** esta fase no "arregla" recognizers todavía; crea el lugar correcto donde integrar las correcciones de Fase 1.
 
 ## Fase 1 — Product integrity / safety baseline
 
