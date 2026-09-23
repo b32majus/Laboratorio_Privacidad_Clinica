@@ -17,6 +17,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Check HTML local links
         run: node scripts/ci/check-links.mjs
 
@@ -44,3 +47,15 @@ jobs:
           test -f batch.html
           test -f batch-structured.html
           test -f batch-review.html
+
+      - name: Build V4 app (legacy Tailwind + Vite)
+        run: npm run build
+
+      - name: Typecheck V4 app
+        run: npm run typecheck:v4
+
+      - name: Lint V4 app
+        run: npm run lint:v4
+
+      - name: Test V4 app
+        run: npm run test:v4

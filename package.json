@@ -4,7 +4,13 @@
   "description": "Herramienta educativa local-first para preparar información sanitaria antes de usar IA.",
   "scripts": {
     "build:tailwind": "tailwindcss -c tailwind.config.cjs -i ./css/tailwind-input.css -o ./css/tailwind.generated.css --minify",
-    "build": "npm run build:tailwind",
+    "build": "npm run build:tailwind && npm run build:v4",
+    "build:v4": "vite build",
+    "dev:v4": "vite",
+    "preview:v4": "vite preview",
+    "typecheck:v4": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "lint:v4": "eslint app-v4",
+    "test:v4": "vitest run",
     "check:links": "node scripts/ci/check-links.mjs",
     "check:storage": "node scripts/ci/check-storage-policy.mjs",
     "check:smoke": "node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs",
@@ -12,20 +18,38 @@
     "test:domain": "node --test scripts/ci/review-session.contract.test.mjs",
     "test:privacy-eval": "node --test scripts/privacy-eval/lib/matching.test.mjs scripts/privacy-eval/lib/metrics.test.mjs",
     "check:privacy-eval": "node scripts/privacy-eval/evaluate.mjs",
-    "test": "npm run check:links && npm run check:storage && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run check:privacy-eval"
+    "test": "npm run check:links && npm run check:storage && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run check:privacy-eval && npm run test:v4"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@fontsource/cormorant-garamond": "^5.2.11",
-    "@fontsource/inter": "^5.2.8",
+    "@fontsource/cormorant-garamond": "5.2.11",
+    "@fontsource/inter": "5.2.8",
     "@fontsource/material-symbols-outlined": "^5.2.40",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/forms": "^0.5.11",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^3.11.174",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.16"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "jsdom": "^26.1.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "vite": "^7.2.0",
+    "vitest": "^3.2.4"
   }
 }
