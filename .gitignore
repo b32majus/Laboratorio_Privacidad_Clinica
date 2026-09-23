@@ -36,3 +36,6 @@ __pycache__/
 .agent/
 .claude/
 .codex
+
+# Gentle runtime metadata
+.atl/
