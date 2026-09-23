@@ -104,6 +104,18 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | PRODUCT-012 | P3 | PDF | Reconstrucción/redacción manteniendo layout | OPEN |
 | PRODUCT-013 | P3 | Research | Correspondencia cifrada opcional / HMAC study IDs | OPEN |
 
+
+## Observaciones de auditoría post-T03
+
+Estas observaciones no bloquearon T03/PR #33, pero deben permanecer trazables hasta resolverse en el momento de implementación adecuado. No crear deuda duplicada: cada observación se vincula a un ID existente.
+
+| Observación | Deuda propietaria | Evidencia T03 | Momento recomendado | Estado |
+|---|---|---|---|---|
+| T03-AUDIT-001 | `SUPPLY-001` (T23 #27) | En una reproducción limpia de PR #33, `npm run build` regeneró el `css/tailwind.generated.css` legacy con un SHA-256 distinto al fichero commiteado, aunque el build terminó correctamente. T03 no modifica ese artefacto legacy. | Resolver en T23/reproducibilidad de dependencias y CI, o antes si un ticket convierte la limpieza post-build o ese artefacto generado en requisito de aceptación. | OPEN |
+| T03-AUDIT-002 | `CODE-001` | T03 incorpora ESLint para `app-v4`, pero Prettier continúa sin estar configurado; por tanto `CODE-001` queda solo parcialmente abordada. | Incorporar formatter cuando se consolide la superficie TS/React y antes de que el volumen de componentes haga costosa una normalización masiva; no bloquear por sí sola un Work Order funcional anterior. | OPEN |
+
+Cierre de estas observaciones: actualizar primero el ID propietario (`SUPPLY-001` / `CODE-001`) y conservar esta evidencia histórica enlazando el PR/commit que las resuelva.
+
 ## Deuda ya identificada en la primera auditoría y absorbida por este registro
 
 El registro anterior incluye explícitamente:
