@@ -200,6 +200,135 @@ describe("createLegacyEngine — context semantics", () => {
   });
 });
 
+describe("createLegacyEngine — shared-context professional alias consistency", () => {
+  // Fixture keys verified against the real legacy detector: sentence-final
+  // names keep the captured span clean (no trailing lowercase words), so the
+  // keys below are exactly what AsignadorSustitutos.profesionalesMap holds.
+  // Legacy alias oracle (js/core/managers/AsignadorSustitutos.js):
+  //   sonMismoProfesional("garcía lópez", "juan garcía lópez") === true
+  //   sonMismoProfesional("garcía lópez", "ruiz pons") === false
+  //   sonMismoProfesional("maría fernández curto", "juan garcía lópez") === false
+  const ALIAS_LONG = "La consulta fue atendida por el Dr. Juan García López.";
+  const ALIAS_SHORT = "La consulta fue atendida por el Dr. García López.";
+  const ALIAS_UNRELATED = "El alta la firmó el Dr. Ruiz Pons.";
+  const ALIAS_NEW_PERSON = "El informe fue revisado por la Dra. María Fernández Curto.";
+
+  function professionalEntities(outcome: { result: LegacyProcessorResult }) {
+    return outcome.result.entities.filter(
+      (entity) => entity.type === "NOMBRE" && entity.subtype === "profesional"
+    );
+  }
+
+  it("keeps the same pseudonym for a long→short alias across shared documents", () => {
+    const engine = createEngine();
+    const outcomeA = engine.process({ text: ALIAS_LONG, context: { mode: "shared" } });
+    expect(outcomeA.result.processed).toContain("Profesional Sanitario 1");
+    expect(outcomeA.context.pseudonymState?.contadorProfesionales).toBe(1);
+
+    const outcomeB = engine.process({
+      text: ALIAS_SHORT,
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
+    });
+
+    const professionalsB = professionalEntities(outcomeB);
+    expect(professionalsB.length).toBeGreaterThan(0);
+    for (const entity of professionalsB) {
+      expect(entity.transformed).toBe("Profesional Sanitario 1");
+    }
+    expect(outcomeB.result.processed).toContain("Profesional Sanitario 1");
+    expect(outcomeB.result.processed).not.toContain("Profesional Sanitario 2");
+    // Alias match: no counter increment, fresh key recorded under the
+    // existing pseudonym.
+    expect(outcomeB.context.pseudonymState?.contadorProfesionales).toBe(1);
+    expect(outcomeB.context.pseudonymState?.profesionales).toContainEqual([
+      "garcía lópez",
+      "Profesional Sanitario 1",
+    ]);
+  });
+
+  it("keeps the same pseudonym for a short→long alias across shared documents", () => {
+    const engine = createEngine();
+    const outcomeA = engine.process({ text: ALIAS_SHORT, context: { mode: "shared" } });
+    expect(outcomeA.context.pseudonymState?.contadorProfesionales).toBe(1);
+
+    const outcomeB = engine.process({
+      text: ALIAS_LONG,
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
+    });
+
+    const professionalsB = professionalEntities(outcomeB);
+    expect(professionalsB.length).toBeGreaterThan(0);
+    for (const entity of professionalsB) {
+      expect(entity.transformed).toBe("Profesional Sanitario 1");
+    }
+    expect(outcomeB.result.processed).toContain("Profesional Sanitario 1");
+    expect(outcomeB.context.pseudonymState?.contadorProfesionales).toBe(1);
+    expect(outcomeB.context.pseudonymState?.profesionales).toContainEqual([
+      "juan garcía lópez",
+      "Profesional Sanitario 1",
+    ]);
+  });
+
+  it("does not leave counter gaps: a genuinely new professional gets the next number", () => {
+    const engine = createEngine();
+    const outcomeA = engine.process({ text: ALIAS_LONG, context: { mode: "shared" } });
+    const outcomeB = engine.process({
+      text: ALIAS_SHORT,
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
+    });
+    expect(outcomeB.context.pseudonymState?.contadorProfesionales).toBe(1);
+
+    const outcomeC = engine.process({
+      text: ALIAS_NEW_PERSON,
+      context: { mode: "shared", pseudonymState: outcomeB.context.pseudonymState },
+    });
+
+    expect(outcomeC.result.processed).toContain("Profesional Sanitario 2");
+    expect(outcomeC.result.processed).not.toContain("Profesional Sanitario 3");
+    expect(outcomeC.context.pseudonymState?.contadorProfesionales).toBe(2);
+  });
+
+  it("keeps alias-consistent results through a JSON round-trip of the shared context", () => {
+    const engine = createEngine();
+    const outcomeA = engine.process({ text: ALIAS_LONG, context: { mode: "shared" } });
+    const direct = engine.process({
+      text: ALIAS_SHORT,
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
+    });
+    const roundTripped = JSON.parse(JSON.stringify(outcomeA.context)) as ProcessingContext;
+    const viaRoundTrip = engine.process({ text: ALIAS_SHORT, context: roundTripped });
+
+    expect(comparablePart(viaRoundTrip.result)).toEqual(comparablePart(direct.result));
+    expect(viaRoundTrip.context).toEqual(direct.context);
+    expect(viaRoundTrip.context.pseudonymState?.contadorProfesionales).toBe(1);
+  });
+
+  it("does not over-merge: non-aliasing professionals get distinct pseudonyms", () => {
+    const engine = createEngine();
+    const outcomeA = engine.process({ text: ALIAS_SHORT, context: { mode: "shared" } });
+    const outcomeB = engine.process({
+      text: ALIAS_UNRELATED,
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
+    });
+    expect(outcomeB.result.processed).toContain("Profesional Sanitario 2");
+    expect(outcomeB.context.pseudonymState?.contadorProfesionales).toBe(2);
+
+    // Symmetric direction: unrelated-first must not alias either.
+    const engine2 = createEngine();
+    const first = engine2.process({ text: ALIAS_UNRELATED, context: { mode: "shared" } });
+    const second = engine2.process({
+      text: ALIAS_SHORT,
+      context: { mode: "shared", pseudonymState: first.context.pseudonymState },
+    });
+    expect(second.result.processed).toContain("Profesional Sanitario 2");
+    expect(second.context.pseudonymState?.contadorProfesionales).toBe(2);
+  });
+
+  afterEach(() => {
+    AsignadorSustitutos.reset();
+  });
+});
+
 describe("createLegacyEngine — no monkey patching", () => {
   it("leaves AsignadorSustitutos methods and module shape untouched", () => {
     const originalObtenerSustituto = AsignadorSustitutos.obtenerSustituto;

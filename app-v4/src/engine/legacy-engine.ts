@@ -225,6 +225,21 @@ function snapshotModulePseudonymState(): PseudonymState {
   };
 }
 
+/**
+ * Narrow read-only view of the legacy alias oracle. `sonMismoProfesional` is
+ * a pure function of its two (already normalized) key arguments — verified
+ * in js/core/managers/AsignadorSustitutos.js — so calling it never mutates
+ * module state. The adapter only invokes it to mirror the alias search that
+ * `obtenerSustitutoProfesional` performs; no method is replaced, nothing is
+ * patched, and the declared ambient module shape in legacy-modules.d.ts is
+ * untouched.
+ */
+interface LegacyAliasOracle {
+  sonMismoProfesional(key1: string, key2: string): boolean;
+}
+
+const LEGACY_ALIAS_ORACLE = AsignadorSustitutos as unknown as LegacyAliasOracle;
+
 function freezeDeep<T>(value: T): T {
   if (value !== null && typeof value === "object") {
     for (const entry of Object.values(value as Record<string, unknown>)) {
@@ -251,12 +266,21 @@ function freezePseudonymState(state: PseudonymState): PseudonymState {
  * Keys are the ones the legacy module itself computed, so no key semantics
  * are duplicated here. `freshToFinal` collects the pseudonym string
  * rewrites (fresh pseudonym → context-authoritative pseudonym).
+ *
+ * `findAlias` (optional, used for profesionales): given a fresh key with no
+ * exact match in `finalMap`, returns the pseudonym of the first existing
+ * entry that the legacy alias oracle (`AsignadorSustitutos.sonMismoProfesional`)
+ * considers the same professional, or null. This mirrors the iteration
+ * semantics of the legacy `obtenerSustitutoProfesional` alias search
+ * (iterate existing entries in order, first alias match wins), so an alias
+ * key keeps the existing pseudonym without incrementing the counter.
  */
 function reconcileCategory(
   freshMap: ReadonlyMap<string, string>,
   finalMap: Map<string, string>,
   nextForNew: (freshValue: string) => string | null,
-  freshToFinal: Map<string, string>
+  freshToFinal: Map<string, string>,
+  findAlias?: (freshKey: string) => string | null
 ): void {
   const keysByValue = new Map<string, string[]>();
   for (const [key, value] of freshMap) {
@@ -273,6 +297,25 @@ function reconcileCategory(
         freshToFinal.set(freshValue, finalValue);
       }
       continue;
+    }
+    if (findAlias !== undefined) {
+      let aliasValue: string | null = null;
+      for (const freshKey of keys) {
+        aliasValue = findAlias(freshKey);
+        if (aliasValue !== null) break;
+      }
+      if (aliasValue !== null) {
+        if (aliasValue !== freshValue) {
+          freshToFinal.set(freshValue, aliasValue);
+        }
+        // All keys of the group share one fresh pseudonym (the legacy call
+        // already collapsed aliases within the document), so they all map
+        // to the context-authoritative value. No counter increment.
+        for (const key of keys) {
+          finalMap.set(key, aliasValue);
+        }
+        continue;
+      }
     }
     const generated = nextForNew(freshValue);
     const finalValue = generated ?? freshValue;
@@ -329,6 +372,20 @@ function reconcileSharedContext(
   let contadorFamiliares = state.contadorFamiliares;
   const freshToFinal = new Map<string, string>();
 
+  // Alias-aware reconciliation for profesionales: a fresh key that no exact
+  // context entry matches may still alias one (per the legacy module's own
+  // `sonMismoProfesional` oracle, called read-only). Mirrors the legacy
+  // `obtenerSustitutoProfesional` search: iterate existing entries in order,
+  // first alias match wins, existing pseudonym reused, counter untouched.
+  const findProfessionalAlias = (freshKey: string): string | null => {
+    for (const [existingKey, value] of finalProfesionales) {
+      if (LEGACY_ALIAS_ORACLE.sonMismoProfesional(freshKey, existingKey)) {
+        return value;
+      }
+    }
+    return null;
+  };
+
   reconcileCategory(
     AsignadorSustitutos.profesionalesMap,
     finalProfesionales,
@@ -336,7 +393,8 @@ function reconcileSharedContext(
       contadorProfesionales += 1;
       return `Profesional Sanitario ${contadorProfesionales}`;
     },
-    freshToFinal
+    freshToFinal,
+    findProfessionalAlias
   );
   reconcileCategory(
     AsignadorSustitutos.familiaresMap,
