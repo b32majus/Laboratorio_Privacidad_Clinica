@@ -57,8 +57,5 @@ declare module "*/modular-processor.js" {
 
 declare module "*/domain/from-processor.js" {
   export function detectionsFromProcessorResult(result: unknown, options?: unknown): unknown[];
-  export function createReviewSessionFromProcessor(
-    result: unknown,
-    options?: unknown
-  ): unknown;
+  export function createReviewSessionFromProcessor(result: unknown, options?: unknown): unknown;
 }

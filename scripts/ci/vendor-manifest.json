@@ -1,0 +1,130 @@
+[
+  {
+    "path": "lib/jspdf.umd.min.js",
+    "description": "jsPDF UMD browser bundle used by legacy export flows (PDF generation).",
+    "upstream": "jsPDF (parallax/jsPDF) - https://github.com/parallax/jsPDF",
+    "version": "2.5.1",
+    "sha256": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875",
+    "notes": "Version detected from embedded bundle string 'Version 2.5.1' (jsPDF release banner)."
+  },
+  {
+    "path": "lib/jszip.min.js",
+    "description": "JSZip browser bundle used by legacy export flows (ZIP packaging).",
+    "upstream": "JSZip (Stuk/jszip) - https://github.com/Stuk/jszip",
+    "version": "3.10.1",
+    "sha256": "acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e",
+    "notes": "Version detected from embedded bundle string 'version=\"3.10.1\"'."
+  },
+  {
+    "path": "lib/mammoth.browser.min.js",
+    "description": "Mammoth browser bundle used by legacy flows (DOCX to HTML conversion).",
+    "upstream": "mammoth.js (mwilliamson/mammoth.js) - https://github.com/mwilliamson/mammoth.js",
+    "version": "unknown-detected-from-content",
+    "sha256": "5d4c0e7c9165d70b78f789c5274a2c7846d9e1c06ec19b69afa6ef45f789a3b9",
+    "notes": "No mammoth release version string is embedded in the minified bundle (exported version property is empty). The only embedded version literals (3.4.7, 3.7.1, 1.13.1) belong to bundled third-party dependencies, not to mammoth itself; version not detected from content."
+  },
+  {
+    "path": "lib/pdf.min.js",
+    "description": "pdf.js main browser bundle used by legacy flows (PDF text extraction).",
+    "upstream": "pdf.js (mozilla/pdf.js) - https://github.com/mozilla/pdf.js",
+    "version": "3.11.174",
+    "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+    "notes": "Version detected from embedded bundle string 'Version:\"3.11.174\"'; matches pdfjs-dist 3.11.174."
+  },
+  {
+    "path": "lib/pdf.worker.min.js",
+    "description": "pdf.js worker bundle used by legacy flows (PDF parsing off the main thread).",
+    "upstream": "pdf.js (mozilla/pdf.js) - https://github.com/mozilla/pdf.js",
+    "version": "3.11.174",
+    "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+    "notes": "Version detected from embedded bundle literal '3.11.174'; matches pdf.min.js in this directory."
+  },
+  {
+    "path": "lib/xlsx.full.min.js",
+    "description": "SheetJS xlsx full browser bundle used by legacy flows (spreadsheet import/export).",
+    "upstream": "SheetJS CE (SheetJS/sheetjs) - https://github.com/SheetJS/sheetjs",
+    "version": "0.20.2",
+    "sha256": "0dcbc967984de297bd4233cbb77febad8a396c72d8ac0cfab09094d6d7f6e805",
+    "notes": "Version detected from embedded bundle string 'version=\"0.20.2\"' (XLSX release; the leading 'version:\"1.15.0\"' literal is the bundled cptable codepage table, not the SheetJS release)."
+  },
+  {
+    "path": "fonts/cormorant-garamond-latin-400-normal.woff2",
+    "description": "Cormorant Garamond latin 400 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/cormorant-garamond (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/cormorant-garamond",
+    "version": "5.2.11",
+    "sha256": "8048ac209bec741e1c29cd0cfac5aac1c0c2ba8c3ddbd4a58fa9bd92ef5c63c2",
+    "notes": "Byte-identical to files/cormorant-garamond-latin-400-normal.woff2 in @fontsource/cormorant-garamond 5.2.11 as declared in package.json."
+  },
+  {
+    "path": "fonts/cormorant-garamond-latin-500-normal.woff2",
+    "description": "Cormorant Garamond latin 500 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/cormorant-garamond (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/cormorant-garamond",
+    "version": "5.2.11",
+    "sha256": "8197bf53615ddc8c423f444c7f0eec63b7fa0ba093fcfbec60dfdd28429b0fc8",
+    "notes": "Byte-identical to files/cormorant-garamond-latin-500-normal.woff2 in @fontsource/cormorant-garamond 5.2.11 as declared in package.json."
+  },
+  {
+    "path": "fonts/cormorant-garamond-latin-600-normal.woff2",
+    "description": "Cormorant Garamond latin 600 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/cormorant-garamond (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/cormorant-garamond",
+    "version": "5.2.11",
+    "sha256": "ae062b6d5ae308e7edf61b28b07b9984bbb6e961b1f34d9b2c2f4389c33f21ea",
+    "notes": "Byte-identical to files/cormorant-garamond-latin-600-normal.woff2 in @fontsource/cormorant-garamond 5.2.11 as declared in package.json."
+  },
+  {
+    "path": "fonts/cormorant-garamond-latin-700-normal.woff2",
+    "description": "Cormorant Garamond latin 700 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/cormorant-garamond (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/cormorant-garamond",
+    "version": "5.2.11",
+    "sha256": "21a0fc1c5c22708cf4aa0c147fd32982e25bf9e21efec0ca31a4495ba41753eb",
+    "notes": "Byte-identical to files/cormorant-garamond-latin-700-normal.woff2 in @fontsource/cormorant-garamond 5.2.11 as declared in package.json."
+  },
+  {
+    "path": "fonts/inter-latin-300-normal.woff2",
+    "description": "Inter latin 300 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/inter (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/inter",
+    "version": "5.2.8",
+    "sha256": "be0276550393a72b94d673505567dceba801511d5e1ca5a87793190dc5d5a6ca",
+    "notes": "Byte-identical to files/inter-latin-300-normal.woff2 in @fontsource/inter 5.2.8 as declared in package.json."
+  },
+  {
+    "path": "fonts/inter-latin-400-normal.woff2",
+    "description": "Inter latin 400 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/inter (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/inter",
+    "version": "5.2.8",
+    "sha256": "8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc",
+    "notes": "Byte-identical to files/inter-latin-400-normal.woff2 in @fontsource/inter 5.2.8 as declared in package.json."
+  },
+  {
+    "path": "fonts/inter-latin-500-normal.woff2",
+    "description": "Inter latin 500 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/inter (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/inter",
+    "version": "5.2.8",
+    "sha256": "f3779f1efccc4bdcdf9c0a02ab95bf6bd092ed09c48c08cedc725889edd1d19f",
+    "notes": "Byte-identical to files/inter-latin-500-normal.woff2 in @fontsource/inter 5.2.8 as declared in package.json."
+  },
+  {
+    "path": "fonts/inter-latin-600-normal.woff2",
+    "description": "Inter latin 600 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/inter (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/inter",
+    "version": "5.2.8",
+    "sha256": "f9a06e79cd3a2a20951c0f0e28f66dd0e6d3fda73911d640a2125c8fcb78f21a",
+    "notes": "Byte-identical to files/inter-latin-600-normal.woff2 in @fontsource/inter 5.2.8 as declared in package.json."
+  },
+  {
+    "path": "fonts/inter-latin-700-normal.woff2",
+    "description": "Inter latin 700 woff2 font served locally (no remote font requests).",
+    "upstream": "@fontsource/inter (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/inter",
+    "version": "5.2.8",
+    "sha256": "6f56409fd3d64bb85f7d070bce20749db2d66b6d63cec586cc22d1c761be2491",
+    "notes": "Byte-identical to files/inter-latin-700-normal.woff2 in @fontsource/inter 5.2.8 as declared in package.json."
+  },
+  {
+    "path": "fonts/material-symbols-outlined-latin-400-normal.woff2",
+    "description": "Material Symbols Outlined latin 400 woff2 icon font served locally (no remote font requests).",
+    "upstream": "@fontsource/material-symbols-outlined (fontsource/fontsource) - https://github.com/fontsource/fontsource/tree/main/packages/material-symbols-outlined",
+    "version": "5.2.40",
+    "sha256": "d1d43793f5b940365386bcbdae23a273c95e4c5a82095164a77c4c0c66afa2ac",
+    "notes": "Byte-identical to files/material-symbols-outlined-latin-400-normal.woff2 in @fontsource/material-symbols-outlined 5.2.40 (resolved from ^5.2.40 in package.json via package-lock.json)."
+  }
+]

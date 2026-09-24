@@ -10,7 +10,7 @@ import {
   inferJobKind,
   isStepAccessible,
   setPolicy,
-  withReviewState
+  withReviewState,
 } from "./job";
 
 const TEXT_INPUT = { type: "pasted-text", text: "Synthetic clinical note for testing." } as const;
@@ -34,7 +34,7 @@ describe("inferJobKind", () => {
     expect(
       inferJobKind({
         type: "files",
-        files: [file("a.txt", "txt"), file("b.pdf", "pdf"), file("c.docx", "docx")]
+        files: [file("a.txt", "txt"), file("b.pdf", "pdf"), file("c.docx", "docx")],
       })
     ).toBe("document-batch");
   });
@@ -49,7 +49,9 @@ describe("inferJobKind", () => {
 
   it("throws a typed empty-input error for empty pasted text", () => {
     expect(() => inferJobKind({ type: "pasted-text", text: "" })).toThrowError(JobModelError);
-    expect(() => inferJobKind({ type: "pasted-text", text: "   \n\t " })).toThrowError(JobModelError);
+    expect(() => inferJobKind({ type: "pasted-text", text: "   \n\t " })).toThrowError(
+      JobModelError
+    );
     try {
       inferJobKind({ type: "pasted-text", text: " " });
       throw new Error("expected inferJobKind to throw");
@@ -119,7 +121,7 @@ describe("createJob", () => {
     expect(single.name).toBe("labs.csv");
     const batch = createJob({
       type: "files",
-      files: [file("a.txt", "txt"), file("b.txt", "txt")]
+      files: [file("a.txt", "txt"), file("b.txt", "txt")],
     });
     expect(batch.name).toBe("2 files");
     expect(batch.kind).toBe("document-batch");
@@ -145,10 +147,7 @@ describe("step transitions", () => {
 
   it("blocks export while mandatory review is incomplete (fail-closed)", () => {
     const job = createJob(TEXT_INPUT);
-    const atPrivacyGate = goToStep(
-      goToStep(goToStep(job, "configure"), "review"),
-      "privacy-gate"
-    );
+    const atPrivacyGate = goToStep(goToStep(goToStep(job, "configure"), "review"), "privacy-gate");
     expect(() => advanceStep(atPrivacyGate)).toThrowError(JobModelError);
     try {
       advanceStep(atPrivacyGate);

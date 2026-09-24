@@ -9,7 +9,7 @@ import {
   EngineError,
   type LegacyProcessorResult,
   type ProcessingContext,
-  type PseudonymState
+  type PseudonymState,
 } from "./types";
 
 /**
@@ -36,7 +36,7 @@ const PARITY_TEXTS: readonly string[] = [
   // Quasi-identifiers (rare disease, public office, special kinship).
   "Se trata de un Síndrome de Ehlers Danlos. Su hermana gemela también acude. Ocupación: concejal del ayuntamiento.",
   // Mixed realistic note combining categories.
-  "Nombre: Antonio Martínez\nAtendido por la Dra. Fernández en el Hospital La Paz, Madrid, el 02/07/2023.\nTeléfono 912345678. Familiar: Rosa Martínez."
+  "Nombre: Antonio Martínez\nAtendido por la Dra. Fernández en el Hospital La Paz, Madrid, el 02/07/2023.\nTeléfono 912345678. Familiar: Rosa Martínez.",
 ];
 
 const DOC_A = "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López.";
@@ -61,7 +61,7 @@ function comparablePart(result: LegacyProcessorResult) {
     entities: result.entities,
     alerts: result.alerts,
     stats: result.stats,
-    scoring: result.scoring
+    scoring: result.scoring,
   };
 }
 
@@ -138,7 +138,7 @@ describe("createLegacyEngine — context semantics", () => {
 
     const outcomeB = engine.process({
       text: DOC_B,
-      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState }
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
     });
 
     // Patient "Carmen Sánchez" keeps the same pseudonym in both documents.
@@ -162,7 +162,7 @@ describe("createLegacyEngine — context semantics", () => {
     const docC = "Tercera consulta con el Dr. González Molina.";
     const outcomeC = engine.process({
       text: docC,
-      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState }
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
     });
     expect(outcomeC.result.processed).toContain("Profesional Sanitario 2");
     expect(outcomeC.context.pseudonymState?.contadorProfesionales).toBe(2);
@@ -172,16 +172,14 @@ describe("createLegacyEngine — context semantics", () => {
     const engine = createEngine();
     const outcomeA = engine.process({ text: DOC_A, context: { mode: "shared" } });
 
-    const roundTripped = JSON.parse(
-      JSON.stringify(outcomeA.context)
-    ) as ProcessingContext;
+    const roundTripped = JSON.parse(JSON.stringify(outcomeA.context)) as ProcessingContext;
     const viaObject = engine.process({
       text: DOC_B,
-      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState }
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
     });
     const viaRoundTrip = engine.process({
       text: DOC_B,
-      context: roundTripped
+      context: roundTripped,
     });
 
     expect(comparablePart(viaRoundTrip.result)).toEqual(comparablePart(viaObject.result));
@@ -214,12 +212,14 @@ describe("createLegacyEngine — no monkey patching", () => {
     const outcomeA = engine.process({ text: DOC_A, context: { mode: "shared" } });
     engine.process({
       text: DOC_B,
-      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState }
+      context: { mode: "shared", pseudonymState: outcomeA.context.pseudonymState },
     });
     engine.process({ text: DOC_A, context: FRESH });
 
     expect(AsignadorSustitutos.obtenerSustituto).toBe(originalObtenerSustituto);
-    expect(AsignadorSustitutos.obtenerSustitutoProfesional).toBe(originalObtenerSustitutoProfesional);
+    expect(AsignadorSustitutos.obtenerSustitutoProfesional).toBe(
+      originalObtenerSustitutoProfesional
+    );
     expect(AsignadorSustitutos.obtenerSustitutoFamiliar).toBe(originalObtenerSustitutoFamiliar);
     expect(AsignadorSustitutos.reset).toBe(originalReset);
     expect(Reflect.ownKeys(AsignadorSustitutos).sort()).toEqual(keysBefore);
@@ -236,8 +236,8 @@ describe("createLegacyEngine — input immutability", () => {
         profesionales: [] as const,
         familiares: [] as const,
         contadorProfesionales: 5,
-        contadorFamiliares: 0
-      } satisfies PseudonymState
+        contadorFamiliares: 0,
+      } satisfies PseudonymState,
     });
     const snapshot = JSON.parse(JSON.stringify(context)) as ProcessingContext;
     const text = DOC_B;
@@ -257,8 +257,8 @@ describe("createLegacyEngine — input immutability", () => {
         profesionales: [["garcía", "Profesional Sanitario 1"]],
         familiares: [],
         contadorProfesionales: 1,
-        contadorFamiliares: 0
-      }
+        contadorFamiliares: 0,
+      },
     };
     const outcome = engine.process({ text: DOC_B, context });
     expect(outcome.context).not.toBe(context);
@@ -272,7 +272,9 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
     const engine = createEngine();
     expect(() => engine.process({ text: "", context: FRESH })).toThrowError(EngineError);
     expect(() => engine.process({ text: "   \n\t ", context: FRESH })).toThrowError(EngineError);
-    expect(() => engine.process({ text: 42 as unknown as string, context: FRESH })).toThrowError(EngineError);
+    expect(() => engine.process({ text: 42 as unknown as string, context: FRESH })).toThrowError(
+      EngineError
+    );
     try {
       engine.process({ text: "   ", context: FRESH });
       throw new Error("expected engine.process to throw");
@@ -310,18 +312,23 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
 
   it("rejects non-serializable contexts with a typed code", () => {
     const engine = createEngine();
-    const mapContext = { mode: "shared", pseudonymState: new Map() } as unknown as ProcessingContext;
+    const mapContext = {
+      mode: "shared",
+      pseudonymState: new Map(),
+    } as unknown as ProcessingContext;
     expect(() => engine.process({ text: DOC_A, context: mapContext })).toThrowError(EngineError);
 
     const functionContext = {
       mode: "fresh",
-      options: { onDone: () => undefined }
+      options: { onDone: () => undefined },
     } as unknown as ProcessingContext;
-    expect(() => engine.process({ text: DOC_A, context: functionContext })).toThrowError(EngineError);
+    expect(() => engine.process({ text: DOC_A, context: functionContext })).toThrowError(
+      EngineError
+    );
 
     const undefinedContext = {
       mode: "fresh",
-      options: { missing: undefined }
+      options: { missing: undefined },
     } as unknown as ProcessingContext;
     try {
       engine.process({ text: DOC_A, context: undefinedContext });
@@ -335,7 +342,7 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
     const engine = createEngine();
     const badState = {
       mode: "shared",
-      pseudonymState: { asignaciones: "not-an-array" }
+      pseudonymState: { asignaciones: "not-an-array" },
     } as unknown as ProcessingContext;
     try {
       engine.process({ text: DOC_A, context: badState });
@@ -351,8 +358,8 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
         profesionales: [],
         familiares: [],
         contadorProfesionales: -1,
-        contadorFamiliares: 0
-      }
+        contadorFamiliares: 0,
+      },
     } as ProcessingContext;
     expect(() => engine.process({ text: DOC_A, context: badCounter })).toThrowError(EngineError);
   });

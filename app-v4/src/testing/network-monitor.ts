@@ -109,7 +109,7 @@ export function install(target: Window): NetworkMonitor {
   Object.defineProperty(navigatorRef, "sendBeacon", {
     value: beaconRecorder,
     configurable: true,
-    writable: true
+    writable: true,
   });
 
   // --- WebSocket: record and block before any connection ------------------
@@ -137,13 +137,13 @@ export function install(target: Window): NetworkMonitor {
         Object.defineProperty(navigatorRef, "sendBeacon", {
           value: originalSendBeacon,
           configurable: true,
-          writable: true
+          writable: true,
         });
       } else {
         delete navigatorRef.sendBeacon;
       }
       if (hadWebSocket && originalWebSocket) win.WebSocket = originalWebSocket;
       else delete win.WebSocket;
-    }
+    },
   };
 }

@@ -20,7 +20,7 @@ import {
   type JobKind,
   JobModelError,
   type PrivacyPolicyId,
-  isStepAccessible
+  isStepAccessible,
 } from "./domain/job";
 import { useJobSession } from "./useJobSession";
 
@@ -29,21 +29,21 @@ const STEP_LABELS: Record<FlowStep, string> = {
   configure: "Configure",
   review: "Review",
   "privacy-gate": "Privacy Gate",
-  export: "Export"
+  export: "Export",
 };
 
 const KIND_LABELS: Record<JobKind, string> = {
   text: "Text job",
   document: "Document job",
   "document-batch": "Document batch",
-  structured: "Structured job"
+  structured: "Structured job",
 };
 
 const POLICY_LABELS: Record<PrivacyPolicyId, string> = {
   standard: "Standard",
   "external-ai": "External AI",
   "longitudinal-research": "Longitudinal Research",
-  strict: "Strict"
+  strict: "Strict",
 };
 
 const SUPPORTED_EXTENSIONS = [".txt", ".pdf", ".docx", ".csv", ".xls", ".xlsx"];
@@ -103,7 +103,7 @@ export function App() {
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files ?? []).map((file) => ({
       name: file.name,
-      extension: extensionOf(file.name)
+      extension: extensionOf(file.name),
     }));
     setDraftFiles(selected);
     event.target.value = "";
@@ -275,8 +275,8 @@ function InputStep(props: {
         Input
       </h2>
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Paste text or select document or structured files to start a job. The job type is
-        inferred from your input; mixed or unsupported input is rejected.
+        Paste text or select document or structured files to start a job. The job type is inferred
+        from your input; mixed or unsupported input is rejected.
       </p>
       <div className="mt-4 max-w-2xl space-y-4">
         <div>
@@ -312,7 +312,10 @@ function InputStep(props: {
           )}
         </div>
         {props.inputError && (
-          <p role="alert" className="rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark">
+          <p
+            role="alert"
+            className="rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+          >
             {props.inputError}
           </p>
         )}
@@ -335,8 +338,8 @@ function StepPlaceholder({ step }: { step: FlowStep }): ReactElement {
         {STEP_LABELS[step]}
       </h2>
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        This step is not implemented yet. Its functionality arrives with a later V4
-        migration ticket; use the step navigation above to move between steps.
+        This step is not implemented yet. Its functionality arrives with a later V4 migration
+        ticket; use the step navigation above to move between steps.
       </p>
     </section>
   );

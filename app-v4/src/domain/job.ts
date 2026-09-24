@@ -16,26 +16,17 @@
 export type JobKind = "text" | "document" | "document-batch" | "structured";
 
 /** Explicit Privacy Policy vocabulary (CURRENT_DECISIONS.md D-007). */
-export type PrivacyPolicyId =
-  | "standard"
-  | "external-ai"
-  | "longitudinal-research"
-  | "strict";
+export type PrivacyPolicyId = "standard" | "external-ai" | "longitudinal-research" | "strict";
 
 /** Canonical flow steps, in order (SPEC §2, D-001). */
-export type FlowStep =
-  | "input"
-  | "configure"
-  | "review"
-  | "privacy-gate"
-  | "export";
+export type FlowStep = "input" | "configure" | "review" | "privacy-gate" | "export";
 
 export const FLOW_STEPS: readonly FlowStep[] = [
   "input",
   "configure",
   "review",
   "privacy-gate",
-  "export"
+  "export",
 ];
 
 /**
@@ -139,7 +130,7 @@ const POLICY_IDS: readonly PrivacyPolicyId[] = [
   "standard",
   "external-ai",
   "longitudinal-research",
-  "strict"
+  "strict",
 ];
 
 /** The single valid JobStatus value until later tickets define lifecycle. */
@@ -239,10 +230,10 @@ export function createJob(input: JobInput): Job {
     errors: [] as JobError[],
     outputs: {
       safeOutputReady: false,
-      confidentialAuditReady: false
+      confidentialAuditReady: false,
     } as OutputAvailability,
     currentStep: "input" as FlowStep,
-    visitedSteps: ["input"] as FlowStep[]
+    visitedSteps: ["input"] as FlowStep[],
   });
 }
 
@@ -285,10 +276,7 @@ export function canAdvanceStep(job: Job): boolean {
 export function advanceStep(job: Job): Job {
   const index = stepIndex(job.currentStep);
   if (index < 0 || index >= FLOW_STEPS.length - 1) {
-    throw new JobModelError(
-      "invalid-step",
-      `Cannot advance from step "${job.currentStep}".`
-    );
+    throw new JobModelError("invalid-step", `Cannot advance from step "${job.currentStep}".`);
   }
   const next = FLOW_STEPS[index + 1];
   if (next === "export" && !job.review.complete) {
@@ -338,9 +326,7 @@ function moveToStep(job: Job, target: FlowStep): Job {
 export function isStepAccessible(job: Job, target: FlowStep): boolean {
   if (target === job.currentStep) return true;
   if (job.visitedSteps.includes(target)) return true;
-  return (
-    stepIndex(target) === stepIndex(job.currentStep) + 1 && canAdvanceStep(job)
-  );
+  return stepIndex(target) === stepIndex(job.currentStep) + 1 && canAdvanceStep(job);
 }
 
 /** Set the job's Privacy Policy (D-007 vocabulary). */

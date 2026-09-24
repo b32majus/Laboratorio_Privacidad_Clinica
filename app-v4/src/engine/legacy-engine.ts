@@ -45,7 +45,7 @@ import {
   NOMBRES_HOMBRE,
   NOMBRES_MUJER,
   NOMBRES_UNISEX,
-  PROVINCIAS
+  PROVINCIAS,
 } from "../../../js/data/index.js";
 import {
   EngineError,
@@ -53,7 +53,7 @@ import {
   type LegacyEntity,
   type LegacyProcessorResult,
   type ProcessingContext,
-  type PseudonymState
+  type PseudonymState,
 } from "./types";
 
 /** Same safety limit as the legacy core, but fail-closed instead of truncating. */
@@ -64,7 +64,7 @@ const EMPTY_PSEUDONYM_STATE: PseudonymState = Object.freeze({
   profesionales: Object.freeze([]),
   familiares: Object.freeze([]),
   contadorProfesionales: 0,
-  contadorFamiliares: 0
+  contadorFamiliares: 0,
 });
 
 let legacySetupDone = false;
@@ -85,12 +85,12 @@ function ensureLegacySetup(): void {
     ciudades: ubicacionesExtendidas,
     hospitales: HOSPITALES,
     centrosSaludPrefijos: CENTROS_SALUD_PREFIJOS,
-    barrios: BARRIOS
+    barrios: BARRIOS,
   });
   Processor.configure({
     usarScoring: true,
     umbralConfianza: 0.5,
-    aplicarHeuristicas: true
+    aplicarHeuristicas: true,
   });
   legacySetupDone = true;
 }
@@ -127,7 +127,10 @@ function assertValidText(text: unknown): asserts text is string {
     throw new EngineError("invalid-text", "Engine input text must be a string.");
   }
   if (text.trim().length === 0) {
-    throw new EngineError("empty-text", "Engine input text is empty; provide text before processing.");
+    throw new EngineError(
+      "empty-text",
+      "Engine input text is empty; provide text before processing."
+    );
   }
   if (text.length > MAX_TEXT_LENGTH) {
     throw new EngineError(
@@ -153,7 +156,10 @@ function assertPseudonymStateShape(state: unknown): asserts state is PseudonymSt
   for (const key of ["contadorProfesionales", "contadorFamiliares"] as const) {
     const counter = state[key];
     if (typeof counter !== "number" || !Number.isFinite(counter) || counter < 0) {
-      throw new EngineError("invalid-context", `pseudonymState.${key} must be a non-negative finite number.`);
+      throw new EngineError(
+        "invalid-context",
+        `pseudonymState.${key} must be a non-negative finite number.`
+      );
     }
   }
 }
@@ -172,7 +178,10 @@ function assertValidContext(context: unknown): asserts context is ProcessingCont
     throw new EngineError("invalid-context", "Engine context must be a plain serializable object.");
   }
   if (context.mode !== "fresh" && context.mode !== "shared") {
-    throw new EngineError("invalid-context", `Unknown processing context mode "${String(context.mode)}".`);
+    throw new EngineError(
+      "invalid-context",
+      `Unknown processing context mode "${String(context.mode)}".`
+    );
   }
   let roundTrip: unknown;
   try {
@@ -212,7 +221,7 @@ function snapshotModulePseudonymState(): PseudonymState {
     profesionales: [...AsignadorSustitutos.profesionalesMap.entries()],
     familiares: [...AsignadorSustitutos.familiaresMap.entries()],
     contadorProfesionales: AsignadorSustitutos.contadorProfesionales,
-    contadorFamiliares: AsignadorSustitutos.contadorFamiliares
+    contadorFamiliares: AsignadorSustitutos.contadorFamiliares,
   };
 }
 
@@ -232,7 +241,7 @@ function freezePseudonymState(state: PseudonymState): PseudonymState {
     profesionales: state.profesionales.map((entry) => [entry[0], entry[1]] as const),
     familiares: state.familiares.map((entry) => [entry[0], entry[1]] as const),
     contadorProfesionales: state.contadorProfesionales,
-    contadorFamiliares: state.contadorFamiliares
+    contadorFamiliares: state.contadorFamiliares,
   });
 }
 
@@ -296,7 +305,10 @@ function rebuildProcessedText(
         ? freshToFinal.get(entity.transformed)
         : entity.transformed;
     if (typeof replacement !== "string") continue;
-    processed = processed.slice(0, entity.position.start) + replacement + processed.slice(entity.position.end);
+    processed =
+      processed.slice(0, entity.position.start) +
+      replacement +
+      processed.slice(entity.position.end);
   }
   return processed;
 }
@@ -349,22 +361,22 @@ function reconcileSharedContext(
       typeof entity?.transformed === "string" && freshToFinal.has(entity.transformed)
         ? { ...entity, transformed: freshToFinal.get(entity.transformed) }
         : entity
-    )
+    ),
   };
 
   return {
     result,
     context: freezeDeep({
-    mode: "shared" as const,
-    pseudonymState: freezePseudonymState({
-      asignaciones: [...finalAsignaciones.entries()],
-      profesionales: [...finalProfesionales.entries()],
-      familiares: [...finalFamiliares.entries()],
-      contadorProfesionales,
-      contadorFamiliares
+      mode: "shared" as const,
+      pseudonymState: freezePseudonymState({
+        asignaciones: [...finalAsignaciones.entries()],
+        profesionales: [...finalProfesionales.entries()],
+        familiares: [...finalFamiliares.entries()],
+        contadorProfesionales,
+        contadorFamiliares,
+      }),
+      ...(context.options === undefined ? {} : { options: context.options }),
     }),
-    ...(context.options === undefined ? {} : { options: context.options })
-    })
   };
 }
 
@@ -377,7 +389,10 @@ export function createLegacyEngine() {
   return {
     process(input: { text: string; context: ProcessingContext }): EngineOutcome {
       if (input === null || typeof input !== "object") {
-        throw new EngineError("invalid-context", "Engine input must be an object with text and context.");
+        throw new EngineError(
+          "invalid-context",
+          "Engine input must be an object with text and context."
+        );
       }
       assertValidText(input.text);
       assertValidContext(input.context);
@@ -394,11 +409,11 @@ export function createLegacyEngine() {
           context: freezeDeep({
             mode: "fresh" as const,
             pseudonymState: freezePseudonymState(snapshotModulePseudonymState()),
-            ...(context.options === undefined ? {} : { options: context.options })
-          })
+            ...(context.options === undefined ? {} : { options: context.options }),
+          }),
         });
       }
       return freezeDeep(reconcileSharedContext(context, result));
-    }
+    },
   };
 }

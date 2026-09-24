@@ -13,7 +13,7 @@ function stepButton(stepNumber: number, label: string) {
 
 function createTextJob() {
   fireEvent.change(screen.getByLabelText("Paste text"), {
-    target: { value: SYNTHETIC_NOTE }
+    target: { value: SYNTHETIC_NOTE },
   });
   fireEvent.click(screen.getByRole("button", { name: "Create job" }));
 }
@@ -25,7 +25,7 @@ describe("App shell", () => {
     render(<App />);
     const heading = screen.getByRole("heading", {
       level: 1,
-      name: "Laboratorio de Privacidad Clínica"
+      name: "Laboratorio de Privacidad Clínica",
     });
     expect(heading).toBeInTheDocument();
   });
@@ -75,7 +75,7 @@ describe("App shell", () => {
     render(<App />);
     const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText(/select files/i), {
-      target: { files: [csvFile] }
+      target: { files: [csvFile] },
     });
     expect(screen.getByText("labs.csv")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
@@ -157,9 +157,7 @@ describe("App shell", () => {
     render(<App />);
     createTextJob();
     fireEvent.click(stepButton(2, "Configure"));
-    expect(
-      screen.getByText(/this step is not implemented yet/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/this step is not implemented yet/i)).toBeInTheDocument();
   });
 
   it("keeps step navigation keyboard operable with visible focus targets", () => {

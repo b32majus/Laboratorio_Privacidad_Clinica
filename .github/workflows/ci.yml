@@ -57,6 +57,12 @@ jobs:
       - name: Check V4 external resources
         run: npm run check:external
 
+      - name: Check vendor manifest integrity
+        run: npm run check:vendor
+
+      - name: Check V4 formatting
+        run: npm run format:check:v4
+
       - name: Typecheck V4 app
         run: npm run typecheck:v4
 

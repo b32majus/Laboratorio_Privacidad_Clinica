@@ -8,7 +8,7 @@ import {
   advanceStep,
   createJob,
   goToStep,
-  setPolicy
+  setPolicy,
 } from "./domain/job";
 
 /**
