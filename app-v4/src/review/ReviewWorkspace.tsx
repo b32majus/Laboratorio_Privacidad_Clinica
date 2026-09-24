@@ -3,7 +3,7 @@
  *
  * Three-pane desktop layout, single-column stacked on tablet/mobile:
  *   left   — factual progress (counts from getProgress, never a score) and
- *            filters (status/type/low-confidence; D-008 keeps candidates visible);
+ *            filters (status/type; D-008 keeps candidates visible);
  *   center — document surface rendering the immutable source text with
  *            detection spans from session offsets (never parsed back into
  *            state), plus the preview derived from the session;
@@ -29,14 +29,12 @@ import {
   type ManualDetectionInput,
 } from "./review-domain";
 import {
-  LOW_CONFIDENCE_THRESHOLD,
   type DocumentSegment,
   type StatusFilter,
   type WorkspaceFilters,
   buildDocumentSegments,
   decisionStatusOf,
   detectionTypes,
-  isLowConfidence,
   statusLabel,
   visibleDetections,
 } from "./reviewWorkspaceModel";
@@ -51,7 +49,6 @@ const STATUS_FILTERS: readonly { readonly value: StatusFilter; readonly label: s
   { value: "accepted", label: "Accepted" },
   { value: "restored", label: "Restored" },
   { value: "manual", label: "Manual" },
-  { value: "low-confidence", label: "Low confidence" },
 ];
 
 export type ReviewWorkspaceProps = {
@@ -344,7 +341,6 @@ function FilterProgressPane(props: {
                     <span className="block text-xs">
                       {statusLabel(status)}
                       {detection.source === "manual" ? " · Manual" : ""}
-                      {isLowConfidence(detection) ? " · Low confidence" : ""}
                     </span>
                   </button>
                 </li>
@@ -517,9 +513,6 @@ function InspectorPane(props: {
               {typeof selected.confidence === "number"
                 ? `${Math.round(selected.confidence * 100)}%`
                 : "Not provided"}
-              {isLowConfidence(selected)
-                ? ` — Low confidence (below ${LOW_CONFIDENCE_THRESHOLD}); it stays visible for explicit review.`
-                : ""}
             </dd>
           </div>
           <div>

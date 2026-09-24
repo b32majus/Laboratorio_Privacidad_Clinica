@@ -93,12 +93,11 @@ describe("ReviewWorkspace — progress and detection list derived from the sessi
     expect(progress).toHaveTextContent(/all mandatory decisions complete: no/i);
   });
 
-  it("lists every detection with type, status label and low-confidence badge", () => {
+  it("lists every detection with type and status label", () => {
     render(<Harness initial={buildSession()} />);
     // Status is conveyed by text, never by color alone.
     expect(screen.getAllByText("Pending").length).toBeGreaterThan(0);
-    // Low-confidence candidates stay visible (D-008) with a text badge.
-    expect(screen.getAllByText("Low confidence").length).toBeGreaterThan(0);
+    // Every detection in the session stays visible and listable.
     const list = screen.getByRole("list", { name: /detections/i });
     expect(list).toHaveTextContent("NOMBRE");
     expect(list).toHaveTextContent("612345678");

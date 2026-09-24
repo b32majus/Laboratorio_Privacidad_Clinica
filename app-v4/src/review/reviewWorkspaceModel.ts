@@ -7,26 +7,11 @@
  */
 import type { ReviewDetection, ReviewSession } from "../../../js/domain/review-session.js";
 
-/**
- * Confidence below which a candidate is labeled and filterable as
- * "low confidence" (D-008: visible and reviewable, never hidden). The
- * engine's hard floor is 0.5 (umbralConfianza); anything detected above the
- * floor but below this conservative band is surfaced for explicit reviewer
- * attention. This is a display/filter band only: it never changes decisions.
- */
-export const LOW_CONFIDENCE_THRESHOLD = 0.75;
-
 export type DecisionStatus = "pending" | "accepted" | "modified" | "restored";
 
 /** Status of one detection in a session (pending is implicit, not stored). */
 export function decisionStatusOf(session: ReviewSession, id: string): DecisionStatus {
   return session.decisions[id]?.status ?? "pending";
-}
-
-export function isLowConfidence(detection: ReviewDetection): boolean {
-  return (
-    typeof detection.confidence === "number" && detection.confidence < LOW_CONFIDENCE_THRESHOLD
-  );
 }
 
 /** One contiguous slice of the document surface, in source-offset order. */
@@ -78,7 +63,7 @@ export function buildDocumentSegments(session: ReviewSession): readonly Document
 }
 
 export type StatusFilter =
-  "all" | "pending" | "decided" | "accepted" | "restored" | "manual" | "low-confidence";
+  "all" | "pending" | "decided" | "accepted" | "restored" | "manual";
 
 export type WorkspaceFilters = {
   readonly status: StatusFilter;
@@ -107,9 +92,6 @@ export function visibleDetections(
         break;
       case "manual":
         if (detection.source !== "manual") return false;
-        break;
-      case "low-confidence":
-        if (!isLowConfidence(detection)) return false;
         break;
       default:
         break;
