@@ -29,6 +29,18 @@ If required authority is contradictory or materially incomplete, STOP rather tha
 
 Do not expand the ticket to unrelated cleanup. Record newly discovered debt separately.
 
+### Mandatory pre-implementation composition gate
+
+A GitHub Work Order is a product/delivery scope boundary, **not automatically one implementation/review unit**.
+
+Before any writer starts a substantial Work Order, forecast the likely authored-change shape using current Atenea `WORK_UNIT_COMPOSITION_POLICY_V1` and the ticket's real surfaces (domain, parser, UI, tests, CI/security, fixtures, dependency/debt work).
+
+If the forecast indicates material over-budget risk or several independently coherent surfaces, define the intended chain of semantic work units **before writing code**. Each work unit must keep behavior with the tests/oracle that prove it and must be independently verifiable/reviewable.
+
+Do not wait for `lens_context_budget_exceeded` after implementation to discover that composition was too coarse. Do not split mechanically by files or line count, and do not create tiny GitHub issues merely to satisfy review size. The Work Order may remain capability-sized while its implementation is composed into smaller reviewable units.
+
+If one honest composition pass still leaves an indivisible unit beyond current Atenea policy, STOP before writing that unit and obtain the required size-exception/human decision.
+
 ## V4 architecture invariants
 
 - One SPA/app shell.

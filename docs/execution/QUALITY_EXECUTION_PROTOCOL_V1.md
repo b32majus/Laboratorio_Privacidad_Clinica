@@ -74,9 +74,33 @@ List debt IDs expected to close, partially resolve or remain deliberately open. 
 
 Follow current Atenea `WORK_UNIT_COMPOSITION_POLICY_V1` rather than inventing project-local line-count review logic.
 
-Prefer the smallest coherent independently verifiable unit. Do not split behavior from the tests that prove it merely to reduce size, and do not let a clearly oversized candidate form before considering composition.
+### 4.1 Composition forecast is a pre-writer gate
 
-Native Gentle owns `review_due`, reviewers and review transitions.
+For every substantial Work Order, perform a composition forecast **before the first writer edits code**. The forecast is not a second design phase and does not change product scope. It answers one delivery question: can the accepted capability be implemented as one honest reviewable unit, or must it be delivered as a short chain of semantic work units?
+
+Forecast from the actual expected surfaces, for example:
+- new domain/contracts;
+- parser/extractor logic and fixtures;
+- UI integration;
+- security/CI guards;
+- dependency/provenance/debt disposition;
+- deterministic tests required by acceptance.
+
+A Work Order may remain capability-sized in GitHub. Do **not** fragment the issue tracker merely to reduce review size. Instead, record the intended internal work-unit chain when current Atenea policy predicts material over-budget risk.
+
+Each planned unit must:
+- represent coherent behavior or a coherent protection/compatibility seam;
+- carry the tests/oracle that prove that behavior;
+- be independently verifiable and reviewable;
+- preserve the accepted Work Order semantics when composed with later units.
+
+Do not split mechanically by file count or line count, and do not separate implementation from its tests merely to fit a budget. Conversely, do not allow a clearly oversized candidate to form and only then discover composition at `review.start`.
+
+If one honest pre-writer composition pass still leaves an indivisible unit beyond current Atenea policy, STOP before implementing that unit and obtain the required size-exception/human decision.
+
+### 4.2 Native ownership remains intact
+
+Native Gentle still owns ODD/decomposition details, `review_due`, reviewers and review transitions. The project-level forecast constrains delivery shape before writing; it does not prescribe workers or recreate a scheduler/reviewer.
 
 ## 5. Per-work-unit execution
 
@@ -162,7 +186,24 @@ Preventive lessons:
 
 These findings are not evidence of a `native-balanced` routing defect. Correct contract/oracle/composition failures first; investigate routing only from role/model-specific runtime evidence.
 
-## 10. Non-goals
+## 10. T06 field lesson — composition must be forecast before writing
+
+On 2026-09-24, T06 #10 was implemented and deterministically green, but the first native review attempt failed in preflight with typed `lens_context_budget_exceeded` before any review lineage/authority was created.
+
+The complete T06 work had three commits, but the first implementation commit alone contained approximately 1,566 textual changed lines across 22 files. It combined source contracts, TXT/DOCX/PDF extraction, PDF scan/no-text handling, Job/UI integration, fixtures/loaders/typings and their tests. The later protection/dependency commits were independently reviewable; the first unit was not.
+
+Durable conclusion:
+
+```text
+capability-sized Work Order
+→ pre-writer composition forecast
+→ semantic reviewable work units
+→ implementation / verify / commit / native review
+```
+
+Do not infer that every large Work Order must become multiple GitHub issues. The failure was delivery composition, not necessarily product-ticket scope. Future substantial tickets must not rely on post-hoc recovery to discover this boundary.
+
+## 11. Non-goals
 
 This protocol does not:
 - create an Atenea-owned or project-owned reviewer controller;
