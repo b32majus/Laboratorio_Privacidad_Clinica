@@ -62,8 +62,7 @@ export function buildDocumentSegments(session: ReviewSession): readonly Document
   return segments;
 }
 
-export type StatusFilter =
-  "all" | "pending" | "decided" | "accepted" | "restored" | "manual";
+export type StatusFilter = "all" | "pending" | "decided" | "accepted" | "restored" | "manual";
 
 export type WorkspaceFilters = {
   readonly status: StatusFilter;
