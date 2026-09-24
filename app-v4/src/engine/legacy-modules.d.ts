@@ -59,3 +59,96 @@ declare module "*/domain/from-processor.js" {
   export function detectionsFromProcessorResult(result: unknown, options?: unknown): unknown[];
   export function createReviewSessionFromProcessor(result: unknown, options?: unknown): unknown;
 }
+
+/** Raw detection input accepted by `createReviewSession` (optional fields omitted). */
+interface V4ReviewDetectionInput {
+  type: string;
+  start: number;
+  end: number;
+  subtype?: string;
+  confidence?: number;
+  proposed?: string;
+  reason?: string;
+  note?: string;
+  source?: "engine" | "manual";
+  requiresReview?: boolean;
+}
+
+/** Normalized, frozen detection record owned by a ReviewSession (T01 contract). */
+interface V4ReviewDetection extends V4ReviewDetectionInput {
+  readonly id: string;
+  readonly type: string;
+  readonly start: number;
+  readonly end: number;
+  readonly source: "engine" | "manual";
+  readonly requiresReview: boolean;
+  /** Always re-derived from the immutable session source text. */
+  readonly original: string;
+}
+
+/** Stored decision for one detection; pending is implicit (absent from the map). */
+interface V4ReviewDecision {
+  readonly status: "pending" | "accepted" | "modified" | "restored";
+  readonly replacement?: string;
+  readonly note?: string;
+}
+
+/** Frozen ReviewSession owned by js/domain/review-session.js (Work Order T01). */
+interface V4ReviewSession {
+  readonly originalText: string;
+  readonly sessionId: string;
+  readonly detections: readonly V4ReviewDetection[];
+  readonly decisions: Readonly<Record<string, V4ReviewDecision>>;
+}
+
+/** Factual progress data returned by `getProgress` (counts, never a score). */
+interface V4ReviewProgress {
+  readonly total: number;
+  readonly pending: number;
+  readonly decided: number;
+  readonly accepted: number;
+  readonly modified: number;
+  readonly restored: number;
+  readonly manual: number;
+  readonly pendingDetections: readonly V4ReviewDetection[];
+  readonly restoredDetections: readonly V4ReviewDetection[];
+  readonly canFinalize: boolean;
+}
+
+/**
+ * Ambient declaration for the V4 review authority (Work Order T01, DO NOT
+ * MODIFY the implementation under js/). Only the API the V4 app consumes is
+ * declared; the module validates its inputs fail-closed at runtime.
+ */
+declare module "*/domain/review-session.js" {
+  export type ReviewDetectionInput = V4ReviewDetectionInput;
+  export type ReviewDetection = V4ReviewDetection;
+  export type ReviewDecision = V4ReviewDecision;
+  export type ReviewSession = V4ReviewSession;
+  export type ReviewProgress = V4ReviewProgress;
+  export class ReviewSessionError extends Error {
+    code: string;
+    constructor(code: string, message: string);
+  }
+  export function createReviewSession(input: {
+    originalText: string;
+    detections: readonly V4ReviewDetectionInput[];
+    sessionId?: string;
+  }): V4ReviewSession;
+  export function applyDecision(
+    session: V4ReviewSession,
+    id: string,
+    decision: "pending" | "accepted" | "modified" | "restored",
+    extras?: { replacement?: string; note?: string }
+  ): V4ReviewSession;
+  export function addManualDetection(
+    session: V4ReviewSession,
+    detection: { start: number; end: number; type: string; subtype?: string; note?: string }
+  ): V4ReviewSession;
+  export function getDecision(session: V4ReviewSession, id: string): V4ReviewDecision;
+  export function getPreview(session: V4ReviewSession): string;
+  export function getPendingDetections(session: V4ReviewSession): V4ReviewDetection[];
+  export function canFinalize(session: V4ReviewSession): boolean;
+  export function getProgress(session: V4ReviewSession): V4ReviewProgress;
+  export function getFinalText(session: V4ReviewSession): string;
+}
