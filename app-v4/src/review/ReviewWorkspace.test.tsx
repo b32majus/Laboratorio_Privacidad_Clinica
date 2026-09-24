@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import "@testing-library/jest-dom/vitest";
@@ -103,6 +103,69 @@ describe("ReviewWorkspace — progress and detection list derived from the sessi
     expect(list).toHaveTextContent("NOMBRE");
     expect(list).toHaveTextContent("612345678");
     expect(list).toHaveTextContent("2024/089756");
+  });
+});
+
+describe("ReviewWorkspace — transient inspector drafts never cross detection identity", () => {
+  /** Left-pane detection list button for one detection. */
+  function leftListButton(original: string) {
+    return within(screen.getByRole("list", { name: /detections/i })).getByRole("button", {
+      name: new RegExp(original),
+    });
+  }
+
+  /** Document-surface span button for one detection. */
+  function documentSurfaceButton(original: string) {
+    return within(screen.getByRole("region", { name: /document/i })).getByRole("button", {
+      name: new RegExp(original),
+    });
+  }
+
+  it("replacement drafted for A cannot appear on B after selection via the left detection list", () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    // Audit reproduction: A is selected on the document surface, B via the left list.
+    fireEvent.click(documentSurfaceButton("Carmen Sánchez"));
+    fireEvent.change(screen.getByLabelText("Replacement"), { target: { value: "A-ONLY" } });
+    fireEvent.click(leftListButton("612345678"));
+    expect(screen.getByLabelText("Replacement")).toHaveValue("");
+  });
+
+  it("note drafted for A cannot appear on B after selection via the left detection list", () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(leftListButton("Carmen Sánchez"));
+    fireEvent.change(screen.getByLabelText("Note (optional)"), {
+      target: { value: "A-NOTE-ONLY" },
+    });
+    fireEvent.click(leftListButton("612345678"));
+    expect(screen.getByLabelText("Note (optional)")).toHaveValue("");
+  });
+
+  it("document-surface selection obeys the same draft-hygiene invariant", () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(documentSurfaceButton("Carmen Sánchez"));
+    fireEvent.change(screen.getByLabelText("Replacement"), { target: { value: "A-ONLY" } });
+    fireEvent.change(screen.getByLabelText("Note (optional)"), {
+      target: { value: "A-NOTE-ONLY" },
+    });
+    fireEvent.click(documentSurfaceButton("612345678"));
+    expect(screen.getByLabelText("Replacement")).toHaveValue("");
+    expect(screen.getByLabelText("Note (optional)")).toHaveValue("");
+  });
+
+  it("selection alone leaves review decisions untouched (domain-owned)", () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(leftListButton("Carmen Sánchez"));
+    fireEvent.click(leftListButton("612345678"));
+    fireEvent.click(documentSurfaceButton("2024/089756"));
+    // No decision was recorded by mere selection.
+    expect(Object.keys(sessionRef.current.decisions)).toHaveLength(0);
+    const progress = screen.getByRole("status", { name: /review progress/i });
+    expect(progress).toHaveTextContent("Pending: 3");
+    expect(progress).toHaveTextContent("Decided: 0");
   });
 });
 

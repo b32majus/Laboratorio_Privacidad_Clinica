@@ -87,6 +87,19 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     ? (session.detections.find((d) => d.id === selectedId) ?? null)
     : null;
 
+  /**
+   * Single coherent detection-selection transition used by every selection
+   * path (left detection list, document surface). Transient inspector drafts
+   * belong to the previously selected detection identity and must never
+   * migrate to another detection, so they are cleared on every identity
+   * change. Selection alone never touches review authority.
+   */
+  const selectDetection = (id: string | null) => {
+    setSelectedId(id);
+    setReplacementDraft("");
+    setNoteDraft("");
+  };
+
   const decide = (id: string, decision: ExplicitDecisionStatus) => {
     const note = noteDraft.trim().length > 0 ? { note: noteDraft.trim() } : {};
     try {
@@ -146,16 +159,13 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           selectedId={selectedId}
           onFilterStatus={(status) => setFilters((current) => ({ ...current, status }))}
           onFilterType={(type) => setFilters((current) => ({ ...current, type }))}
-          onSelect={setSelectedId}
+          onSelect={selectDetection}
         />
         <DocumentPane
           session={session}
           segments={segments}
           selectedId={selectedId}
-          onSelect={(id) => {
-            setSelectedId(id);
-            setReplacementDraft("");
-          }}
+          onSelect={selectDetection}
           onUseSelection={() => {
             const offsets = selectionOffsets();
             if (offsets) {
