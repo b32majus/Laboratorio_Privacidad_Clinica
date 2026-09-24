@@ -126,5 +126,31 @@
     "version": "5.2.40",
     "sha256": "d1d43793f5b940365386bcbdae23a273c95e4c5a82095164a77c4c0c66afa2ac",
     "notes": "Byte-identical to files/material-symbols-outlined-latin-400-normal.woff2 in @fontsource/material-symbols-outlined 5.2.40 (resolved from ^5.2.40 in package.json via package-lock.json)."
+  },
+  {
+    "path": "app-v4/public/vendor/pdf.min.js",
+    "description": "pdf.js main browser bundle served same-origin to the V4 app (lazy-loaded by the V4 PDF text-extraction adapter; NOT bundled into dist JS chunks).",
+    "upstream": "pdf.js (mozilla/pdf.js) - https://github.com/mozilla/pdf.js",
+    "version": "3.11.174",
+    "copyOf": "lib/pdf.min.js",
+    "sha256": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946",
+    "notes": "Byte-identical copy of lib/pdf.min.js (identity verified at scan time via copyOf hash equality). Introduced by V4/T06 #10 as the V4 PDF runtime; same pdfjs-dist 3.11.174 provenance as the legacy lib entry. All active V4 getDocument call sites enforce isEvalSupported:false (scripts/ci/check-pdfjs-eval-guard.mjs scans app-v4 sources)."
+  },
+  {
+    "path": "app-v4/public/vendor/pdf.worker.min.js",
+    "description": "pdf.js worker bundle served same-origin to the V4 app (pdf.js off-main-thread parsing for the V4 PDF adapter).",
+    "upstream": "pdf.js (mozilla/pdf.js) - https://github.com/mozilla/pdf.js",
+    "version": "3.11.174",
+    "copyOf": "lib/pdf.worker.min.js",
+    "sha256": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b",
+    "notes": "Byte-identical copy of lib/pdf.worker.min.js (identity verified at scan time via copyOf hash equality). Introduced by V4/T06 #10."
+  },
+  {
+    "path": "app-v4/public/vendor/README.md",
+    "description": "Provenance note for the V4 same-origin vendored parser assets (documentation only, not runtime code).",
+    "upstream": "Internal documentation (laboratorio-privacidad-clinica repository)",
+    "version": "n/a",
+    "sha256": "955a9261a6b91cf1c4d1cb516ddbdb47d406bda7def2a640f7641a363dbfd9e5",
+    "notes": "Not a third-party asset: documents the synthetic provenance and byte-identity relationship of the app-v4/public/vendor copies to their governed lib/ sources."
   }
 ]

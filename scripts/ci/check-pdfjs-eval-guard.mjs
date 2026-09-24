@@ -6,16 +6,20 @@ import path from "path";
 // call site must pass isEvalSupported: false (upstream-supported fail-safe for
 // the getDocument({ data }) default evaluation path).
 //
-// Scope: repo-root *.html plus everything under js/, EXCLUDING node_modules,
-// lib/ (vendored bundles), dist/, scripts/ (the guard itself) and test files.
+// Scope: repo-root *.html, everything under js/, and every app-v4 source
+// (*.ts/*.tsx/*.js/*.jsx/*.html under app-v4/), EXCLUDING node_modules, lib/
+// and app-v4/public/ (vendored/served static bundles), dist/, scripts/ (the
+// guard itself), *.d.ts ambient declarations and test files. Vendored pdf.js
+// bundles are governed by sha256 (check:vendor), not by this call-site guard.
 //
 // Usage:
 //   node scripts/ci/check-pdfjs-eval-guard.mjs [--root=<dir>]
 //   node scripts/ci/check-pdfjs-eval-guard.mjs --self-test
 
-const EXCLUDED_DIRS = new Set(["node_modules", "lib", "dist", "scripts"]);
+const EXCLUDED_DIRS = new Set(["node_modules", "lib", "dist", "scripts", "public"]);
 const TEST_FILE_PATTERN = /(\.test\.|\.spec\.)/;
 const TEST_DIR_PATTERN = /^(__tests__|tests?|spec)$/;
+const APP_V4_SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".html"]);
 
 function parseArgs(argv) {
   let root = process.cwd();
@@ -37,7 +41,8 @@ function isTestPath(relativeParts, fileName) {
   );
 }
 
-// Scanned files: top-level *.html at the scan root plus every *.js under js/.
+// Scanned files: top-level *.html at the scan root, every *.js under js/,
+// and every app-v4 source (.ts/.tsx/.js/.jsx/.html under app-v4/).
 function collectScanFiles(root) {
   const files = [];
 
@@ -47,20 +52,31 @@ function collectScanFiles(root) {
     }
   }
 
+  const walkSourceTree = (dir, relativeParts, extensions) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (EXCLUDED_DIRS.has(entry.name)) continue;
+      const absolute = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walkSourceTree(absolute, [...relativeParts, entry.name], extensions);
+      } else if (
+        extensions.has(path.extname(entry.name).toLowerCase()) &&
+        // Ambient declarations cannot contain active call sites.
+        !entry.name.endsWith(".d.ts") &&
+        !isTestPath(relativeParts, entry.name)
+      ) {
+        files.push(absolute);
+      }
+    }
+  };
+
   const jsRoot = path.join(root, "js");
   if (fs.existsSync(jsRoot)) {
-    const walk = (dir, relativeParts) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (EXCLUDED_DIRS.has(entry.name)) continue;
-        const absolute = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(absolute, [...relativeParts, entry.name]);
-        } else if (entry.name.endsWith(".js") && !isTestPath(relativeParts, entry.name)) {
-          files.push(absolute);
-        }
-      }
-    };
-    walk(jsRoot, []);
+    walkSourceTree(jsRoot, [], new Set([".js"]));
+  }
+
+  const appV4Root = path.join(root, "app-v4");
+  if (fs.existsSync(appV4Root)) {
+    walkSourceTree(appV4Root, [], APP_V4_SOURCE_EXTENSIONS);
   }
 
   return files.sort();
@@ -160,11 +176,42 @@ function runSelfTest() {
       "async function load(buf) {\n  const pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported :  false }).promise;\n  return pdf;\n}\n"
     );
 
+    // T06 #10: the scan scope also covers app-v4 sources.
+    const appV4Planted = path.join(tempRoot, "app-v4", "src", "input");
+    fs.mkdirSync(appV4Planted, { recursive: true });
+    // Case 5: app-v4-shaped getDocument call WITHOUT isEvalSupported: false
+    // -> must be flagged.
+    fs.writeFileSync(
+      path.join(appV4Planted, "bad-app-call.ts"),
+      "export async function loadPdf(buf: ArrayBuffer) {\n  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;\n  return pdf;\n}\n"
+    );
+    // Case 6: app-v4-shaped compliant call WITH the flag -> must pass.
+    fs.writeFileSync(
+      path.join(appV4Planted, "good-app-call.ts"),
+      "export async function loadPdf(buf: ArrayBuffer) {\n  const pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;\n  return pdf;\n}\n"
+    );
+    // Case 7: vendored bundle shape under app-v4/public must stay excluded
+    // (governed by check:vendor sha256, not by this call-site guard).
+    const vendorPlanted = path.join(tempRoot, "app-v4", "public", "vendor");
+    fs.mkdirSync(vendorPlanted, { recursive: true });
+    fs.writeFileSync(
+      path.join(vendorPlanted, "pdf.min.js"),
+      "function getDocument(src) { return { data: src }; }\n"
+    );
+
+    const rel = (...parts) => parts.join(path.sep);
     const violations = scanRoot(tempRoot);
-    const badViolations = violations.filter((v) => v.startsWith(path.join("js", "bad-call.js") + ":"));
-    const goodViolations = violations.filter((v) => v.startsWith(path.join("js", "good-call.js") + ":"));
-    const definitionViolations = violations.filter((v) => v.startsWith(path.join("js", "definition.js") + ":"));
-    const whitespaceViolations = violations.filter((v) => v.startsWith(path.join("js", "whitespace-variant.js") + ":"));
+    const badViolations = violations.filter((v) => v.startsWith(rel("js", "bad-call.js") + ":"));
+    const goodViolations = violations.filter((v) => v.startsWith(rel("js", "good-call.js") + ":"));
+    const definitionViolations = violations.filter((v) => v.startsWith(rel("js", "definition.js") + ":"));
+    const whitespaceViolations = violations.filter((v) => v.startsWith(rel("js", "whitespace-variant.js") + ":"));
+    const badAppViolations = violations.filter((v) =>
+      v.startsWith(rel("app-v4", "src", "input", "bad-app-call.ts") + ":")
+    );
+    const goodAppViolations = violations.filter((v) =>
+      v.startsWith(rel("app-v4", "src", "input", "good-app-call.ts") + ":")
+    );
+    const vendorViolations = violations.filter((v) => v.includes(rel("app-v4", "public", "vendor")));
 
     cases.push({
       name: "self-test: getDocument sin isEvalSupported: false debe fallar",
@@ -185,6 +232,23 @@ function runSelfTest() {
       name: "self-test: variante de espacios en isEvalSupported debe pasar",
       pass: whitespaceViolations.length === 0,
       detail: whitespaceViolations.join("; ") || "ok",
+    });
+    cases.push({
+      name: "self-test: llamada con forma app-v4 sin isEvalSupported: false debe fallar",
+      pass:
+        badAppViolations.length === 1 &&
+        badAppViolations[0].startsWith(rel("app-v4", "src", "input", "bad-app-call.ts") + ":2:"),
+      detail: badAppViolations.join("; ") || "sin violacion detectada",
+    });
+    cases.push({
+      name: "self-test: llamada con forma app-v4 con isEvalSupported: false debe pasar",
+      pass: goodAppViolations.length === 0,
+      detail: goodAppViolations.join("; ") || "ok",
+    });
+    cases.push({
+      name: "self-test: bundle vendido bajo app-v4/public debe quedar excluido del guard",
+      pass: vendorViolations.length === 0,
+      detail: vendorViolations.join("; ") || "ok",
     });
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
