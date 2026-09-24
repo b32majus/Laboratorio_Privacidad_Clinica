@@ -1,8 +1,12 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { App } from "./App";
+import type { PdfJsLib } from "./input/pdfjs-loader";
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
 const LOCAL_ONLY_FACT = /processing runs locally in your browser/i;
@@ -19,6 +23,30 @@ function createTextJob() {
 }
 
 afterEach(cleanup);
+
+// ---------------------------------------------------------------------------
+// T06 document-intake paths: committed synthetic fixtures only.
+// ---------------------------------------------------------------------------
+const FIXTURES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "input", "fixtures");
+
+function fixtureFile(name: string): File {
+  return new File([new Uint8Array(readFileSync(path.join(FIXTURES_DIR, name)))], name);
+}
+
+function selectFiles(files: File[]) {
+  fireEvent.change(screen.getByLabelText(/select files/i), { target: { files } });
+}
+
+async function seedRealPdfJs(): Promise<void> {
+  // Same seam as the adapter tests: in the jsdom/Node environment pdf.js runs
+  // a fake worker on the main thread via the documented pdfjsWorker global.
+  const [pdfjs, worker] = await Promise.all([
+    import("pdfjs-dist/legacy/build/pdf.js"),
+    import("pdfjs-dist/legacy/build/pdf.worker.js"),
+  ]);
+  (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
+  window.pdfjsLib = pdfjs as unknown as PdfJsLib;
+}
 
 describe("App shell", () => {
   it("renders the application heading", () => {
@@ -183,5 +211,90 @@ describe("App shell", () => {
     expect(review).toBeEnabled();
     review.focus();
     expect(review).toHaveFocus();
+  });
+});
+
+describe("App document intake (T06)", () => {
+  afterEach(() => {
+    delete window.pdfjsLib;
+    delete (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker;
+  });
+
+  it("never advertises legacy .doc in the file input accept attribute", () => {
+    render(<App />);
+    const input = screen.getByLabelText(/select files/i) as HTMLInputElement;
+    expect(input).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
+  });
+
+  it("creates a document job from a TXT fixture after extraction", async () => {
+    render(<App />);
+    selectFiles([fixtureFile("sample-clinical-note.txt")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    await waitFor(() => {
+      expect(screen.getByText("Document job")).toBeInTheDocument();
+    });
+    expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Draft intake is cleared after the job is created.
+    expect(screen.getByLabelText("Paste text")).toHaveValue("");
+  });
+
+  it("surfaces a typed unsupported alert for legacy .doc and creates no job", async () => {
+    render(<App />);
+    selectFiles([fixtureFile("sample-legacy.doc")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/\.doc.*unsupported type/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.queryByText("Document job")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a typed extraction-failed alert for a corrupt DOCX and creates no job", async () => {
+    render(<App />);
+    selectFiles([fixtureFile("corrupt.docx")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/could not be parsed/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("surfaces the empty-input alert for an empty TXT and creates no job", async () => {
+    render(<App />);
+    selectFiles([new File(["   \n\t "], "empty.txt")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/is empty/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("surfaces the pdf-no-text-layer alert for a scan-like PDF and creates no job", async () => {
+    await seedRealPdfJs();
+    render(<App />);
+    selectFiles([fixtureFile("sample-scanned.pdf")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/no extractable text|no text layer/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("creates a document job from the text-bearing PDF fixture", async () => {
+    await seedRealPdfJs();
+    render(<App />);
+    selectFiles([fixtureFile("sample-clinical-note.pdf")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    await waitFor(() => {
+      expect(screen.getByText("Document job")).toBeInTheDocument();
+    });
+    expect(screen.getByText("sample-clinical-note.pdf")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("still rejects a mixed structured/document selection with the typed ambiguous error", async () => {
+    render(<App />);
+    selectFiles([fixtureFile("sample-clinical-note.txt"), new File(["a,b"], "labs.csv")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/cannot be mixed/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 });

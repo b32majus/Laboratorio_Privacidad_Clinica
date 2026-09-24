@@ -11,9 +11,12 @@
  * WebSocket, sendBeacon). Real browser network interception arrives with
  * the E2E ticket.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { App } from "../App";
 import { NetworkInvariantError, install, type NetworkMonitor } from "./network-monitor";
@@ -112,6 +115,64 @@ describe("network invariant monitor", () => {
       expect(screen.getByText("No job yet")).toBeInTheDocument();
       expect(stepButton(2, "Configure")).toBeDisabled();
       expect(monitor.attempts()).toHaveLength(0);
+    } finally {
+      monitor.uninstall();
+    }
+  });
+
+  it("keeps the document-intake flow (TXT fixture) free of network attempts and storage writes", async () => {
+    const fixture = new File(
+      [
+        new Uint8Array(
+          readFileSync(
+            path.join(
+              path.dirname(fileURLToPath(import.meta.url)),
+              "../input/fixtures/sample-clinical-note.txt"
+            )
+          )
+        ),
+      ],
+      "sample-clinical-note.txt"
+    );
+
+    const monitor: NetworkMonitor = install(window);
+    // Measure storage BEFORE spying (jsdom Storage.length counts spies).
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+    const storageSpies = [
+      vi.spyOn(window.localStorage, "setItem"),
+      vi.spyOn(window.sessionStorage, "setItem"),
+      vi.spyOn(window.localStorage, "removeItem"),
+      vi.spyOn(window.sessionStorage, "removeItem"),
+      vi.spyOn(window.localStorage, "clear"),
+      vi.spyOn(window.sessionStorage, "clear"),
+    ];
+
+    try {
+      render(<App />);
+      expect(monitor.attempts()).toHaveLength(0);
+
+      fireEvent.change(screen.getByLabelText(/select files/i), {
+        target: { files: [fixture] },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+
+      // The document job is created from extracted text held in memory only.
+      await waitFor(() => {
+        expect(screen.getByText("Document job")).toBeInTheDocument();
+      });
+      expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
+
+      // Walk the reachable steps and reset; nothing may leave the process.
+      fireEvent.click(stepButton(2, "Configure"));
+      fireEvent.click(stepButton(1, "Input"));
+      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
+      expect(screen.getByText("No job yet")).toBeInTheDocument();
+
+      expect(monitor.attempts()).toEqual([]);
+      for (const spy of storageSpies) {
+        expect(spy).not.toHaveBeenCalled();
+      }
     } finally {
       monitor.uninstall();
     }

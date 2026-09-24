@@ -19,9 +19,14 @@ import {
   type JobInput,
   type JobKind,
   JobModelError,
+  type JobSourceFile,
   type PrivacyPolicyId,
+  isDocumentExtension,
   isStepAccessible,
+  isStructuredExtension,
 } from "./domain/job";
+import { extractFile, extractFromPastedText } from "./input/extract";
+import { extensionOf } from "./input/extracted-source";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
@@ -51,17 +56,13 @@ const SUPPORTED_EXTENSIONS = [".txt", ".pdf", ".docx", ".csv", ".xls", ".xlsx"];
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
-function extensionOf(fileName: string): string {
-  const dot = fileName.lastIndexOf(".");
-  return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : "";
-}
-
 export function App() {
   const session = useJobSession();
   const job = session.job;
   const [draftText, setDraftText] = useState("");
-  const [draftFiles, setDraftFiles] = useState<{ name: string; extension: string }[]>([]);
+  const [draftFiles, setDraftFiles] = useState<File[]>([]);
   const [inputError, setInputError] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   const resetDraft = () => {
     setDraftText("");
@@ -82,30 +83,75 @@ export function App() {
     }
   };
 
+  const metadataFiles = (): JobSourceFile[] =>
+    draftFiles.map((file) => ({ name: file.name, extension: extensionOf(file.name) }));
+
+  /**
+   * Document intake (T06): run the typed input adapters for every selected
+   * file, then hand the extraction outcomes to the domain. A failed
+   * extraction surfaces as a visible alert and creates NO job — the domain
+   * refuses failed files fail-closed (D-009/D-011).
+   */
+  const extractAndCreate = async (files: File[]) => {
+    setIsExtracting(true);
+    try {
+      const results = await Promise.all(files.map((file) => extractFile(file)));
+      const jobFiles: JobSourceFile[] = results.map((result) => ({
+        name: result.sourceName,
+        extension: extensionOf(result.sourceName),
+        extraction:
+          result.status === "success"
+            ? { status: "extracted", extractedText: result.text }
+            : {
+                status: "failed",
+                error: { code: result.error.code, message: result.error.message },
+              },
+      }));
+      handleCreateJob({ type: "files", files: jobFiles });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleCreateFromDraft = () => {
+    if (isExtracting) return;
     const hasText = draftText.trim().length > 0;
     if (hasText && draftFiles.length > 0) {
       setInputError("Use either pasted text or files for one job, not both.");
       return;
     }
     if (hasText) {
-      handleCreateJob({ type: "pasted-text", text: draftText });
+      // Pasted-text extraction is synchronous; typed failure surfaces as alert.
+      const result = extractFromPastedText(draftText);
+      if (result.status === "failed") {
+        setInputError(result.error.message);
+        return;
+      }
+      session.create({ type: "pasted-text", text: result.text });
+      resetDraft();
       return;
     }
-    if (draftFiles.length > 0) {
-      handleCreateJob({ type: "files", files: draftFiles });
+    if (draftFiles.length === 0) {
+      // Surface the domain's typed empty-input error instead of guessing.
+      const result = extractFromPastedText("");
+      setInputError(result.status === "failed" ? result.error.message : null);
       return;
     }
-    // Surface the domain's typed empty-input error instead of guessing.
-    handleCreateJob({ type: "pasted-text", text: "" });
+    const hasStructured = draftFiles.some((file) => isStructuredExtension(extensionOf(file.name)));
+    const hasDocument = draftFiles.some((file) => isDocumentExtension(extensionOf(file.name)));
+    if (hasStructured) {
+      // Structured files carry metadata only until T18; a mixed selection
+      // reaches the domain and fails with its own typed ambiguous-input error.
+      handleCreateJob({ type: "files", files: metadataFiles() });
+      return;
+    }
+    if (hasDocument || draftFiles.length > 0) {
+      void extractAndCreate(draftFiles);
+    }
   };
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files ?? []).map((file) => ({
-      name: file.name,
-      extension: extensionOf(file.name),
-    }));
-    setDraftFiles(selected);
+    setDraftFiles(Array.from(event.target.files ?? []));
     event.target.value = "";
   };
 
@@ -206,6 +252,7 @@ export function App() {
             draftText={draftText}
             draftFiles={draftFiles}
             inputError={inputError}
+            isExtracting={isExtracting}
             onDraftTextChange={setDraftText}
             onFileSelection={handleFileSelection}
             onCreate={handleCreateFromDraft}
@@ -263,8 +310,9 @@ function StepNavigation(props: {
 
 function InputStep(props: {
   draftText: string;
-  draftFiles: { name: string; extension: string }[];
+  draftFiles: File[];
   inputError: string | null;
+  isExtracting: boolean;
   onDraftTextChange: (text: string) => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onCreate: () => void;
@@ -322,7 +370,9 @@ function InputStep(props: {
         <button
           type="button"
           onClick={props.onCreate}
-          className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+          disabled={props.isExtracting}
+          aria-busy={props.isExtracting}
+          className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
         >
           Create job
         </button>

@@ -81,13 +81,25 @@ export type OutputAvailability = {
 };
 
 /**
- * File metadata only. File BYTES are never held in this model: extraction is
- * owned by later tickets and, when it arrives, extracted content is
- * memory-only (D-013).
+ * File metadata plus its T06 extraction outcome. File BYTES are never held in
+ * this model: the input adapters (app-v4/src/input) own extraction and hand
+ * over only the extracted text, which stays memory-only (D-013).
+ *
+ * `extraction` is optional so structured files and metadata-only drafts can be
+ * represented without fake extraction state; a document file whose extraction
+ * FAILED is an explicit non-success that {@link createJob} refuses (D-009).
  */
+export type JobSourceFileExtraction =
+  | { readonly status: "extracted"; readonly extractedText: string }
+  | {
+      readonly status: "failed";
+      readonly error: { readonly code: string; readonly message: string };
+    };
+
 export type JobSourceFile = {
   readonly name: string;
   readonly extension: string;
+  readonly extraction?: JobSourceFileExtraction;
 };
 
 /**
@@ -103,6 +115,8 @@ export type JobModelErrorCode =
   | "empty-input"
   | "ambiguous-input"
   | "unsupported-file-type"
+  | "extraction-failed"
+  | "pdf-no-text-layer"
   | "invalid-policy"
   | "invalid-step"
   | "review-incomplete";
@@ -151,6 +165,16 @@ function freezeDeep<T>(value: T): T {
 }
 
 type FileClass = "document" | "structured";
+
+/** Whether the lowercase extension routes through the document adapters. */
+export function isDocumentExtension(extension: string): boolean {
+  return DOCUMENT_EXTENSIONS.has(extension);
+}
+
+/** Whether the lowercase extension routes through structured input (T18). */
+export function isStructuredExtension(extension: string): boolean {
+  return STRUCTURED_EXTENSIONS.has(extension);
+}
 
 function classifyFile(file: JobSourceFile): FileClass {
   if (DOCUMENT_EXTENSIONS.has(file.extension)) return "document";
@@ -206,11 +230,58 @@ function nextJobId(): string {
 }
 
 /**
+ * Map an adapter extraction failure code to the Job error vocabulary. Codes
+ * without a dedicated Job counterpart collapse to "extraction-failed".
+ */
+function jobErrorCodeFor(extractionCode: string): JobModelErrorCode {
+  switch (extractionCode) {
+    case "empty-input":
+      return "empty-input";
+    case "unsupported-format":
+      return "unsupported-file-type";
+    case "pdf-no-text-layer":
+      return "pdf-no-text-layer";
+    default:
+      return "extraction-failed";
+  }
+}
+
+/**
+ * Fail-closed guard (D-009): a document/document-batch job must not be
+ * created from files whose extraction failed — a failed file is never
+ * representable as an apparently successful empty document. The error names
+ * every failing file so failed batch items stay visible (D-011).
+ */
+function assertExtractionsUsable(files: readonly JobSourceFile[]): void {
+  const failed = files.filter((file) => file.extraction?.status === "failed");
+  if (failed.length === 0) return;
+
+  const details = failed
+    .map(
+      (file) =>
+        `"${file.name}": ${(file.extraction as { error: { message: string } }).error.message}`
+    )
+    .join(" ");
+  const firstCode = (failed[0].extraction as { error: { code: string } }).error.code;
+  const code = jobErrorCodeFor(firstCode);
+  const message =
+    failed.length === 1
+      ? `Document "${failed[0].name}" could not be used to create a job: ${
+          (failed[0].extraction as { error: { message: string } }).error.message
+        }`
+      : `Some documents could not be used and no job was created — failing files: ${details}`;
+  throw new JobModelError(code, message);
+}
+
+/**
  * Create a new Job at the canonical first step. The returned object and all
  * nested objects/arrays are frozen.
  */
 export function createJob(input: JobInput): Job {
   const kind = inferJobKind(input);
+  if (input.type === "files" && (kind === "document" || kind === "document-batch")) {
+    assertExtractionsUsable(input.files);
+  }
   const source: JobSource =
     input.type === "pasted-text"
       ? { type: "pasted-text", text: input.text }
