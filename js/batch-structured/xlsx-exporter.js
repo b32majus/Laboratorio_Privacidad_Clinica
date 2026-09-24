@@ -1,11 +1,11 @@
 /**
  * XLSXExporter - Exporta resultados a Excel
- * Genera archivos anonimizados y tabla de correspondencia
+ * Genera archivos preparados (seudonimizados) y tabla de correspondencia
  */
 class XLSXExporter {
 
     /**
-     * Exporta datos anonimizados
+     * Exporta datos preparados (seudonimizados)
      */
     static exportAnonymized(result, filename = null) {
         if (typeof XLSX === 'undefined') {
@@ -49,7 +49,7 @@ class XLSXExporter {
 
         // Generar nombre de archivo
         const date = timestamp.toISOString().slice(0, 10).replace(/-/g, '');
-        const finalFilename = filename || `datos_anonimizados_${date}.xlsx`;
+        const finalFilename = filename || `datos_preparados_${date}.xlsx`;
 
         XLSX.writeFile(wb, finalFilename);
     }
@@ -82,7 +82,7 @@ class XLSXExporter {
             ['INSTRUCCIONES DE SEGURIDAD:'],
             ['1. Guardar en ubicación segura con acceso restringido'],
             ['2. No compartir por email ni medios no cifrados'],
-            ['3. No almacenar junto con los datos anonimizados'],
+            ['3. No almacenar junto con los datos originales'],
             ['4. Destruir cuando ya no sea necesario para el estudio'],
             [''],
             ['Sesión:', sessionId],

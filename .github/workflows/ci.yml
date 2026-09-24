@@ -26,6 +26,9 @@ jobs:
       - name: Check sensitive storage policy
         run: node scripts/ci/check-storage-policy.mjs
 
+      - name: Positioning copy claims
+        run: npm run check:positioning
+
       - name: Smoke anonymization
         run: node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs
 
