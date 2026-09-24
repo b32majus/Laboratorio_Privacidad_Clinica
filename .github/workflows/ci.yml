@@ -63,6 +63,11 @@ jobs:
       - name: Check PDF.js eval guard (CVE-2024-4367)
         run: npm run check:pdfjs
 
+      - name: Adversarial oracle self-tests (planted violations)
+        run: |
+          npm run check:external:selftest
+          npm run check:pdfjs:selftest
+
       - name: Check V4 formatting
         run: npm run format:check:v4
 
