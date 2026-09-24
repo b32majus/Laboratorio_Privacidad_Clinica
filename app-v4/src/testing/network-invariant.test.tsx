@@ -96,9 +96,12 @@ describe("network invariant monitor", () => {
         expect(monitor.attempts()).toHaveLength(0);
       }
 
-      // Step 5: Export stays fail-closed (mandatory review incomplete): the
-      // step cannot be entered, and attempting it records no network attempt.
-      expect(stepButton(5, "Export")).toBeDisabled();
+      // Step 5: with this synthetic note the engine reports no detections,
+      // so ReviewSession.canFinalize is true with zero mandatory decisions
+      // (domain authority, D-004) and Export unlocks. Entering it — still an
+      // honest placeholder until T08 — records no network attempt.
+      fireEvent.click(stepButton(5, "Export"));
+      expect(screen.getByRole("heading", { level: 2, name: "Export" })).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
       // Session reset via New Job returns to a fresh Input.
@@ -166,6 +169,71 @@ describe("network invariant monitor", () => {
       // Walk the reachable steps and reset; nothing may leave the process.
       fireEvent.click(stepButton(2, "Configure"));
       fireEvent.click(stepButton(1, "Input"));
+      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
+      expect(screen.getByText("No job yet")).toBeInTheDocument();
+
+      expect(monitor.attempts()).toEqual([]);
+      for (const spy of storageSpies) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+    } finally {
+      monitor.uninstall();
+    }
+  });
+
+  it("keeps the review flow (engine run, decisions, manual detection) free of network attempts and storage writes", () => {
+    const REVIEW_NOTE =
+      "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
+
+    const monitor: NetworkMonitor = install(window);
+    // Storage writes are proven by spy-not-called below (Storage.length is
+    // polluted by spies from earlier tests in this file, so it is not used).
+    const storageSpies = [
+      vi.spyOn(window.localStorage, "setItem"),
+      vi.spyOn(window.sessionStorage, "setItem"),
+      vi.spyOn(window.localStorage, "removeItem"),
+      vi.spyOn(window.sessionStorage, "removeItem"),
+      vi.spyOn(window.localStorage, "clear"),
+      vi.spyOn(window.sessionStorage, "clear"),
+    ];
+
+    try {
+      render(<App />);
+      fireEvent.change(screen.getByLabelText("Paste text"), {
+        target: { value: REVIEW_NOTE },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+      expect(monitor.attempts()).toHaveLength(0);
+
+      // Entering Review runs the local legacy engine and builds the session.
+      fireEvent.click(stepButton(2, "Configure"));
+      fireEvent.click(stepButton(3, "Review"));
+      const progress = screen.getByRole("status", { name: /review progress/i });
+      expect(progress).toHaveTextContent(/Pending: [1-9]/);
+      expect(monitor.attempts()).toHaveLength(0);
+
+      // An explicit decision mutates only in-memory domain state.
+      const firstDetectionButton = screen
+        .getAllByRole("list", { name: /detections/i })[0]
+        .querySelector("button");
+      expect(firstDetectionButton).not.toBeNull();
+      fireEvent.click(firstDetectionButton as HTMLElement);
+      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+      expect(progress).toHaveTextContent("Accepted: 1");
+      expect(monitor.attempts()).toHaveLength(0);
+
+      // Navigating away and back never resets or re-runs review.
+      fireEvent.click(stepButton(1, "Input"));
+      fireEvent.click(stepButton(3, "Review"));
+      expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+        "Accepted: 1"
+      );
+      expect(monitor.attempts()).toHaveLength(0);
+
+      // While mandatory review is pending, Export stays fail-closed.
+      expect(stepButton(5, "Export")).toBeDisabled();
+      expect(monitor.attempts()).toHaveLength(0);
+
       fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
       expect(screen.getByText("No job yet")).toBeInTheDocument();
 

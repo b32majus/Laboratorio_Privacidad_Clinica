@@ -25,8 +25,11 @@ import {
   isStepAccessible,
   isStructuredExtension,
 } from "./domain/job";
+import { EngineError } from "./engine/types";
 import { extractFile, extractFromPastedText } from "./input/extract";
 import { extensionOf } from "./input/extracted-source";
+import { ReviewWorkspace } from "./review/ReviewWorkspace";
+import { ReviewSessionError, jobSupportsReview, startReviewSession } from "./review/review-domain";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
@@ -59,10 +62,12 @@ const focusRing =
 export function App() {
   const session = useJobSession();
   const job = session.job;
+  const review = session.review;
   const [draftText, setDraftText] = useState("");
   const [draftFiles, setDraftFiles] = useState<File[]>([]);
   const [inputError, setInputError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const resetDraft = () => {
     setDraftText("");
@@ -158,6 +163,34 @@ export function App() {
   const handleClearSession = () => {
     session.clear();
     resetDraft();
+    setReviewError(null);
+  };
+
+  /**
+   * Step transitions. Entering Review for a text or single-document job runs
+   * the existing legacy engine on the job's source text ONCE and installs the
+   * resulting ReviewSession as the domain review authority (T07). Re-entering
+   * Review never re-runs the engine or resets decisions; batch and structured
+   * jobs keep an honest placeholder until their own tickets arrive.
+   */
+  const handleGoToStep = (step: FlowStep) => {
+    try {
+      if (step === "review" && job && !review && jobSupportsReview(job)) {
+        session.beginReview(startReviewSession(job));
+      }
+      session.navigate(step);
+      setInputError(null);
+      setReviewError(null);
+    } catch (error) {
+      const message =
+        error instanceof JobModelError ||
+        error instanceof EngineError ||
+        error instanceof ReviewSessionError
+          ? error.message
+          : "That step is not available right now.";
+      if (step === "review") setReviewError(message);
+      else setInputError(message);
+    }
   };
 
   const currentStep: FlowStep = job ? job.currentStep : "input";
@@ -229,22 +262,7 @@ export function App() {
         </div>
       </header>
 
-      <StepNavigation
-        job={job}
-        currentStep={currentStep}
-        onGoToStep={(step) => {
-          try {
-            session.navigate(step);
-            setInputError(null);
-          } catch (error) {
-            setInputError(
-              error instanceof JobModelError
-                ? error.message
-                : "That step is not available right now."
-            );
-          }
-        }}
-      />
+      <StepNavigation job={job} currentStep={currentStep} onGoToStep={handleGoToStep} />
 
       <main id="main-content" className="mx-auto max-w-5xl px-4 py-8">
         {currentStep === "input" ? (
@@ -257,8 +275,17 @@ export function App() {
             onFileSelection={handleFileSelection}
             onCreate={handleCreateFromDraft}
           />
+        ) : currentStep === "review" && review ? (
+          <ReviewWorkspace
+            session={review}
+            onDecide={session.decide}
+            onAddManual={session.addManual}
+          />
         ) : (
-          <StepPlaceholder step={currentStep} />
+          <StepPlaceholder
+            step={currentStep}
+            reviewError={currentStep === "review" ? reviewError : null}
+          />
         )}
       </main>
     </div>
@@ -381,12 +408,26 @@ function InputStep(props: {
   );
 }
 
-function StepPlaceholder({ step }: { step: FlowStep }): ReactElement {
+function StepPlaceholder({
+  step,
+  reviewError = null,
+}: {
+  step: FlowStep;
+  reviewError?: string | null;
+}): ReactElement {
   return (
     <section aria-labelledby={`${step}-step-heading`}>
       <h2 id={`${step}-step-heading`} className="font-display text-xl font-bold text-primary-dark">
         {STEP_LABELS[step]}
       </h2>
+      {reviewError && (
+        <p
+          role="alert"
+          className={`mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+        >
+          {reviewError}
+        </p>
+      )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
         This step is not implemented yet. Its functionality arrives with a later V4 migration
         ticket; use the step navigation above to move between steps.

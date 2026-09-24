@@ -214,6 +214,71 @@ describe("App shell", () => {
   });
 });
 
+describe("App review workspace (T07)", () => {
+  const REVIEW_NOTE =
+    "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
+
+  function createReviewJob() {
+    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+  }
+
+  it("runs the engine once at the Configure→Review transition and renders the workspace", () => {
+    render(<App />);
+    createReviewJob();
+    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    const progress = screen.getByRole("status", { name: /review progress/i });
+    expect(progress).toHaveTextContent(/Pending: [1-9]/);
+    expect(screen.getByRole("group", { name: /document text with detections/i })).toHaveTextContent(
+      "Carmen Sánchez"
+    );
+  });
+
+  it("navigating away and back preserves review decisions and never re-runs the engine", () => {
+    render(<App />);
+    createReviewJob();
+    const pendingBefore = screen
+      .getByRole("status", { name: /review progress/i })
+      .textContent?.match(/Pending: (\d+)/)?.[1];
+
+    const firstDetection = screen
+      .getAllByRole("list", { name: /detections/i })[0]
+      .querySelector("button") as HTMLElement;
+    fireEvent.click(firstDetection);
+    fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+      "Accepted: 1"
+    );
+
+    fireEvent.click(stepButton(1, "Input"));
+    fireEvent.click(stepButton(3, "Review"));
+    const progress = screen.getByRole("status", { name: /review progress/i });
+    expect(progress).toHaveTextContent("Accepted: 1");
+    expect(progress).not.toHaveTextContent(`Pending: ${pendingBefore}`);
+  });
+
+  it("keeps an honest placeholder for job families without single-document review", () => {
+    render(<App />);
+    const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText(/select files/i), {
+      target: { files: [csvFile] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    expect(screen.getByText(/this step is not implemented yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps export fail-closed while mandatory review decisions are pending", () => {
+    render(<App />);
+    createReviewJob();
+    expect(stepButton(5, "Export")).toBeDisabled();
+  });
+});
+
 describe("App document intake (T06)", () => {
   afterEach(() => {
     delete window.pdfjsLib;
