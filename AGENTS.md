@@ -10,9 +10,10 @@ For any implementation ticket, read in this order:
 2. the GitHub Work Order being executed, including comments and blockers;
 3. the spec(s) explicitly cited by that Work Order;
 4. `docs/shaping/CURRENT_DECISIONS.md`
-5. `docs/execution/TRAIN_V4.md` only for train/frontier context;
-6. relevant existing code/tests;
-7. audit/debt documents only when the ticket cites them or evidence is needed.
+5. `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md`;
+6. `docs/execution/TRAIN_V4.md` only for train/frontier context;
+7. relevant existing code/tests;
+8. audit/debt documents only when the ticket cites them or evidence is needed.
 
 Do not reconstruct product decisions from historical files when current V4 authority exists.
 
@@ -69,7 +70,9 @@ Confidential Audit must be visibly and technically separate.
 
 Each behavioral ticket must add or update a deterministic oracle capable of disagreeing with the implementation.
 
-High-risk privacy/state/parser changes require negative/adversarial cases.
+High-risk privacy/state/parser changes require negative/adversarial cases. A new or materially changed checker/scanner/gate must prove it rejects a representative planted violation, not merely that the current repository passes.
+
+If an implementation documents exceptional parser/state/failure branches, representative branches must execute in deterministic tests when mechanically testable.
 
 Existing smoke tests are not sufficient evidence for new behavior when the spec calls for stronger regression coverage.
 
@@ -96,19 +99,20 @@ The clinical origin must be able to enforce a strict CSP and zero unexpected out
 
 ## Atenea execution boundary
 
-Normal unattended execution:
-- explicit human authorization;
-- persistent visible parent;
-- fresh implementation child per newly selected ticket;
-- `max_concurrency=1`;
-- exact diff + deterministic verification;
-- native exact-candidate Gentle RDD;
-- APPROVED + acknowledgement/burn;
-- authorized non-force checkpoint/publication;
-- fresh frontier rediscovery;
-- STOP before human merge.
+Use the current Atenea native production protocol, not historical GP2.7/GP3.x orchestration recipes.
 
-Do not auto-merge, force-push, rewrite history, or invent recovery semantics.
+For a new train/session:
+- reconcile current Git/GitHub/product authority first;
+- start from a clean isolated worktree and a fresh `pi` session; do not resume stale Pi state;
+- consume the current qualified Atenea runtime/profile (currently `native-balanced`) after conformance preflight; do not pin reviewer routing in this repo;
+- let native Gentle own ODD/exploration, decomposition, workers, verification, work-unit commits, RDD/risk/review timing, correction lifecycle and acknowledgement/burn;
+- keep `max_concurrency=1` at the external ticket/frontier level for this project;
+- after each accepted work unit/ticket, rediscover blockers/frontier from durable GitHub authority;
+- per-work-unit APPROVED + burn does not replace deterministic composed-state integration closeout for a multi-ticket train;
+- use `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md` before publication;
+- publication/PR/issue mutation requires explicit human authority; merge is always human-owned.
+
+Do not auto-merge, force-push, rewrite history, invent review transitions, recreate Atenea controllers, or treat a whole branch as a synthetic Gentle candidate merely to close a train.
 
 ## Legacy retirement
 
