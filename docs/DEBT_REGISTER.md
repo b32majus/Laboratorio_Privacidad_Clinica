@@ -59,8 +59,10 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | PERF-002 | P2 | Performance | Lazy-load de parsers y exportadores | OPEN |
 | PERF-003 | P2 | Performance | DictionaryIndex normalizado precomputado | OPEN |
 | PERF-004 | P2 | Performance | Resolver conflictos por intervalos | OPEN |
-| SUPPLY-001 | P1 | Dependencies | Build reproducible o vendor manifest con hashes/versiones | OPEN |
-| CODE-001 | P2 | Quality | ESLint + Prettier | OPEN |
+| SUPPLY-001 | P1 | Dependencies | Build reproducible o vendor manifest con hashes/versiones. RESUELTA (T23, commit 1ccec6a): vendor manifest de lib/ y fonts/ con version/fuente/sha256 + check determinista `check:vendor` en CI; dependencias V4 reproducibles desde package-lock.json. | DONE |
+| SEC-001 | P1 | Dependencies/Security | mammoth 1.12.0 vendido/declarado (`lib/mammoth.browser.min.js`, byte-idéntico al bundle browser de npm 1.12.0; dependencia declarada `^1.12.0`) depende de/incluye una línea antigua de `@xmldom/xmldom` con avisos de seguridad vigentes en 2026. Existen advisories; NO se ha demostrado explotabilidad en el uso que hace este producto. Remediación diferida al trabajo de document-adapters (V4/T06 #10), que debe evaluar la actualización del stack DOCX; la actualización amplia queda explícitamente fuera del alcance del pase correctivo. | OPEN |
+| SEC-002 | P1 | Dependencies/Security | pdfjs-dist 3.11.174 vendido (`lib/pdf.min.js`) afectado por CVE-2024-4367 en la ruta por defecto de `getDocument({ data })`. Mitigado en todas las llamadas activas con `isEvalSupported: false` (pase correctivo; guard determinista `check:pdfjs` en CI). La actualización a una release de PDF.js parcheada queda como deuda abierta para un ticket acotado futuro. | OPEN |
+| CODE-001 | P2 | Quality | ESLint + Prettier. RESUELTA (T23, commit 1ccec6a): prettier 3.9.9 fijado, scripts `format:v4` / `format:check:v4` y step de CI "Check V4 formatting". | DONE |
 | CODE-002 | P2 | Types | TypeScript o JSDoc + @ts-check | OPEN |
 | CODE-003 | P2 | Errors | Sustituir alert() por errores/estados de UI | OPEN |
 | GOV-001 | P1 | Governance | Consolidar rama canónica | OPEN |
@@ -111,8 +113,8 @@ Estas observaciones no bloquearon T03/PR #33, pero deben permanecer trazables ha
 
 | Observación | Deuda propietaria | Evidencia T03 | Momento recomendado | Estado |
 |---|---|---|---|---|
-| T03-AUDIT-001 | `SUPPLY-001` (T23 #27) | En una reproducción limpia de PR #33, `npm run build` regeneró el `css/tailwind.generated.css` legacy con un SHA-256 distinto al fichero commiteado, aunque el build terminó correctamente. T03 no modifica ese artefacto legacy. | Resolver en T23/reproducibilidad de dependencias y CI, o antes si un ticket convierte la limpieza post-build o ese artefacto generado en requisito de aceptación. | OPEN |
-| T03-AUDIT-002 | `CODE-001` | T03 incorpora ESLint para `app-v4`, pero Prettier continúa sin estar configurado; por tanto `CODE-001` queda solo parcialmente abordada. | Incorporar formatter cuando se consolide la superficie TS/React y antes de que el volumen de componentes haga costosa una normalización masiva; no bloquear por sí sola un Work Order funcional anterior. | OPEN |
+| T03-AUDIT-001 | `SUPPLY-001` (T23 #27) | En una reproducción limpia de PR #33, `npm run build` regeneró el `css/tailwind.generated.css` legacy con un SHA-256 distinto al fichero commiteado, aunque el build terminó correctamente. T03 no modifica ese artefacto legacy. RESUELTA (T23, commit 1ccec6a + verificación correctiva posterior): rebuild limpio de `css/tailwind.generated.css` produce SHA-256 `49613e5e66383f26d1bea58467c0243d2b186c7da660d642e93681860978a8d9`, que coincide con el artefacto commiteado; la verificación final se re-ejecuta tras todos los cambios correctivos. | Resolver en T23/reproducibilidad de dependencias y CI, o antes si un ticket convierte la limpieza post-build o ese artefacto generado en requisito de aceptación. | DONE |
+| T03-AUDIT-002 | `CODE-001` | T03 incorpora ESLint para `app-v4`, pero Prettier continúa sin estar configurado; por tanto `CODE-001` queda solo parcialmente abordada. RESUELTA (T23, commit 1ccec6a): prettier 3.9.9 fijado con `format:v4` / `format:check:v4` y step de CI "Check V4 formatting", completando `CODE-001` (ver arriba). | Incorporar formatter cuando se consolide la superficie TS/React y antes de que el volumen de componentes haga costosa una normalización masiva; no bloquear por sí sola un Work Order funcional anterior. | DONE |
 
 Cierre de estas observaciones: actualizar primero el ID propietario (`SUPPLY-001` / `CODE-001`) y conservar esta evidencia histórica enlazando el PR/commit que las resuelva.
 

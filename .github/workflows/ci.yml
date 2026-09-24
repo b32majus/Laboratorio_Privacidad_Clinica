@@ -60,6 +60,9 @@ jobs:
       - name: Check vendor manifest integrity
         run: npm run check:vendor
 
+      - name: Check PDF.js eval guard (CVE-2024-4367)
+        run: npm run check:pdfjs
+
       - name: Check V4 formatting
         run: npm run format:check:v4
 

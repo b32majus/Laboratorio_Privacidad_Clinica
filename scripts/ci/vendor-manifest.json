@@ -19,9 +19,9 @@
     "path": "lib/mammoth.browser.min.js",
     "description": "Mammoth browser bundle used by legacy flows (DOCX to HTML conversion).",
     "upstream": "mammoth.js (mwilliamson/mammoth.js) - https://github.com/mwilliamson/mammoth.js",
-    "version": "unknown-detected-from-content",
+    "version": "1.12.0",
     "sha256": "5d4c0e7c9165d70b78f789c5274a2c7846d9e1c06ec19b69afa6ef45f789a3b9",
-    "notes": "No mammoth release version string is embedded in the minified bundle (exported version property is empty). The only embedded version literals (3.4.7, 3.7.1, 1.13.1) belong to bundled third-party dependencies, not to mammoth itself; version not detected from content."
+    "notes": "No mammoth release version string is embedded in the minified bundle (exported version property is empty). The only embedded version literals (3.4.7, 3.7.1, 1.13.1) belong to bundled third-party dependencies, not to mammoth itself. Version resolved from provenance instead of content: this bundle is byte-identical (SHA-256 above) to node_modules/mammoth/mammoth.browser.min.js, and package-lock.json resolves mammoth to exactly 1.12.0 (declared range ^1.12.0 in package.json)."
   },
   {
     "path": "lib/pdf.min.js",

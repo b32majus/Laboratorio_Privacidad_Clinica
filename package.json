@@ -17,12 +17,13 @@
     "check:storage": "node scripts/ci/check-storage-policy.mjs",
     "check:external": "node scripts/ci/check-external-resources.mjs",
     "check:vendor": "node scripts/ci/check-vendor-manifest.mjs",
+    "check:pdfjs": "node scripts/ci/check-pdfjs-eval-guard.mjs",
     "check:smoke": "node scripts/ci/smoke-anonymization.mjs",
     "check:positioning": "node scripts/ci/check-positioning-copy.mjs",
     "test:domain": "node --test scripts/ci/review-session.contract.test.mjs",
     "test:privacy-eval": "node --test scripts/privacy-eval/lib/matching.test.mjs scripts/privacy-eval/lib/metrics.test.mjs",
     "check:privacy-eval": "node scripts/privacy-eval/evaluate.mjs",
-    "test": "npm run check:links && npm run check:storage && npm run check:external && npm run check:vendor && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run check:privacy-eval && npm run test:v4"
+    "test": "npm run check:links && npm run check:storage && npm run check:external && npm run check:vendor && npm run check:pdfjs && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run check:privacy-eval && npm run test:v4"
   },
   "keywords": [],
   "author": "",
