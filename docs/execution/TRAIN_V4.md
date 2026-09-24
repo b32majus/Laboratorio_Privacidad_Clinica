@@ -1,22 +1,20 @@
 # V4 Unattended execution train
 
-Status: **SHAPED — Work Orders created; EXECUTION_READY remains NO pending shaping acceptance**
+Status: **CURRENT ROADMAP / EXECUTION-READY WORK ORDERS**
 
 ## 1. Execution model
 
-This train is designed for the current Atenea GP2.7 hybrid-native unattended path.
+This roadmap is executed through the **current Atenea native Pi/Gentle protocol**. Historical GP2.7/GP3.x recipes do not override current Atenea `docs/START_HERE.md`.
 
-- persistent visible parent;
-- one fresh package-owned implementation child per newly selected ticket;
-- `max_concurrency=1`;
-- deterministic verification per ticket;
-- native exact-candidate RDD;
-- APPROVED + acknowledgement/burn;
-- checkpoint;
-- fresh frontier discovery;
-- STOP before human merge.
+- clean isolated worktree + fresh Pi session for a new train;
+- GitHub Work Orders/specs own scope and acceptance;
+- native Gentle owns ODD/decomposition/workers/verification/RDD/review/corrections/burn;
+- external ticket/frontier concurrency remains `1`;
+- coherent work-unit composition follows current Atenea policy;
+- deterministic composed-state closeout is required before publishing a material multi-ticket train;
+- publication requires explicit human authority; final merge remains human-owned.
 
-No custom queue/controller is required.
+Project-specific quality authority: `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md`.
 
 ## 2. Frontier rule
 
@@ -28,6 +26,21 @@ A ticket is executable only when:
 - the repository/worktree/runtime preflight is healthy.
 
 When more than one ticket is unblocked, map order below is the deterministic preference.
+
+
+## Current accepted checkpoint and next prepared train — 2026-09-24
+
+```text
+CURRENT_BASE_BRANCH=3.0-main
+CURRENT_BASE_SHA=f58b7823e7050a6387f59e5bd27007398a7bd41c
+LAST_MERGED_PR=#35
+COMPLETED=T01,T02,T03,T04,T05,T09,T10,T23
+NEXT_PREPARED_TRAIN=T06 #10 → T07 #11 → T08 #12
+```
+
+The next prepared train is intentionally bounded to the core V4 path **input adapters → review workspace → Safe Output / Confidential Audit**. T11+ engine-policy migration and T17/T18 batch/structured branches are deliberately excluded from this train.
+
+Exact launch/closeout plan: `docs/execution/TRAIN_T06_T08_20260924.md`.
 
 ## 3. Work packages
 
