@@ -51,6 +51,9 @@ jobs:
       - name: Build V4 app (legacy Tailwind + Vite)
         run: npm run build
 
+      - name: Check V4 external resources
+        run: npm run check:external
+
       - name: Typecheck V4 app
         run: npm run typecheck:v4
 
