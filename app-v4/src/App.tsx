@@ -19,9 +19,17 @@ import {
   type JobInput,
   type JobKind,
   JobModelError,
+  type JobSourceFile,
   type PrivacyPolicyId,
+  isDocumentExtension,
   isStepAccessible,
+  isStructuredExtension,
 } from "./domain/job";
+import { EngineError } from "./engine/types";
+import { extractFile, extractFromPastedText } from "./input/extract";
+import { extensionOf } from "./input/extracted-source";
+import { ReviewWorkspace } from "./review/ReviewWorkspace";
+import { ReviewSessionError, jobSupportsReview, startReviewSession } from "./review/review-domain";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
@@ -51,17 +59,15 @@ const SUPPORTED_EXTENSIONS = [".txt", ".pdf", ".docx", ".csv", ".xls", ".xlsx"];
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
-function extensionOf(fileName: string): string {
-  const dot = fileName.lastIndexOf(".");
-  return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : "";
-}
-
 export function App() {
   const session = useJobSession();
   const job = session.job;
+  const review = session.review;
   const [draftText, setDraftText] = useState("");
-  const [draftFiles, setDraftFiles] = useState<{ name: string; extension: string }[]>([]);
+  const [draftFiles, setDraftFiles] = useState<File[]>([]);
   const [inputError, setInputError] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const resetDraft = () => {
     setDraftText("");
@@ -82,36 +88,109 @@ export function App() {
     }
   };
 
+  const metadataFiles = (): JobSourceFile[] =>
+    draftFiles.map((file) => ({ name: file.name, extension: extensionOf(file.name) }));
+
+  /**
+   * Document intake (T06): run the typed input adapters for every selected
+   * file, then hand the extraction outcomes to the domain. A failed
+   * extraction surfaces as a visible alert and creates NO job — the domain
+   * refuses failed files fail-closed (D-009/D-011).
+   */
+  const extractAndCreate = async (files: File[]) => {
+    setIsExtracting(true);
+    try {
+      const results = await Promise.all(files.map((file) => extractFile(file)));
+      const jobFiles: JobSourceFile[] = results.map((result) => ({
+        name: result.sourceName,
+        extension: extensionOf(result.sourceName),
+        extraction:
+          result.status === "success"
+            ? { status: "extracted", extractedText: result.text }
+            : {
+                status: "failed",
+                error: { code: result.error.code, message: result.error.message },
+              },
+      }));
+      handleCreateJob({ type: "files", files: jobFiles });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
   const handleCreateFromDraft = () => {
+    if (isExtracting) return;
     const hasText = draftText.trim().length > 0;
     if (hasText && draftFiles.length > 0) {
       setInputError("Use either pasted text or files for one job, not both.");
       return;
     }
     if (hasText) {
-      handleCreateJob({ type: "pasted-text", text: draftText });
+      // Pasted-text extraction is synchronous; typed failure surfaces as alert.
+      const result = extractFromPastedText(draftText);
+      if (result.status === "failed") {
+        setInputError(result.error.message);
+        return;
+      }
+      session.create({ type: "pasted-text", text: result.text });
+      resetDraft();
       return;
     }
-    if (draftFiles.length > 0) {
-      handleCreateJob({ type: "files", files: draftFiles });
+    if (draftFiles.length === 0) {
+      // Surface the domain's typed empty-input error instead of guessing.
+      const result = extractFromPastedText("");
+      setInputError(result.status === "failed" ? result.error.message : null);
       return;
     }
-    // Surface the domain's typed empty-input error instead of guessing.
-    handleCreateJob({ type: "pasted-text", text: "" });
+    const hasStructured = draftFiles.some((file) => isStructuredExtension(extensionOf(file.name)));
+    const hasDocument = draftFiles.some((file) => isDocumentExtension(extensionOf(file.name)));
+    if (hasStructured) {
+      // Structured files carry metadata only until T18; a mixed selection
+      // reaches the domain and fails with its own typed ambiguous-input error.
+      handleCreateJob({ type: "files", files: metadataFiles() });
+      return;
+    }
+    if (hasDocument || draftFiles.length > 0) {
+      void extractAndCreate(draftFiles);
+    }
   };
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files ?? []).map((file) => ({
-      name: file.name,
-      extension: extensionOf(file.name),
-    }));
-    setDraftFiles(selected);
+    setDraftFiles(Array.from(event.target.files ?? []));
     event.target.value = "";
   };
 
   const handleClearSession = () => {
     session.clear();
     resetDraft();
+    setReviewError(null);
+  };
+
+  /**
+   * Step transitions. Entering Review for a text or single-document job runs
+   * the existing legacy engine on the job's source text ONCE and installs the
+   * resulting ReviewSession as the domain review authority (T07). Re-entering
+   * Review never re-runs the engine or resets decisions; batch and structured
+   * jobs keep an honest placeholder until their own tickets arrive.
+   */
+  const handleGoToStep = (step: FlowStep) => {
+    try {
+      if (step === "review" && job && !review && jobSupportsReview(job)) {
+        session.beginReview(startReviewSession(job));
+      }
+      session.navigate(step);
+      setInputError(null);
+      setReviewError(null);
+    } catch (error) {
+      const message =
+        error instanceof JobModelError ||
+        error instanceof EngineError ||
+        error instanceof ReviewSessionError
+          ? error.message
+          : "That step is not available right now.";
+      if (step === "review") setReviewError(message);
+      else setInputError(message);
+    }
   };
 
   const currentStep: FlowStep = job ? job.currentStep : "input";
@@ -183,22 +262,7 @@ export function App() {
         </div>
       </header>
 
-      <StepNavigation
-        job={job}
-        currentStep={currentStep}
-        onGoToStep={(step) => {
-          try {
-            session.navigate(step);
-            setInputError(null);
-          } catch (error) {
-            setInputError(
-              error instanceof JobModelError
-                ? error.message
-                : "That step is not available right now."
-            );
-          }
-        }}
-      />
+      <StepNavigation job={job} currentStep={currentStep} onGoToStep={handleGoToStep} />
 
       <main id="main-content" className="mx-auto max-w-5xl px-4 py-8">
         {currentStep === "input" ? (
@@ -206,12 +270,22 @@ export function App() {
             draftText={draftText}
             draftFiles={draftFiles}
             inputError={inputError}
+            isExtracting={isExtracting}
             onDraftTextChange={setDraftText}
             onFileSelection={handleFileSelection}
             onCreate={handleCreateFromDraft}
           />
+        ) : currentStep === "review" && review ? (
+          <ReviewWorkspace
+            session={review}
+            onDecide={session.decide}
+            onAddManual={session.addManual}
+          />
         ) : (
-          <StepPlaceholder step={currentStep} />
+          <StepPlaceholder
+            step={currentStep}
+            reviewError={currentStep === "review" ? reviewError : null}
+          />
         )}
       </main>
     </div>
@@ -263,8 +337,9 @@ function StepNavigation(props: {
 
 function InputStep(props: {
   draftText: string;
-  draftFiles: { name: string; extension: string }[];
+  draftFiles: File[];
   inputError: string | null;
+  isExtracting: boolean;
   onDraftTextChange: (text: string) => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onCreate: () => void;
@@ -322,7 +397,9 @@ function InputStep(props: {
         <button
           type="button"
           onClick={props.onCreate}
-          className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+          disabled={props.isExtracting}
+          aria-busy={props.isExtracting}
+          className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
         >
           Create job
         </button>
@@ -331,12 +408,26 @@ function InputStep(props: {
   );
 }
 
-function StepPlaceholder({ step }: { step: FlowStep }): ReactElement {
+function StepPlaceholder({
+  step,
+  reviewError = null,
+}: {
+  step: FlowStep;
+  reviewError?: string | null;
+}): ReactElement {
   return (
     <section aria-labelledby={`${step}-step-heading`}>
       <h2 id={`${step}-step-heading`} className="font-display text-xl font-bold text-primary-dark">
         {STEP_LABELS[step]}
       </h2>
+      {reviewError && (
+        <p
+          role="alert"
+          className={`mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+        >
+          {reviewError}
+        </p>
+      )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
         This step is not implemented yet. Its functionality arrives with a later V4 migration
         ticket; use the step navigation above to move between steps.

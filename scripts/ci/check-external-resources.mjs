@@ -34,6 +34,36 @@
  *   d) No-PHI-console invariant: any console.* call in app-v4/src runtime
  *      files (excluding *.test.* and *.d.ts).
  *
+ * VENDOR-IDENTICAL DIST EXEMPTION (narrowly scoped, T06 #10): the six
+ * dist runtime-network-API token rules (dist-xmlhttprequest,
+ * dist-importscripts, dist-websocket, dist-sendbeacon, dist-eventsource,
+ * dist-serviceworker) and the per-call-site dist-fetch scan do NOT flag
+ * dist files that are byte-identical (sha256, computed at scan time from
+ * lib/ plus the scripts/ci/vendor-manifest.json sha256 entries; fully
+ * deterministic, no network) to a vendor-manifest-governed asset.
+ * Rationale: the governed invariant is "no UNEXPECTED outbound runtime
+ * requests" (SPEC_V4_QUALITY_SECURITY_DEPLOY §2); vendored assets are
+ * governed by sha256 provenance (SPEC §5 vendor-manifest governance,
+ * check:vendor). The V4 input surface loads pdf.js as a same-origin
+ * manifest-governed static asset (/vendor/pdf.min.js, byte-identical to
+ * lib/pdf.min.js) instead of bundling it, and that upstream bundle contains
+ * latent but unexercised same-origin network-stream code paths (fetch/
+ * XMLHttpRequest/importScripts behind configuration the V4 runtime never
+ * supplies). Flagging those dead upstream paths would make the check
+ * unrunnable while adding no protection; instead the exemption is limited
+ * to byte-identity with a governed asset. The REMOTE-LOADING rules
+ * (dist-src-remote, dist-href-remote, dist-css-url-remote,
+ * dist-css-import-remote, dist-ws-url) STILL APPLY to vendor-identical
+ * files: any remote-loading reference or ws:// literal inside a vendored
+ * copy is a real loading capability and fails the scan. The same identity
+ * exemption covers the third-party denylist token rules (token:*): a
+ * byte-identical copy of a governed asset cannot contain anything the
+ * governed upstream does not, and case-insensitive substring matching
+ * against minified upstream identifiers otherwise produces pure false
+ * positives (e.g. pdf.js's `hasXfaDatasetsEntry` contains "sentry").
+ * ALLOWED_EXCEPTIONS stays EMPTY: this is a content-identity condition,
+ * not an endpoint allowlist.
+ *
  * ZERO-AUTHORIZED-EXTERNAL-RUNTIME SEMANTICS: the exception allowlist
  * (ALLOWED_EXCEPTIONS) stays EMPTY. Any addition is an explicit,
  * documented product/security decision (D-014) recorded as
@@ -81,6 +111,7 @@
  * throwaway sandbox (OS temp dir, cleaned up afterwards) plus the real
  * repo scan, and exits 0 only if every case behaves as expected.
  */
+import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -163,10 +194,15 @@ const DIST_LOADING_PATTERNS = [
  *     level, with the documented Vite modulepreload polyfill exemption);
  *     these line-level patterns cover the rest.
  *   - `\bWebSocket\s*\(` / `\bEventSource\s*\(` also catch constructor calls
- *     written without `new`; `dist-ws-url` additionally catches ws:// and
- *     wss:// literals that never reach a direct constructor call site.
+ *     written without `new`.
  *   - `dist-serviceworker` flags any navigator.serviceWorker reference
  *     (registration and control both imply runtime network capability).
+ *   - dist-ws-url is intentionally NOT here: it is a remote-loading rule
+ *     (see DIST_NON_VENDOR_EXEMPTABLE_PATTERNS) and keeps applying to
+ *     vendor-identical dist files.
+ *   - All rules in this list are subject to the documented vendor-identity
+ *     exemption (byte-identical copies of vendor-manifest-governed assets);
+ *     dist-fetch-call is included there via VENDOR_EXEMPTABLE_RULES.
  */
 const DIST_RUNTIME_NETWORK_PATTERNS = [
   { id: "dist-xmlhttprequest", regex: /\bXMLHttpRequest\b/i },
@@ -174,9 +210,36 @@ const DIST_RUNTIME_NETWORK_PATTERNS = [
   { id: "dist-sendbeacon", regex: /\bsendBeacon\s*\(/i },
   { id: "dist-eventsource", regex: /\bEventSource\s*\(/i },
   { id: "dist-importscripts", regex: /\bimportScripts\s*\(/i },
-  { id: "dist-serviceworker", regex: /\bnavigator\s*\.\s*serviceWorker\b/i },
-  { id: "dist-ws-url", regex: /["'`]wss?:\/\//i }
+  { id: "dist-serviceworker", regex: /\bnavigator\s*\.\s*serviceWorker\b/i }
 ];
+
+/**
+ * Dist rules that NEVER get the vendor-identity exemption: ws:// and wss://
+ * string literals are remote-loading references (a real connection target),
+ * so they must fail even inside a byte-identical vendored copy.
+ */
+const DIST_NON_VENDOR_EXEMPTABLE_PATTERNS = [{ id: "dist-ws-url", regex: /["'`]wss?:\/\//i }];
+
+/**
+ * Rule ids exempted for vendor-identical dist files (byte-identical to a
+ * vendor-manifest-governed asset): the six runtime-network-API token rules
+ * plus the per-call-site fetch scan (dist-fetch-call). Remote-loading rules,
+ * denylist tokens and dist-ws-url are never exempted.
+ */
+const VENDOR_EXEMPTABLE_RULES = new Set([
+  "dist-xmlhttprequest",
+  "dist-importscripts",
+  "dist-websocket",
+  "dist-sendbeacon",
+  "dist-eventsource",
+  "dist-serviceworker",
+  "dist-fetch-call"
+]);
+
+/** True for denylist-token rule ids ("token:<token>"). */
+function isTokenRule(ruleId) {
+  return ruleId.startsWith("token:");
+}
 
 /** No-PHI-console invariant (SPEC §3): any console.* call in runtime code. */
 const CONSOLE_PATTERN =
@@ -210,7 +273,7 @@ function getAllFiles(dir, extensionSet) {
     const absolute = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       output.push(...getAllFiles(absolute, extensionSet));
-    } else if (extensionSet.has(path.extname(entry.name).toLowerCase())) {
+    } else if (extensionSet === null || extensionSet.has(path.extname(entry.name).toLowerCase())) {
       output.push(absolute);
     }
   }
@@ -603,6 +666,56 @@ function isAllowed(violation) {
   return ALLOWED_EXCEPTIONS.has(`${violation.file}:${violation.rule}`);
 }
 
+function sha256Hex(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+/**
+ * Collect the sha256 set of vendor-manifest-governed assets, computed at
+ * scan time: every file under lib/ plus every sha256 declared in
+ * scripts/ci/vendor-manifest.json (in the real repo the two coincide).
+ * Deterministic, filesystem-only, no network. A missing lib/ or manifest
+ * yields fewer exempt hashes (fail-closed: fewer exemptions, never more);
+ * a manifest that exists but cannot be parsed is ignored for exemption
+ * purposes (its validity is governed by check:vendor).
+ */
+function collectVendorIdentityHashes(rootDir) {
+  const hashes = new Set();
+  const libDir = path.join(rootDir, "lib");
+  if (fs.existsSync(libDir)) {
+    for (const absolute of getAllFiles(libDir, null)) {
+      hashes.add(sha256Hex(fs.readFileSync(absolute)));
+    }
+  }
+  const manifestPath = path.join(rootDir, "scripts", "ci", "vendor-manifest.json");
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      if (Array.isArray(manifest)) {
+        for (const entry of manifest) {
+          if (entry && typeof entry.sha256 === "string") hashes.add(entry.sha256.toLowerCase());
+        }
+      }
+    } catch {
+      // Fail closed: skip manifest-declared hashes; lib/ hashes still apply.
+    }
+  }
+  return hashes;
+}
+
+/**
+ * Filter a list of dist violations for one file, dropping the exemptable
+ * runtime-network-API rules when the file is byte-identical (sha256) to a
+ * vendor-manifest-governed asset. Non-exemptable rules (remote loading,
+ * dist-ws-url, denylist tokens) are always preserved.
+ */
+function applyVendorIdentityExemption(violations, isVendorIdentical) {
+  if (!isVendorIdentical) return violations;
+  return violations.filter(
+    (violation) => !VENDOR_EXEMPTABLE_RULES.has(violation.rule) && !isTokenRule(violation.rule)
+  );
+}
+
 function dedupe(violations) {
   const seen = new Set();
   return violations.filter((violation) => {
@@ -637,6 +750,13 @@ function scanRoot(rootDir, scanScope) {
         )
       : [];
 
+    // Vendored assets served from app-v4/public (byte-identical copies of
+    // manifest-governed lib/ bundles, e.g. /vendor/pdf.min.js) get the same
+    // narrow content-identity exemption as their dist copies: token
+    // denylist substring false positives are dropped, remote-loading and
+    // console rules still apply.
+    const vendorIdentityHashes = collectVendorIdentityHashes(rootDir);
+
     const remoteScanFiles = sourceFiles.filter((f) => !isTestFile(f));
     const consoleScanFiles = sourceFiles.filter(
       (f) =>
@@ -647,9 +767,15 @@ function scanRoot(rootDir, scanScope) {
     );
 
     for (const relativePath of remoteScanFiles) {
-      const content = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
+      const buffer = fs.readFileSync(path.join(rootDir, relativePath));
+      const content = buffer.toString("utf8");
       const stripped = stripCommentsFor(relativePath, content);
-      violations.push(...collectTokenViolations(relativePath, stripped));
+      violations.push(
+        ...applyVendorIdentityExemption(
+          collectTokenViolations(relativePath, stripped),
+          vendorIdentityHashes.has(sha256Hex(buffer))
+        )
+      );
       violations.push(...collectLineViolations(relativePath, stripped, REMOTE_LOADING_PATTERNS));
     }
     sourceFilesScanned = remoteScanFiles.length;
@@ -671,24 +797,45 @@ function scanRoot(rootDir, scanScope) {
     const distDir = path.join(rootDir, "dist");
     if (fs.existsSync(distDir)) {
       distPresent = true;
+      const vendorIdentityHashes = collectVendorIdentityHashes(rootDir);
       const distFiles = getAllFiles(distDir, DIST_EXTENSIONS).map((absolute) =>
         path.relative(rootDir, absolute).split(path.sep).join("/")
       );
       for (const relativePath of distFiles) {
-        const content = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
+        const buffer = fs.readFileSync(path.join(rootDir, relativePath));
+        const isVendorIdentical = vendorIdentityHashes.has(sha256Hex(buffer));
+        const content = buffer.toString("utf8");
         const stripped = stripCommentsFor(relativePath, content);
-        violations.push(...collectTokenViolations(relativePath, stripped));
+        violations.push(
+          ...applyVendorIdentityExemption(collectTokenViolations(relativePath, stripped), isVendorIdentical)
+        );
         violations.push(...collectLineViolations(relativePath, stripped, DIST_LOADING_PATTERNS));
+        violations.push(...collectLineViolations(relativePath, stripped, DIST_NON_VENDOR_EXEMPTABLE_PATTERNS));
         if (relativePath.endsWith(".js")) {
           // Runtime network API call sites in built JS (defect A hardening).
-          violations.push(...collectLineViolations(relativePath, stripped, DIST_RUNTIME_NETWORK_PATTERNS));
-          violations.push(...collectFetchCallViolations(relativePath, stripped));
+          violations.push(
+            ...applyVendorIdentityExemption(
+              collectLineViolations(relativePath, stripped, DIST_RUNTIME_NETWORK_PATTERNS),
+              isVendorIdentical
+            )
+          );
+          violations.push(
+            ...applyVendorIdentityExemption(
+              collectFetchCallViolations(relativePath, stripped),
+              isVendorIdentical
+            )
+          );
         } else if (relativePath.endsWith(".html")) {
           // Runtime network API call sites inside inline <script> bodies of
           // built HTML (defect C seam: bodies are located with the lexical
           // scanner, so browser-tolerated closing tags such as `</script >`
           // or `</script\t\n bar>` do not hide their bodies from the scan).
-          violations.push(...collectInlineScriptBodyViolations(relativePath, stripped, DIST_RUNTIME_NETWORK_PATTERNS));
+          violations.push(
+            ...applyVendorIdentityExemption(
+              collectInlineScriptBodyViolations(relativePath, stripped, DIST_RUNTIME_NETWORK_PATTERNS),
+              isVendorIdentical
+            )
+          );
         }
       }
       distFilesScanned = distFiles.length;
@@ -876,6 +1023,63 @@ function runSelfTest() {
     assertCase("case-16-dist-html-unterminated-clean", {
       "dist/index.html": `<!doctype html><html><body><script>console.log("hello");`
     }, { expectExit1: false });
+
+    // 17. VENDOR-IDENTITY EXEMPTION (T06 #10): a dist file byte-identical to
+    // a governed asset (sha256 declared in a sandbox scripts/ci/
+    // vendor-manifest.json AND present under lib/) containing XMLHttpRequest
+    // and importScripts call sites — plus a denylist-token false positive
+    // shaped like the real one (the identifier `hasXfaDatasetsEntry`
+    // contains "sentry") — passes the runtime-network token rules and the
+    // denylist. The sandbox mirrors the real layout deterministically.
+    {
+      const vendorBundleContent = [
+        "var hasXfaDatasetsEntry = 0;",
+        "var legacyStream = {",
+        "  xhr: function () { var r = new XMLHttpRequest(); r.open('GET', '/same-origin/data'); r.send(); return r; },",
+        "  importUp: function (u) { importScripts(u); }",
+        "};",
+        ""
+      ].join("\n");
+      const vendorSha = sha256Hex(Buffer.from(vendorBundleContent, "utf8"));
+      assertCase("case-17-vendor-identical-tokens-clean", {
+        "lib/vendor-bundle.js": vendorBundleContent,
+        "scripts/ci/vendor-manifest.json": JSON.stringify([
+          { path: "lib/vendor-bundle.js", sha256: vendorSha }
+        ]),
+        "dist/assets/vendor-bundle.js": vendorBundleContent
+      }, { expectExit1: false });
+    }
+
+    // 18. VENDOR-IDENTITY EXEMPTION IS NARROW: a dist file byte-identical to
+    // a governed asset that ALSO carries remote-loading references
+    // (src="https://...", a wss:// literal) MUST STILL FAIL those rules,
+    // and only those: the runtime-network token rules stay exempted for the
+    // same bytes, so no unexpected rule may appear either.
+    {
+      const vendorRemoteContent = [
+        "var shim = '<script src=\"https://evil.example/t.js\"></script>';",
+        "var target = \"wss://evil.example/phi\";",
+        "var r = new XMLHttpRequest();",
+        ""
+      ].join("\n");
+      const vendorSha = sha256Hex(Buffer.from(vendorRemoteContent, "utf8"));
+      assertCase("case-18-vendor-identical-remote-still-fails", {
+        "lib/vendor-bundle.js": vendorRemoteContent,
+        "scripts/ci/vendor-manifest.json": JSON.stringify([
+          { path: "lib/vendor-bundle.js", sha256: vendorSha }
+        ]),
+        "dist/assets/vendor-bundle.js": vendorRemoteContent
+      }, { rules: { "dist-src-remote": 1, "dist-ws-url": 1 } });
+    }
+
+    // 19. NON-VENDOR DIST TOKENS STILL FAIL: the same runtime-network tokens
+    // and the same denylist false-positive identifier in a dist file that is
+    // NOT byte-identical to any governed asset are flagged exactly as before
+    // (i.e. the exemption is identity-scoped, not a blanket relaxation).
+    assertCase("case-19-nonvendor-tokens-fail", {
+      "dist/assets/worker-bootstrap.js":
+        "importScripts('/x.js');\nnew XMLHttpRequest();\nvar hasXfaDatasetsEntry = 0;\n"
+    }, { rules: { "dist-xmlhttprequest": 1, "dist-importscripts": 1, "token:sentry": 1 } });
   } finally {
     // Leave no temp dirs behind, even when a case throws.
     if (sandboxExists) {
@@ -952,6 +1156,7 @@ console.log(
     "Fuente: " + sourceFilesScanned + " archivos escaneados (tokens: " + DENYLIST_TOKENS.length +
     ", patrones remotos: " + REMOTE_LOADING_PATTERNS.length + ", console.*: si), " +
     distInfoLine + ", reglas de red runtime en dist: " +
-    (DIST_RUNTIME_NETWORK_PATTERNS.length + 1) + " (incluye fetch por call-site), " +
+    (DIST_RUNTIME_NETWORK_PATTERNS.length + DIST_NON_VENDOR_EXEMPTABLE_PATTERNS.length + 1) +
+    " (incluye fetch por call-site y dist-ws-url no exento), " +
     "allowlist: " + ALLOWED_EXCEPTIONS.size + " excepciones autorizadas."
 );

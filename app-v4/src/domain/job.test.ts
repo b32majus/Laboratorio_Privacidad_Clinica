@@ -135,6 +135,146 @@ describe("createJob", () => {
   });
 });
 
+describe("document extraction contract (T06)", () => {
+  function extractedFile(name: string, extension: string, text: string) {
+    return {
+      name,
+      extension,
+      extraction: { status: "extracted" as const, extractedText: text },
+    };
+  }
+
+  function failedFile(name: string, extension: string, code: string, message: string) {
+    return {
+      name,
+      extension,
+      extraction: { status: "failed" as const, error: { code, message } },
+    };
+  }
+
+  it("keeps successful extraction state on the created job, frozen", () => {
+    const job = createJob({
+      type: "files",
+      files: [extractedFile("note.txt", "txt", "Synthetic note.")],
+    });
+    expect(job.kind).toBe("document");
+    if (job.source.type !== "files") throw new Error("unreachable: a files job source is expected");
+    const sourceFile = job.source.files[0];
+    expect(sourceFile.extraction).toEqual({
+      status: "extracted",
+      extractedText: "Synthetic note.",
+    });
+    expect(Object.isFrozen(job.source)).toBe(true);
+    expect(Object.isFrozen(job.source.files)).toBe(true);
+    expect(Object.isFrozen(sourceFile)).toBe(true);
+  });
+
+  it("refuses a document job whose required file failed extraction (fail-closed)", () => {
+    const failureMessage =
+      'The DOCX file "broken.docx" could not be parsed; it may be corrupt or not a valid DOCX document.';
+    try {
+      createJob({
+        type: "files",
+        files: [failedFile("broken.docx", "docx", "extraction-failed", failureMessage)],
+      });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("extraction-failed");
+      expect((error as JobModelError).message).toContain('"broken.docx"');
+      expect((error as JobModelError).message).toContain("could not be used");
+    }
+  });
+
+  it("propagates pdf-no-text-layer as a typed job error", () => {
+    try {
+      createJob({
+        type: "files",
+        files: [
+          failedFile(
+            "scan.pdf",
+            "pdf",
+            "pdf-no-text-layer",
+            "The PDF contains no extractable text."
+          ),
+        ],
+      });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("pdf-no-text-layer");
+    }
+  });
+
+  it("names every failing file when a batch contains failures", () => {
+    try {
+      createJob({
+        type: "files",
+        files: [
+          extractedFile("good.txt", "txt", "Synthetic good note."),
+          failedFile(
+            "scan.pdf",
+            "pdf",
+            "pdf-no-text-layer",
+            "The PDF contains no extractable text."
+          ),
+          failedFile("broken.docx", "docx", "extraction-failed", "Could not be parsed."),
+        ],
+      });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      const message = (error as JobModelError).message;
+      expect(message).toContain('"scan.pdf"');
+      expect(message).toContain('"broken.docx"');
+      expect(message).toContain("no job was created");
+    }
+  });
+
+  it("maps an empty TXT extraction to the empty-input job error", () => {
+    try {
+      createJob({
+        type: "files",
+        files: [
+          failedFile("empty.txt", "txt", "empty-input", 'The TXT file "empty.txt" is empty.'),
+        ],
+      });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("empty-input");
+    }
+  });
+
+  it("still rejects legacy .doc by classification, before the extraction guard", () => {
+    try {
+      createJob({
+        type: "files",
+        files: [
+          failedFile(
+            "old.doc",
+            "doc",
+            "unsupported-format",
+            'Legacy Word ".doc" files are not supported.'
+          ),
+        ],
+      });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("unsupported-file-type");
+      expect((error as JobModelError).message).toMatch(/\.doc/);
+    }
+  });
+
+  it("still allows metadata-only document files without extraction state", () => {
+    const job = createJob({ type: "files", files: [file("note.txt", "txt")] });
+    expect(job.kind).toBe("document");
+    if (job.source.type !== "files") throw new Error("unreachable: a files job source is expected");
+    expect(job.source.files[0].extraction).toBeUndefined();
+  });
+});
+
 describe("step transitions", () => {
   it("walks the canonical happy path up to privacy-gate", () => {
     let job = createJob(TEXT_INPUT);

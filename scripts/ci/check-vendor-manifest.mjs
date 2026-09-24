@@ -99,9 +99,38 @@ for (const [index, entry] of manifest.entries()) {
   if (typeof entry.upstream !== "string" || entry.upstream.length === 0) {
     violations.push(entry.path + ": falta 'upstream'");
   }
+
+  // Byte-identical copy entries (T06 #10): the asset must be a verbatim copy
+  // of another governed file, proven by hash equality at scan time.
+  if (entry.copyOf !== undefined) {
+    if (typeof entry.copyOf !== "string" || entry.copyOf.length === 0) {
+      violations.push(entry.path + ": 'copyOf' debe ser la ruta del fichero gobernado del que es copia");
+    } else {
+      const sourceAbsPath = path.resolve(repoRoot, entry.copyOf);
+      if (!fs.existsSync(sourceAbsPath) || !fs.statSync(sourceAbsPath).isFile()) {
+        violations.push(
+          entry.path + ": 'copyOf' apunta a un fichero inexistente (" + entry.copyOf + ")"
+        );
+      } else {
+        const sourceHash = sha256File(sourceAbsPath);
+        if (sourceHash !== actualHash) {
+          violations.push(
+            entry.path +
+              ": no es byte-idéntico a su 'copyOf' " +
+              entry.copyOf +
+              " (copia " +
+              actualHash +
+              ", origen " +
+              sourceHash +
+              ")"
+          );
+        }
+      }
+    }
+  }
 }
 
-for (const vendoredDir of ["lib", "fonts"]) {
+for (const vendoredDir of ["lib", "fonts", "app-v4/public/vendor"]) {
   const dirAbsPath = path.join(repoRoot, vendoredDir);
   if (!fs.existsSync(dirAbsPath)) continue;
   const files = getAllFiles(dirAbsPath).map((f) => path.normalize(path.relative(repoRoot, f)));
@@ -119,5 +148,5 @@ if (violations.length > 0) {
 console.log(
   "OK: vendor manifest verificado (" +
     manifest.length +
-    " entradas, hashes y cobertura de lib/ y fonts/ correctos)."
+    " entradas, hashes y cobertura de lib/, fonts/ y app-v4/public/vendor/ correctos)."
 );
