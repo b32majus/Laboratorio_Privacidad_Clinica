@@ -27,7 +27,7 @@ const exportModules = [
   'js/batch-structured/xlsx-exporter.js',
 ];
 
-const docFiles = ['README.md'];
+const docFiles = ['README.md', 'GUIA_OPERACION.md'];
 
 function listAppV4Sources() {
   const srcDir = path.join(root, 'app-v4', 'src');
@@ -94,6 +94,18 @@ const claimPatterns = [
     pattern:
       /conforme\s+a\s+los\s+principios\s+del\s+(rgpd|gdpr)|cumple\s+con\s+(el\s+)?(rgpd|gdpr|lopdgdd|hipaa)|compliant\s+with\s+(gdpr|hipaa)/i,
   },
+  // Positive anonymization-as-function claims. These patterns are narrow on
+  // purpose: legitimate disclaimer lines ("la anonimización final recae...",
+  // "NO constituye anonimización", "no como certificación ... de anonimización")
+  // must not match, so each pattern locks one audited positive claim shape.
+  {
+    name: 'anonymization-as-function claim',
+    pattern:
+      /anonimizaci[óo]n\s+(m[áa]s\s+agresiva|consistente|automatizad[oa])/i,
+  },
+  { name: 'anonymized-output claim', pattern: /salida\s+anonimizad[oa]/i },
+  { name: 'must-be-anonymized claim', pattern: /(debe|deben)\s+ser\s+anonimizad[oa]s?/i },
+  { name: 'automated-anonymization claim', pattern: /automatizar\s+parte\s+de\s+la\s+anonimizaci[óo]n/i },
 ];
 
 // Generated outputs (PDF/XLSX/ZIP) must use preparación/seudonimización
