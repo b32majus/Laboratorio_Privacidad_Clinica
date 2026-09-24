@@ -368,7 +368,7 @@
 
                 <div>
                     <label class="block text-sm font-semibold text-stone-700 dark:text-stone-300 mb-2">Texto
-                        Anonimizado:</label>
+                        Seudonimizado:</label>
                     <input type="text" id="modal-edit-input"
                         class="w-full px-4 py-3 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                         placeholder="Editar texto...">
@@ -696,19 +696,21 @@
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(14);
                     doc.setTextColor(5, 150, 105);
-                    doc.text("Metodología de Anonimización", margin, y);
+                    doc.text("Metodología de Preparación", margin, y);
                     y += 10;
 
                     doc.setFont("helvetica", "normal");
                     doc.setFontSize(10);
                     doc.setTextColor(60);
                     const methodologyText = [
-                        "Este documento certifica que el texto clínico original ha sido sometido a un proceso de anonimización automatizado siguiendo los siguientes principios:",
+                        "Este documento resume el procesamiento automatizado aplicado al texto clínico original.",
+                        "Es un registro de preparación y seudonimización; NO certifica anonimización ni garantiza",
+                        "cumplimiento normativo. Principios aplicados:",
                         "",
                         "1. Sustitución (Pseudonimización):",
                         "   Los nombres propios de pacientes y profesionales han sido reemplazados por equivalentes sintéticos o etiquetas genéricas para preservar la legibilidad sin revelar identidades reales.",
                         "",
-                        "2. Generalización (K-anonimato):",
+                        "2. Generalización:",
                         "   Las edades específicas y fechas precisas se han generalizado a rangos o tiempos relativos (ej. '40-49 años' o 'hace 2 años') para reducir el riesgo de re-identificación.",
                         "",
                         "3. Supresión:",
@@ -852,15 +854,16 @@
                     doc.setFontSize(10);
                     doc.setTextColor(100);
                     doc.setFont("helvetica", "bold");
-                    doc.text("Certificación de Proceso", margin, y);
+                    doc.text("Registro de Proceso", margin, y);
                     y += 8;
 
                     doc.setFont("helvetica", "normal");
                     doc.setFontSize(9);
                     const certText = [
-                        "Este informe certifica que el texto clínico adjunto ha sido procesado mediante el",
-                        "Sanitizador Clínico desarrollado por Sophilux, aplicando técnicas de anonimización",
-                        "automatizadas conforme a los principios del RGPD y LOPDGDD.",
+                        "Este informe resume el procesamiento automatizado aplicado al texto clínico adjunto mediante",
+                        "el Sanitizador Clínico desarrollado por Sophilux: sustitución de identificadores directos",
+                        "por seudónimos y supresión/generalización de cuasi-identificadores. NO constituye",
+                        "anonimización y NO garantiza cumplimiento normativo.",
                         "",
                         "La tabla de transformaciones anterior documenta cada cambio realizado para garantizar",
                         "la trazabilidad del proceso. Las notas de revisión reflejan las decisiones del profesional",

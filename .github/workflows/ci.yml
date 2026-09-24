@@ -26,8 +26,11 @@ jobs:
       - name: Check sensitive storage policy
         run: node scripts/ci/check-storage-policy.mjs
 
+      - name: Positioning copy claims
+        run: npm run check:positioning
+
       - name: Smoke anonymization
-        run: node --experimental-default-type=module scripts/ci/smoke-anonymization.mjs
+        run: node scripts/ci/smoke-anonymization.mjs
 
       - name: "Contract tests: ReviewSession domain"
         run: npm run test:domain
@@ -50,6 +53,23 @@ jobs:
 
       - name: Build V4 app (legacy Tailwind + Vite)
         run: npm run build
+
+      - name: Check V4 external resources
+        run: npm run check:external
+
+      - name: Check vendor manifest integrity
+        run: npm run check:vendor
+
+      - name: Check PDF.js eval guard (CVE-2024-4367)
+        run: npm run check:pdfjs
+
+      - name: Adversarial oracle self-tests (planted violations)
+        run: |
+          npm run check:external:selftest
+          npm run check:pdfjs:selftest
+
+      - name: Check V4 formatting
+        run: npm run format:check:v4
 
       - name: Typecheck V4 app
         run: npm run typecheck:v4

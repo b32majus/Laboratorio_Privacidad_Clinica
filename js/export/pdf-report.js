@@ -131,12 +131,12 @@ export class PDFReportGenerator {
         doc.setFontSize(9);
         doc.setTextColor(107, 99, 93);
         const aviso = [
-            'Este informe documenta el procesamiento realizado pero NO garantiza',
-            'la anonimización completa del texto. La responsabilidad final de verificar',
+            'Este informe documenta el procesamiento realizado pero NO elimina por completo',
+            'el riesgo de reidentificación. La responsabilidad final de verificar',
             'la adecuación del resultado recae en el profesional usuario.',
             '',
             'Esta herramienta es un asistente de aprendizaje,',
-            'no un sistema certificado de anonimización.'
+            'no un sistema certificado para uso clínico.'
         ];
 
         aviso.forEach(line => {

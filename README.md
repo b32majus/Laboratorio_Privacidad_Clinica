@@ -44,7 +44,7 @@ El sistema ahora genera **texto coherente y legible** en lugar de marcadores con
 - Preserva la información temporal clínica sin revelar fechas absolutas
 
 ### 🧱 Modo Estricto (Nuevo)
-- Activa una anonimización más agresiva desde `input.html` y `batch.html`.
+- Activa una preparación más agresiva desde `input.html` y `batch.html`.
 - Suprime cuasi-identificadores con marcador `[dato_sensible]`.
 - Generaliza más la geografía (`Zona Geografica` / `Centro Sanitario`) para reducir riesgo residual.
 
@@ -87,7 +87,7 @@ Ahora detecta y elimina:
 ### 📊 Modo Batch (Datos Estructurados)
 - **Soporte CSV/Excel:** Procesa múltiples registros simultáneamente.
 - **Detección automática de cabeceras:** Salta filas explicativas.
-- **Anonimización Consistente:** Mantiene coherencia para estudios longitudinales.
+- **Seudonimización Consistente:** Mantiene coherencia para estudios longitudinales.
 - **Tabla de Correspondencia:** Genera archivo de mapeo para re-identificación controlada.
 
 ### 🔒 Privacidad y Seguridad

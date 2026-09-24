@@ -5,7 +5,7 @@
 2. Elegir `Texto clínico` o `Datos estructurados`.
 3. Si el caso es sensible (enfermedad rara/cargo público), activar `Modo estricto`.
 4. Procesar y revisar resultados manualmente.
-5. Exportar salida anonimizada.
+5. Exportar salida preparada.
 6. Pulsar `Borrar sesion` al terminar.
 
 ## 2. Política de privacidad operativa

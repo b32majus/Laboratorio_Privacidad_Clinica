@@ -14,7 +14,7 @@ async function exportConsolidatedPDF(documents, mapperData) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(24);
   doc.setTextColor(5, 150, 105);
-  doc.text("Informe Batch - Anonimización Clínica", margin, y);
+  doc.text("Informe Batch - Preparación Clínica", margin, y);
   y += 15;
 
   doc.setFontSize(12);
@@ -175,15 +175,15 @@ async function exportConsolidatedPDF(documents, mapperData) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(5, 150, 105);
-  doc.text("Certificación de Procesamiento Batch", margin, y);
+  doc.text("Registro de Procesamiento Batch", margin, y);
   y += 10;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(0);
   const certText = [
-    "Este informe certifica que los documentos clínicos han sido procesados mediante el",
-    "Sanitizador Clínico (Modo Batch Premium) desarrollado por Sophilux.",
+    "Este informe resume el procesamiento automatizado de los documentos clínicos",
+    "mediante el Sanitizador Clínico (Modo Batch Premium) desarrollado por Sophilux.",
     "",
     "El procesamiento batch garantiza:",
     "• Consistencia en mapeos entre documentos (si configurado)",
@@ -223,7 +223,7 @@ async function exportIndividualPDFs(documents) {
     const pdfBlob = pdf.output('blob');
 
     // Añadir al ZIP
-    const filename = document.name.replace(/\.[^.]+$/, '') + '_anonimizado.pdf';
+    const filename = document.name.replace(/\.[^.]+$/, '') + '_preparado.pdf';
     zip.file(filename, pdfBlob);
   }
 
@@ -356,15 +356,16 @@ async function generateSinglePDF(document, docNumber) {
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.setFont("helvetica", "bold");
-  doc.text("Certificación de Proceso", margin, y);
+  doc.text("Registro de Proceso", margin, y);
   y += 8;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   const certText = [
-    "Este informe certifica que el texto clínico adjunto ha sido procesado mediante el",
-    "Sanitizador Clínico desarrollado por Sophilux, aplicando técnicas de anonimización",
-    "automatizadas conforme a los principios del RGPD y LOPDGDD."
+    "Este informe resume el procesamiento automatizado aplicado al texto clínico adjunto",
+    "mediante el Sanitizador Clínico (Sophilux): sustitución de identificadores directos por",
+    "seudónimos y supresión/generalización de cuasi-identificadores. El resultado es un",
+    "texto seudonimizado y no garantiza cumplimiento normativo."
   ];
 
   certText.forEach(line => {
