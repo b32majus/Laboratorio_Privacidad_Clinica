@@ -9,7 +9,8 @@
  *
  * Decision statuses:
  *   - 'pending'   initial implicit state (no stored decision yet)
- *   - 'accepted'  use the engine/manual proposal (`proposed`, may be '' for deletions)
+ *   - 'accepted'  use the engine/manual proposal (`proposed`, may be '' for
+ *                 deletions); rejected for detections without a proposal
  *   - 'modified'  explicit replacement text supplied by the reviewer
  *   - 'restored'  keep the original span; an explicit completed decision that
  *                 stays visible in progress data (Privacy Gate warnings)
@@ -214,11 +215,20 @@ export function getDecision(session, id) {
  */
 export function applyDecision(session, id, decision, extras = {}) {
   assertSession(session);
-  findDetection(session, id); // validate the id belongs to this session
+  const detection = findDetection(session, id); // validate the id belongs to this session
   if (!DECISION_STATUSES.has(decision)) {
     throw new ReviewSessionError(
       'INVALID_DECISION',
       `unknown decision status: ${String(decision)} (expected one of ${[...DECISION_STATUSES].join(', ')})`,
+    );
+  }
+  // Accepted means accepting an EXISTING proposal. A detection without one
+  // (e.g. a manual detection) must not be completable via 'accepted'; the
+  // deletion encoding (proposed === '') is a valid proposal and stays so.
+  if (decision === 'accepted' && detection.proposed === undefined) {
+    throw new ReviewSessionError(
+      'INVALID_DECISION',
+      `decision 'accepted' requires an existing proposal; detection ${id} has no proposal (use 'modified' with a replacement, or 'restored')`,
     );
   }
   if (extras.note !== undefined && typeof extras.note !== 'string') {

@@ -287,6 +287,64 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
   });
 });
 
+describe("ReviewWorkspace — accepted requires an existing proposal (C1)", () => {
+  /** Manual detection over the NHC span: no proposal (proposed === undefined). */
+  function manualNoProposalSession(): ReviewSession {
+    const base = createReviewSession({
+      originalText: SOURCE,
+      sessionId: "manual-c1",
+      detections: [],
+    });
+    return addManualDetection(base, { start: NHC_START, end: NHC_END, type: "SOSPECHOSO" });
+  }
+
+  it("cannot accept a detection without a proposal: the action is disabled and inert", () => {
+    const sessionRef = { current: manualNoProposalSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(detectionSpanButton("2024/089756"));
+    const accept = screen.getByRole("button", { name: /accept detection/i });
+    expect(accept).toBeDisabled();
+    // Clicking the disabled action records no decision (domain unchanged).
+    fireEvent.click(accept);
+    expect(Object.keys(sessionRef.current.decisions)).toHaveLength(0);
+    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+      "Pending: 1"
+    );
+    // The block is explained factually, not by color alone.
+    expect(accept).toHaveAccessibleDescription(/no proposal/i);
+  });
+
+  it("still completes a proposal-less detection legitimately via modification", () => {
+    const sessionRef = { current: manualNoProposalSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(detectionSpanButton("2024/089756"));
+    fireEvent.change(screen.getByLabelText("Replacement"), {
+      target: { value: "ID-REEMPLAZO" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /apply modification/i }));
+    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+      "Modified: 1"
+    );
+    const preview = screen.getByLabelText(/preview derived from the review session/i);
+    expect(preview).toHaveTextContent("ID-REEMPLAZO");
+    expect(preview).not.toHaveTextContent("2024/089756");
+  });
+
+  it('keeps Accept working for a detection WITH a proposal (including deletion "")', () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(detectionSpanButton("612345678")); // proposed === "" (deletion)
+    const accept = screen.getByRole("button", { name: /accept detection/i });
+    expect(accept).toBeEnabled();
+    fireEvent.click(accept);
+    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+      "Accepted: 1"
+    );
+    const preview = screen.getByLabelText(/preview derived from the review session/i);
+    expect(preview).not.toHaveTextContent("612345678");
+  });
+});
+
 describe("ReviewWorkspace — transient UI state never certifies or mutates review state", () => {
   it("rerendering and changing filters leave the session untouched", () => {
     const sessionRef = { current: buildSession() };

@@ -239,6 +239,75 @@ describe("deterministic TXT serialization", () => {
   });
 });
 
+/**
+ * Corrective C1 oracle session: one manual detection over a planted
+ * synthetic sensitive value, with NO proposal (proposed === undefined).
+ * Through `accepted` this detection must never complete the review.
+ */
+function manualNoProposalSession(): ReviewSession {
+  const text = `Informe: SECRETO-123 al final.`;
+  const start = text.indexOf("SECRETO-123");
+  return createReviewSession({
+    originalText: text,
+    sessionId: "c1-manual-no-proposal",
+    detections: [
+      {
+        type: "SOSPECHOSO",
+        start,
+        end: start + "SECRETO-123".length,
+        source: "manual",
+        requiresReview: true,
+      },
+    ],
+  });
+}
+
+describe("corrective C1: accepted cannot complete a detection without a proposal", () => {
+  const PLANTED = "SECRETO-123";
+
+  it("accepted throws and Safe Output stays unbuildable (fail-closed)", () => {
+    const session = manualNoProposalSession();
+    const id = session.detections[0].id;
+    expect(session.detections[0].proposed).toBeUndefined();
+    expect(() => applyDecision(session, id, "accepted")).toThrowError(ReviewSessionError);
+    try {
+      applyDecision(session, id, "accepted");
+      throw new Error("expected applyDecision accepted to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ReviewSessionError);
+      expect((error as ReviewSessionError).code).toBe("INVALID_DECISION");
+    }
+    // The rejected call recorded nothing: the review cannot complete...
+    expect(getProgress(session).canFinalize).toBe(false);
+    // ...so no completed Safe Output can exist, serialized or not.
+    expect(() => buildSafeOutput(session)).toThrowError(ReviewSessionError);
+    expect(() => serializeSafeOutput(buildSafeOutput(session))).toThrowError();
+  });
+
+  it("legitimate path: modified replacement removes the planted value from the serialized Safe Output", () => {
+    const session = manualNoProposalSession();
+    const id = session.detections[0].id;
+    const next = applyDecision(session, id, "modified", { replacement: "[REEMPLAZO]" });
+    expect(getProgress(next).canFinalize).toBe(true);
+    const serialized = serializeSafeOutput(buildSafeOutput(next));
+    expect(serialized).not.toContain(PLANTED);
+    expect(serialized).toContain("[REEMPLAZO]");
+  });
+
+  it("legitimate path: restored keeps the value as an explicit, visible completed decision", () => {
+    const session = manualNoProposalSession();
+    const id = session.detections[0].id;
+    const next = applyDecision(session, id, "restored", { note: "contexto clínico" });
+    const progress = getProgress(next);
+    expect(progress.canFinalize).toBe(true);
+    expect(progress.restored).toBe(1);
+    expect(progress.restoredDetections.map((d) => d.id)).toEqual([id]);
+    // Explicit preservation stays visible; it is never a silent drop.
+    const output = buildSafeOutput(next);
+    expect(serializeSafeOutput(output)).toContain(PLANTED);
+  });
+});
+
 describe("isSafeOutput structural guard", () => {
   it("accepts a real output and rejects non-output shapes", () => {
     const output = buildSafeOutput(completedSession());

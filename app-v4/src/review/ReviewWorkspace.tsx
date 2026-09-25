@@ -531,13 +531,36 @@ function InspectorPane(props: {
 
       {selected && (
         <div className="mt-3 space-y-3 border-t border-primary pt-3">
-          <button
-            type="button"
-            onClick={() => props.onDecide(selected.id, "accepted")}
-            className={`w-full rounded bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
-          >
-            Accept detection
-          </button>
+          {selected.proposed === undefined ? (
+            <>
+              {/*
+                Corrective C1: 'accepted' completes an EXISTING proposal; a
+                detection without one must not offer a working Accept action.
+                The factual reason is visible text (never color alone) and
+                linked via aria-describedby; modification/restore stay
+                available so the review can still be completed legitimately.
+              */}
+              <button
+                type="button"
+                disabled
+                aria-describedby="accept-no-proposal-note"
+                className={`w-full cursor-not-allowed rounded bg-neutral-200 px-3 py-1.5 text-sm font-semibold text-neutral-600 ${focusRing}`}
+              >
+                Accept detection
+              </button>
+              <p id="accept-no-proposal-note" className="text-xs text-neutral-700">
+                No proposal to accept: apply a modification or keep the original.
+              </p>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => props.onDecide(selected.id, "accepted")}
+              className={`w-full rounded bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+            >
+              Accept detection
+            </button>
+          )}
           <div>
             <label
               htmlFor="replacement-input"
