@@ -35,7 +35,11 @@ function buildJob(): Job {
   return createJob({ type: "pasted-text", text: SOURCE });
 }
 
-/** Deterministic two-detection session built through the real domain API. */
+/**
+ * Deterministic two-detection session built through the real domain API.
+ * FECHA is a non-direct detection type: aggregate decision counts over the
+ * session must stay neutrally worded for it (corrective C2).
+ */
 function buildSession(): ReviewSession {
   return createReviewSession({
     originalText: SOURCE,
@@ -54,6 +58,33 @@ function buildSession(): ReviewSession {
         end: PHONE_END,
         confidence: 0.9,
         proposed: "ID-1",
+      },
+    ],
+  });
+}
+
+/** Deterministic session whose only detections are non-direct FECHA spans. */
+function buildFechaSession(): ReviewSession {
+  const source = "Fecha de nacimiento: 12/03/1984. Fecha de visita: 02/06/2024.";
+  const first = source.indexOf("12/03/1984");
+  const second = source.indexOf("02/06/2024");
+  return createReviewSession({
+    originalText: source,
+    sessionId: "privacy-gate-fecha-test",
+    detections: [
+      {
+        type: "FECHA",
+        start: first,
+        end: first + "12/03/1984".length,
+        confidence: 0.9,
+        proposed: "[FECHA-1]",
+      },
+      {
+        type: "FECHA",
+        start: second,
+        end: second + "02/06/2024".length,
+        confidence: 0.9,
+        proposed: "[FECHA-2]",
       },
     ],
   });
@@ -105,13 +136,39 @@ describe("PrivacyGate (T08 U3)", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     const summary = screen.getByRole("group", { name: /review summary/i });
-    expect(summary).toHaveTextContent("Accepted: 1");
-    expect(summary).toHaveTextContent("Modified: 1");
+    expect(summary).toHaveTextContent("Accepted replacements: 1");
+    expect(summary).toHaveTextContent("Modified replacements: 1");
     expect(summary).toHaveTextContent("Manual detections: 0");
 
     // Availability derived from the job's outputs (written by the bridge).
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });
+
+  it(
+    "keeps treated-count wording neutral for a completed non-direct type (FECHA): " +
+      "no direct-identifier classification claim anywhere (corrective C2)",
+    () => {
+      const job = buildJob();
+      let review = buildFechaSession();
+      review = applyDecision(review, review.detections[0].id, "accepted");
+      review = applyDecision(review, review.detections[1].id, "modified", {
+        replacement: "[FECHA-2-EDITADA]",
+      });
+      const { container } = renderGate(withBridgeOutputs(job, review), review);
+
+      const summary = screen.getByRole("group", { name: /review summary/i });
+      // Neutral, factual aggregate wording: counts over ALL detection types.
+      expect(summary).toHaveTextContent("Detections treated:");
+      expect(summary).toHaveTextContent("Accepted replacements: 1");
+      expect(summary).toHaveTextContent("Modified replacements: 1");
+
+      // The direct-identifier classification claim must be gone from the
+      // whole rendered output, not only from the summary list.
+      expect(container.textContent ?? "").not.toMatch(/direct identifier/i);
+
+      expect(screen.getByText("Ready")).toBeInTheDocument();
+    }
+  );
 
   it("shows a kept-original warning per restored detection, phrased as a completed decision, not leakage", () => {
     const job = buildJob();

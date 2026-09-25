@@ -54,7 +54,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         Privacy Gate
       </h2>
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Factual state of the review before export: treated identifiers, pending decisions, manual
+        Factual state of the review before export: reviewed detections, pending decisions, manual
         detections, kept originals, job errors and the policy in effect.
       </p>
 
@@ -115,14 +115,14 @@ function ReviewSummary({ view }: { view: PrivacyGateView }): ReactElement {
         aria-label="Review summary facts"
         className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
       >
-        <dt className="font-semibold">Direct identifiers treated:</dt>
+        <dt className="font-semibold">Detections treated:</dt>
         <dd>
-          {view.treatedAccepted} accepted, {view.treatedModified} modified
+          {view.reviewedAccepted} accepted, {view.reviewedModified} modified
         </dd>
-        <dt className="font-semibold">Accepted:</dt>
-        <dd> {view.treatedAccepted}</dd>
-        <dt className="font-semibold">Modified:</dt>
-        <dd> {view.treatedModified}</dd>
+        <dt className="font-semibold">Accepted replacements:</dt>
+        <dd> {view.reviewedAccepted}</dd>
+        <dt className="font-semibold">Modified replacements:</dt>
+        <dd> {view.reviewedModified}</dd>
         <dt className="font-semibold">Manual detections:</dt>
         <dd> {view.manualDetections}</dd>
         <dt className="font-semibold">Kept originals (restored):</dt>

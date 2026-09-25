@@ -32,9 +32,15 @@ export type PrivacyGateView = {
   readonly complete: boolean;
   /** Mandatory decisions still pending (fail-closed export gate). */
   readonly pendingCount: number;
-  /** Direct identifiers treated: accepted + modified decision counts. */
-  readonly treatedAccepted: number;
-  readonly treatedModified: number;
+  /**
+   * Aggregate decision counts over ALL detection types (accepted = the
+   * proposed replacement was applied; modified = an edited replacement was
+   * applied). These are neutral review-progress facts: they carry NO
+   * direct/quasi-identifier classification claim (corrective C2; taxonomy
+   * ownership stays with T11/T12).
+   */
+  readonly reviewedAccepted: number;
+  readonly reviewedModified: number;
   /** Manual detections recorded in the session. */
   readonly manualDetections: number;
   /** Restored originals — each one also yields a kept-original warning. */
@@ -81,8 +87,8 @@ export function derivePrivacyGateView(job: Job, review: ReviewSession): PrivacyG
     policyId: job.policyId,
     complete,
     pendingCount: pending.length,
-    treatedAccepted: progress.accepted,
-    treatedModified: progress.modified,
+    reviewedAccepted: progress.accepted,
+    reviewedModified: progress.modified,
     manualDetections: progress.manual,
     restoredCount: progress.restored,
     warnings,
