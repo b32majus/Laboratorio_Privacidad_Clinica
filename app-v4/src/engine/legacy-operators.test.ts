@@ -163,7 +163,7 @@ afterEach(() => {
 });
 
 describe("operator registry contracts (legacy composition)", () => {
-  it("registers the five legacy operators under stable keys and lists them deterministically", () => {
+  it("registers the default operator set (legacy + V4 AGE) under stable keys, deterministically", () => {
     const registry = createLegacyOperatorRegistry();
     expect(registry.keys()).toEqual([...registry.keys()].sort());
     expect(registry.keys()).toEqual([
@@ -172,6 +172,7 @@ describe("operator registry contracts (legacy composition)", () => {
       "legacy.keep",
       "legacy.pseudonymize",
       "legacy.redact",
+      "v4.age-generalize",
     ]);
     expect([...registry.keys()]).toEqual([...registry.keys()]);
     for (const key of Object.values(LEGACY_OPERATOR_KEYS)) {

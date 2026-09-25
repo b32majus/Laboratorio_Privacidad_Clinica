@@ -10,12 +10,14 @@
  * No-invented-semantics boundary (SPEC §6; CURRENT_DECISIONS.md D-007): the
  * only accepted transformation authority today is the legacy
  * `Processor.transformEntity` switch (js/core/processor.js), mirrored per
- * category by the WU2a operators. `standard` and `strict` resolve to the two
- * legacy `modoEstricto` profiles (false/true) with the identical
- * category→operator mapping; `external-ai` and `longitudinal-research` have
- * NO accepted per-category operator mapping yet (T12/T13 own AGE and date
- * semantics), so they fail typed instead of guessing a transformation or
- * silently falling back to `standard`.
+ * category by the WU2a operators, plus the accepted T12 AGE mapping
+ * (`EDAD` → AGE_GENERALIZE, GitHub #16) shared by both profiles.
+ * `standard` and `strict` resolve to the two legacy `modoEstricto` profiles
+ * (false/true) with the identical category→operator mapping;
+ * `external-ai` and `longitudinal-research` have NO accepted per-category
+ * operator mapping yet (T13 owns longitudinal date semantics), so they fail
+ * typed instead of guessing a transformation or silently falling back to
+ * `standard`.
  *
  * Deliberately out of scope: review/requiresReview semantics (ARCH-011
  * coherence is a separate work unit; D-004 keeps ReviewSession as the review
@@ -103,8 +105,10 @@ const LEGACY_STRICT_MODE: Readonly<Record<MappedPolicyId, boolean>> = Object.fre
  * The single accepted category→operator mapping, mirroring the legacy
  * `transformEntity` switch exactly (D-003: mirror, do not redesign):
  * NOMBRE→pseudonymize, IDENTIFICADOR→redact, FECHA→date-transform,
- * UBICACION→generalize, SOSPECHOSO→generalize. All values are the stable
- * keys of the existing operator registry.
+ * UBICACION→generalize, SOSPECHOSO→generalize. EDAD is the accepted T12 AGE
+ * mapping (GitHub #16): AGE_GENERALIZE, shared by standard and strict (the
+ * stricter profile deliberately does not invent a second banding scheme).
+ * All values are the stable keys of the existing operator registry.
  */
 const LEGACY_CATEGORY_OPERATOR_KEYS: PolicyCategoryOperatorKeys = Object.freeze({
   NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
@@ -112,6 +116,7 @@ const LEGACY_CATEGORY_OPERATOR_KEYS: PolicyCategoryOperatorKeys = Object.freeze(
   FECHA: LEGACY_OPERATOR_KEYS.DATE_TRANSFORM,
   UBICACION: LEGACY_OPERATOR_KEYS.GENERALIZE,
   SOSPECHOSO: LEGACY_OPERATOR_KEYS.GENERALIZE,
+  EDAD: LEGACY_OPERATOR_KEYS.AGE_GENERALIZE,
 });
 
 function freezeDeep<T>(value: T): T {
@@ -158,7 +163,7 @@ export function lookupPolicyProfile(policyId: unknown): PolicyProfile {
   if (!POLICIES_WITH_ACCEPTED_MAPPING.includes(policyId as MappedPolicyId)) {
     throw new PolicyError(
       "policy-operator-mapping-unavailable",
-      `Privacy policy "${policyId}" is known but has no accepted per-category operator mapping yet (D-007 defers exact mappings to their owning tickets; T12/T13 own AGE and date semantics). Failing closed instead of guessing a transformation or falling back to "standard".`
+      `Privacy policy "${policyId}" is known but has no accepted per-category operator mapping yet (D-007 defers exact mappings to their owning tickets; T13 owns longitudinal date semantics). Failing closed instead of guessing a transformation or falling back to "standard".`
     );
   }
   return buildProfile(policyId as MappedPolicyId);

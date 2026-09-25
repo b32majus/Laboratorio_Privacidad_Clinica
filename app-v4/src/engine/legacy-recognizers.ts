@@ -20,13 +20,14 @@
  * `transformed` values (purity guarantee: recognition never mutates the
  * transformation-side managers).
  *
- * Age composition (Work Order T12 #16, WU-A): the full-pipeline recognizer
+ * Age composition (Work Order T12 #16): the full-pipeline recognizer
  * registered under {@link LEGACY_RECOGNIZER_KEY} additionally runs
  * {@link AgeRecognizer} (SPEC §4/§8; D-010) and returns legacy observations
- * PLUS EDAD observations as one non-overlapping, start-sorted set. The
- * per-category recognizers keep filtering only their own legacy taxonomy
- * category — {@link RECOGNIZER_CATEGORIES} is intentionally NOT extended in
- * this unit (the formal taxonomy extension is WU-B). Overlap resolution is
+ * PLUS EDAD observations as one non-overlapping, start-sorted set. WU-B
+ * formally extends {@link RECOGNIZER_CATEGORIES} with `EDAD`; its category
+ * view is the same pure {@link AgeRecognizer} registered under
+ * {@link LEGACY_CATEGORY_RECOGNIZER_KEYS}.EDAD (`v4.edad`), while every other
+ * category keeps filtering the shared legacy pipeline. Overlap resolution is
  * deterministic and documented on {@link mergeRecognizedObservations}: on
  * overlap the longer span wins; tie → earlier start; remaining tie → the
  * non-EDAD (legacy) observation wins.
@@ -335,8 +336,11 @@ class LegacyCategoryRecognizer implements Recognizer {
 
 /**
  * Builds the default recognizer registry for the legacy pipeline: the full
- * adapter plus one recognizer per legacy taxonomy category, registered under
- * the stable {@link LEGACY_CATEGORY_RECOGNIZER_KEYS} keys.
+ * adapter plus one recognizer per taxonomy category, registered under the
+ * stable {@link LEGACY_CATEGORY_RECOGNIZER_KEYS} keys. The `EDAD` category is
+ * represented by the pure {@link AgeRecognizer} (`v4.edad`) — it is composed
+ * into the full adapter, not produced by the legacy detection pipeline —
+ * while every other category filters the shared legacy pipeline.
  */
 export function createLegacyRecognizerRegistry(): RecognizerRegistry {
   ensureLegacySetup();
@@ -344,6 +348,10 @@ export function createLegacyRecognizerRegistry(): RecognizerRegistry {
   registry.register(new LegacyRecognizerAdapter());
   for (const category of RECOGNIZER_CATEGORIES) {
     const key = LEGACY_CATEGORY_RECOGNIZER_KEYS[category];
+    if (category === "EDAD") {
+      registry.register(new AgeRecognizer());
+      continue;
+    }
     registry.register(new LegacyCategoryRecognizer(key, category));
   }
   return registry;

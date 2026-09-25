@@ -183,15 +183,25 @@ export class OperatorRegistry {
   }
 }
 
-/** Stable registry keys of the legacy-mirroring operators (SPEC §5 names). */
+/**
+ * Stable registry keys of the accepted transformation operators (SPEC §5
+ * names). The first five mirror the legacy `Processor.transformEntity`
+ * branches (WU2a); `AGE_GENERALIZE` is the V4 policy-owned AGE
+ * generalization operator added by T12 WU-B (`./age-operator`), selected by
+ * the standard/strict policy mapping — it is NOT a legacy branch.
+ */
 export const LEGACY_OPERATOR_KEYS: Readonly<
-  Record<"REDACT" | "PSEUDONYMIZE" | "DATE_TRANSFORM" | "GENERALIZE" | "KEEP", string>
+  Record<
+    "REDACT" | "PSEUDONYMIZE" | "DATE_TRANSFORM" | "GENERALIZE" | "KEEP" | "AGE_GENERALIZE",
+    string
+  >
 > = Object.freeze({
   REDACT: "legacy.redact",
   PSEUDONYMIZE: "legacy.pseudonymize",
   DATE_TRANSFORM: "legacy.date-transform",
   GENERALIZE: "legacy.generalize",
   KEEP: "legacy.keep",
+  AGE_GENERALIZE: "v4.age-generalize",
 });
 
 /**

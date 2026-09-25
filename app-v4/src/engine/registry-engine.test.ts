@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitutos.js";
+import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { Processor } from "../../../js/core/processor.js";
 import { createReviewSessionFromProcessor } from "../../../js/domain/from-processor.js";
 import { createLegacyEngine } from "./legacy-engine";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
 import { createRegistryEngine, SessionIdError } from "./registry-engine";
 import { OperatorRegistry, OperatorError } from "./operator-registry";
-import { lookupPolicyProfile, PolicyError } from "./policy";
+import { PolicyError } from "./policy";
 import { RecognizerError, RecognizerRegistry } from "./recognizer-registry";
 import type { LegacyEntity, LegacyProcessorResult, ProcessingContext } from "./types";
 
@@ -77,12 +78,18 @@ function comparableEntity(entity: LegacyEntity) {
 }
 
 function comparableResult(result: LegacyProcessorResult) {
+  // The composed engine adds the V4-only `edades` counter (T12 WU-B); the
+  // legacy `Processor.calculateStats` contract has no EDAD category. Strip it
+  // from the legacy parity projection (a dedicated EDAD oracle proves the
+  // V4 addition below) so the legacy key set stays bit-comparable.
+  const legacyByType: Record<string, number> = { ...result.stats.byType };
+  delete legacyByType.edades;
   return {
     original: result.original,
     processed: result.processed,
     entities: result.entities.map(comparableEntity),
     alerts: result.alerts,
-    stats: result.stats,
+    stats: { totalEntities: result.stats.totalEntities, byType: legacyByType },
   };
 }
 
@@ -633,38 +640,63 @@ describe("createRegistryEngine — session identity (PR #40 corrective C3)", () 
   });
 });
 
-describe("createRegistryEngine — WU-A AGE recognition fail-closed (D-009)", () => {
+describe("createRegistryEngine — EDAD generalization end-to-end (T12 WU-B)", () => {
   const AGE_TEXT = "La paciente refiere dolor abdominal; se registra una edad de 45 años.";
 
-  it("recognizes EDAD through the composed recognizer but refuses to guess its transformation", () => {
-    // Sanity at the recognizer boundary: the age IS recognized (recognition
-    // is policy-invariant and must not silently drop the new type).
-    const observations = createLegacyRecognizerRegistry()
-      .get(LEGACY_RECOGNIZER_KEY)
-      .observe(AGE_TEXT);
-    const edad = observations.filter((observation) => observation.type === "EDAD");
-    expect(edad).toHaveLength(1);
-    expect(edad[0].subtype).toBe("anios");
-    expect(edad[0].text).toBe("45 años");
-
-    // ...and the composed engine fails typed instead of guessing an operator
-    // or defaulting unknown classifications to KEEP.
+  it("transforms EDAD through the policy mapping in processed text (standard and strict)", () => {
     const engine = createEngine();
-    try {
-      engine.process({ text: AGE_TEXT, context: FRESH });
-      throw new Error("expected engine.process to throw");
-    } catch (error) {
-      expect(error).toBeInstanceOf(PolicyError);
-      expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+    for (const policyId of ["standard", "strict"] as const) {
+      const outcome = engine.process({ text: AGE_TEXT, context: FRESH, policyId });
+      const edad = outcome.result.entities.find((entity) => entity.type === "EDAD");
+      expect(edad).toBeDefined();
+      expect(edad?.subtype).toBe("anios");
+      expect(edad?.text).toBe("45 años");
+      expect(edad?.transformed).toBe("40–49 años");
+      // The exact source value leaks into neither the transformed field nor
+      // the generated processed text (WU-C owns the Safe Output no-leak proof).
+      expect(edad?.transformed).not.toContain("45");
+      expect(outcome.result.processed).toContain("40–49 años");
+      expect(outcome.result.processed).not.toContain("45 años");
+      // Offsets unchanged: the band replaces exactly the recognized span.
+      const start = edad?.position.start ?? -1;
+      const end = edad?.position.end ?? -1;
+      expect(AGE_TEXT.slice(start, end)).toBe("45 años");
+      expect(outcome.result.processed.slice(start, start + "40–49 años".length)).toBe("40–49 años");
     }
   });
 
-  it("documents EDAD as absent from the accepted policy mappings (no silent KEEP)", () => {
-    for (const policyId of ["standard", "strict"] as const) {
-      const keys = lookupPolicyProfile(policyId).categoryOperatorKeys as Readonly<
-        Record<string, string | undefined>
-      >;
-      expect(keys.EDAD).toBeUndefined();
+  it("counts EDAD entities in stats.byType.edades (V4 contract addition)", () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: AGE_TEXT, context: FRESH });
+    expect(outcome.result.stats.byType.edades).toBe(1);
+  });
+
+  it('bands a pediatric EDAD to "<1 año" end-to-end and counts it', () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: "Lactante de 6 semanas en control.", context: FRESH });
+    const edad = outcome.result.entities.find((entity) => entity.type === "EDAD");
+    expect(edad?.transformed).toBe("<1 año");
+    expect(outcome.result.processed).toContain("<1 año");
+    expect(outcome.result.stats.byType.edades).toBe(1);
+  });
+
+  it("keeps preprocessFechas a no-op for EDAD (no visit is registered)", () => {
+    FechasManager.reset();
+    const engine = createEngine();
+    engine.process({ text: AGE_TEXT, context: FRESH });
+    expect(FechasManager.visitasMap.size).toBe(0);
+  });
+
+  it("keeps external-ai/longitudinal-research fail-closed (no AGE mapping cloned)", () => {
+    const engine = createEngine();
+    for (const policyId of ["external-ai", "longitudinal-research"] as const) {
+      try {
+        engine.process({ text: AGE_TEXT, context: FRESH, policyId });
+        throw new Error("expected engine.process to throw");
+      } catch (error) {
+        expect(error).toBeInstanceOf(PolicyError);
+        expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+      }
     }
   });
 });

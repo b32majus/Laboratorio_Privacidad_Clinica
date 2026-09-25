@@ -120,7 +120,9 @@ export class RecognizerRegistry {
 /**
  * Legacy/ground-truth category taxonomy (scripts/privacy-eval ENTITY_TYPES;
  * SPEC §4 initial categories). NOMBRE covers the legacy subtypes
- * paciente/profesional/familiar.
+ * paciente/profesional/familiar. EDAD is the first-class AGE category
+ * (SPEC §4/§8; D-010), added by T12 WU-B now that its recognition (WU-A)
+ * and policy mapping (WU-B) both exist.
  */
 export const RECOGNIZER_CATEGORIES = [
   "NOMBRE",
@@ -128,6 +130,7 @@ export const RECOGNIZER_CATEGORIES = [
   "FECHA",
   "UBICACION",
   "SOSPECHOSO",
+  "EDAD",
 ] as const;
 
 export type RecognizerCategory = (typeof RECOGNIZER_CATEGORIES)[number];
@@ -140,6 +143,7 @@ export const LEGACY_CATEGORY_RECOGNIZER_KEYS: Readonly<Record<RecognizerCategory
     FECHA: "legacy.fecha",
     UBICACION: "legacy.ubicacion",
     SOSPECHOSO: "legacy.sospechoso",
+    EDAD: "v4.edad",
   });
 
 /**

@@ -35,6 +35,14 @@
  * to the matching legacy `transformEntity` branch (proven by the oracles in
  * legacy-operators.test.ts).
  *
+ * Age generalization (Work Order T12 #16, WU-B): {@link AgeGeneralizeOperator}
+ * (`v4.age-generalize`, from `./age-operator`) is the accepted, V4
+ * policy-owned AGE mapping (GitHub #16), not a legacy `transformEntity`
+ * branch. It is registered here so the default registry the composed engine
+ * consumes covers the standard/strict policy mapping for every taxonomy
+ * category, including `EDAD`. It reads no manager state, so the STATE
+ * CONTRACT below is unaffected.
+ *
  * Fail-closed (D-009): unknown registry keys raise the typed
  * `unknown-operator` error — there is no silent fallback to another
  * transformation, no default operator, and a category/operator mismatch is an
@@ -47,6 +55,7 @@
 import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitutos.js";
 import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { UbicacionesManager } from "../../../js/core/managers/UbicacionesManager.js";
+import { AgeGeneralizeOperator } from "./age-operator";
 import {
   assertCoveredType,
   assertObservation,
@@ -180,12 +189,13 @@ class LegacyGeneralizeOperator implements Operator {
 }
 
 /**
- * Builds the default operator registry for the legacy transformation
- * semantics: one operator per legacy transformation category, registered
- * under the stable {@link LEGACY_OPERATOR_KEYS} keys (KEEP comes from the
- * pure contracts module). Category→operator dispatch is deliberately NOT
- * part of this module (policy lookup is a separate follow-up unit; a worker
- * must not invent mapping semantics beyond accepted authority).
+ * Builds the default operator registry for the composed engine: one operator
+ * per legacy transformation category, registered under the stable
+ * {@link LEGACY_OPERATOR_KEYS} keys (KEEP comes from the pure contracts
+ * module), plus the V4 policy-owned {@link AgeGeneralizeOperator} added by
+ * T12 WU-B. Category→operator dispatch is deliberately NOT part of this
+ * module (policy lookup owns it; a worker must not invent mapping semantics
+ * beyond accepted authority).
  */
 export function createLegacyOperatorRegistry(): OperatorRegistry {
   const registry = new OperatorRegistry();
@@ -194,5 +204,6 @@ export function createLegacyOperatorRegistry(): OperatorRegistry {
   registry.register(new LegacyDateTransformOperator());
   registry.register(new LegacyGeneralizeOperator());
   registry.register(new KeepOperator());
+  registry.register(new AgeGeneralizeOperator());
   return registry;
 }

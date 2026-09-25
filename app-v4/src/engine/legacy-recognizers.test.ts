@@ -117,12 +117,22 @@ describe("legacy recognizer registry — taxonomy coverage oracle", () => {
       "FECHA",
       "UBICACION",
       "SOSPECHOSO",
+      "EDAD",
     ]);
     const registry = createLegacyRecognizerRegistry();
     expect(findUncoveredRecognizerCategories(registry)).toEqual([]);
     for (const key of Object.values(LEGACY_CATEGORY_RECOGNIZER_KEYS)) {
       expect(registry.has(key)).toBe(true);
     }
+  });
+
+  it("represents the EDAD category with the pure age recognizer under the v4.edad key", () => {
+    const registry = createLegacyRecognizerRegistry();
+    const edad = registry.get(LEGACY_CATEGORY_RECOGNIZER_KEYS.EDAD);
+    const observations = edad.observe("La paciente tiene 45 años.");
+    expect(observations.map((observation) => [observation.type, observation.subtype])).toEqual([
+      ["EDAD", "anios"],
+    ]);
   });
 
   it("lists the legacy registry keys deterministically (sorted, stable)", () => {

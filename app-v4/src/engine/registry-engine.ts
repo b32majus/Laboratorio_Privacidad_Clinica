@@ -141,6 +141,11 @@ export type RegistryEngineOptions = {
 /**
  * Mirror of the legacy `Processor.calculateStats` byType counters
  * (js/core/processor.js); field names are legacy contract, not new design.
+ * `edades` is the one V4 contract addition (T12 WU-B): the legacy byType map
+ * has no EDAD counter because the brownfield core never recognized AGE, so
+ * the composed engine reports the first-class EDAD category here. The legacy
+ * engine's stats keep their original key set (proven by the parity oracle,
+ * which projects onto the legacy keys).
  */
 function calculateStats(entities: readonly LegacyEntity[]): LegacyProcessorResult["stats"] {
   const byType: Record<string, number> = {
@@ -152,6 +157,7 @@ function calculateStats(entities: readonly LegacyEntity[]): LegacyProcessorResul
     ubicaciones: 0,
     sospechosos: 0,
     nombres: 0,
+    edades: 0,
   };
   for (const entity of entities) {
     if (entity.type === "NOMBRE") {
@@ -164,6 +170,7 @@ function calculateStats(entities: readonly LegacyEntity[]): LegacyProcessorResul
     if (entity.type === "IDENTIFICADOR") byType.identificadores += 1;
     if (entity.type === "UBICACION") byType.ubicaciones += 1;
     if (entity.type === "SOSPECHOSO") byType.sospechosos += 1;
+    if (entity.type === "EDAD") byType.edades += 1;
   }
   return { totalEntities: entities.length, byType };
 }
@@ -290,7 +297,11 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
       //    recognized observations, explicitly adapted to the legacy entity
       //    shape that boundary consumes (same subset conditions and same
       //    date-ordered `procesarVisita` sequence as the legacy pipeline;
-      //    offsets are carried through unchanged).
+      //    offsets are carried through unchanged). `preprocessFechas` filters
+      //    to `type === "FECHA"` internally, so it is a no-op for the EDAD
+      //    (and every other non-date) observation; EDAD offsets and text are
+      //    untouched by this stage (proven by the no-visit oracle in
+      //    registry-engine.test.ts).
       Processor.preprocessFechas(
         observations.map((observation) => toLegacyPreparationEntity(observation))
       );
