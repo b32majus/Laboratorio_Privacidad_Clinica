@@ -16,7 +16,7 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | ID | Prioridad | Área | Descripción | Estado |
 |---|---|---|---|---|
 | PRIV-001 | P0 | Runtime | Eliminar JavaScript/recursos de terceros del origen clínico | OPEN |
-| PRIV-002 | P0 | Export | Separar Safe Output y Confidential Audit | OPEN |
+| PRIV-002 | P0 | Export | Separar Safe Output y Confidential Audit. RESUELTA (V4/T08 #12): servicios puros separados en app-v4/src/output (safe-output.ts: buildSafeOutput fail-closed sobre la autoridad ReviewSession T01, sin campos estructurales para correspondencias/notas/valores de auditoría; confidential-audit.ts + confidential-audit-serializer.ts: artefacto aparte marcado kind "confidential-audit"/confidential:true con línea CONFIDENTIAL y mapeo original↔reemplazo autorizado). Superficies UI duales e independientes en app-v4/src/export/ExportStep.tsx (safe-output.txt vs confidential-audit.txt, nunca una descarga combinada). Oráculo adversarial estructural (no por substring) en los tests de cada servicio; separación probada incluyendo fixtures con notas de revisor y texto legítimo con la palabra "note". Los originales conservados por decisión restaurada permanecen en Safe Output como decisión humana explícita y se exponen como aviso factual en el Privacy Gate. Legado *_anonimizado.pdf no reutilizado como autoridad V4. | DONE |
 | FUNC-001 | P0 | Review | Derivar export/copy de la versión realmente revisada | OPEN |
 | FUNC-002 | P0 | Batch | No marcar documento revisado por navegar/exportar | OPEN |
 | FUNC-003 | P0 | Detection | Implementar detector/operador de edad en texto libre | OPEN |
@@ -74,7 +74,7 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | UX-003 | P1 | Journey | Unificar entrada en New Privacy Job con inferencia por tipo de input | OPEN |
 | UX-004 | P1 | Batch | Integrar batch como capacidad natural, eliminar framing Premium/Activar | OPEN |
 | UX-005 | P1 | Design System | Unificar texto/documentos/batch/structured en un único sistema visual | OPEN |
-| UX-006 | P0 | Export UX | No mostrar/habilitar Safe Export antes de completar Privacy Gate | OPEN |
+| UX-006 | P0 | Export UX | No mostrar/habilitar Safe Export antes de completar Privacy Gate. RESUELTA (V4/T08 #12): el paso privacy-gate (app-v4/src/privacy-gate) muestra el estado factual y el mensaje bloqueado explícito mientras queden decisiones obligatorias pendientes; el paso export (app-v4/src/export/ExportStep.tsx) deshabilita Safe Output con la razón tipada (role=alert) hasta canFinalize; Job.outputs.safeOutputReady solo es true cuando la sesión finaliza (useJobSession deriva del gate T01). Navegación export bloqueada por el gate dominio review-incomplete (T04/T07) y probada end-to-end en App.test.tsx (flujo completo pendiente/completo). | DONE |
 | UX-007 | P2 | Content | Sustituir disclaimer rojo permanente por aviso contextual | OPEN |
 | UX-008 | P1 | Policy UX | Sustituir Strict Mode opaco por Privacy Policies explicables | OPEN |
 | UX-009 | P1 | Review | Consolidar cards/action bar/modal en un único Entity Inspector. RESUELTA (V4/T07 #11): el workspace de revisión V4 usa un único Entity Inspector (panel derecho con original, propuesta, tipo/subtipo, confianza, contexto, controles de decisión y nota); no existen cards, action bar ni modal flotante en la superficie V4 (SPEC_V4_APP_AND_REVIEW.md §5: "no floating action bar"). Las superficies legacy (review.html / js/shared/review-ui.js) permanecen como evidencia de compatibilidad hasta el Work Order de retirada legacy (T25). | DONE |
