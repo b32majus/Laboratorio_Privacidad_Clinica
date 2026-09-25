@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { readFileSync } from "node:fs";
@@ -275,6 +275,82 @@ describe("App review workspace (T07)", () => {
   it("keeps export fail-closed while mandatory review decisions are pending", () => {
     render(<App />);
     createReviewJob();
+    expect(stepButton(5, "Export")).toBeDisabled();
+  });
+});
+
+describe("App privacy gate (T08 U3)", () => {
+  const REVIEW_NOTE =
+    "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
+
+  function createReviewJob() {
+    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+  }
+
+  function pendingCount(): number {
+    const progress = screen.getByRole("status", { name: /review progress/i });
+    return Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
+  }
+
+  /** Accept detections one by one until no pending mandatory decision remains.
+   * Uses the Pending filter so accepted detections leave the list and the
+   * loop provably terminates. */
+  function acceptAllDetections() {
+    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    for (;;) {
+      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
+      if (!first) break;
+      fireEvent.click(first);
+      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    }
+  }
+
+  function expectedBlockedMessage(count: number): string {
+    return count === 1
+      ? "Safe export is blocked while 1 mandatory review decision is pending."
+      : `Safe export is blocked while ${count} mandatory review decisions are pending.`;
+  }
+
+  it("renders the gate with safeOutputReady true after every decision is resolved", () => {
+    render(<App />);
+    createReviewJob();
+    acceptAllDetections();
+    expect(pendingCount()).toBe(0);
+
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+
+    // Output availability is real derived state, written by the state bridge.
+    expect(screen.getByText("Safe output:")).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Confidential audit:")).toBeInTheDocument();
+    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    // The export gate agrees with review completeness (D-004).
+    expect(stepButton(5, "Export")).toBeEnabled();
+  });
+
+  it("stays fail-closed: the gate shows the pending state while a decision is pending", () => {
+    render(<App />);
+    createReviewJob();
+    const list = screen.getAllByRole("list", { name: /detections/i })[0];
+    fireEvent.click(within(list).queryAllByRole("button")[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    const pending = pendingCount();
+    expect(pending).toBeGreaterThan(0);
+
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(expectedBlockedMessage(pending));
+
+    // Fail-closed availability: nothing became ready while decisions remain.
+    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
     expect(stepButton(5, "Export")).toBeDisabled();
   });
 });
