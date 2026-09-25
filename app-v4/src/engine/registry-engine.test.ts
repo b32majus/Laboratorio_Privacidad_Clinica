@@ -507,3 +507,63 @@ describe("createRegistryEngine — fail-closed typed errors (same rules as the l
     }
   });
 });
+
+describe("createRegistryEngine — preprocessFechas legacy-shape adapter (R3-001 correction)", () => {
+  it("hands preprocessFechas entities in the documented legacy shape (type/text/position), offsets unchanged", () => {
+    // Planted-regression oracle: if the engine ever reverts to passing raw
+    // frozen observations (no `position`) into the legacy boundary, the
+    // shape assertion below fails — the seam is contract-checked, not
+    // structurally coincidental.
+    const spy = vi.spyOn(Processor, "preprocessFechas");
+    try {
+      const engine = createEngine();
+      for (const text of PARITY_TEXTS) {
+        spy.mockClear();
+        engine.process({ text, context: FRESH });
+        expect(spy).toHaveBeenCalledTimes(1);
+        const entities = spy.mock.calls[0]?.[0] as unknown[];
+        expect(entities.length).toBeGreaterThan(0);
+        for (const raw of entities) {
+          const entity = raw as {
+            type?: unknown;
+            text?: unknown;
+            position?: { start?: unknown; end?: unknown };
+          };
+          expect(typeof entity.type).toBe("string");
+          expect(typeof entity.text).toBe("string");
+          expect(entity.position).toBeDefined();
+          expect(Number.isInteger(entity.position?.start)).toBe(true);
+          expect(Number.isInteger(entity.position?.end)).toBe(true);
+          const start = entity.position?.start as number;
+          const end = entity.position?.end as number;
+          expect(start).toBeGreaterThanOrEqual(0);
+          expect(end).toBeGreaterThanOrEqual(start + 1);
+        }
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("keeps date-visit preparation parity: adapter output matches the legacy engine byte-for-byte", () => {
+    // The adapter must not change offsets or visit semantics: the composed
+    // engine and the legacy engine must still agree on the date-containing
+    // fixtures (entity spans and processed text identical).
+    const composed = createEngine();
+    const legacy = createLegacyEngine();
+    for (const text of PARITY_TEXTS) {
+      const composedOutcome = composed.process({ text, context: FRESH });
+      const legacyOutcome = legacy.process({ text, context: FRESH });
+      const projection = (outcome: { result: { entities: readonly unknown[] } }) =>
+        (outcome.result.entities as readonly Record<string, unknown>[]).map((entity) => ({
+          type: entity.type,
+          subtype: entity.subtype,
+          position: entity.position,
+          original: entity.original,
+          transformed: entity.transformed,
+        }));
+      expect(projection(composedOutcome)).toEqual(projection(legacyOutcome));
+      expect(composedOutcome.result.processed).toBe(legacyOutcome.result.processed);
+    }
+  });
+});

@@ -150,6 +150,30 @@ function freezeTransformedEntity(
 }
 
 /**
+ * Explicit adapter from a normalized recognizer observation to the legacy
+ * entity shape the `preprocessFechas` boundary consumes. The current legacy
+ * implementation only READS type/subtype/text, but the boundary's documented
+ * contract is the legacy entity shape (including `position`); adapting
+ * explicitly keeps the seam contract-checked instead of relying on
+ * structural coincidence, so a future legacy change that reads `position`
+ * cannot silently break date-visit preparation (Work Order T11 #15, review
+ * finding R3-001 of lineage review-ca481631d9c01f72).
+ */
+function toLegacyPreparationEntity(observation: RecognizerObservation): {
+  type: string;
+  subtype?: string;
+  text: string;
+  position: { start: number; end: number };
+} {
+  return {
+    type: observation.type,
+    ...(observation.subtype === undefined ? {} : { subtype: observation.subtype }),
+    text: observation.text,
+    position: { start: observation.start, end: observation.end },
+  };
+}
+
+/**
  * Resolves the operator registry key for one observation type from the
  * policy profile. A type outside the profile's mapping fails typed instead
  * of guessing a transformation (D-009: UNKNOWN never defaults to KEEP).
@@ -228,11 +252,13 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
       const observations = recognizerRegistry.get(LEGACY_RECOGNIZER_KEY).observe(text);
 
       // 5. Date-visit preparation via the legacy `preprocessFechas` over the
-      //    recognized observations (same subset conditions and same
-      //    date-ordered `procesarVisita` sequence as the legacy pipeline).
-      //    The legacy implementation only READS the entities it filters, so
-      //    passing the frozen observations is safe.
-      Processor.preprocessFechas(observations as unknown as unknown[]);
+      //    recognized observations, explicitly adapted to the legacy entity
+      //    shape that boundary consumes (same subset conditions and same
+      //    date-ordered `procesarVisita` sequence as the legacy pipeline;
+      //    offsets are carried through unchanged).
+      Processor.preprocessFechas(
+        observations.map((observation) => toLegacyPreparationEntity(observation))
+      );
 
       // 6. Transformation through the operator registry by the explicit
       //    keys of the policy profile, applied back-to-front exactly like
