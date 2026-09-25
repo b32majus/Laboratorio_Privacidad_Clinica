@@ -271,6 +271,91 @@ describe('manual detections', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 5b. Accepted requires an existing proposal (corrective C1, PR #39 audit)
+//
+// A detection with `proposed === undefined` (e.g. a manual detection) must
+// NOT be completable via 'accepted': there is nothing to accept. The
+// deletion encoding (proposed === "") remains a valid proposal.
+// ---------------------------------------------------------------------------
+
+describe('accepted requires an existing proposal', () => {
+  const build = () =>
+    createReviewSession({
+      originalText: 'Dato SECRETO-123 en el informe.',
+      sessionId: 'no-proposal',
+      detections: [
+        { type: 'SOSPECHOSO', start: 5, end: 16, source: 'manual', requiresReview: true },
+      ],
+    });
+
+  test('applyDecision accepted throws the typed error when proposed is undefined', () => {
+    const session = build();
+    const id = session.detections[0].id;
+    assert.equal(session.detections[0].proposed, undefined);
+    assert.throws(() => applyDecision(session, id, 'accepted'), ReviewSessionError);
+    try {
+      applyDecision(session, id, 'accepted');
+      assert.fail('expected applyDecision accepted to throw');
+    } catch (error) {
+      assert.ok(error instanceof ReviewSessionError);
+      assert.equal(error.code, 'INVALID_DECISION');
+      assert.match(error.message, /proposal/);
+    }
+  });
+
+  test('the failed accept leaves no decision: canFinalize stays false and export stays blocked', () => {
+    const session = build();
+    const id = session.detections[0].id;
+    assert.throws(() => applyDecision(session, id, 'accepted'), ReviewSessionError);
+    // No decision was recorded by the rejected call.
+    assert.deepEqual(getDecision(session, id), { status: 'pending' });
+    assert.equal(canFinalize(session), false);
+    assert.equal(getPendingDetections(session).length, 1);
+    assert.throws(
+      () => getFinalText(session),
+      (error) => error instanceof ReviewSessionError && error.code === 'MANDATORY_REVIEW_PENDING',
+    );
+  });
+
+  test('modified with an explicit replacement still succeeds for a proposal-less detection', () => {
+    let session = build();
+    const id = session.detections[0].id;
+    session = applyDecision(session, id, 'modified', { replacement: '[REEMPLAZO]' });
+    assert.equal(getDecision(session, id).status, 'modified');
+    assert.equal(canFinalize(session), true);
+    assert.ok(getFinalText(session).includes('[REEMPLAZO]'));
+    assert.ok(!getFinalText(session).includes('SECRETO-123'));
+  });
+
+  test('restored succeeds and getDecision shows restored for a proposal-less detection', () => {
+    let session = build();
+    const id = session.detections[0].id;
+    session = applyDecision(session, id, 'restored', { note: 'clinically relevant' });
+    assert.deepEqual(getDecision(session, id), {
+      status: 'restored',
+      note: 'clinically relevant',
+    });
+    assert.equal(canFinalize(session), true);
+    assert.ok(getFinalText(session).includes('SECRETO-123'));
+    assert.equal(getProgress(session).restored, 1);
+  });
+
+  test('accepted deletion (proposed === "") still succeeds and composes as a deletion', () => {
+    const session = createReviewSession({
+      originalText: 'DNI 12345678A fin.',
+      sessionId: 'deletion-encoding',
+      detections: [{ type: 'IDENTIFICADOR', start: 4, end: 13, proposed: '' }],
+    });
+    const id = session.detections[0].id;
+    assert.strictEqual(session.detections[0].proposed, '');
+    const next = applyDecision(session, id, 'accepted');
+    assert.equal(getDecision(next, id).status, 'accepted');
+    assert.equal(canFinalize(next), true);
+    assert.equal(getFinalText(next), 'DNI  fin.');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 6. Preview and progress
 // ---------------------------------------------------------------------------
 
@@ -339,7 +424,9 @@ describe('immutability', () => {
     let session = createReviewSessionFromProcessor(fixtureResult);
     session = acceptAll(session);
     session = addManualDetection(session, { start: 0, end: 8, type: 'SOSPECHOSO' });
-    session = applyDecision(session, session.detections[4].id, 'accepted');
+    // C1 invariant: a manual detection has no proposal, so 'accepted' is not
+    // a valid decision for it; use an explicit replacement instead.
+    session = applyDecision(session, session.detections[4].id, 'modified', { replacement: '[x]' });
     getFinalText(session);
     assert.deepEqual(fixtureResult, before, 'processor result deep-equal before/after');
   });

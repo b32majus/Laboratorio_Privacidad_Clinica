@@ -28,6 +28,8 @@ import {
 import { EngineError } from "./engine/types";
 import { extractFile, extractFromPastedText } from "./input/extract";
 import { extensionOf } from "./input/extracted-source";
+import { ExportStep } from "./export/ExportStep";
+import { PrivacyGate } from "./privacy-gate/PrivacyGate";
 import { ReviewWorkspace } from "./review/ReviewWorkspace";
 import { ReviewSessionError, jobSupportsReview, startReviewSession } from "./review/review-domain";
 import { useJobSession } from "./useJobSession";
@@ -281,6 +283,10 @@ export function App() {
             onDecide={session.decide}
             onAddManual={session.addManual}
           />
+        ) : currentStep === "privacy-gate" && review && job ? (
+          <PrivacyGate job={job} review={review} />
+        ) : currentStep === "export" && review && job ? (
+          <ExportStep job={job} review={review} />
         ) : (
           <StepPlaceholder
             step={currentStep}

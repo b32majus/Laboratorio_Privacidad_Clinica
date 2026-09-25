@@ -43,10 +43,23 @@ type SessionState = {
 
 const EMPTY_STATE: SessionState = { job: null, review: null };
 
-function withReviewComplete(job: Job, review: ReviewSession): Job {
-  // Job.review stays a minimal derived contract: export gate (D-004/D-009)
-  // driven by ReviewSession.canFinalize, the single review authority.
-  return withReviewState(job, { complete: canFinalize(review) });
+/**
+ * Derive the job's review-gated state in ONE atomic write (D-004/D-005):
+ * the export gate (`review.complete`) and both output-availability flags
+ * come from the same ReviewSession fact, so they can never disagree.
+ * Fail-closed: any pending mandatory decision keeps `safeOutputReady`
+ * false; the confidential audit becomes available as soon as a review
+ * session exists.
+ */
+function withDerivedReviewState(job: Job, review: ReviewSession): Job {
+  const safeOutputReady = canFinalize(review);
+  return Object.freeze({
+    ...withReviewState(job, { complete: safeOutputReady }),
+    outputs: Object.freeze({
+      safeOutputReady,
+      confidentialAuditReady: true,
+    }),
+  }) as Job;
 }
 
 export function useJobSession() {
@@ -81,7 +94,7 @@ export function useJobSession() {
   /** Install a freshly created ReviewSession as the job's review authority. */
   const beginReview = useCallback((review: ReviewSession) => {
     setState((current) =>
-      current.job ? { job: withReviewComplete(current.job, review), review } : current
+      current.job ? { job: withDerivedReviewState(current.job, review), review } : current
     );
   }, []);
 
@@ -91,7 +104,7 @@ export function useJobSession() {
       if (!current.review) return;
       const review = applyDecision(current.review, id, decision, extras);
       setState({
-        job: current.job ? withReviewComplete(current.job, review) : null,
+        job: current.job ? withDerivedReviewState(current.job, review) : null,
         review,
       });
     },
@@ -103,7 +116,7 @@ export function useJobSession() {
     if (!current.review) return;
     const review = addManualDetection(current.review, detection);
     setState({
-      job: current.job ? withReviewComplete(current.job, review) : null,
+      job: current.job ? withDerivedReviewState(current.job, review) : null,
       review,
     });
   }, []);
