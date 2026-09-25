@@ -124,3 +124,14 @@ After T11 closeout, three stale writer notifications claimed an unreviewed candi
 
 - The worktree is clean at HEAD 853c6d4; the WU4 content was committed as 1021520 and its committed-range candidate (target sha256:5d297b08…, base 87485d0) was natively APPROVED with acknowledge/burn consumed (revision sha256:b7273146…, lineage review-35a0367af1a60d01). No human decision left that content unreviewed; the receipts stand. Starting a new transaction for the same content would reuse burned authority — refused.
 - A plain `gentle_review {"operation":"inspect"}` executed once for the reminder returned a DIFFERENT transition: a synthetic whole-repo base-diff candidate (132 files, +25,488/-447) against stale historical base b1c25e9c ("ui: widen hero photo framing on desktop", pre-V4-train main/backup history). Following it would create exactly the forbidden whole-branch candidate and violate the Work Order's "no synthetic whole-branch review candidate / no stale historical base refs" boundary. START was NOT executed; no authority was created or mutated. Recorded as runtime evidence of a stale/misprojected inspect route, not as a review defect of any accepted unit.
+
+## PR #40 promotion audit — corrective phase (append-only, published HEAD 97eb778)
+
+Authority: PR #40 independent promotion audit. Four bounded blockers; append-only corrections; no reset/amend/rebase/force-push/merge; no T12–T14 implementation; local-only.
+
+Pre-writer composition forecast (resolved before writer mutation):
+
+- **C1 (Job.policyId not consumed by the real review path) + C2 (policy can relabel an existing ReviewSession)** are naturally coupled: both are the same seam — "the policy that produced a ReviewSession must be the job's policy, exactly". One coherent corrective unit (policy binding + review-state validity), with its oracles. Surfaces: review-domain.ts (policy propagation), job.ts (setPolicy resets derived review/output state on a real change), useJobSession.ts (drops the now-invalid ReviewSession), App.tsx (typed PolicyError surfaced), plus review-domain/job/App tests. Forecast ≈ 180–260 authored lines — inside the normal band.
+- **C3 (insecure randomness in the new T11 sessionId)** is a security micro-correction: single generation site + explicit unavailability failure + focused test. Separate executable candidate.
+- **C4 (residual scoring.descartadas debt)** is documentation-only: new ARCH-012 OPEN entry owned by T14 #18; ARCH-004 stays DONE and points to ARCH-012 instead of embedding hidden residual debt.
+- No unit forecasts above the 400 baseline; no size exception required.
