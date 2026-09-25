@@ -5,7 +5,7 @@ import { Processor } from "../../../js/core/processor.js";
 import { createReviewSessionFromProcessor } from "../../../js/domain/from-processor.js";
 import { createLegacyEngine } from "./legacy-engine";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
-import { createRegistryEngine } from "./registry-engine";
+import { createRegistryEngine, SessionIdError } from "./registry-engine";
 import { OperatorRegistry, OperatorError } from "./operator-registry";
 import { PolicyError } from "./policy";
 import { RecognizerError, RecognizerRegistry } from "./recognizer-registry";
@@ -564,6 +564,71 @@ describe("createRegistryEngine — preprocessFechas legacy-shape adapter (R3-001
         }));
       expect(projection(composedOutcome)).toEqual(projection(legacyOutcome));
       expect(composedOutcome.result.processed).toBe(legacyOutcome.result.processed);
+    }
+  });
+});
+
+describe("createRegistryEngine — session identity (PR #40 corrective C3)", () => {
+  it("generates the opaque session id with a cryptographically strong primitive", () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: DOC_A, context: FRESH });
+    // Canonical UUID shape from Web Crypto randomUUID: strong, non-guessable
+    // identity; the value stays non-sensitive and is used only as the stable
+    // detection-ID namespace.
+    expect(outcome.result.sessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    );
+    const second = engine.process({ text: DOC_A, context: FRESH });
+    expect(second.result.sessionId).not.toBe(outcome.result.sessionId);
+  });
+
+  it("keeps the legacy-shaped result contract: ReviewSession stable IDs still build from it", () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: DOC_A, context: FRESH });
+    const session = createReviewSessionFromProcessor(outcome.result) as {
+      sessionId: string;
+      detections: readonly { id: string }[];
+    };
+    expect(session.sessionId).toBe(outcome.result.sessionId);
+    expect(session.detections.length).toBeGreaterThan(0);
+    for (const detection of session.detections) {
+      expect(detection.id.startsWith(`det-${outcome.result.sessionId}-`)).toBe(true);
+    }
+  });
+
+  it("fails closed with the typed error when the strong primitive is unavailable (no Math.random fallback)", () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+    try {
+      Object.defineProperty(globalThis, "crypto", {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+      const engine = createEngine();
+      expect(() => engine.process({ text: DOC_A, context: FRESH })).toThrowError(SessionIdError);
+      try {
+        engine.process({ text: DOC_A, context: FRESH });
+        throw new Error("expected engine.process to fail closed without Web Crypto");
+      } catch (error) {
+        expect((error as SessionIdError).code).toBe("secure-session-id-unavailable");
+      }
+    } finally {
+      if (original) Object.defineProperty(globalThis, "crypto", original);
+    }
+  });
+
+  it("fails closed when randomUUID is missing from an otherwise present crypto object", () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+    try {
+      Object.defineProperty(globalThis, "crypto", {
+        value: {},
+        configurable: true,
+        writable: true,
+      });
+      const engine = createEngine();
+      expect(() => engine.process({ text: DOC_A, context: FRESH })).toThrowError(SessionIdError);
+    } finally {
+      if (original) Object.defineProperty(globalThis, "crypto", original);
     }
   });
 });

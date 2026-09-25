@@ -52,6 +52,12 @@
  * is missing from the policy profile's mapping (no guessed operator, no
  * silent KEEP).
  *
+ * Session identity (PR #40 corrective C3): the non-sensitive opaque
+ * `sessionId` is generated with the Web Crypto `randomUUID` primitive and
+ * NEVER with `Math.random` or any non-cryptographic fallback. If that
+ * primitive is unavailable in the current runtime the engine fails closed
+ * with the typed {@link SessionIdError} instead of silently degrading.
+ *
  * Privacy: this module never logs content, never mutates its input, and is
  * Worker-safe (no window/document access anywhere in its module graph).
  */
@@ -88,6 +94,35 @@ import {
 
 /** Default policy: the accepted legacy mapping (modoEstricto=false). */
 const DEFAULT_POLICY_ID: PrivacyPolicyId = "standard";
+
+/**
+ * Typed failure for the session-identity primitive (PR #40 corrective C3).
+ * Raised when the runtime does not expose a cryptographically strong
+ * identifier generator; the engine never falls back to `Math.random`.
+ */
+export class SessionIdError extends Error {
+  readonly code = "secure-session-id-unavailable" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "SessionIdError";
+  }
+}
+
+/**
+ * Opaque, non-sensitive session identity via the Web Crypto `randomUUID`
+ * primitive (browser/Worker-safe; no `window`/`document` access). Fails
+ * closed — never a non-cryptographic fallback — when the primitive is
+ * genuinely unavailable in the current runtime.
+ */
+function generateSessionId(): string {
+  const webCrypto: Crypto | undefined = globalThis.crypto;
+  if (webCrypto === undefined || typeof webCrypto.randomUUID !== "function") {
+    throw new SessionIdError(
+      "A cryptographically strong session identifier is unavailable in this runtime (Web Crypto randomUUID is missing); refusing to generate a session id with a non-cryptographic fallback."
+    );
+  }
+  return webCrypto.randomUUID();
+}
 
 /** Engine input: the V4PrivacyEngine shape plus the optional policy choice. */
 export type RegistryEngineInput = {
@@ -285,7 +320,7 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
         entities,
         alerts: [],
         stats: calculateStats(entities),
-        sessionId: Math.random().toString(36).slice(2, 10),
+        sessionId: generateSessionId(),
         processingTime: Math.round(performance.now() - startTime),
         // Recognition-configuration summary. The legacy `descartadas` detail
         // is deliberately omitted (see module header): the recognizer
