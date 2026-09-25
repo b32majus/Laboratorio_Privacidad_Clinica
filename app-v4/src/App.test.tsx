@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -7,6 +7,18 @@ import { fileURLToPath } from "node:url";
 
 import { App } from "./App";
 import type { PdfJsLib } from "./input/pdfjs-loader";
+import {
+  applyDecision,
+  createSessionFromEngineText,
+  getFinalText,
+  type ReviewSession,
+} from "./review/review-domain";
+import { buildConfidentialAudit } from "./output/confidential-audit";
+import {
+  CONFIDENTIAL_AUDIT_WARNING_LINE,
+  serializeConfidentialAudit,
+} from "./output/confidential-audit-serializer";
+import { buildSafeOutput, serializeSafeOutput } from "./output/safe-output";
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
 const LOCAL_ONLY_FACT = /processing runs locally in your browser/i;
@@ -437,5 +449,184 @@ describe("App document intake (T06)", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/cannot be mixed/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+});
+
+describe("App export step (T08 U4)", () => {
+  const JOB1_NOTE =
+    "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
+  const JOB2_NOTE =
+    "Paciente: Roberto Díaz\nRevisado por la Dra. Elena Vidal el 03/07/2025. Contacto: 654321987.";
+
+  const SAFE_BUTTON = "Download Safe Output (.txt)";
+  const AUDIT_BUTTON = "Download Confidential Audit (.txt)";
+
+  type CapturedDownload = { readonly fileName: string; readonly blob: Blob };
+
+  /** Stub the client-side download seam (Blob + object URL + anchor click). */
+  function captureDownloads(): {
+    readonly downloads: CapturedDownload[];
+    restore(): void;
+  } {
+    const downloads: CapturedDownload[] = [];
+    const blobs: Blob[] = [];
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    URL.createObjectURL = vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return `blob:mock-${blobs.length}`;
+    }) as typeof URL.createObjectURL;
+    URL.revokeObjectURL = vi.fn() as typeof URL.revokeObjectURL;
+    HTMLAnchorElement.prototype.click = vi.fn(function (this: HTMLAnchorElement) {
+      const match = /blob:mock-(\d+)/.exec(this.getAttribute("href") ?? "");
+      const index = match ? Number(match[1]) - 1 : -1;
+      downloads.push({ fileName: this.getAttribute("download") ?? "", blob: blobs[index] });
+    }) as typeof HTMLAnchorElement.prototype.click;
+    return {
+      downloads,
+      restore: () => {
+        URL.createObjectURL = originalCreate;
+        URL.revokeObjectURL = originalRevoke;
+        HTMLAnchorElement.prototype.click = originalClick;
+      },
+    };
+  }
+
+  /** jsdom's Blob lacks .text(); read the captured artifact via FileReader. */
+  async function textOf(download: CapturedDownload | undefined): Promise<string> {
+    if (!download) throw new Error("expected a captured download");
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(download.blob);
+    });
+  }
+
+  function acceptAllDetections() {
+    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    for (;;) {
+      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
+      if (!first) break;
+      fireEvent.click(first);
+      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    }
+  }
+
+  /** Full flow: create a text job, complete its review, reach Export. */
+  function completeReviewToExport(note: string) {
+    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: note } });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    acceptAllDetections();
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    fireEvent.click(stepButton(5, "Export"));
+    expect(screen.getByRole("heading", { level: 2, name: "Export" })).toBeInTheDocument();
+  }
+
+  /** Pure-domain replica: the same engine, text and decisions as the App flow. */
+  function replicaSession(note: string): ReviewSession {
+    const session = createSessionFromEngineText(note);
+    let next = session;
+    for (const detection of next.detections) {
+      next = applyDecision(next, detection.id, "accepted");
+    }
+    return next;
+  }
+
+  /** The audit's Session line is per-session; normalize it for comparison. */
+  function normalizeAudit(text: string): string {
+    return text.replace(/^Session: .*$/m, "Session: <session>");
+  }
+
+  it("renders two separate download actions with the confidential warning on Export", () => {
+    render(<App />);
+    completeReviewToExport(JOB1_NOTE);
+
+    const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
+    const auditButton = screen.getByRole("button", { name: AUDIT_BUTTON });
+    expect(safeButton).toBeEnabled();
+    expect(auditButton).toBeEnabled();
+    expect(screen.getByText(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBeInTheDocument();
+    expect(screen.getByText(/must never be shared/i)).toBeInTheDocument();
+    // Fail-closed gate passed: no blocked reason remains on the surface.
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Claims gate (D-006): no anonymity/compliance wording anywhere.
+    const body = document.body.textContent ?? "";
+    expect(body).not.toMatch(/anonym|gdpr|privacy score|certif|complian/i);
+  });
+
+  it("session isolation: after Clear session, the new job's artifacts carry no prior-job data (acceptance 6)", async () => {
+    const captured = captureDownloads();
+    try {
+      render(<App />);
+
+      // Job 1: complete review and download its confidential audit.
+      completeReviewToExport(JOB1_NOTE);
+      fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
+      const audit1 = await textOf(captured.downloads[0]);
+      expect(captured.downloads[0].fileName).toBe("confidential-audit.txt");
+      expect(audit1.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
+      expect(audit1).toContain("Carmen Sánchez");
+      expect(audit1).toContain("612345678");
+
+      // Clear session and run a second, different job end-to-end.
+      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
+      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      completeReviewToExport(JOB2_NOTE);
+      fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
+
+      const audit2 = await textOf(captured.downloads[1]);
+      const safe2 = await textOf(captured.downloads[2]);
+
+      // No trace of job 1 originals or mapping anywhere in job 2's audit.
+      expect(audit2).not.toContain("Carmen Sánchez");
+      expect(audit2).not.toContain("García López");
+      expect(audit2).not.toContain("612345678");
+      expect(audit2).not.toContain("12/03/2024");
+      expect(audit2).toContain("Roberto Díaz");
+      expect(audit2).toContain("654321987");
+
+      // Structural proof: job 2's audit matches an audit built from a
+      // session 2 replica ONLY (same engine, same text, same decisions).
+      const replica2 = replicaSession(JOB2_NOTE);
+      expect(normalizeAudit(audit2)).toBe(
+        normalizeAudit(serializeConfidentialAudit(buildConfidentialAudit(replica2)))
+      );
+      // And job 2's Safe Output equals its own canonical final text.
+      expect(safe2).toBe(serializeSafeOutput(buildSafeOutput(replica2)));
+      expect(safe2).toBe(getFinalText(replica2));
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("rerender invariance: navigating away and back never changes the Safe Output bytes (acceptance 7)", async () => {
+    const captured = captureDownloads();
+    try {
+      render(<App />);
+      completeReviewToExport(JOB1_NOTE);
+
+      fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
+      const before = await textOf(captured.downloads[0]);
+
+      // Force unrelated re-renders of the shell (navigation, policy rerender).
+      fireEvent.click(stepButton(1, "Input"));
+      fireEvent.click(stepButton(5, "Export"));
+      fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+        target: { value: "strict" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
+      const after = await textOf(captured.downloads[1]);
+      expect(after).toBe(before);
+      expect(captured.downloads[1].fileName).toBe("safe-output.txt");
+    } finally {
+      captured.restore();
+    }
   });
 });
