@@ -152,3 +152,99 @@ declare module "*/domain/review-session.js" {
   export function getProgress(session: V4ReviewSession): V4ReviewProgress;
   export function getFinalText(session: V4ReviewSession): string;
 }
+
+/* -------------------------------------------------------------------------
+ * Work Order T11 #15 (WU1) — recognizer registry boundary.
+ * Append-only additions: ambient declarations for the legacy detection
+ * pipeline modules consumed by app-v4/src/engine/recognizer-registry.ts,
+ * app-v4/src/engine/legacy-recognizers.ts and their tests. No existing
+ * declaration above was modified.
+ * ------------------------------------------------------------------------- */
+
+declare module "*/core/processor.js" {
+  interface LegacyProcessorModule {
+    /** Pure overlap resolution over raw detector entities. */
+    resolveConflicts(entities: unknown[]): unknown[];
+  }
+}
+
+declare module "*/core/detectors/identificadores.js" {
+  export function detectIdentificadores(text: string): unknown[];
+}
+
+declare module "*/core/detectors/fechas.js" {
+  export function detectFechas(text: string): unknown[];
+}
+
+declare module "*/core/detectors/ubicaciones.js" {
+  export function detectUbicaciones(
+    text: string,
+    locationData: Record<string, unknown>,
+    normalizeText: (text: string) => string
+  ): unknown[];
+}
+
+declare module "*/core/detectors/nombres.js" {
+  export function detectProfesionales(
+    text: string,
+    dictionaries: Record<string, unknown>,
+    normalizeText: (text: string) => string
+  ): unknown[];
+  export function detectPacientes(
+    text: string,
+    dictionaries: Record<string, unknown>,
+    normalizeText: (text: string) => string
+  ): unknown[];
+  export function detectFamiliares(text: string): unknown[];
+}
+
+declare module "*/core/detectors/cuasiidentificadores.js" {
+  export function detectCuasiIdentificadores(text: string): unknown[];
+}
+
+declare module "*/core/scoring/ScoringEngine.js" {
+  export const ScoringEngine: {
+    aplicarScoring(
+      entities: unknown[],
+      dictionaries: Record<string, unknown>,
+      text: string,
+      normalizeText: (text: string) => string
+    ): unknown[];
+  };
+}
+
+declare module "*/core/scoring/HeuristicasContextuales.js" {
+  export const HeuristicasContextuales: {
+    aplicarHeuristicas(entity: unknown, text: string): unknown;
+  };
+}
+
+declare module "*/core/utils/TextNormalizer.js" {
+  export const TextNormalizer: {
+    normalize(text: string): string;
+  };
+}
+
+/** Consumed only by legacy-recognizers.test.ts for the purity oracle. */
+declare module "*/core/managers/FechasManager.js" {
+  export const FechasManager: {
+    visitasMap: Map<string, string>;
+    visitasOrdenadas: unknown[];
+    procesarVisita(fechaOriginal: string): unknown;
+    parseFecha(texto: string): Date | null;
+    reset(): void;
+  };
+}
+
+/** Consumed only by legacy-recognizers.test.ts for the purity oracle. */
+declare module "*/core/managers/UbicacionesManager.js" {
+  export const UbicacionesManager: {
+    centrosMap: Map<string, string>;
+    ciudadesMap: Map<string, string>;
+    contadorCentros: number;
+    contadorCiudades: number;
+    obtenerCentro(centro: string): string;
+    obtenerCiudad(ciudad: string): string;
+    reset(): void;
+  };
+}
