@@ -6,7 +6,8 @@
  * decisions, previews or final text; it re-exports the domain API with
  * TypeScript types (ambient declarations in
  * app-v4/src/engine/legacy-modules.d.ts) and maps a Job's source text
- * through the existing legacy engine adapter + `from-processor.js` adapter.
+ * through the registry-composed V4 engine (Work Order T11 #15, WU3:
+ * recognition → policy → operators) + `from-processor.js` adapter.
  *
  * ReviewSession objects are frozen domain state held by the app's state
  * bridge (useJobSession), never React-local UI state. Transient selection,
@@ -29,7 +30,7 @@ import {
   ReviewSessionError,
   type ReviewSession,
 } from "../../../js/domain/review-session.js";
-import { createLegacyEngine } from "../engine/legacy-engine";
+import { createRegistryEngine } from "../engine/registry-engine";
 import type { Job } from "../domain/job";
 
 export {
@@ -72,12 +73,12 @@ export type DecisionExtras = {
 };
 
 /**
- * Run the existing legacy engine over `text` and map the result through
- * the T01 adapter into a ReviewSession. Main-thread processing is fine at
+ * Run the registry-composed V4 engine (Work Order T11 #15, WU3) over `text`
+ * and map the result through the T01 adapter into a ReviewSession. Main-thread processing is fine at
  * this stage; the Web Worker boundary is a later ticket (T22).
  */
 export function createSessionFromEngineText(text: string): ReviewSession {
-  const engine = createLegacyEngine();
+  const engine = createRegistryEngine();
   const outcome = engine.process({ text, context: { mode: "fresh" } });
   // The T01 adapter validates the result shape fail-closed and returns a
   // frozen session; the ambient declaration keeps the structural type.

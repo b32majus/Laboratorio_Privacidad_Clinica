@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createJob } from "../domain/job";
-import { createLegacyEngine } from "../engine/legacy-engine";
+import { createRegistryEngine } from "../engine/registry-engine";
 import {
   ReviewSessionError,
   addManualDetection,
@@ -275,8 +275,8 @@ describe("job → review-source mapping", () => {
     expect(() => startReviewSession(batchJob)).toThrowError(ReviewSessionError);
   });
 
-  it("the engine adapter behind startReviewSession is the real legacy engine", () => {
-    const engine = createLegacyEngine();
+  it("the engine behind startReviewSession is the registry-composed V4 engine", () => {
+    const engine = createRegistryEngine();
     const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
     const session = createSessionFromEngineText(ENGINE_TEXT);
     expect(session.detections.length).toBe(outcome.result.entities.length);
