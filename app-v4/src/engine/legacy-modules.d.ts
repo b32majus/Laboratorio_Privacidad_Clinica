@@ -154,10 +154,11 @@ declare module "*/domain/review-session.js" {
 }
 
 /* -------------------------------------------------------------------------
- * Work Order T11 #15 (WU1) — recognizer registry boundary.
- * Append-only additions: ambient declarations for the legacy detection
- * pipeline modules consumed by app-v4/src/engine/recognizer-registry.ts,
- * app-v4/src/engine/legacy-recognizers.ts and their tests. No existing
+ * Work Order T11 #15 (WU1/WU2) — recognizer and operator registry boundaries.
+ * Append-only additions: ambient declarations for the legacy detection and
+ * transformation modules consumed by app-v4/src/engine/recognizer-registry.ts,
+ * app-v4/src/engine/legacy-recognizers.ts, app-v4/src/engine/operator-registry.ts,
+ * app-v4/src/engine/legacy-operators.ts and their tests. No existing
  * declaration above was modified.
  * ------------------------------------------------------------------------- */
 
@@ -165,6 +166,8 @@ declare module "*/core/processor.js" {
   interface LegacyProcessorModule {
     /** Pure overlap resolution over raw detector entities. */
     resolveConflicts(entities: unknown[]): unknown[];
+    /** Legacy date-visit preparation (transformation-side state); consumed by legacy-operators.test.ts parity setup. */
+    preprocessFechas(entities: unknown[]): void;
   }
 }
 
@@ -232,6 +235,8 @@ declare module "*/core/managers/FechasManager.js" {
     visitasOrdenadas: unknown[];
     procesarVisita(fechaOriginal: string): unknown;
     parseFecha(texto: string): Date | null;
+    /** Legacy relative-date fallback; read-only usage by legacy-operators.ts DATE_TRANSFORM. */
+    relativizarRespHoy(texto: string): string;
     reset(): void;
   };
 }
