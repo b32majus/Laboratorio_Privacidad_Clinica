@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { createJob } from "../domain/job";
-import { createLegacyEngine } from "../engine/legacy-engine";
+import { createJob, setPolicy } from "../domain/job";
+import { createRegistryEngine } from "../engine/registry-engine";
+import { PolicyError } from "../engine/policy";
 import {
   ReviewSessionError,
   addManualDetection,
@@ -55,7 +56,7 @@ function handcraftedSession(): ReviewSession {
 
 describe("full-path integration: engine → session → decisions → final text", () => {
   it("builds a pending review session from a real engine run", () => {
-    const session = createSessionFromEngineText(ENGINE_TEXT);
+    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
     expect(session.originalText).toBe(ENGINE_TEXT);
     expect(session.detections.length).toBeGreaterThan(0);
     // Offsets stay canonical: `original` is re-derived from the source text.
@@ -68,7 +69,7 @@ describe("full-path integration: engine → session → decisions → final text
   });
 
   it("keeps getFinalText fail-closed while mandatory review is pending", () => {
-    const session = createSessionFromEngineText(ENGINE_TEXT);
+    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
     expect(canFinalize(session)).toBe(false);
     try {
       getFinalText(session);
@@ -80,7 +81,7 @@ describe("full-path integration: engine → session → decisions → final text
   });
 
   it("composes exact final text after every detection is explicitly decided", () => {
-    const session = createSessionFromEngineText(ENGINE_TEXT);
+    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
     let decided = session;
     for (const detection of session.detections) {
       decided = applyDecision(decided, detection.id, "accepted");
@@ -275,10 +276,109 @@ describe("job → review-source mapping", () => {
     expect(() => startReviewSession(batchJob)).toThrowError(ReviewSessionError);
   });
 
-  it("the engine adapter behind startReviewSession is the real legacy engine", () => {
-    const engine = createLegacyEngine();
+  it("the engine behind startReviewSession is the registry-composed V4 engine", () => {
+    const engine = createRegistryEngine();
     const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
-    const session = createSessionFromEngineText(ENGINE_TEXT);
+    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
     expect(session.detections.length).toBe(outcome.result.entities.length);
+  });
+});
+
+/**
+ * PR #40 corrective C1: the job's policy must be the policy the engine
+ * actually consumes. Accepted strict-transformation fixture: the legacy
+ * strict profile collapses a hospital UBICACION to 'Centro Sanitario' and
+ * any other UBICACION to 'Zona Geografica' (js/core/processor.js
+ * transformEntity, mirrored by the GENERALIZE operator).
+ */
+const HOSPITAL_TEXT =
+  "Se derivó al Hospital Virgen del Rocío desde Sevilla para pruebas complementarias.";
+
+describe("policy binding: the session is produced under the job's policy (C1)", () => {
+  function proposalsOf(
+    session: ReviewSession
+  ): Array<[string, string | undefined, string | undefined]> {
+    return session.detections.map((detection) => [
+      detection.type,
+      detection.original,
+      detection.proposed,
+    ]);
+  }
+
+  it("a strict job's proposals differ materially from a standard job's (hospital → 'Centro Sanitario')", () => {
+    const strictSession = createSessionFromEngineText(HOSPITAL_TEXT, "strict");
+    const standardSession = createSessionFromEngineText(HOSPITAL_TEXT, "standard");
+
+    // Accepted legacy strict semantics for the hospital mention.
+    const strictHospital = strictSession.detections.find(
+      (detection) =>
+        detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
+    );
+    expect(strictHospital?.proposed).toBe("Centro Sanitario");
+    const strictCity = strictSession.detections.find(
+      (detection) => detection.type === "UBICACION" && detection.original === "Sevilla"
+    );
+    expect(strictCity?.proposed).toBe("Zona Geografica");
+
+    // Material difference: same recognition spans, different transformations.
+    const standardHospital = standardSession.detections.find(
+      (detection) =>
+        detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
+    );
+    expect(standardHospital?.proposed).not.toBe("Centro Sanitario");
+    const spans = (session: ReviewSession) =>
+      session.detections.map((detection) => [detection.start, detection.end]);
+    expect(spans(standardSession)).toEqual(spans(strictSession));
+    expect(proposalsOf(standardSession)).not.toEqual(proposalsOf(strictSession));
+  });
+
+  it("startReviewSession consumes the job's policyId, not an implicit default", () => {
+    const strictJob = setPolicy(createJob({ type: "pasted-text", text: HOSPITAL_TEXT }), "strict");
+    const session = startReviewSession(strictJob);
+    const hospital = session.detections.find(
+      (detection) =>
+        detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
+    );
+    expect(hospital?.proposed).toBe("Centro Sanitario");
+  });
+
+  it.each(["external-ai", "longitudinal-research"] as const)(
+    "a known-but-unmapped %s job fails closed with the typed PolicyError",
+    (policyId) => {
+      const job = setPolicy(createJob({ type: "pasted-text", text: HOSPITAL_TEXT }), policyId);
+      try {
+        startReviewSession(job);
+        throw new Error("expected startReviewSession to fail closed");
+      } catch (error) {
+        expect(error).toBeInstanceOf(PolicyError);
+        expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+        expect((error as PolicyError).message).toContain(policyId);
+      }
+    }
+  );
+
+  it("default/standard behavior stays identical to the pre-correction standard output", () => {
+    const engine = createRegistryEngine();
+    const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
+    const standardSession = createSessionFromEngineText(ENGINE_TEXT, "standard");
+    expect(
+      standardSession.detections.map((detection) => [
+        detection.start,
+        detection.end,
+        detection.original,
+        detection.proposed,
+      ])
+    ).toEqual(
+      outcome.result.entities.map((entity) => [
+        entity.position.start,
+        entity.position.end,
+        entity.original ?? entity.text,
+        entity.transformed,
+      ])
+    );
+    // And the job-level default path (no explicit policy) is the same output.
+    const job = createJob({ type: "pasted-text", text: ENGINE_TEXT });
+    const viaJob = startReviewSession(job);
+    expect(proposalsOf(viaJob)).toEqual(proposalsOf(standardSession));
   });
 });

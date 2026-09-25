@@ -152,3 +152,124 @@ declare module "*/domain/review-session.js" {
   export function getProgress(session: V4ReviewSession): V4ReviewProgress;
   export function getFinalText(session: V4ReviewSession): string;
 }
+
+/* -------------------------------------------------------------------------
+ * Work Order T11 #15 (WU1/WU2) — recognizer and operator registry boundaries.
+ * Append-only additions: ambient declarations for the legacy detection and
+ * transformation modules consumed by app-v4/src/engine/recognizer-registry.ts,
+ * app-v4/src/engine/legacy-recognizers.ts, app-v4/src/engine/operator-registry.ts,
+ * app-v4/src/engine/legacy-operators.ts and their tests. No existing
+ * declaration above was modified.
+ * ------------------------------------------------------------------------- */
+
+declare module "*/core/processor.js" {
+  interface LegacyProcessorModule {
+    /** Pure overlap resolution over raw detector entities. */
+    resolveConflicts(entities: unknown[]): unknown[];
+    /** Legacy date-visit preparation (transformation-side state); consumed by legacy-operators.test.ts parity setup. */
+    preprocessFechas(entities: unknown[]): void;
+  }
+}
+
+declare module "*/core/detectors/identificadores.js" {
+  export function detectIdentificadores(text: string): unknown[];
+}
+
+declare module "*/core/detectors/fechas.js" {
+  export function detectFechas(text: string): unknown[];
+}
+
+declare module "*/core/detectors/ubicaciones.js" {
+  export function detectUbicaciones(
+    text: string,
+    locationData: Record<string, unknown>,
+    normalizeText: (text: string) => string
+  ): unknown[];
+}
+
+declare module "*/core/detectors/nombres.js" {
+  export function detectProfesionales(
+    text: string,
+    dictionaries: Record<string, unknown>,
+    normalizeText: (text: string) => string
+  ): unknown[];
+  export function detectPacientes(
+    text: string,
+    dictionaries: Record<string, unknown>,
+    normalizeText: (text: string) => string
+  ): unknown[];
+  export function detectFamiliares(text: string): unknown[];
+}
+
+declare module "*/core/detectors/cuasiidentificadores.js" {
+  export function detectCuasiIdentificadores(text: string): unknown[];
+}
+
+declare module "*/core/scoring/ScoringEngine.js" {
+  export const ScoringEngine: {
+    aplicarScoring(
+      entities: unknown[],
+      dictionaries: Record<string, unknown>,
+      text: string,
+      normalizeText: (text: string) => string
+    ): unknown[];
+  };
+}
+
+declare module "*/core/scoring/HeuristicasContextuales.js" {
+  export const HeuristicasContextuales: {
+    aplicarHeuristicas(entity: unknown, text: string): unknown;
+  };
+}
+
+declare module "*/core/utils/TextNormalizer.js" {
+  export const TextNormalizer: {
+    normalize(text: string): string;
+  };
+}
+
+/** Consumed only by legacy-recognizers.test.ts for the purity oracle. */
+declare module "*/core/managers/FechasManager.js" {
+  export const FechasManager: {
+    visitasMap: Map<string, string>;
+    visitasOrdenadas: unknown[];
+    procesarVisita(fechaOriginal: string): unknown;
+    parseFecha(texto: string): Date | null;
+    /** Legacy relative-date fallback; read-only usage by legacy-operators.ts DATE_TRANSFORM. */
+    relativizarRespHoy(texto: string): string;
+    reset(): void;
+  };
+}
+
+/** Consumed only by legacy-recognizers.test.ts for the purity oracle. */
+declare module "*/core/managers/UbicacionesManager.js" {
+  export const UbicacionesManager: {
+    centrosMap: Map<string, string>;
+    ciudadesMap: Map<string, string>;
+    contadorCentros: number;
+    contadorCiudades: number;
+    obtenerCentro(centro: string): string;
+    obtenerCiudad(ciudad: string): string;
+    reset(): void;
+  };
+}
+
+/* -------------------------------------------------------------------------
+ * Work Order T11 #15 (WU4) — ARCH-011 optional-review decision/trace
+ * coherence. Append-only: ambient declaration for the coherent derived-status
+ * accessor added by js/domain/review-session.js. No existing declaration
+ * above was modified.
+ * ------------------------------------------------------------------------- */
+
+declare module "*/domain/review-session.js" {
+  /**
+   * Effective decision status of one detection, derived by the single review
+   * authority: the stored decision status when an explicit decision exists;
+   * "pending" when the detection requiresReview and is undecided; and
+   * "not-required" when requiresReview=false and undecided — factually not
+   * pending and never silently "accepted" (ARCH-011).
+   */
+  export type ReviewEffectiveStatus =
+    "pending" | "accepted" | "modified" | "restored" | "not-required";
+  export function getEffectiveStatus(session: V4ReviewSession, id: string): ReviewEffectiveStatus;
+}

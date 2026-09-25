@@ -275,3 +275,72 @@ describe("fail-closed serialization (D-009)", () => {
     }
   });
 });
+
+describe("ARCH-011 optional-review coherence in the serialized artifact (T11 #15 WU4)", () => {
+  const OPTIONAL_SOURCE = "Dato sintético: XYZ-0042 en la nota clínica.";
+  const CODE_START = OPTIONAL_SOURCE.indexOf("XYZ-0042");
+
+  function optionalUndecidedSession(): ReviewSession {
+    return createReviewSession({
+      originalText: OPTIONAL_SOURCE,
+      sessionId: "optional-undecided-serializer-session",
+      detections: [
+        {
+          type: "CODIGO",
+          start: CODE_START,
+          end: CODE_START + "XYZ-0042".length,
+          proposed: "COD-1",
+          requiresReview: false,
+        },
+      ],
+    });
+  }
+
+  it("renders the not-required status factually, never as pending", () => {
+    const output = serializeConfidentialAudit(buildConfidentialAudit(optionalUndecidedSession()));
+    expect(output).toContain("status=not-required");
+    expect(output).not.toContain("status=pending");
+    // The applied-value placeholder is factual per status: review was never
+    // required, so it must not claim a decision is pending.
+    expect(output).toContain("(none — review not required)");
+    expect(output).not.toContain("(none — decision pending)");
+    // The aggregate trace is coherent: nothing pending, export open.
+    expect(output).toContain("pending: 0");
+    expect(output).toContain("Review state: complete");
+    // The original span is still rendered in full, never truncated.
+    expect(output).toContain("original: XYZ-0042");
+  });
+
+  it("pending entries keep their factual placeholder wording", () => {
+    const session = createReviewSession({
+      originalText: OPTIONAL_SOURCE,
+      sessionId: "mandatory-pending-serializer-session",
+      detections: [
+        {
+          type: "CODIGO",
+          start: CODE_START,
+          end: CODE_START + "XYZ-0042".length,
+          proposed: "COD-1",
+          requiresReview: true,
+        },
+      ],
+    });
+    const output = serializeConfidentialAudit(buildConfidentialAudit(session));
+    expect(output).toContain("status=pending");
+    expect(output).toContain("(none — decision pending)");
+    expect(output).not.toContain("status=not-required");
+  });
+
+  it("rejects the OLD contradictory derivation fail-closed (the oracle can disagree)", () => {
+    // Hand-built audit with the OLD shape: mapping entry claims "pending" for
+    // an optional undecided detection while trace.pending=0/canFinalize=true.
+    const realAudit = buildConfidentialAudit(optionalUndecidedSession());
+    const oldDerivationAudit = {
+      ...realAudit,
+      mapping: [{ ...realAudit.mapping[0], status: "pending" as const }],
+    } as unknown as ConfidentialAudit;
+    expect(() => serializeConfidentialAudit(oldDerivationAudit)).toThrowError(
+      ConfidentialAuditError
+    );
+  });
+});

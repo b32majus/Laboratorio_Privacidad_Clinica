@@ -144,7 +144,7 @@ function assertStructuralConfidentialAudit(value: unknown): void {
     }
   }
   const entryRequired = ["detectionId", "end", "keptOriginal", "original", "start", "status"];
-  const statuses = ["pending", "accepted", "modified", "restored"];
+  const statuses = ["pending", "accepted", "modified", "restored", "not-required"];
   for (const listKey of ["mapping", "restoredEntries"] as const) {
     const list = audit[listKey];
     if (!Array.isArray(list)) {
@@ -459,5 +459,179 @@ describe("isConfidentialAudit structural guard", () => {
     expect(isConfidentialAudit({ ...audit, trace: { ...audit.trace, pending: "3" } })).toBe(false);
     // Planted audit of the wrong value type entirely.
     expect(isConfidentialAudit(undefined as unknown as ConfidentialAudit)).toBe(false);
+  });
+});
+
+describe("ARCH-011 optional-review coherence (T11 #15 WU4)", () => {
+  const OPTIONAL_SOURCE = "Dato sintético: XYZ-0042 en la nota clínica.";
+  const CODE_START = OPTIONAL_SOURCE.indexOf("XYZ-0042");
+
+  /** Synthetic optional detection: policy determined review is not required. */
+  function optionalUndecidedSession(): ReviewSession {
+    return createReviewSession({
+      originalText: OPTIONAL_SOURCE,
+      sessionId: "optional-undecided-session",
+      detections: [
+        {
+          type: "CODIGO",
+          start: CODE_START,
+          end: CODE_START + "XYZ-0042".length,
+          proposed: "COD-1",
+          requiresReview: false,
+        },
+      ],
+    });
+  }
+
+  function manualPendingSession(): ReviewSession {
+    const base = createReviewSession({
+      originalText: "Domicilio: Calle Falsa 123.",
+      sessionId: "manual-pending-session",
+      detections: [
+        { type: "DIRECCION", start: 11, end: 27, proposed: "DIR-1", requiresReview: true },
+      ],
+    });
+    return applyDecision(base, base.detections[0].id, "restored", {});
+  }
+
+  /** Deterministic set of session shapes for the invariant oracle. */
+  function invariantShapes(): Array<{ name: string; session: ReviewSession }> {
+    const optionalOnly = optionalUndecidedSession();
+    const optionalDecided = applyDecision(
+      optionalUndecidedSession(),
+      optionalUndecidedSession().detections[0].id,
+      "accepted"
+    );
+    const allPending = adversarialSession();
+    const completed = completedSession();
+    const partial = applyDecision(
+      adversarialSession(),
+      adversarialSession().detections[1].id,
+      "accepted"
+    );
+    const mixed = (() => {
+      // One optional undecided detection + one mandatory decided (modified).
+      const session = createReviewSession({
+        originalText: OPTIONAL_SOURCE,
+        sessionId: "mixed-shape-session",
+        detections: [
+          {
+            type: "CODIGO",
+            start: CODE_START,
+            end: CODE_START + "XYZ-0042".length,
+            proposed: "COD-1",
+            requiresReview: false,
+          },
+          { type: "NOMBRE", start: 0, end: 4, proposed: "PAC-1", requiresReview: true },
+        ],
+      });
+      return applyDecision(session, session.detections[1].id, "modified", {
+        replacement: "NOMBRE-X",
+      });
+    })();
+    return [
+      { name: "optional undecided only", session: optionalOnly },
+      { name: "optional decided (accepted)", session: optionalDecided },
+      { name: "all mandatory pending", session: allPending },
+      { name: "completed accepted/modified/restored", session: completed },
+      { name: "partial: one decided, rest pending", session: partial },
+      { name: "mixed optional undecided + mandatory decided", session: mixed },
+      { name: "manual restored pending-free", session: manualPendingSession() },
+    ];
+  }
+
+  it("optional undecided detection: explicit factual status, no mapping/trace contradiction", () => {
+    const session = optionalUndecidedSession();
+    const audit = buildConfidentialAudit(session);
+
+    const entry = audit.mapping[0];
+    expect(entry?.status).toBe("not-required");
+    expect(entry?.status).not.toBe("pending");
+    expect(entry?.status).not.toBe("accepted"); // NEVER silently accepted (ARCH-011)
+    expect(entry?.replacement).toBeUndefined();
+    expect(entry?.keptOriginal).toBe(false);
+
+    // Aggregate semantics stay the T01 authority's: nothing pending, export open.
+    expect(audit.trace.pending).toBe(0);
+    expect(audit.trace.canFinalize).toBe(true);
+    expect(getFinalText(session)).toBe(OPTIONAL_SOURCE); // span renders original
+
+    // Coherence: mapping-level pending count equals the aggregate trace.
+    const mappingPending = audit.mapping.filter((e) => e.status === "pending").length;
+    expect(mappingPending).toBe(audit.trace.pending);
+  });
+
+  it("invariant oracle: mapping pending count === trace.pending AND canFinalize === (pending === 0) for every session shape", () => {
+    for (const { name, session } of invariantShapes()) {
+      const audit = buildConfidentialAudit(session);
+      const mappingPending = audit.mapping.filter((e) => e.status === "pending").length;
+      expect(mappingPending, `mapping/trace pending coherence for shape: ${name}`).toBe(
+        audit.trace.pending
+      );
+      expect(audit.trace.canFinalize, `finalize gate coherence for shape: ${name}`).toBe(
+        audit.trace.pending === 0
+      );
+    }
+  });
+
+  it("requiresReview=true undecided stays pending and fail-closed (no behavior change)", () => {
+    const session = adversarialSession(); // nothing decided, all mandatory
+    const audit = buildConfidentialAudit(session);
+    expect(audit.mapping.every((entry) => entry.status === "pending")).toBe(true);
+    expect(audit.trace.pending).toBe(3);
+    expect(audit.trace.canFinalize).toBe(false);
+    try {
+      getFinalText(session);
+      expect.unreachable("export must stay fail-closed");
+    } catch (error) {
+      expect((error as { code?: string }).code).toBe("MANDATORY_REVIEW_PENDING");
+    }
+  });
+
+  it("T05/T06 default stability: no explicit requiresReview rule defaults to requiresReview=true", () => {
+    const session = createReviewSession({
+      originalText: "Dato sintético sin regla explícita.",
+      sessionId: "default-requires-review",
+      detections: [{ type: "NOMBRE", start: 0, end: 4, proposed: "PAC-1" }],
+    });
+    expect(session.detections[0]?.requiresReview).toBe(true);
+    const audit = buildConfidentialAudit(session);
+    expect(audit.mapping[0]?.status).toBe("pending");
+    expect(audit.trace.pending).toBe(1);
+    expect(audit.trace.canFinalize).toBe(false);
+  });
+
+  it("restored/accepted/modified entries are unchanged by the coherence work", () => {
+    const audit = buildConfidentialAudit(completedSession());
+    const statuses = audit.mapping.map((entry) => entry.status).sort();
+    expect(statuses).toEqual(["accepted", "modified", "restored"]);
+    expect(audit.restoredEntries.length).toBe(1);
+    expect(audit.restoredEntries[0]?.keptOriginal).toBe(true);
+  });
+
+  it("the oracle can disagree: the OLD contradictory derivation is rejected fail-closed", () => {
+    // Hand-built audit with the OLD contradictory shape: an optional undecided
+    // detection whose mapping entry still claims "pending" while the aggregate
+    // trace reports pending=0 / canFinalize=true.
+    const realAudit = buildConfidentialAudit(optionalUndecidedSession());
+    const oldDerivationAudit = {
+      ...realAudit,
+      mapping: [{ ...realAudit.mapping[0], status: "pending" as const }],
+    };
+    expect(oldDerivationAudit.mapping[0]?.status).toBe("pending");
+    expect(oldDerivationAudit.trace.pending).toBe(0);
+    expect(oldDerivationAudit.trace.canFinalize).toBe(true);
+    // The coherence check detects the contradiction and rejects the artifact.
+    expect(isConfidentialAudit(oldDerivationAudit)).toBe(false);
+
+    // Planted finalize-gate lie: pending entries present but canFinalize=true.
+    const pendingAudit = buildConfidentialAudit(adversarialSession());
+    expect(
+      isConfidentialAudit({ ...pendingAudit, trace: { ...pendingAudit.trace, canFinalize: true } })
+    ).toBe(false);
+    // Planted trace count lie: mapping has 3 pending entries, trace claims 2.
+    expect(
+      isConfidentialAudit({ ...pendingAudit, trace: { ...pendingAudit.trace, pending: 2 } })
+    ).toBe(false);
   });
 });

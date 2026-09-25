@@ -30,6 +30,11 @@
  * Privacy: this module never logs content, never mutates its input, and
  * fails closed on invalid input (D-009): empty/oversized text and
  * non-serializable contexts raise typed errors instead of guessed behavior.
+ *
+ * Work Order T11 #15 (WU3): the module-private fail-closed validators and
+ * the fresh/shared context reconciliation helpers are exported verbatim (no
+ * behavior change) so the registry-composed engine (`registry-engine.ts`)
+ * reuses the exact same rules instead of duplicating them.
  */
 
 import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitutos.js";
@@ -122,7 +127,7 @@ function structuralEquals(a: unknown, b: unknown): boolean {
   return keysA.every((key) => key in b && structuralEquals(a[key], b[key]));
 }
 
-function assertValidText(text: unknown): asserts text is string {
+export function assertValidText(text: unknown): asserts text is string {
   if (typeof text !== "string") {
     throw new EngineError("invalid-text", "Engine input text must be a string.");
   }
@@ -173,7 +178,7 @@ function isAssignmentEntry(entry: unknown): entry is [string, string] {
   );
 }
 
-function assertValidContext(context: unknown): asserts context is ProcessingContext {
+export function assertValidContext(context: unknown): asserts context is ProcessingContext {
   if (!isPlainObject(context)) {
     throw new EngineError("invalid-context", "Engine context must be a plain serializable object.");
   }
@@ -215,7 +220,7 @@ function assertLegacyResultShape(result: unknown): asserts result is LegacyProce
 }
 
 /** Serializable snapshot of the legacy manager's public data fields. */
-function snapshotModulePseudonymState(): PseudonymState {
+export function snapshotModulePseudonymState(): PseudonymState {
   return {
     asignaciones: [...AsignadorSustitutos.mapaAsignaciones.entries()],
     profesionales: [...AsignadorSustitutos.profesionalesMap.entries()],
@@ -240,7 +245,7 @@ interface LegacyAliasOracle {
 
 const LEGACY_ALIAS_ORACLE = AsignadorSustitutos as unknown as LegacyAliasOracle;
 
-function freezeDeep<T>(value: T): T {
+export function freezeDeep<T>(value: T): T {
   if (value !== null && typeof value === "object") {
     for (const entry of Object.values(value as Record<string, unknown>)) {
       freezeDeep(entry);
@@ -250,7 +255,7 @@ function freezeDeep<T>(value: T): T {
   return value;
 }
 
-function freezePseudonymState(state: PseudonymState): PseudonymState {
+export function freezePseudonymState(state: PseudonymState): PseudonymState {
   return freezeDeep({
     asignaciones: state.asignaciones.map((entry) => [entry[0], entry[1]] as const),
     profesionales: state.profesionales.map((entry) => [entry[0], entry[1]] as const),
@@ -360,7 +365,7 @@ function rebuildProcessedText(
  * Shared-mode seam: reconcile the fresh legacy state against the context's
  * authoritative pseudonym state and return the updated frozen context.
  */
-function reconcileSharedContext(
+export function reconcileSharedContext(
   context: ProcessingContext,
   legacyResult: LegacyProcessorResult
 ): { result: LegacyProcessorResult; context: ProcessingContext } {

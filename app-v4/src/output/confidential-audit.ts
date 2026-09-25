@@ -39,9 +39,25 @@ import {
   type ReviewDetection,
   type ReviewSession,
 } from "../review/review-domain";
+// Work Order T11 #15 (WU4, ARCH-011): the coherent effective-status accessor
+// added by the T01 authority. Imported from the authority module itself — the
+// same single module ../review/review-domain re-exports (D-004); the facade
+// file is outside this work unit's allowed edit surfaces.
+import { getEffectiveStatus } from "../../../js/domain/review-session.js";
 
-/** Decision status of one mapping entry (pending is the implicit initial state). */
-export type ConfidentialAuditEntryStatus = "pending" | "accepted" | "modified" | "restored";
+/**
+ * Decision status of one mapping entry, derived through the single review
+ * authority (getEffectiveStatus, ARCH-011 coherence — T11 #15 WU4):
+ * - "pending"      requiresReview detection awaiting an explicit decision;
+ * - "accepted" / "modified" / "restored"  explicit completed decisions;
+ * - "not-required" requiresReview=false detection with no recorded human
+ *   decision: policy determined that review is not required. Factually NOT
+ *   "pending" (nothing awaits a decision) and NEVER "accepted" (no human
+ *   accepted anything); the span renders its original per the T01 resolveSpan
+ *   rules.
+ */
+export type ConfidentialAuditEntryStatus =
+  "pending" | "accepted" | "modified" | "restored" | "not-required";
 
 /** One authorized original↔replacement correspondence entry. */
 export interface ConfidentialAuditEntry {
@@ -142,13 +158,13 @@ const TRACE_KEYS: readonly string[] = [
   "total",
 ];
 
-function buildEntry(
-  session: ReviewSession,
-  detection: ReviewDetection,
-  isPending: boolean
-): ConfidentialAuditEntry {
+function buildEntry(session: ReviewSession, detection: ReviewDetection): ConfidentialAuditEntry {
+  // Single decision-status authority (D-004, ARCH-011 — T11 #15 WU4): every
+  // entry status derives through getEffectiveStatus, so mapping-level status
+  // can never contradict the aggregate trace pending/canFinalize data, which
+  // come from the same authority's progress gate.
   const decision = getDecision(session, detection.id);
-  const status: ConfidentialAuditEntryStatus = isPending ? "pending" : decision.status;
+  const status: ConfidentialAuditEntryStatus = getEffectiveStatus(session, detection.id);
   let replacement: string | undefined;
   if (status === "accepted") {
     replacement = detection.proposed !== undefined ? detection.proposed : detection.original;
@@ -185,9 +201,8 @@ function bySourceOffset(a: ConfidentialAuditEntry, b: ConfidentialAuditEntry): n
  */
 export function buildConfidentialAudit(session: ReviewSession): ConfidentialAudit {
   const progress = getProgress(session);
-  const pendingIds = new Set(progress.pendingDetections.map((detection) => detection.id));
   const mapping = session.detections
-    .map((detection) => buildEntry(session, detection, pendingIds.has(detection.id)))
+    .map((detection) => buildEntry(session, detection))
     .sort(bySourceOffset);
   return Object.freeze({
     kind: "confidential-audit" as const,
@@ -231,7 +246,8 @@ function isAuditEntry(value: unknown): boolean {
     status !== "pending" &&
     status !== "accepted" &&
     status !== "modified" &&
-    status !== "restored"
+    status !== "restored" &&
+    status !== "not-required"
   ) {
     return false;
   }
@@ -289,8 +305,20 @@ export function isConfidentialAudit(value: unknown): value is ConfidentialAudit 
     return false;
   }
   // Consistency: restoredEntries mirrors the restored subset of the mapping.
-  const restoredCount = (mapping as readonly ConfidentialAuditEntry[]).filter(
-    (entry) => entry.keptOriginal
-  ).length;
-  return restoredEntries.length === restoredCount;
+  const entries = mapping as readonly ConfidentialAuditEntry[];
+  const restoredCount = entries.filter((entry) => entry.keptOriginal).length;
+  if (restoredEntries.length !== restoredCount) {
+    return false;
+  }
+  // ARCH-011 coherence (T11 #15 WU4): mapping-level pending status and the
+  // aggregate trace can never contradict, and canFinalize stays the T01
+  // authority's gate (export open exactly when nothing is pending).
+  const pendingCount = entries.filter((entry) => entry.status === "pending").length;
+  if (pendingCount !== t.pending) {
+    return false;
+  }
+  if (t.canFinalize !== (t.pending === 0)) {
+    return false;
+  }
+  return true;
 }
