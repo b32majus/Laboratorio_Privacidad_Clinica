@@ -34,10 +34,14 @@ Chain of three semantic work units; each carries its proving oracle; no test-onl
 2. WU-B — AGE generalization operator + policy mapping: data-owned band config, EDAD→AGE-generalize operator, mapping for standard+strict in policy, formal taxonomy extension (RECOGNIZER_CATEGORIES/coverage keys/consistency checker/stats), typed fail-closed unknowns; external-ai/longitudinal-research stay unmapped.
 3. WU-C — composed regression: registry-engine→ReviewSession→Safe Output no-leak oracle, ground-truth + false-positive corpus for EDAD in scripts/privacy-eval (manifest taxonomy + thresholds), debt FUNC-003 evidence.
 
+## Native review ledger
+
+- WU-A (commit 9b87b27): native ASSESS returned typed `risk=unassessable` (schema-incompatible, changedPaths=0) → followed its fail-closed plan verbatim: writer self-verification (vitest engine 174/174, typecheck, lint) + separate independent verifier (gentle-ai-verify PASS). No review START manufactured; no review_due offered.
+
 ## Tasks
 
 - [x] WU-A: age recognizer + exact offsets + fixtures + false-positive oracle — commit 9b87b2792 (feat(engine), 5 files, +584/-3); vitest engine 174/174 PASS, typecheck/lint PASS, independent read-only verify PASS (only deviation: this ODD doc itself).
-- [ ] WU-B: AGE generalization operator + policy mapping + taxonomy formalization + typed fail-closed oracles
+- [x] WU-B: AGE generalization operator + policy mapping + taxonomy formalization + typed fail-closed oracles — commit 214a8a93 (feat(engine), 13 files); vitest FULL suite 391/391 PASS, typecheck/lint/format PASS, independent verify PASS on all 6 items. Deviation recorded: legacy-operators.ts registration edit was outside the declared parent surface list (functionally required; diff verified registration-only).
 - [ ] WU-C: composed no-leak regression + privacy-eval EDAD corpus/thresholds
 - [ ] Per-unit deterministic verification (vitest engine suites; npm test chain at closeout)
 - [ ] Update docs/DEBT_REGISTER.md FUNC-003 disposition at WU-C
