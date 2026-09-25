@@ -1,6 +1,7 @@
 # Feature: T12 #16 — AGE recognizer and generalization operator
 
-Status: T12 UNITS COMPLETE — pending ticket-level closeout + live frontier rediscovery
+Status: COMPLETE (T12 #16)
+Final commits: WU-A 9b87b279, WU-B 214a8a93, WU-C 6746bd3d, corrective c7a35fa4 (positioning-copy comment reword, comment-only). Ticket integration: npm test full chain PASS (vitest 398/398, privacy-eval PASS, smoke OK). Native review ledger: per-unit ASSESS returned typed risk=unassessable (#4791 seam) each time; verifier path followed (writer self-verification + independent gentle-ai-verify PASS per unit); no review_due offered; no START manufactured.
 Work Order: GitHub #16 (EXECUTION_READY=YES; blockers #6, #15 CLOSED)
 Branch: work/native/v4-travel-t12-t16-20260925
 START_HEAD: 051305cff9a0a901f0e1e822e053afc88b75695d
