@@ -26,6 +26,7 @@ import {
   isStructuredExtension,
 } from "./domain/job";
 import { EngineError } from "./engine/types";
+import { PolicyError } from "./engine/policy";
 import { extractFile, extractFromPastedText } from "./input/extract";
 import { extensionOf } from "./input/extracted-source";
 import { ExportStep } from "./export/ExportStep";
@@ -184,9 +185,13 @@ export function App() {
       setInputError(null);
       setReviewError(null);
     } catch (error) {
+      // PR #40 corrective C1: the typed PolicyError is surfaced alongside the
+      // other typed domain failures so a known-but-unmapped job policy
+      // becomes an actionable message instead of the generic fallback.
       const message =
         error instanceof JobModelError ||
         error instanceof EngineError ||
+        error instanceof PolicyError ||
         error instanceof ReviewSessionError
           ? error.message
           : "That step is not available right now.";
@@ -288,10 +293,7 @@ export function App() {
         ) : currentStep === "export" && review && job ? (
           <ExportStep job={job} review={review} />
         ) : (
-          <StepPlaceholder
-            step={currentStep}
-            reviewError={currentStep === "review" ? reviewError : null}
-          />
+          <StepPlaceholder step={currentStep} reviewError={reviewError} />
         )}
       </main>
     </div>

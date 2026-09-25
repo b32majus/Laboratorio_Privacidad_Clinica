@@ -400,13 +400,31 @@ export function isStepAccessible(job: Job, target: FlowStep): boolean {
   return stepIndex(target) === stepIndex(job.currentStep) + 1 && canAdvanceStep(job);
 }
 
-/** Set the job's Privacy Policy (D-007 vocabulary). */
+/**
+ * Set the job's Privacy Policy (D-007 vocabulary).
+ *
+ * Review-state validity invariant (PR #40 corrective C2): a ReviewSession is
+ * produced under exactly one policy, so a REAL policy change resets the
+ * derived review-dependent state in the same frozen transition — review
+ * completeness and both output availabilities return to their fail-closed
+ * `false` defaults. The flow position is kept: the reviewer re-enters Review
+ * under the new policy and a fresh session replaces the now-invalid one.
+ * An unchanged policy is an exact no-op (the same object is returned).
+ */
 export function setPolicy(job: Job, policyId: PrivacyPolicyId): Job {
   if (!POLICY_IDS.includes(policyId)) {
     throw new JobModelError("invalid-policy", `Unknown privacy policy "${String(policyId)}".`);
   }
   if (policyId === job.policyId) return job;
-  return freezeDeep({ ...job, policyId });
+  return freezeDeep({
+    ...job,
+    policyId,
+    review: { complete: false } as ReviewState,
+    outputs: {
+      safeOutputReady: false,
+      confidentialAuditReady: false,
+    } as OutputAvailability,
+  });
 }
 
 /**

@@ -367,6 +367,108 @@ describe("App privacy gate (T08 U3)", () => {
   });
 });
 
+describe("App policy change vs an existing review (PR #40 corrective C1+C2)", () => {
+  const REVIEW_NOTE =
+    "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
+
+  function createReviewJob() {
+    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+  }
+
+  function pendingCount(): number {
+    const progress = screen.getByRole("status", { name: /review progress/i });
+    return Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
+  }
+
+  /** Accept detections one by one until no pending mandatory decision remains. */
+  function acceptAllDetections() {
+    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    for (;;) {
+      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
+      if (!first) break;
+      fireEvent.click(first);
+      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    }
+  }
+
+  it("a completed review cannot be relabelled: a real policy change blocks the gates again and the review restarts under the new policy", () => {
+    render(<App />);
+    createReviewJob();
+    acceptAllDetections();
+    expect(pendingCount()).toBe(0);
+    // From the Privacy Gate step, Export is the immediate next step, so its
+    // enabled state is a real derived-gate assertion (not step-ordering).
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(stepButton(5, "Export")).toBeEnabled();
+
+    // The select stays enabled: the invalidation must be state-enforced,
+    // not achieved by disabling the control (requirement 6).
+    const policySelect = screen.getByLabelText("Privacy Policy:");
+    expect(policySelect).toBeEnabled();
+    fireEvent.change(policySelect, { target: { value: "strict" } });
+
+    // State behavior, not the control: export is blocked again because the
+    // derived review-dependent state was reset in the same transition.
+    expect(stepButton(5, "Export")).toBeDisabled();
+
+    // The stale session is gone: re-entering Review creates a fresh session
+    // under the new policy, with every decision pending again.
+    fireEvent.click(stepButton(3, "Review"));
+    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    expect(pendingCount()).toBeGreaterThan(0);
+
+    // Completing the review again re-opens the gate, which reports the NEW
+    // policy factually — the old review was never relabelled to it.
+    acceptAllDetections();
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(stepButton(5, "Export")).toBeEnabled();
+    const facts = screen.getByRole("status", { name: /output availability facts/i });
+    expect(facts).toHaveTextContent("Privacy policy used: Strict");
+    expect(facts).toHaveTextContent("Safe output: Ready");
+  });
+
+  it("an unchanged policy selection is an exact no-op: the completed review survives", () => {
+    render(<App />);
+    createReviewJob();
+    acceptAllDetections();
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(stepButton(5, "Export")).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "standard" },
+    });
+
+    expect(stepButton(5, "Export")).toBeEnabled();
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    const facts = screen.getByRole("status", { name: /output availability facts/i });
+    expect(facts).toHaveTextContent("Privacy policy used: Standard");
+    expect(facts).toHaveTextContent("Safe output: Ready");
+  });
+
+  it("starting review under a known-but-unmapped policy fails closed with the typed PolicyError (C1)", () => {
+    render(<App />);
+    createTextJob();
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "external-ai" },
+    });
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+
+    // The typed PolicyError message is surfaced, not swallowed into the
+    // generic fallback message.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
+    expect(alert).toHaveTextContent("external-ai");
+    expect(alert).not.toHaveTextContent(/not available right now/i);
+    // No stale session was installed.
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+  });
+});
+
 describe("App document intake (T06)", () => {
   afterEach(() => {
     delete window.pdfjsLib;
@@ -529,7 +631,7 @@ describe("App export step (T08 U4)", () => {
 
   /** Pure-domain replica: the same engine, text and decisions as the App flow. */
   function replicaSession(note: string): ReviewSession {
-    const session = createSessionFromEngineText(note);
+    const session = createSessionFromEngineText(note, "standard");
     let next = session;
     for (const detection of next.detections) {
       next = applyDecision(next, detection.id, "accepted");
@@ -614,11 +716,13 @@ describe("App export step (T08 U4)", () => {
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
       const before = await textOf(captured.downloads[0]);
 
-      // Force unrelated re-renders of the shell (navigation, policy rerender).
+      // Force unrelated re-renders of the shell (navigation + a same-value
+      // policy change; a REAL policy change invalidates the review by
+      // contract — see the C2 flow oracle — so it must not be used here).
       fireEvent.click(stepButton(1, "Input"));
       fireEvent.click(stepButton(5, "Export"));
       fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
-        target: { value: "strict" },
+        target: { value: "standard" },
       });
 
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));

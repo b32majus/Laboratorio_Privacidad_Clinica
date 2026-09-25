@@ -86,9 +86,16 @@ export function useJobSession() {
   }, []);
 
   const updatePolicy = useCallback((policyId: PrivacyPolicyId) => {
-    setState((current) =>
-      current.job ? { ...current, job: setPolicy(current.job, policyId) } : current
-    );
+    setState((current) => {
+      if (!current.job) return current;
+      if (current.job.policyId === policyId) return current;
+      // PR #40 corrective C2: a REAL policy change invalidates any existing
+      // ReviewSession in the same atomic write — the domain transition
+      // resets the derived review/output state and the bridge drops the
+      // stale session, which is recreated under the new policy the next
+      // time the Review step is entered.
+      return { job: setPolicy(current.job, policyId), review: null };
+    });
   }, []);
 
   /** Install a freshly created ReviewSession as the job's review authority. */

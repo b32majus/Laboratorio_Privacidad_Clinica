@@ -11,6 +11,7 @@ import {
   isStepAccessible,
   setPolicy,
   withReviewState,
+  type Job,
 } from "./job";
 
 const TEXT_INPUT = { type: "pasted-text", text: "Synthetic clinical note for testing." } as const;
@@ -380,5 +381,41 @@ describe("setPolicy", () => {
     } catch (error) {
       expect((error as JobModelError).code).toBe("invalid-policy");
     }
+  });
+
+  // PR #40 corrective C2: a ReviewSession is produced under exactly one
+  // policy, so a REAL policy change resets the derived review-dependent
+  // state in the same frozen transition.
+  it("a real policy change resets review completeness and both outputs fail-closed", () => {
+    const job = createJob(TEXT_INPUT);
+    // Mirror the state bridge's derived shape: review complete with both
+    // outputs available (exactly what withDerivedReviewState installs).
+    const reviewedJob = Object.freeze({
+      ...withReviewState(job, { complete: true }),
+      outputs: Object.freeze({ safeOutputReady: true, confidentialAuditReady: true }),
+      currentStep: "export",
+      visitedSteps: Object.freeze(["input", "configure", "review", "privacy-gate", "export"]),
+    }) as Job;
+
+    const changed = setPolicy(reviewedJob, "strict");
+    expect(changed.policyId).toBe("strict");
+    expect(changed.review).toEqual({ complete: false });
+    expect(changed.outputs).toEqual({ safeOutputReady: false, confidentialAuditReady: false });
+    expect(Object.isFrozen(changed)).toBe(true);
+    expect(Object.isFrozen(changed.review)).toBe(true);
+    expect(Object.isFrozen(changed.outputs)).toBe(true);
+    // The flow position is kept: the reviewer re-enters Review in place.
+    expect(changed.currentStep).toBe("export");
+    expect(changed.visitedSteps).toEqual(reviewedJob.visitedSteps);
+    // The export gate re-engages through the same domain state.
+    expect(canAdvanceStep(changed)).toBe(false);
+  });
+
+  it("an unchanged policy is an exact no-op (same object, no reset)", () => {
+    const reviewedJob = Object.freeze({
+      ...withReviewState(createJob(TEXT_INPUT), { complete: true }),
+      outputs: Object.freeze({ safeOutputReady: true, confidentialAuditReady: true }),
+    }) as Job;
+    expect(setPolicy(reviewedJob, "standard")).toBe(reviewedJob);
   });
 });

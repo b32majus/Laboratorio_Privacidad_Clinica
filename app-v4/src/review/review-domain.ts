@@ -31,7 +31,7 @@ import {
   type ReviewSession,
 } from "../../../js/domain/review-session.js";
 import { createRegistryEngine } from "../engine/registry-engine";
-import type { Job } from "../domain/job";
+import type { Job, PrivacyPolicyId } from "../domain/job";
 
 export {
   addManualDetection,
@@ -74,12 +74,20 @@ export type DecisionExtras = {
 
 /**
  * Run the registry-composed V4 engine (Work Order T11 #15, WU3) over `text`
- * and map the result through the T01 adapter into a ReviewSession. Main-thread processing is fine at
+ * under the EXPLICIT `policyId` and map the result through the T01 adapter
+ * into a ReviewSession. PR #40 corrective C1: the policy is never guessed —
+ * the caller (the Job, via {@link startReviewSession}) decides it, so the
+ * session's proposals are always produced under the job's actual policy;
+ * known-but-unmapped policies fail typed through the engine instead of
+ * silently falling back to `standard`. Main-thread processing is fine at
  * this stage; the Web Worker boundary is a later ticket (T22).
  */
-export function createSessionFromEngineText(text: string): ReviewSession {
+export function createSessionFromEngineText(
+  text: string,
+  policyId: PrivacyPolicyId
+): ReviewSession {
   const engine = createRegistryEngine();
-  const outcome = engine.process({ text, context: { mode: "fresh" } });
+  const outcome = engine.process({ text, context: { mode: "fresh" }, policyId });
   // The T01 adapter validates the result shape fail-closed and returns a
   // frozen session; the ambient declaration keeps the structural type.
   return createReviewSessionFromProcessor(outcome.result) as ReviewSession;
@@ -121,5 +129,9 @@ export function startReviewSession(job: Job): ReviewSession {
       `Job "${job.name}" (${job.kind}) has no single reviewable source text; its review workflow arrives with a later V4 ticket.`
     );
   }
-  return createSessionFromEngineText(text);
+  // PR #40 corrective C1: the job's own policy is the policy the engine
+  // consumes. A known-but-unmapped job policy (external-ai,
+  // longitudinal-research) fails closed with the typed PolicyError — never
+  // a session silently produced under `standard`.
+  return createSessionFromEngineText(text, job.policyId);
 }
