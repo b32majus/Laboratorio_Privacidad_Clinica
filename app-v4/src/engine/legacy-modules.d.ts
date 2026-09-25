@@ -253,3 +253,23 @@ declare module "*/core/managers/UbicacionesManager.js" {
     reset(): void;
   };
 }
+
+/* -------------------------------------------------------------------------
+ * Work Order T11 #15 (WU4) — ARCH-011 optional-review decision/trace
+ * coherence. Append-only: ambient declaration for the coherent derived-status
+ * accessor added by js/domain/review-session.js. No existing declaration
+ * above was modified.
+ * ------------------------------------------------------------------------- */
+
+declare module "*/domain/review-session.js" {
+  /**
+   * Effective decision status of one detection, derived by the single review
+   * authority: the stored decision status when an explicit decision exists;
+   * "pending" when the detection requiresReview and is undecided; and
+   * "not-required" when requiresReview=false and undecided — factually not
+   * pending and never silently "accepted" (ARCH-011).
+   */
+  export type ReviewEffectiveStatus =
+    "pending" | "accepted" | "modified" | "restored" | "not-required";
+  export function getEffectiveStatus(session: V4ReviewSession, id: string): ReviewEffectiveStatus;
+}

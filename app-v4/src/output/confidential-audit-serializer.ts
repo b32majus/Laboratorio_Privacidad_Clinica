@@ -86,7 +86,15 @@ export function serializeConfidentialAudit(audit: ConfidentialAudit): string {
       lines.push(`    proposed: ${inline(entry.proposed)}`);
     }
     lines.push(
-      `    applied: ${entry.replacement === undefined ? "(none — decision pending)" : inline(entry.replacement)}`
+      `    applied: ${
+        entry.replacement !== undefined
+          ? inline(entry.replacement)
+          : entry.status === "not-required"
+            ? // Factually per status (ARCH-011): review was never required, so the
+              // placeholder must not claim that a decision is pending.
+              "(none — review not required)"
+            : "(none — decision pending)"
+      }`
     );
     if (entry.keptOriginal) {
       lines.push("    kept original: yes (explicit restored decision)");

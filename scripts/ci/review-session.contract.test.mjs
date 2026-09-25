@@ -17,6 +17,7 @@ import {
   getDecision,
   canFinalize,
   getFinalText,
+  getEffectiveStatus,
 } from '../../js/domain/review-session.js';
 import {
   createReviewSessionFromProcessor,
@@ -660,5 +661,132 @@ describe('collision-safe detection identity', () => {
     assert.notEqual(a.id, b.id);
     assert.match(a.id, /^det-dupes-[0-9a-f]{8}$/);
     assert.match(b.id, /^det-dupes-[0-9a-f]{8}-2$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ARCH-011 optional-review semantics coherence (Work Order T11 #15, WU4).
+// getEffectiveStatus is the single coherent derived-status accessor: for any
+// detection it returns the stored decision status when one exists, 'pending'
+// when requiresReview && undecided, and the explicit factual status
+// 'not-required' when requiresReview=false && undecided (policy determined
+// review is not required; no human decision recorded; NEVER silently
+// 'accepted'). Existing exported functions keep their exact semantics.
+// ---------------------------------------------------------------------------
+
+describe('getEffectiveStatus (ARCH-011 coherence, T11 #15 WU4)', () => {
+  const optionalSource = 'Dato sintetico: XYZ-0042 en la nota clinica.';
+  const optionalStart = optionalSource.indexOf('XYZ-0042');
+
+  const mixedSession = () =>
+    createReviewSession({
+      originalText: optionalSource,
+      sessionId: 'arch011-mixed',
+      detections: [
+        {
+          type: 'CODIGO',
+          start: optionalStart,
+          end: optionalStart + 8,
+          proposed: 'COD-1',
+          requiresReview: false, // optional: policy says no review needed
+        },
+        {
+          type: 'NOMBRE',
+          start: 0,
+          end: 4,
+          proposed: 'PACIENTE-1',
+          requiresReview: true, // mandatory: fail-closed until decided
+        },
+      ],
+    });
+
+  test('requiresReview=false undecided returns the explicit factual status, not pending/accepted', () => {
+    const session = mixedSession();
+    const [optional] = session.detections;
+    assert.equal(getEffectiveStatus(session, optional.id), 'not-required');
+    assert.notEqual(getEffectiveStatus(session, optional.id), 'pending');
+    assert.notEqual(getEffectiveStatus(session, optional.id), 'accepted');
+  });
+
+  test('requiresReview=true undecided stays pending (fail-closed unchanged)', () => {
+    const session = mixedSession();
+    const [, mandatory] = session.detections;
+    assert.equal(getEffectiveStatus(session, mandatory.id), 'pending');
+  });
+
+  test('stored decisions win for every explicit status', () => {
+    let session = mixedSession();
+    const [optional, mandatory] = session.detections;
+    session = applyDecision(session, optional.id, 'accepted');
+    session = applyDecision(session, mandatory.id, 'modified', { replacement: 'X' });
+    assert.equal(getEffectiveStatus(session, optional.id), 'accepted');
+    assert.equal(getEffectiveStatus(session, mandatory.id), 'modified');
+    session = applyDecision(session, mandatory.id, 'restored', {});
+    assert.equal(getEffectiveStatus(session, mandatory.id), 'restored');
+  });
+
+  test('resetting to pending restores the requiresReview-based effective status', () => {
+    let session = mixedSession();
+    const [optional, mandatory] = session.detections;
+    session = applyDecision(session, optional.id, 'accepted');
+    session = applyDecision(session, mandatory.id, 'modified', { replacement: 'X' });
+    session = applyDecision(session, optional.id, 'pending');
+    session = applyDecision(session, mandatory.id, 'pending');
+    assert.equal(getEffectiveStatus(session, optional.id), 'not-required');
+    assert.equal(getEffectiveStatus(session, mandatory.id), 'pending');
+  });
+
+  test('detections without an explicit requiresReview rule default to pending (T05/T06 stability)', () => {
+    const session = createReviewSession({
+      originalText: 'Nota sintetica sin regla explicita.',
+      sessionId: 'arch011-default',
+      detections: [{ type: 'NOMBRE', start: 0, end: 4, proposed: 'PACIENTE-1' }],
+    });
+    // D-009 fail-closed default: requiresReview true, so undecided = pending.
+    assert.equal(session.detections[0].requiresReview, true);
+    assert.equal(getEffectiveStatus(session, session.detections[0].id), 'pending');
+    assert.equal(canFinalize(session), false);
+  });
+
+  test('fail-closed validation: unknown id and invalid session throw typed errors', () => {
+    const session = mixedSession();
+    assert.throws(
+      () => getEffectiveStatus(session, 'det-nope'),
+      (error) => error instanceof ReviewSessionError && error.code === 'UNKNOWN_DETECTION'
+    );
+    assert.throws(
+      () => getEffectiveStatus(null, 'x'),
+      (error) => error instanceof ReviewSessionError && error.code === 'INVALID_SESSION'
+    );
+  });
+
+  test('gate coherence: optional undecided never blocks export or the pending count', () => {
+    const session = mixedSession();
+    assert.equal(getPendingDetections(session).length, 1); // only the mandatory one
+    assert.equal(canFinalize(session), false); // mandatory undecided blocks
+    assert.throws(
+      () => getFinalText(session),
+      (error) => error instanceof ReviewSessionError && error.code === 'MANDATORY_REVIEW_PENDING'
+    );
+
+    const optionalOnly = createReviewSession({
+      originalText: optionalSource,
+      sessionId: 'arch011-optional-only',
+      detections: [
+        { type: 'CODIGO', start: optionalStart, end: optionalStart + 8, proposed: 'COD-1', requiresReview: false },
+      ],
+    });
+    assert.equal(getPendingDetections(optionalOnly).length, 0);
+    assert.equal(canFinalize(optionalOnly), true);
+    // The span renders its original per the resolveSpan rules (no throw).
+    assert.equal(getFinalText(optionalOnly), optionalSource);
+  });
+
+  test('getEffectiveStatus is a pure read: the session is never mutated', () => {
+    const session = mixedSession();
+    const snapshot = JSON.stringify(session);
+    getEffectiveStatus(session, session.detections[0].id);
+    getEffectiveStatus(session, session.detections[1].id);
+    assert.equal(JSON.stringify(session), snapshot);
   });
 });

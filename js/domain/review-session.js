@@ -202,6 +202,42 @@ export function getDecision(session, id) {
 }
 
 /**
+ * Effective decision status of one detection — the single coherent
+ * derivation every decision-state consumer must use (ARCH-011 coherence,
+ * Work Order T11 #15 WU4).
+ *
+ * Returns:
+ *   - the stored decision status ('accepted' | 'modified' | 'restored')
+ *     when an explicit decision exists;
+ *   - 'pending' when the detection requiresReview AND is undecided (the
+ *     implicit initial state; blocks export — D-009 fail-closed);
+ *   - 'not-required' when the detection has requiresReview = false AND is
+ *     undecided: policy determined that review is not required and no
+ *     human decision was recorded. This is factually NOT 'pending'
+ *     (nothing awaits a decision) and NEVER 'accepted' (no human accepted
+ *     anything — ARCH-011 invariant); the span renders its original per
+ *     the resolveSpan rules.
+ *
+ * Single-sourcing note: getDecision keeps returning the implicit 'pending'
+ * for every undecided detection (unchanged T01 semantics) and
+ * getPendingDetections/canFinalize/getProgress/getFinalText keep their
+ * exact current semantics; only this accessor adds the requiresReview
+ * distinction so mapping-level status and aggregate pending/finalize data
+ * (e.g. Confidential Audit trace) can never contradict.
+ *
+ * @param {object} session
+ * @param {string} id detection id
+ * @returns {'accepted'|'modified'|'restored'|'pending'|'not-required'}
+ */
+export function getEffectiveStatus(session, id) {
+  assertSession(session);
+  const detection = findDetection(session, id);
+  const stored = session.decisions[id];
+  if (stored) return stored.status;
+  return detection.requiresReview ? 'pending' : 'not-required';
+}
+
+/**
  * Apply a review decision. Returns a NEW frozen session; the input session
  * is never mutated.
  *
