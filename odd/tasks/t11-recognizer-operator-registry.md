@@ -101,3 +101,19 @@ The WU3 writer produced a single candidate of 828 authored changed lines (regist
 - WU3c (V4 path wiring, commit 97e98c9, 17 lines): lineage review-cefa6aa795f293c0 (medium, review-reliability) APPROVED, acknowledged + burned (consumed revision sha256:ed312f11f68fabc3f38b633c5f3fafd9c123665480f8686bd32ea227c12eb59b). No findings. Full V4 suite 297/297.
 
 NEW TRUTHFUL DEBT (recorded, not fixed here): legacy `scoring.descartadas` sub-threshold detail is not reproduced by the composed engine (not derivable through the WU1 observation contract; no V4 consumer — from-processor.js reads only entities+sessionId). Restoring it requires exposing discarded/sub-threshold observations through the recognizer contract in a future unit.
+
+## T11 integration closeout (deterministic composed-state evidence, final HEAD)
+
+Status: DONE (all four work units complete; local-only, nothing pushed).
+
+- Final HEAD: ce1c2f7a2c8644f57e9b307950bebc8ce0ba02b3 (14 commits from START_HEAD 5fe45cbd460b6e2ee8125df8ed01af8526e455c4; origin/3.0-main is a clean ancestor).
+- Composed-state verification (all green at final HEAD):
+  - full `npm test` chain exit 0 (check:links, check:storage, check:external, check:vendor, check:pdfjs, check:smoke, check:positioning, test:domain 49/49, test:privacy-eval, check:privacy-eval gate passed:true with zero failures, test:v4 306/306);
+  - `npm run build` exit 0 with clean tracked tree;
+  - format:check:v4 / typecheck:v4 / lint:v4 green;
+  - check:external:selftest and check:pdfjs:selftest green;
+  - ground-truth privacy evaluator gate passed (accepted thresholds).
+- Acceptance coverage: registry dispatch + planted-omission coverage oracle (WU1); operator dispatch + parity + planted-violation (WU2a); headless policy lookup with typed unmapped failures (WU2b); composed-engine parity + acceptance-1 invariance + engine-level unknown-key failures (WU3b/c); ARCH-011 coherence + planted contradictory-derivation rejection + requiresReview=true fail-closed regression (WU4); ProcessingContext round-trips (engine suites); legacy-engine parity suites.
+- Debt disposition: ARCH-004 DONE, ARCH-011 DONE (docs/DEBT_REGISTER.md, commit ce1c2f7, evidence preserved). New truthful debt recorded: legacy `scoring.descartadas` detail not reproduced by the composed engine (future unit: expose discarded observations through the recognizer contract).
+- Runtime defects recorded as evidence (not repaired here): (1) gentle-pi facade ASSESS decode rejects native 3.7.0 envelopes (T08 precedent, honored via read-only native CLI assess); (2) native controller renders terminal stop corrupted_or_unverifiable_authority instead of the correction transition for lineage review-ca481631d9c01f72 despite a structurally valid store (inspect-authority clean) — human-authorized corrective path taken with the frozen lineage preserved untouched.
+- Publication boundary honored: no push, no PR, no issue mutation, no merge, no history rewrite of shared history. Merge remains human.
