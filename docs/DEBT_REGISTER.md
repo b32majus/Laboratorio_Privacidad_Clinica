@@ -87,6 +87,7 @@ Estados: `OPEN`, `PLANNED`, `IN_PROGRESS`, `DONE`, `WONT_DO`.
 | UX-016 | P1 | Session | Mostrar job/policy/local-only/clear session persistentemente en app shell | OPEN |
 | ARCH-009 | P1 | Frontend | Migración incremental a SPA Vite + TypeScript + React | PLANNED |
 | ARCH-010 | P1 | Frontend | Mantener core detrás de adapter durante migración; no big-bang rewrite | PLANNED |
+| ARCH-011 | P2 | Export/Audit | Detecciones con requiresReview=false pueden producir en Confidential Audit entradas de mapeo con status "pending" mientras trace.pending=0 y canFinalize=true (la semántica de decisión para detecciones de revisión opcional no está definida). No alcanzable por el adaptador V4 actual (T05/T06 defaults requiresReview=true); detectada como observación no bloqueante en la auditoría de promoción de PR #39. | Reconciliar la semántica de decision/trace para requiresReview=false en el trabajo de política del T11 #15 (registry Recognizer/Operator); no rediseñar la semántica de ReviewSession antes. | OPEN |
 | HOST-001 | P0 | Origins | Separar marketing/docs y aplicación clínica en orígenes distintos | OPEN |
 | HOST-002 | P1 | Deploy | Adoptar target estático con security headers; Render Static recomendado para fase actual | PLANNED |
 | HOST-003 | P1 | Availability | Evaluar riesgo LaLiga/bloqueo IP compartida por proveedor antes de producción clínica | OPEN |

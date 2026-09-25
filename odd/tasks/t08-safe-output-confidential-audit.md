@@ -60,6 +60,23 @@ Indivisibility check: no honest unit forecasts above 600; no size exception requ
 - U4: DONE. Writer: gentle-ai-worker. Commit e2e18a4 (feat(app): Export step with separate Safe Output and Confidential Audit surfaces, 717 lines). Focused 78/78 and full suite 186/186 green; typecheck/lint/format green. Native review: lineage review-0fb235c2a152725c, tier medium, lens review-reliability, state APPROVED, acknowledged + burned (consumed revision sha256:f2566f455be2a81dac83f03f13d97f948d3156645ede0a48b0525c5bd50adfc4). Advisory non-blocking finding R3-001 (reliability, ExportStep.tsx:73-79, informational) recorded for later separate work.
 - Closeout: DONE. Full npm test chain (links, storage, external, vendor, pdfjs, smoke, positioning, domain contract, privacy-eval, V4 suite 186/186) green; build green with clean tracked tree; format/typecheck/lint green; check:external:selftest and check:pdfjs:selftest green. Debt PRIV-002 and UX-006 reconciled to DONE with evidence in docs/DEBT_REGISTER.md; SEC-001/SEC-002 and unrelated debt left truthfully unchanged. Advisory review findings (R3-001 audit builder, R3-session-id-line-breaks serializer, R3-001 export step) are informational, non-blocking, and recorded here for future separate work.
 
+## Corrective phase — PR #39 promotion audit findings (append-only, published branch)
+
+Human audit authority: two bounded blocking findings + one non-blocking observation. No reset/rewrite; no T08/T11 architecture reopening.
+
+- **C1 (blocking)** — accepted-without-proposal invariant: a detection with `proposed === undefined` must NOT be completable via `accepted` (legitimate deletion `proposed === ""` stays valid). Enforce in the domain authority (js/domain/review-session.js applyDecision) so no caller can synthesize the invalid state, and stop ReviewWorkspace from offering the invalid Accept action. Regression: manual detection without proposal cannot be accepted (typed error); UI cannot accept it; modified succeeds; restored succeeds and stays visible; Safe Output cannot reach a completed state containing the planted manual value via accepted.
+- **C2 (blocking)** — Privacy Gate overclaims: "Direct identifiers treated" uses global accepted/modified counts; a completed FECHA detection would be presented as a direct identifier. Use neutral factual aggregate wording (reviewed/treated detections); no new taxonomy (T11/T12 stay out). Regression with a non-direct FECHA type.
+- **C3 (non-blocking observation)** — requiresReview=false detections can yield audit mapping entry status pending with trace.pending=0/canFinalize=true. Not reachable through the current V4 adapter (defaults requiresReview=true). Record one concise truthful debt item for reconciliation before/with T11; do not redesign semantics.
+
+Corrective composition: C1 and C2 are separate executable candidates (independent seams: domain/review UI vs privacy-gate copy), each with its own oracle, commit, native ASSESS and APPROVED+burn when due. C3 is a docs-only commit.
+
+### Corrective execution evidence
+
+- C1: DONE. Writer: gentle-ai-worker. Commit 9e87e6b (fix(review): reject accepted-without-proposal decisions, 257 lines: js/domain/review-session.js invariant + ReviewWorkspace guard + contract/workspace/Safe-Output oracles). test:domain 41/41; full V4 suite green; typecheck/lint/format green. Native review: lineage review-36899e19ebf1dc56, tier medium, lens review-reliability, APPROVED + burned (consumed revision sha256:990cd4b3a40c859399c0a6f432eae86fe80972cdcee2754dfe4de7d87c7eca57).
+- C2: DONE. Writer: gentle-ai-worker. Commit 17ce639 (fix(privacy-gate): neutral factual wording for treated detection counts, 93 lines incl. FECHA regression). Full suite 193/193 green; gates green. Native review: lineage review-d2b3f567c48a73e7, tier medium, lens review-reliability, APPROVED + burned (consumed revision sha256:342415ec3800837f6a0a850b8638a20a0db143b403f9487368554df67eee3235).
+- C3: DEBT_REGISTER.md ARCH-011 recorded (requiresReview=false audit-trace semantics, reconciliation with T11 policy work); docs-only.
+- Closeout: rerun exact-head gates after C3 (see final report).
+
 ## Commit evidence
 
 (record per unit: commit sha, ASSESS outcome, review lineage/burn if due)
