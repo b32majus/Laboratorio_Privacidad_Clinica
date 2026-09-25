@@ -25,7 +25,8 @@
  * {@link AGE_TOP_CODE}, {@link AGE_TOP_MIN_YEARS} and
  * {@link AGE_PEDIATRIC_LABEL} are exported, frozen and replaceable by a
  * later policy without touching recognition (module contract: AGE banding is
- * implementation policy, not a universal privacy/k-anonymity claim).
+ * implementation policy, not a universal privacy or regulatory claim — no
+ * statistical-privacy guarantee is expressed or implied by these bands).
  *
  * Fail-closed (D-009): a non-`EDAD` observation, an unsupported subtype and
  * unparseable/invalid year text all raise the typed {@link AgeOperatorError}
