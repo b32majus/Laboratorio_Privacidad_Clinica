@@ -4,10 +4,12 @@ import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitut
 import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { UbicacionesManager } from "../../../js/core/managers/UbicacionesManager.js";
 import { Processor } from "../../../js/core/processor.js";
+import { AgeRecognizer } from "./age-recognizer";
 import {
   createLegacyRecognizerRegistry,
   LegacyRecognizerAdapter,
   LEGACY_RECOGNIZER_KEY,
+  mergeRecognizedObservations,
 } from "./legacy-recognizers";
 import {
   findUncoveredRecognizerCategories,
@@ -281,6 +283,116 @@ describe("observation independence — recognition carries no transformation dat
       expect(() => JSON.stringify(observation)).not.toThrow();
       expect(JSON.parse(JSON.stringify(observation))).toEqual(observation);
     }
+  });
+});
+
+describe("LegacyRecognizerAdapter — composed age recognition (T12 WU-A)", () => {
+  const COMPOSED_TEXT = "Nombre: Carmen Sánchez\nLa paciente tiene 45 años.";
+
+  it("emits EDAD:anios alongside the legacy observations through the 'legacy' key", () => {
+    const observations = observeAll(COMPOSED_TEXT);
+    expect(observations.some((observation) => observation.type !== "EDAD")).toBe(true);
+    expect(
+      observations
+        .filter((observation) => observation.type === "EDAD")
+        .map((observation) => [observation.subtype, observation.text])
+    ).toEqual([["anios", "45 años"]]);
+  });
+
+  it("emits EDAD along with a pediatric cue match", () => {
+    const observations = observeAll("Antecedentes familiares y lactante de 6 semanas en control.");
+    expect(
+      observations
+        .filter((observation) => observation.type === "EDAD")
+        .map((observation) => [observation.subtype, observation.text])
+    ).toEqual([["semanas", "6 semanas"]]);
+  });
+
+  it("returns one non-overlapping, start-sorted set", () => {
+    const observations = observeAll(COMPOSED_TEXT);
+    for (let i = 1; i < observations.length; i += 1) {
+      expect(observations[i].start).toBeGreaterThanOrEqual(observations[i - 1].end);
+    }
+  });
+
+  it("keeps legacy-only parity for every age-free parity fixture (no EDAD, same detection set)", () => {
+    for (const text of PARITY_TEXTS) {
+      const observations = observeAll(text);
+      expect(observations.some((observation) => observation.type === "EDAD")).toBe(false);
+      expect(observations.map(comparableObservation).sort(byStart)).toEqual(
+        legacyDetectedEntities(text)
+      );
+    }
+  });
+
+  it("resolves a legacy/EDAD overlap deterministically through the 'legacy' key", () => {
+    const text = "La madre (María González, 68 años) acude a control.";
+    const edad = new AgeRecognizer()
+      .observe(text)
+      .find((observation) => observation.type === "EDAD");
+    if (edad === undefined) throw new Error("fixture expected an EDAD observation");
+    expect(edad.text).toBe("68 años");
+
+    const merged = observeAll(text);
+    // The longer legacy span wins; the contained EDAD observation is dropped.
+    const winner = merged.find(
+      (observation) => observation.start <= edad.start && observation.end >= edad.end
+    );
+    expect(winner?.type).toBe("NOMBRE");
+    expect((winner as { end: number }).end - (winner as { start: number }).start).toBeGreaterThan(
+      edad.end - edad.start
+    );
+    expect(merged.some((observation) => observation.type === "EDAD")).toBe(false);
+
+    // Deterministic across calls.
+    expect(observeAll(text)).toEqual(merged);
+  });
+});
+
+describe("mergeRecognizedObservations — documented deterministic conflict rule", () => {
+  function observation(type: string, start: number, end: number): RecognizerObservation {
+    return Object.freeze({
+      type,
+      start,
+      end,
+      text: "x".repeat(end - start),
+      confidence: 1,
+    });
+  }
+
+  it("longer span wins on overlap", () => {
+    const result = mergeRecognizedObservations([
+      [observation("NOMBRE", 0, 10)],
+      [observation("EDAD", 2, 6)],
+    ]);
+    expect(result.map((item) => [item.type, item.start, item.end])).toEqual([["NOMBRE", 0, 10]]);
+  });
+
+  it("ties on length go to the earlier start", () => {
+    const result = mergeRecognizedObservations([
+      [observation("NOMBRE", 2, 6)],
+      [observation("EDAD", 0, 4)],
+    ]);
+    expect(result.map((item) => [item.type, item.start, item.end])).toEqual([["EDAD", 0, 4]]);
+  });
+
+  it("full ties (length and start) go to the non-EDAD legacy observation", () => {
+    const result = mergeRecognizedObservations([
+      [observation("EDAD", 0, 7)],
+      [observation("NOMBRE", 0, 7)],
+    ]);
+    expect(result.map((item) => item.type)).toEqual(["NOMBRE"]);
+  });
+
+  it("keeps disjoint observations from every source, sorted by start", () => {
+    const result = mergeRecognizedObservations([
+      [observation("NOMBRE", 20, 30)],
+      [observation("EDAD", 0, 7)],
+    ]);
+    expect(result.map((item) => [item.type, item.start])).toEqual([
+      ["EDAD", 0],
+      ["NOMBRE", 20],
+    ]);
   });
 });
 

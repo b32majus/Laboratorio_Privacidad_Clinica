@@ -20,6 +20,17 @@
  * `transformed` values (purity guarantee: recognition never mutates the
  * transformation-side managers).
  *
+ * Age composition (Work Order T12 #16, WU-A): the full-pipeline recognizer
+ * registered under {@link LEGACY_RECOGNIZER_KEY} additionally runs
+ * {@link AgeRecognizer} (SPEC §4/§8; D-010) and returns legacy observations
+ * PLUS EDAD observations as one non-overlapping, start-sorted set. The
+ * per-category recognizers keep filtering only their own legacy taxonomy
+ * category — {@link RECOGNIZER_CATEGORIES} is intentionally NOT extended in
+ * this unit (the formal taxonomy extension is WU-B). Overlap resolution is
+ * deterministic and documented on {@link mergeRecognizedObservations}: on
+ * overlap the longer span wins; tie → earlier start; remaining tie → the
+ * non-EDAD (legacy) observation wins.
+ *
  * Fail-closed (D-009): malformed input or legacy results raise typed errors
  * instead of guessed behavior.
  *
@@ -53,6 +64,7 @@ import {
   NOMBRES_UNISEX,
   PROVINCIAS,
 } from "../../../js/data/index.js";
+import { AgeRecognizer } from "./age-recognizer";
 import {
   type Recognizer,
   RECOGNIZER_CATEGORIES,
@@ -233,18 +245,70 @@ function runLegacyDetection(text: string): readonly RecognizerObservation[] {
 }
 
 /**
+ * Deterministic overlap resolution across recognition sources. Candidates are
+ * considered by an explicit conflict priority and greedily accepted when they
+ * do not overlap an already-accepted span:
+ *
+ * 1. longer span first (longer wins on overlap);
+ * 2. earlier start (start asc) when the lengths tie;
+ * 3. remaining tie (identical length and start): the non-EDAD (legacy)
+ *    observation wins.
+ *
+ * The accepted set is returned as a frozen array sorted by start asc (then
+ * end, then type), so age-free texts keep the legacy pipeline's ascending
+ * order and full parity. Pure and deterministic: no randomness, no clock.
+ */
+export function mergeRecognizedObservations(
+  sources: readonly (readonly RecognizerObservation[])[]
+): readonly RecognizerObservation[] {
+  const candidates: RecognizerObservation[] = [];
+  for (const source of sources) {
+    for (const observation of source) candidates.push(observation);
+  }
+  candidates.sort(compareByConflictPriority);
+
+  const accepted: RecognizerObservation[] = [];
+  for (const candidate of candidates) {
+    if (accepted.every((kept) => !overlaps(kept, candidate))) {
+      accepted.push(candidate);
+    }
+  }
+  accepted.sort((a, b) => a.start - b.start || a.end - b.end || a.type.localeCompare(b.type));
+  return Object.freeze(accepted);
+}
+
+function overlaps(a: RecognizerObservation, b: RecognizerObservation): boolean {
+  return a.start < b.end && b.start < a.end;
+}
+
+function compareByConflictPriority(a: RecognizerObservation, b: RecognizerObservation): number {
+  const lengthDiff = b.end - b.start - (a.end - a.start);
+  if (lengthDiff !== 0) return lengthDiff;
+  if (a.start !== b.start) return a.start - b.start;
+  const aIsEdad = a.type === "EDAD" ? 1 : 0;
+  const bIsEdad = b.type === "EDAD" ? 1 : 0;
+  return aIsEdad - bIsEdad;
+}
+
+/**
  * Full legacy detection pipeline wrapped as one recognizer (D-003: wrap, do
- * not rewrite). Its observations carry every legacy category.
+ * not rewrite), composed with the first-class {@link AgeRecognizer} (T12
+ * WU-A). Its observations carry every legacy category plus EDAD, merged into
+ * one non-overlapping, deterministic set.
  */
 export class LegacyRecognizerAdapter implements Recognizer {
   readonly key = LEGACY_RECOGNIZER_KEY;
+  private readonly ageRecognizer = new AgeRecognizer();
 
   constructor() {
     ensureLegacySetup();
   }
 
   observe(text: string): readonly RecognizerObservation[] {
-    return runLegacyDetection(text);
+    return mergeRecognizedObservations([
+      runLegacyDetection(text),
+      this.ageRecognizer.observe(text),
+    ]);
   }
 }
 

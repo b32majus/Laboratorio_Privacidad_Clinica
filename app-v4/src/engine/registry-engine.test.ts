@@ -7,7 +7,7 @@ import { createLegacyEngine } from "./legacy-engine";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
 import { createRegistryEngine, SessionIdError } from "./registry-engine";
 import { OperatorRegistry, OperatorError } from "./operator-registry";
-import { PolicyError } from "./policy";
+import { lookupPolicyProfile, PolicyError } from "./policy";
 import { RecognizerError, RecognizerRegistry } from "./recognizer-registry";
 import type { LegacyEntity, LegacyProcessorResult, ProcessingContext } from "./types";
 
@@ -629,6 +629,42 @@ describe("createRegistryEngine — session identity (PR #40 corrective C3)", () 
       expect(() => engine.process({ text: DOC_A, context: FRESH })).toThrowError(SessionIdError);
     } finally {
       if (original) Object.defineProperty(globalThis, "crypto", original);
+    }
+  });
+});
+
+describe("createRegistryEngine — WU-A AGE recognition fail-closed (D-009)", () => {
+  const AGE_TEXT = "La paciente refiere dolor abdominal; se registra una edad de 45 años.";
+
+  it("recognizes EDAD through the composed recognizer but refuses to guess its transformation", () => {
+    // Sanity at the recognizer boundary: the age IS recognized (recognition
+    // is policy-invariant and must not silently drop the new type).
+    const observations = createLegacyRecognizerRegistry()
+      .get(LEGACY_RECOGNIZER_KEY)
+      .observe(AGE_TEXT);
+    const edad = observations.filter((observation) => observation.type === "EDAD");
+    expect(edad).toHaveLength(1);
+    expect(edad[0].subtype).toBe("anios");
+    expect(edad[0].text).toBe("45 años");
+
+    // ...and the composed engine fails typed instead of guessing an operator
+    // or defaulting unknown classifications to KEEP.
+    const engine = createEngine();
+    try {
+      engine.process({ text: AGE_TEXT, context: FRESH });
+      throw new Error("expected engine.process to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PolicyError);
+      expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+    }
+  });
+
+  it("documents EDAD as absent from the accepted policy mappings (no silent KEEP)", () => {
+    for (const policyId of ["standard", "strict"] as const) {
+      const keys = lookupPolicyProfile(policyId).categoryOperatorKeys as Readonly<
+        Record<string, string | undefined>
+      >;
+      expect(keys.EDAD).toBeUndefined();
     }
   });
 });
