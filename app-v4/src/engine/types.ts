@@ -47,6 +47,12 @@ export type ProcessingContextMode = "fresh" | "shared";
  * `options` is an opaque serializable passthrough reserved for legacy
  * processor options compatibility; the adapter never applies it as global
  * configuration, so detection behavior stays fixed and deterministic.
+ *
+ * Reserved key (documentation only; the adapter does not read it):
+ * `options.dateShift` carries the serializable date-shift state
+ * ({@link import("./date-shift").DateShiftState}) for linked/longitudinal
+ * runs, per SPEC §7. A later date operator resolves it via
+ * `resolveDateShiftOffset`; it is never applied as ambient global state.
  */
 export type ProcessingContext = {
   readonly mode: ProcessingContextMode;
