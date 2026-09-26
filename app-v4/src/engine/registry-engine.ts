@@ -50,14 +50,23 @@
  * so the shared-context pseudonym reconciliation cannot drift between the
  * two engines.
  *
- * Known boundary consequence (deliberate, not a silent drop): the legacy
- * `scoring.descartadas` detail (sub-threshold entities and their scoring
- * reasons) is NOT carried across the recognizer observation contract — WU1
- * deliberately strips recognition internals from observations. The composed
- * engine therefore reports only the recognition-configuration fields of the
- * legacy scoring summary and omits `entidadesDescartadas`/`descartadas`
- * rather than fabricating them. Recorded as follow-up debt in the feature
- * document; nothing downstream (from-processor/review/outputs) consumes it.
+ * Below-threshold candidates (Work Order T14 #18, WU-A; DEBT_REGISTER
+ * ARCH-012): the legacy `scoring.descartadas` SHAPE is still deliberately not
+ * reproduced — `scoring` stays the recognition-configuration summary and
+ * still omits `entidadesDescartadas`/`descartadas`. The capability that
+ * legacy detail carried is now delivered through the explicit
+ * recognizer/domain contract instead: the recognizer reports candidates with
+ * immutable source offsets plus the legacy `razon`, and the engine resolves
+ * each candidate's accepted policy outcome into `LegacyCandidate`
+ * (`result.candidates`). The engine never fabricates an offset or a
+ * transformation.
+ *
+ * Candidate-pass state isolation (ACCEPTANCE 3): the candidate pass resolves
+ * each candidate's `proposed` value with the same policy profile and operator
+ * as the kept pass, which may grow the legacy transformation-manager maps.
+ * The returned context is therefore resolved BEFORE the candidate pass, so
+ * that growth reaches neither the kept `entities`/`processed`/`stats` nor the
+ * `pseudonymState` carried into the next document of a batch.
  *
  * Fail-closed (D-009): the same input/context validation rules as the
  * legacy engine, typed failures for unknown recognizer/operator registry
@@ -103,13 +112,16 @@ import {
 } from "./operator-registry";
 import { lookupPolicyProfile, PolicyError } from "./policy";
 import {
+  isCandidateRecognizer,
   type RecognizerCategory,
+  type RecognizerCandidate,
   type RecognizerObservation,
   type RecognizerRegistry,
 } from "./recognizer-registry";
 import {
   EngineError,
   type EngineOutcome,
+  type LegacyCandidate,
   type LegacyEntity,
   type LegacyProcessorResult,
   type ProcessingContext,
@@ -317,8 +329,21 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
 
       // 4. Recognition through the recognizer registry by explicit key (the
       //    legacy full-pipeline adapter covering every legacy category).
-      //    Detection is policy-invariant and mutates no manager state.
-      const observations = recognizerRegistry.get(LEGACY_RECOGNIZER_KEY).observe(text);
+      //    Detection is policy-invariant and mutates no manager state. A
+      //    candidate-capable recognizer is asked exactly ONCE for both views
+      //    (`recognize` = kept observations + candidates); a recognizer
+      //    without a threshold stage has no threshold candidates, so its
+      //    candidate list is the explicit empty set, never a fabricated one.
+      //    Detection is never run twice.
+      const recognizer = recognizerRegistry.get(LEGACY_RECOGNIZER_KEY);
+      const recognition = isCandidateRecognizer(recognizer)
+        ? recognizer.recognize(text)
+        : {
+            observations: recognizer.observe(text),
+            candidates: [] as readonly RecognizerCandidate[],
+          };
+      const observations = recognition.observations;
+      const candidates = recognition.candidates;
 
       // 4b. Derive the explicit date role once per FECHA observation. Only
       //     FECHA observations carry a date sub-context; every other
@@ -382,8 +407,10 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
       // Legacy re-sorts ascending (stable) before returning the entities.
       entities.sort((a, b) => a.position.start - b.position.start);
 
-      // 7. Legacy-shaped result (same fields as `Processor.process`).
-      const result: LegacyProcessorResult = freezeDeep({
+      // 7. Legacy-shaped KEPT result (same fields as `Processor.process`),
+      //    with a provisional processingTime that step 10 replaces once the
+      //    candidate pass is done.
+      const keptResult: LegacyProcessorResult = freezeDeep({
         original: text,
         processed,
         entities,
@@ -391,25 +418,99 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
         stats: calculateStats(entities),
         sessionId: generateSessionId(),
         processingTime: Math.round(performance.now() - startTime),
-        // Recognition-configuration summary. The legacy `descartadas` detail
-        // is deliberately omitted (see module header): the recognizer
-        // observation contract does not carry sub-threshold entities.
+        // Recognition-configuration summary (see module header): the legacy
+        // `descartadas` shape is NOT reproduced; the candidate capability is
+        // delivered through `result.candidates` with offsets instead.
         scoring: summarizeRecognitionConfig(),
       });
 
-      // 8. Fresh/shared context semantics: identical to the legacy engine by
-      //    reusing its exported reconciliation helpers.
+      // 8. Resolve the RETURNED context BEFORE the candidate pass. State
+      //    isolation is mandatory (ACCEPTANCE 3): the candidate pass may grow
+      //    the legacy transformation-manager maps, and that growth must never
+      //    reach the kept result, the stats or the context carried into the
+      //    next document of a batch. Taking the fresh-mode snapshot and
+      //    running the shared-mode reconciliation here fixes the observable
+      //    state to the post-kept-pass state — exactly like the legacy engine
+      //    — while the candidate pass remains an advisory, non-observable
+      //    computation. The reconciliation helpers themselves are untouched.
+      let resolvedResult: LegacyProcessorResult;
+      let resolvedContext: ProcessingContext;
       if (context.mode === "fresh") {
-        return freezeDeep({
-          result,
-          context: freezeDeep({
-            mode: "fresh" as const,
-            pseudonymState: freezePseudonymState(snapshotModulePseudonymState()),
-            ...(context.options === undefined ? {} : { options: context.options }),
-          }),
+        resolvedResult = keptResult;
+        resolvedContext = freezeDeep({
+          mode: "fresh" as const,
+          pseudonymState: freezePseudonymState(snapshotModulePseudonymState()),
+          ...(context.options === undefined ? {} : { options: context.options }),
         });
+      } else {
+        const reconciled = reconcileSharedContext(context, keptResult);
+        resolvedResult = reconciled.result;
+        resolvedContext = reconciled.context;
       }
-      return freezeDeep(reconcileSharedContext(context, result));
+
+      // 9. Candidate pass: resolve each candidate's `proposed` outcome with
+      //    the SAME policy profile, operator registry and operator context as
+      //    the kept pass (including the date-role sub-context for FECHA
+      //    candidates). Applied back-to-front by `start`, like the kept pass,
+      //    so any pseudonym/location/visit counter growth happens in the same
+      //    deterministic order the kept pass uses. The pass may grow the
+      //    legacy manager maps, but step 8 already froze the observable state,
+      //    so that growth is deliberately not observable. An unmapped
+      //    candidate type raises the same typed PolicyError a kept observation
+      //    would; there is no guessed operator and no silent KEEP.
+      const candidatesBackToFront = [...candidates].sort((a, b) => b.start - a.start);
+      const legacyCandidates: LegacyCandidate[] = [];
+      for (const candidate of candidatesBackToFront) {
+        const operatorKey = resolveOperatorKey(profile, candidate);
+        const operator = operatorRegistry.get(operatorKey);
+        const candidateRole =
+          candidate.type === "FECHA"
+            ? classifyObservationDateRole(text, candidate.start, candidate.end)
+            : undefined;
+        const candidateDateContext: DateOperatorContext | undefined =
+          candidateRole === undefined
+            ? undefined
+            : dateShiftState === undefined
+              ? { role: candidateRole }
+              : { role: candidateRole, shift: dateShiftState };
+        const operatorContext: OperatorContext = {
+          strictMode: profile.strictMode,
+          ...(candidateDateContext === undefined ? {} : { date: candidateDateContext }),
+        };
+        const proposed = operator.apply(candidate, operatorContext);
+        legacyCandidates.push(
+          freezeDeep({
+            type: candidate.type,
+            ...(candidate.subtype === undefined ? {} : { subtype: candidate.subtype }),
+            text: candidate.text,
+            ...(candidate.original === undefined ? {} : { original: candidate.original }),
+            position: { start: candidate.start, end: candidate.end },
+            confidence: candidate.confidence,
+            reason: candidate.reason,
+            proposed,
+          })
+        );
+      }
+      // Reported ascending (start, end, type), matching the recognizer's
+      // candidate ordering contract; the pass ORDER above stays back-to-front.
+      legacyCandidates.sort(
+        (a, b) =>
+          a.position.start - b.position.start ||
+          a.position.end - b.position.end ||
+          a.type.localeCompare(b.type)
+      );
+
+      // 10. Final frozen result: the resolved kept result extended with the
+      //     explicit candidate contract and the whole-call processing time
+      //     (start measured at the top of `process`, so the candidate pass is
+      //     honestly included). `stats` and `scoring` keep their kept-pass
+      //     values and never count candidates.
+      const result = freezeDeep({
+        ...resolvedResult,
+        candidates: Object.freeze(legacyCandidates),
+        processingTime: Math.round(performance.now() - startTime),
+      });
+      return freezeDeep({ result, context: resolvedContext });
     },
   };
 }

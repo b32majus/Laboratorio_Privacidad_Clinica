@@ -73,6 +73,28 @@ export type LegacyEntity = {
 };
 
 /**
+ * Explicit below-threshold candidate of the composed engine (Work Order T14
+ * #18, WU-A; DEBT_REGISTER ARCH-012). It carries the legacy
+ * `scoring.descartadas` detail (`{ text, type, confidence, razon }`) WITH
+ * immutable source offsets, plus the accepted policy outcome for the span.
+ * Recognition never invents a transformation: `proposed` is resolved by the
+ * engine through the same policy profile and operator that would treat the
+ * span if it had survived (`./registry-engine`).
+ */
+export type LegacyCandidate = {
+  readonly type: string;
+  readonly subtype?: string;
+  readonly text: string;
+  readonly original?: string;
+  readonly position: { readonly start: number; readonly end: number };
+  readonly confidence: number;
+  /** Legacy `razon`: the scoring recommendation, or `BAJO_SCORE`. */
+  readonly reason: string;
+  /** The accepted policy outcome for this span — what "treat" applies. */
+  readonly proposed: string;
+};
+
+/**
  * Structural type of the legacy `js/core/processor.js` result. Only the
  * fields consumed by V4 (directly or via js/domain/from-processor.js) are
  * declared; extra legacy fields pass through untouched.
@@ -86,6 +108,15 @@ export type LegacyProcessorResult = {
   readonly sessionId: string;
   readonly processingTime: number;
   readonly scoring?: Record<string, unknown>;
+  /**
+   * OPTIONAL on purpose: the composed registry engine always sets it
+   * (possibly `[]`, the explicit ARCH-012 candidate contract), while the
+   * pre-V4 `createLegacyEngine` result keeps its `scoring.descartadas`
+   * detail WITHOUT source offsets and must not fabricate them. A reader of
+   * an optional field therefore cannot assume the legacy engine produced
+   * candidates, and the legacy adapter is never asked to invent offsets.
+   */
+  readonly candidates?: readonly LegacyCandidate[];
 };
 
 /** Engine outcome: legacy-shaped result plus the UPDATED serializable context. */

@@ -32,6 +32,16 @@
  * overlap the longer span wins; tie → earlier start; remaining tie → the
  * non-EDAD (legacy) observation wins.
  *
+ * Below-threshold candidates (Work Order T14 #18, WU-A; DEBT_REGISTER
+ * ARCH-012): {@link LegacyRecognizerAdapter} also implements
+ * {@link CandidateRecognizer}. Its single `recognize` pass returns the same
+ * kept observations as `observe` PLUS the entities the legacy threshold
+ * filter rejected, now carrying immutable source offsets and the legacy
+ * `razon` (the scoring recommendation, or `BAJO_SCORE`). The legacy
+ * `Processor.process` exposed that detail as `scoring.descartadas` without
+ * offsets; the V4 recognizer/engine boundary replaces it with an explicit
+ * candidate contract instead of fabricating offsets in the engine.
+ *
  * Fail-closed (D-009): malformed input or legacy results raise typed errors
  * instead of guessed behavior.
  *
@@ -67,10 +77,13 @@ import {
 } from "../../../js/data/index.js";
 import { AgeRecognizer } from "./age-recognizer";
 import {
-  type Recognizer,
-  RECOGNIZER_CATEGORIES,
-  type RecognizerCategory,
+  type CandidateRecognizer,
   LEGACY_CATEGORY_RECOGNIZER_KEYS,
+  RECOGNIZER_CATEGORIES,
+  type RecognitionResult,
+  type Recognizer,
+  type RecognizerCandidate,
+  type RecognizerCategory,
   type RecognizerObservation,
   RecognizerError,
   RecognizerRegistry,
@@ -176,20 +189,63 @@ function toObservation(raw: unknown): RecognizerObservation {
 }
 
 /**
- * Runs the legacy detection pipeline over `text`, mirroring
+ * Runs the legacy detection pipeline over `text` ONCE, mirroring
  * js/core/processor.js stage by stage:
  * detectEntities (all seven detectors) → resolveConflicts →
  * ScoringEngine.aplicarScoring → HeuristicasContextuales.aplicarHeuristicas →
- * confidence threshold filter (with the modoEstricto SOSPECHOSO 0.25 special
- * case, mirroring the legacy expression exactly).
+ * kept/candidate partition on the confidence threshold (with the
+ * modoEstricto SOSPECHOSO 0.25 special case, mirroring the legacy expression
+ * exactly).
  *
  * Recognition purity: the transformation half of `Processor.process` is NOT
  * executed — no manager resets, no `preprocessFechas`, no `transformEntity`,
  * no `transformed` values. Config is read from the shared legacy singleton at
  * call time, exactly as `Processor.process` does, so both paths always see
  * the same effective detection configuration.
+ *
+ * Kept/candidate split: every scored item is validated fail-closed into an
+ * observation exactly once and then classified against the SAME per-item
+ * effective threshold the legacy survivor filter uses. Survivors and
+ * candidates are therefore complementary by construction (one predicate,
+ * negated) over the same conflict-resolved set — no second numeric
+ * threshold, no drift between the two views.
  */
-function runLegacyDetection(text: string): readonly RecognizerObservation[] {
+type LegacyDetection = {
+  readonly observations: readonly RecognizerObservation[];
+  readonly candidates: readonly RecognizerCandidate[];
+};
+
+/**
+ * Reads the legacy `razon` from the RAW scored entity, mirroring
+ * `e.scoring?.recomendacion || 'BAJO_SCORE'` (a non-empty string
+ * recommendation, else the literal `BAJO_SCORE`). Exported because the
+ * `BAJO_SCORE` fallback is defensive: with scoring enabled every real
+ * detector entity carries a recommendation, so the fallback is only
+ * reachable through a direct unit test.
+ */
+export function readCandidateReason(raw: unknown): string {
+  const scoring = (raw as { scoring?: { recomendacion?: unknown } } | null | undefined)?.scoring;
+  const recomendacion = scoring?.recomendacion;
+  return typeof recomendacion === "string" && recomendacion.length > 0
+    ? recomendacion
+    : "BAJO_SCORE";
+}
+
+/** Maps one rejected scored entity to its frozen candidate (offsets + reason). */
+function toCandidate(raw: unknown, observation: RecognizerObservation): RecognizerCandidate {
+  return Object.freeze({
+    type: observation.type,
+    ...(observation.subtype === undefined ? {} : { subtype: observation.subtype }),
+    start: observation.start,
+    end: observation.end,
+    text: observation.text,
+    ...(observation.original === undefined ? {} : { original: observation.original }),
+    confidence: observation.confidence,
+    reason: readCandidateReason(raw),
+  });
+}
+
+function runLegacyDetectionWithCandidates(text: string): LegacyDetection {
   ensureLegacySetup();
   assertRecognizableText(text);
   const normalize = TextNormalizer.normalize.bind(TextNormalizer);
@@ -228,21 +284,41 @@ function runLegacyDetection(text: string): readonly RecognizerObservation[] {
     scored = scored.map((entity) => HeuristicasContextuales.aplicarHeuristicas(entity, text));
   }
 
-  // Stage 5: confidence threshold filter (legacy expression, incl. the
-  // modoEstricto SOSPECHOSO 0.25 special case). Entities are validated
-  // fail-closed into observations first, so the filter runs on typed values.
+  // Stage 5: one per-item effective threshold, partitioned into survivors and
+  // candidates (legacy expression, incl. the modoEstricto SOSPECHOSO 0.25
+  // special case). Every item is validated fail-closed exactly once, so a
+  // malformed entity still fails closed whichever side it lands on.
   const umbralConfianza = Number(Processor.config.umbralConfianza);
   const modoEstricto = Processor.config.modoEstricto === true;
   const effectiveThreshold = modoEstricto ? Math.min(umbralConfianza, 0.35) : umbralConfianza;
-  const observations = scored.map(toObservation);
-  const filtered = observations.filter((observation) => {
+  const keeps = (observation: RecognizerObservation): boolean => {
     if (modoEstricto && observation.type === "SOSPECHOSO") {
       return observation.confidence >= 0.25;
     }
     return observation.confidence >= effectiveThreshold;
-  });
+  };
 
-  return Object.freeze(filtered);
+  const observations: RecognizerObservation[] = [];
+  const candidates: RecognizerCandidate[] = [];
+  for (const raw of scored) {
+    const observation = toObservation(raw);
+    if (keeps(observation)) observations.push(observation);
+    else candidates.push(toCandidate(raw, observation));
+  }
+
+  return Object.freeze({
+    observations: Object.freeze(observations),
+    candidates: Object.freeze(candidates),
+  });
+}
+
+/**
+ * Survivor-only view of one recognition pass. Signature, behavior and frozen
+ * return are unchanged from WU1: every existing caller and test keeps
+ * working untouched.
+ */
+function runLegacyDetection(text: string): readonly RecognizerObservation[] {
+  return runLegacyDetectionWithCandidates(text).observations;
 }
 
 /**
@@ -278,11 +354,18 @@ export function mergeRecognizedObservations(
   return Object.freeze(accepted);
 }
 
-function overlaps(a: RecognizerObservation, b: RecognizerObservation): boolean {
+/** Minimal span view shared by observations and candidates. */
+type SpanLike = {
+  readonly start: number;
+  readonly end: number;
+  readonly type: string;
+};
+
+function overlaps(a: SpanLike, b: SpanLike): boolean {
   return a.start < b.end && b.start < a.end;
 }
 
-function compareByConflictPriority(a: RecognizerObservation, b: RecognizerObservation): number {
+function compareByConflictPriority(a: SpanLike, b: SpanLike): number {
   const lengthDiff = b.end - b.start - (a.end - a.start);
   if (lengthDiff !== 0) return lengthDiff;
   if (a.start !== b.start) return a.start - b.start;
@@ -292,12 +375,59 @@ function compareByConflictPriority(a: RecognizerObservation, b: RecognizerObserv
 }
 
 /**
+ * Deterministic rule set that turns the rejected set of one recognition pass
+ * into the reportable candidate list (Work Order T14 #18, WU-A):
+ *
+ * (a) NON-DUPLICATION: a candidate whose span overlaps ANY kept observation
+ *     is NOT reported — that span is already covered by an observation the
+ *     reviewer must adjudicate. The legacy kept and candidate sets come from
+ *     the same conflict-resolved set and are therefore disjoint by
+ *     construction; the only cross-source overlap possible in the composed
+ *     pipeline is the V4 EDAD merge, and this rule keeps that case from
+ *     double-reporting one span.
+ * (b) DETERMINISTIC RESIDUAL OVERLAP: any remaining candidate/candidate
+ *     overlap is resolved with the same conflict-priority rule
+ *     {@link mergeRecognizedObservations} uses (longer span first, then
+ *     earlier start, then the non-EDAD legacy candidate), greedily accepting
+ *     the first non-overlapping candidate.
+ *
+ * The reportable set is frozen and sorted ascending by `start`, then `end`,
+ * then `type`, matching the observation contract's ordering. Pure and
+ * deterministic: no randomness, no clock.
+ *
+ * Exported because rules (a) and (b) are DEFENSIVE: real detector output
+ * cannot exercise them today (the legacy conflict resolver already returns
+ * disjoint entities, and a letter-only NOMBRE candidate span can never
+ * overlap an EDAD span, which always contains digits), so a direct unit test
+ * is the only way to prove the rules can reject a wrong input.
+ */
+export function filterReportableCandidates(
+  candidates: readonly RecognizerCandidate[],
+  keptObservations: readonly RecognizerObservation[]
+): readonly RecognizerCandidate[] {
+  const ordered = [...candidates].sort(compareByConflictPriority);
+  const accepted: RecognizerCandidate[] = [];
+  for (const candidate of ordered) {
+    if (keptObservations.some((kept) => overlaps(kept, candidate))) continue;
+    if (accepted.some((existing) => overlaps(existing, candidate))) continue;
+    accepted.push(candidate);
+  }
+  accepted.sort((a, b) => a.start - b.start || a.end - b.end || a.type.localeCompare(b.type));
+  return Object.freeze(accepted);
+}
+
+/**
  * Full legacy detection pipeline wrapped as one recognizer (D-003: wrap, do
  * not rewrite), composed with the first-class {@link AgeRecognizer} (T12
  * WU-A). Its observations carry every legacy category plus EDAD, merged into
  * one non-overlapping, deterministic set.
+ *
+ * Since T14 #18 WU-A it also implements {@link CandidateRecognizer}: one
+ * recognition pass yields the merged kept observations (exactly what
+ * `observe` returns) plus the below-threshold candidates filtered by
+ * {@link filterReportableCandidates}. `observe` stays the survivor view.
  */
-export class LegacyRecognizerAdapter implements Recognizer {
+export class LegacyRecognizerAdapter implements CandidateRecognizer {
   readonly key = LEGACY_RECOGNIZER_KEY;
   private readonly ageRecognizer = new AgeRecognizer();
 
@@ -311,12 +441,32 @@ export class LegacyRecognizerAdapter implements Recognizer {
       this.ageRecognizer.observe(text),
     ]);
   }
+
+  /**
+   * ONE recognition pass: legacy detection runs exactly once and the age
+   * recognizer exactly once. The kept observations are the exact `observe`
+   * result (same merge, same order, same frozen array), and the candidates
+   * are the rejected set after the documented non-duplication and
+   * conflict-priority rules.
+   */
+  recognize(text: string): RecognitionResult {
+    const detection = runLegacyDetectionWithCandidates(text);
+    const observations = mergeRecognizedObservations([
+      detection.observations,
+      this.ageRecognizer.observe(text),
+    ]);
+    const candidates = filterReportableCandidates(detection.candidates, observations);
+    return Object.freeze({ observations, candidates });
+  }
 }
 
 /**
  * Per-category view over the shared legacy pipeline: runs the exact same
  * detection and filters observations to one taxonomy category (NOMBRE keeps
- * all of its subtypes: paciente/profesional/familiar).
+ * all of its subtypes: paciente/profesional/familiar). This is a SURVIVOR
+ * view only — below-threshold candidates are reported by the full-pipeline
+ * {@link LegacyRecognizerAdapter} under {@link LEGACY_RECOGNIZER_KEY}, never
+ * per category.
  */
 class LegacyCategoryRecognizer implements Recognizer {
   readonly key: string;
