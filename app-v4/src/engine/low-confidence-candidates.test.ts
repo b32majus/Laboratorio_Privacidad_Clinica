@@ -29,21 +29,36 @@ import type { ProcessingContext } from "./types";
  * ARCH-012). All fixtures are synthetic clinical-style strings built from the
  * legacy dictionary vocabulary; no real content is used anywhere.
  *
- * The fixtures below are chosen from the legacy detectors' real output: the
- * legacy professional detector captures trailing lowercase words too, so a
- * "Fisioterapeuta Nélida Otxoa realizó" professional candidate scores 0.45 —
- * below the `standard` threshold 0.5 — while `Nélida`/`Otxoa` are absent from
- * every dictionary (verified against js/data), so no dictionary bonus rescues
- * it. A below-threshold `SOSPECHOSO` is NOT reachable under `standard`: every
- * quasi-identifier detector seeds confidence >= 0.75 and scoring/heuristics
- * never lower a non-NOMBRE entity, so the realistic below-threshold category
- * is NOMBRE.
+ * The fixtures below are chosen from the legacy detectors' real output. A
+ * read-only probe of the real pipeline (with the V4 setup) observed exactly
+ * TWO genuinely below-threshold detections, both `NOMBRE`:
+ *
+ *   - "Fisioterapeuta Nélida Otxoa realizó": the legacy professional detector
+ *     captures trailing lowercase words too, so this span scores 0.45 — below
+ *     the `standard` threshold 0.5 — with subtype `profesional` and reason
+ *     `REVISION_MANUAL`. `Nélida`/`Otxoa` are absent from every dictionary
+ *     (verified against js/data), so no dictionary bonus rescues it.
+ *   - "Mª Carmen Ruiz Gil": subtype `paciente`, confidence 0.35 (also below
+ *     0.5), reason `NO_ANONIMIZAR`.
+ *
+ * Only these verified facts are claimed: `NOMBRE` is the ONLY real
+ * below-threshold type in this brownfield pipeline — every quasi-identifier
+ * detector seeds confidence >= 0.75, scoring/heuristics never lower a
+ * non-NOMBRE entity, and scoring preserves non-NOMBRE confidence — while
+ * within `NOMBRE` more than one subtype and more than one reason string
+ * occur, so the candidate contract is exercised against more than one shape.
  */
 
 const FRESH: ProcessingContext = Object.freeze({ mode: "fresh" });
 
 /** Single-category below-threshold fixture: exactly one NOMBRE candidate. */
 const BELOW_THRESHOLD_TEXT = "Fisioterapeuta Nélida Otxoa realizó la sesión de rehabilitación.";
+
+/**
+ * Second real below-threshold NOMBRE shape: subtype `paciente`, confidence
+ * 0.35, reason `NO_ANONIMIZAR` (the other observed reason string).
+ */
+const PACIENTE_BELOW_THRESHOLD_TEXT = "Mª Carmen Ruiz Gil firmó el consentimiento.";
 
 /** Real fixtures producing at least one below-threshold candidate each. */
 const CANDIDATE_FIXTURES: readonly string[] = [
@@ -185,6 +200,25 @@ describe("T14 WU-A — below-threshold candidates are visible (ORACLE 1)", () =>
     expect(candidate.confidence).toBeLessThan(0.5);
     // Legacy reason: the scoring recommendation is carried verbatim.
     expect(candidate.reason).toBe("REVISION_MANUAL");
+  });
+
+  it("reports the other real below-threshold NOMBRE shape (paciente, NO_ANONIMIZAR)", () => {
+    const adapter = new LegacyRecognizerAdapter();
+    const result = adapter.recognize(PACIENTE_BELOW_THRESHOLD_TEXT);
+
+    const candidate = result.candidates.find((item) => item.text === "Mª Carmen Ruiz Gil");
+    if (candidate === undefined) {
+      throw new Error("the real pipeline did not report the paciente below-threshold candidate");
+    }
+    expect(candidate.type).toBe("NOMBRE");
+    expect(candidate.subtype).toBe("paciente");
+    expect(candidate.confidence).toBeCloseTo(0.35, 10);
+    expect(candidate.confidence).toBeLessThan(0.5);
+    expect(candidate.reason).toBe("NO_ANONIMIZAR");
+    expect(hasValidOffsets(PACIENTE_BELOW_THRESHOLD_TEXT, candidate)).toBe(true);
+    expect(PACIENTE_BELOW_THRESHOLD_TEXT.slice(candidate.start, candidate.end)).toBe(
+      "Mª Carmen Ruiz Gil"
+    );
   });
 
   it("exposes the capability through the candidate recognizer contract", () => {
@@ -452,7 +486,15 @@ describe("T14 WU-A — candidate-pass state isolation (ORACLE 6)", () => {
 
   it("keeps a shared two-document sequence's second kept output and final pseudonymState unchanged", () => {
     const DOC_A = "Contacto: 612345678. Ana Torres acudió a la revisión.";
-    const DOC_B = "Informe de Ana Torres. Teléfono 612345678.";
+    // The second document carries its OWN below-threshold candidate whose text
+    // is neither kept by the kept pass nor already present in the shared
+    // authoritative state. That makes the second document's context
+    // discriminating too: if the candidate pass ran BEFORE the context
+    // resolution, the reconciliation would pick up this fresh key/value and
+    // leak a spurious entry into the returned `pseudonymState`.
+    const DOC_B = "Informe de Ana Torres. Beatriz Santos firmó. Teléfono 612345678.";
+    const DOC_B_CANDIDATE_TEXT = "Beatriz Santos";
+    const DOC_B_CANDIDATE_KEY = "beatriz santos";
 
     function build(text: string): RecognitionResult {
       if (text === DOC_A) {
@@ -466,7 +508,12 @@ describe("T14 WU-A — candidate-pass state isolation (ORACLE 6)", () => {
           observation("IDENTIFICADOR", text, "612345678"),
           observation("NOMBRE", text, "Ana Torres", { subtype: "profesional", confidence: 0.9 }),
         ],
-        candidates: [],
+        candidates: [
+          candidate("NOMBRE", text, DOC_B_CANDIDATE_TEXT, {
+            subtype: "profesional",
+            confidence: 0.4,
+          }),
+        ],
       };
     }
 
@@ -486,6 +533,15 @@ describe("T14 WU-A — candidate-pass state isolation (ORACLE 6)", () => {
     }
 
     const withCandidate = run(true);
+    // The second document's candidate pass really grew the module professional
+    // map (checked BEFORE the control run, whose own resets clear it): the
+    // fresh candidate is now assigned the SECOND professional pseudonym, so a
+    // leak is observable as a second authoritative entry. Checked here because
+    // the control run below resets the module maps.
+    expect(AsignadorSustitutos.profesionalesMap.get(DOC_B_CANDIDATE_KEY)).toBe(
+      "Profesional Sanitario 2"
+    );
+
     const withoutCandidate = run(false);
 
     expect(withCandidate.first.context).toEqual(withoutCandidate.first.context);
@@ -497,9 +553,25 @@ describe("T14 WU-A — candidate-pass state isolation (ORACLE 6)", () => {
       withoutCandidate.second.context.pseudonymState
     );
     expect(withCandidate.second.result.processed).toBe(withoutCandidate.second.result.processed);
-    // The candidate existed in document A only.
+
+    // Concrete leak oracle for the SECOND document (not just a deep-equal):
+    // the returned authoritative maps/counters must NOT contain the candidate's
+    // own fresh key. A mutation that runs the candidate pass before the context
+    // resolution leaks `[DOC_B_CANDIDATE_KEY, "Profesional Sanitario 2"]` and
+    // increments `contadorProfesionales` to 2; these assertions name exactly
+    // that leaked entry instead of merely reporting a whole-object mismatch.
+    const secondState = withCandidate.second.context.pseudonymState;
+    expect(secondState?.profesionales).toEqual([["ana torres", "Profesional Sanitario 1"]]);
+    expect(secondState?.profesionales?.some(([key]) => key === DOC_B_CANDIDATE_KEY)).toBe(false);
+    expect(secondState?.contadorProfesionales).toBe(1);
+    expect(secondState?.contadorFamiliares).toBe(0);
+
+    // The injected candidate exists in document B (and in document A); the
+    // control run strips both.
     expect(withCandidate.first.result.candidates).toHaveLength(1);
-    expect(withCandidate.second.result.candidates).toEqual([]);
+    expect(withCandidate.second.result.candidates).toHaveLength(1);
+    expect(withCandidate.second.result.candidates?.[0].text).toBe(DOC_B_CANDIDATE_TEXT);
+    expect(withoutCandidate.second.result.candidates).toEqual([]);
   });
 });
 
