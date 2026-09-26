@@ -1,6 +1,7 @@
 # Feature: T13 #17 — Policy-driven date semantics and consistent date-shift foundation
 
-Status: IN PROGRESS
+Status: COMPLETE (T13 #17)
+Final commits: WU-A f519659 (+115cd38, 86733e3), WU-B a405486 (+5d3b123, a1b4a50), WU-C c21378d (+50c5bff, plus one docs-only closeout correction). Ticket integration: `npm test` full chain PASS (vitest 522/522, contract 49/49, privacy-eval 24/24 + gate PASS, smoke OK); `format:check:v4` / `typecheck:v4` / `lint:v4` / `build` PASS. Native review ledger: per-unit committed-range ASSESS (WU-B, WU-C) returned typed risk=unassessable (#4791 seam) each time; verifier path followed (writer self-verification + independent gentle-ai-verify PASS per unit); no `review_due` offered; no START manufactured; zero lineages opened.
 Work Order: GitHub #17 (EXECUTION_READY=YES; blockers #6, #15 CLOSED; no hardening comment — launch-prompt hypothesis + SPEC §9 + D-010 govern)
 Branch: work/native/v4-travel-t12-t16-20260925
 Execution profile: native-v4-heavy (unchanged; no lifecycle boundary switch)
@@ -31,8 +32,8 @@ Execution profile: native-v4-heavy (unchanged; no lifecycle boundary switch)
 
 - [x] WU-A: role classifier + shift context state + interval/order oracle — commit f519659 (feat(engine), 5 files). Resolved shift semantics: seed-derived context-stable offset (interval/order preserving) + explicit per-date overrides; per-date hash helper exists but is JSDoc-marked non-default (parent task-spec defect corrected against SPEC §7/§9 + #17 acceptance — no human product decision required). Focused verification: vitest 457/457 (one pre-existing App.test.tsx timeout flake passed in isolation and did not reproduce), typecheck/lint/prettier/privacy-eval PASS. Independent verify PASS 6/6 items.
 - [x] WU-B: role-aware transform + generalize/redact/DATE_SHIFT operators, typed fail-closed — commit a405486 (feat(engine), 7 files, 1373 insertions / 22 deletions). Evidence: `## WU-B evidence — 2026-09-26` below.
-- [ ] WU-C: composed longitudinal regression + debt disposition
-- [ ] Per-unit deterministic verification; ticket-level npm test chain
+- [x] WU-C: composed longitudinal regression + debt disposition — commit c21378d (test(review), 3 files). Evidence: `## WU-C evidence — 2026-09-26` below.
+- [x] Per-unit deterministic verification; ticket-level npm test chain — per-unit verification per work unit; final ticket-level chain PASS at the T13 closeout HEAD (recorded in the boundary record).
 
 ## WU-B evidence — 2026-09-26
 
