@@ -1,6 +1,7 @@
 # T16 / #20 — Deterministic pseudonyms without gender inference
 
-Status: IN PROGRESS
+Status: COMPLETE (T16 #20)
+Final commits: WU-A `8266992`, WU-B `81811e2`, plus the ticket-open commit `bb3130d` and this evidence/closeout commit. Ticket range `0471f9c..81811e2` = 3 commits, 13 files, +805/−21. Ticket integration: `npm test` full chain PASS at the ticket HEAD (vitest 34 files / 613 tests, Node domain suite 55/55, privacy-eval 24/24 + gate PASS, CI checks PASS); `format:check:v4` / `typecheck:v4` / `lint:v4` / `build` PASS. Native review ledger: both per-unit committed-range ASSESS calls returned the known typed Gentle AI #4791 `unassessable`/`schema-incompatible` plan, so the Case C fail-closed path applied twice with writer self-verification plus an independent verifier per unit; no `review_due` was ever offered, no START was synthesized, no consent manufactured and zero lineages opened. Debt: PRODUCT-002 reconciled to DONE with its limits declared; ARCH-013 updated (still OPEN, T16 deliberately did not close it); DOC-001 annotated with the newly stale historical sample. No T17 work started.
 Work Order: GitHub #20 (`EXECUTION_READY=YES`; `Blocked by: #15` CLOSED; no comments; DEBT_IDS=PRODUCT-002)
 Branch: `work/native/v4-travel-t12-t16-20260925`
 START_HEAD: `0471f9caf5d34ec2893ee46dd48a95362ee9a089`
@@ -151,6 +152,121 @@ the authority change and the context plumbing are one indivisible unit.
 
 Each unit keeps its behavior with the oracles that prove it, is independently verifiable, and stays inside the normal ≤400
 authored-line budget. Forecast: no over-budget risk, no size exception required.
+
+**Forecast correction (after WU-A):** the forecast said five existing test files would need updating; in the event only four
+did (`legacy-engine.test.ts`, `registry-engine.test.ts`, `legacy-operators.test.ts`, `legacy-recognizers.test.ts`) —
+`low-confidence-candidates.test.ts` needed no edit because it contains no `PseudonymState` literal. Recorded rather than
+silently dropped.
+
+## WU-A evidence — 2026-09-26
+
+- Commit: `8266992` (base: `bb3130d`). Authored size: **10 files** — 9 modified (43 insertions / 15 deletions) plus the new
+  oracle file (220 lines) = **+263/−15**.
+- Delivered: the patient branch of `AsignadorSustitutos.obtenerSustituto` returns `Paciente <n>` from a new module
+  `contadorPacientes` instead of `genero || detectarGenero(...)` + the two gender literals; the key normalization and the
+  mapped-identity lookup are untouched; the `genero` parameter is retained for legacy call compatibility and deliberately
+  ignored; `detectarGenero` is retained (legacy API) with its JSDoc updated and is no longer consulted. `PseudonymState`
+  gains a REQUIRED `contadorPacientes`, validated fail-closed like the other two counters, threaded through
+  `EMPTY_PSEUDONYM_STATE` / `snapshotModulePseudonymState` / `freezePseudonymState`, and consumed by
+  `reconcileSharedContext`'s patient `nextForNew` so the patient category generates from the context counter exactly like
+  the professional/family categories. `reconcileCategory` itself is untouched; `legacy-operators.ts` changed only in its doc
+  comment; no other production behavior changed.
+- Deterministic verification (worker first pass): `npm run test:v4` PASS — **33 files / 607 tests** (baseline 32/597);
+  `npm run test:domain` 55/55; `npm run check:privacy-eval` PASS (precision 100 %, recall 100 %, FNR 0.00 %);
+  `typecheck:v4`, `lint:v4`, `format:check:v4` PASS.
+- Independent verification (`gentle-ai-verify`, read-only): **11/11 items PASS, zero blockers.** It confirmed the production
+  diff matches SD-3/SD-4/SD-6/SD-7/SD-8, verified that non-patient paths are byte-unchanged, verified that
+  `detectarGenero` now has NO production caller anywhere, verified there is no duplicate patient-mapping implementation
+  (legacy page path, batch patch and both V4 engines all resolve through the same module), verified the edited existing
+  oracles were STRENGTHENED (from `toBeTruthy()`/relational to exact `Paciente 1` pins) and none weakened, and reproduced the
+  byte-integrity check on the mixed-EOL legacy file (203 CRLF + 10 LF before, 211 CRLF + 10 LF after; the 10 LF-only lines
+  unchanged; every non-intended line byte-identical including its line ending). It also flagged, honestly, one minor oracle
+  weakness (the first three assertions of the explicit-`genero` test are confounded by the map cache; the per-context loop in
+  the same test is the discriminator) and three documentation-level findings (below).
+- Parent falsification probes (each restored byte-exactly, sha256-verified):
+  - **P1** the gender inference restored in the authority → **`1 file failed | 6 tests failed | 81 passed`**, including the
+    distinctness, instrumented no-gender, explicit-`genero` and single-document distinctness oracles;
+  - **P4** the map-hit path advances the counter → **`1 failed | 86 passed`**, failing exactly the stability oracle;
+  - **P2** the shared-context patient generator stops incrementing → **`3 files failed | 6 failed | 81 passed`**, including the
+    cross-document next-index oracles (the predicted collision regression);
+  - **P3** the new counter is no longer validated → **`1 failed | 86 passed`**, failing exactly the fail-closed shape oracle.
+- Process incident recorded: a parent probe restored the mixed-EOL legacy file with Python text-mode I/O, which silently
+  normalized CRLF to LF (universal-newline translation on read). Detected by `sha256sum -c`, repaired from the binary backup,
+  and the intended-only diff was re-proved by a line-set comparison. Lesson: use byte-safe copies for backup/restore on
+  mixed-EOL files (the same class of trap a worker hit while editing `README.md`).
+- WU-A native review gate: exact committed-range ASSESS (`{"baseRef":"bb3130d0…","committedOnly":true}`) returned the typed
+  Gentle AI **#4791** envelope (`risk=unassessable`, `reasons=[schema-incompatible]`, `changedPaths=0`, `changedLines=0`,
+  `candidate=null`, `nativeReviewOutcome=unknown`, `writerProfile=small`, plan `{writerSelfVerification, independentVerifier}`).
+  Disposition: **Case C** — both gates satisfied, `ASSESS_SEAM_4791` recorded, **native START synthesized=no**, zero lineages,
+  zero consents, no valid `review_due`, no #4791 retry, no `inspect`-as-ASSESS.
+- WU-A documentation findings accepted for closeout: (i) `README.md` still documented the removed gender-derived replacement
+  (fixed in WU-B); (ii) `ESPECIFICACION_TECNICA.md` is a historical artifact whose sample already diverged from the shipped
+  core and now also contradicts SPEC §12 (not edited; annotated on the DOC-001 row instead, because it is not a live
+  authority); (iii) the debt rows this ticket owns were pending closeout (done here).
+
+## WU-B evidence — 2026-09-26
+
+- Commit: `81811e2` (base: `8266992`). Authored size: **2 files** — `README.md` (1 insertion / 1 deletion) plus the new
+  composition oracle (369 lines) = **+370/−1**. No production behavior changed.
+- Delivered: `patient-pseudonym-composition.test.ts` (6 oracles) proves at the composed registry engine that two distinct
+  same-inferred-gender patients in one document produce two distinct `Paciente N` values (exact composed text, exact entities
+  and exact context, with distinctness, token shape and the absence of any gender word or source-name fragment asserted
+  independently of the pins); that a shared batch keeps the returning patient at `Paciente 1` while the new identity takes the
+  NEXT context index (a genuine fresh→final swap case: the fresh pass numbers the new identity 1 and the returning identity 2,
+  and the reconciliation rewrites both correctly); that the same document processed twice in `fresh` mode is byte-identical;
+  that the professional/familiar branches keep their accepted legacy values in the same run; that the direct legacy product
+  path (`PrivacyProcessor.process`, the module the legacy HTML pages load) produces the same distinct values, so PRODUCT-002 is
+  fixed on the legacy surface too; and that a below-threshold `NOMBRE`/`paciente` candidate grows the module counter (1 → 2)
+  while the returned kept result, stats and context stay deep-equal to the candidate-free control run (T14 acceptance 3, now
+  pinned for the patient counter). The accepted back-to-front numbering property is pinned explicitly instead of assuming
+  reading order. `README.md`'s v3.0 table cell no longer claims the removed gender-derived replacement.
+- Deterministic verification (worker first pass): `npm run test:v4` PASS — **34 files / 613 tests** (WU-A baseline 33/607);
+  `npm test` full chain PASS; `typecheck:v4`, `lint:v4`, `format:check:v4` PASS.
+- Independent verification (`gentle-ai-verify`, read-only): **11/11 items PASS, zero blockers.** It confirmed WU-B changed no
+  production file, verified the README byte integrity independently (224 lines both sides, 60 CRLF lines both sides, exactly
+  one changed line, no EOL normalization), confirmed every `processed` assertion is a full-string pin with independent
+  property assertions alongside (including the ordering property), confirmed the direct-legacy oracle really exercises the
+  module the legacy pages load and that its jsdom `window` side effect is deterministic and idempotent, confirmed the
+  isolation oracle proves BOTH halves, and confirmed no existing test was edited. Honest falsifiability judgement: the
+  "no gender word / no name fragment" assertions are redundant-but-harmless given the exact pins (kept as diagnostics), and
+  the file intentionally does not cover within-document identity re-hits or case-normalization on the composed path because
+  WU-A's `patient-pseudonyms.test.ts` does.
+- Parent falsification probes (each restored byte-exactly, sha256-verified):
+  - **P5** the patient reconciliation reverted to keeping the document-local value → **`2 files failed | 5 failed | 108 passed`**,
+    including the WU-B shared-batch next-index oracle and four WU-A engine oracles;
+  - **P6** the returned context re-resolved AFTER the candidate pass (the exact ordering T14 acceptance 3 forbids) →
+    **`3 files failed | 5 failed | 108 passed`**, including the new patient isolation oracle **and** T14's two
+    professional isolation oracles plus the shared-mode parity oracle — proving the new oracle is as discriminating as the
+    accepted T14 ones.
+- WU-B native review gate: exact committed-range ASSESS (`{"baseRef":"82669928…","committedOnly":true}`) returned the same
+  typed **#4791** envelope → **Case C**, both gates satisfied, `ASSESS_SEAM_4791`, **native START synthesized=no**, zero
+  lineages, zero consents, no valid `review_due`, no #4791 retry.
+
+## T16 ticket closeout — 2026-09-26
+
+- Work-unit chain terminal: ticket open `bb3130d`, WU-A `8266992`, WU-B `81811e2`, then this evidence/closeout commit.
+- Ticket-level deterministic checks: `npm test` full chain (links, storage, external, vendor, pdfjs, smoke, positioning,
+  Node domain suite, privacy-eval units + gate, vitest), plus `format:check:v4`, `typecheck:v4`, `lint:v4` and `build`; the
+  final closeout run at the closeout HEAD is recorded in the boundary record.
+- Every review decision resolved: two valid committed-range ASSESS calls (one per work unit), both returning the known typed
+  #4791 plan → Case C; zero valid `review_due`; zero native lineages; zero consents; the whole-workspace inspect candidate was
+  never started, and `inspect` was never used as a substitute for ASSESS.
+- Every #4791 case independently verified: WU-A (11 audited items + four parent probes), WU-B (11 audited items + two parent
+  probes).
+- Acceptance mapping: #20 bullet 1 (two distinct identities do not collapse within one context) → WU-A module/engine oracles
+  + WU-B composed and legacy-surface oracles; bullet 2 (same identity consistent within the context) → stability oracle,
+  shared-batch oracle, both updated cross-document oracles; bullet 3 (no gender inference required) → the instrumented
+  `detectarGenero` oracle, the explicit-`genero` irrelevance oracle and the exact `Paciente N` pins; bullet 4 (deterministic
+  and testable for a context) → fresh-mode restart oracle, cross-document counter oracle and the byte-identical re-run oracle.
+  Required deterministic tests: identity consistency/distinctness (four module oracles + three engine oracles) and the
+  no-gender-inference fixture (instrumented oracle).
+- Debt reconciliation limited to this ticket's rows plus the evidence it created: **PRODUCT-002 → DONE** with its limits
+  declared (per-context numbering that depends on document order; no cross-context token; `detectarGenero` retained but never
+  consulted; gender-partitioned dictionaries remain detection input only); **ARCH-013 stays OPEN** with the T16 consequence
+  recorded (a patient candidate now proposes a document-local `Paciente N` index) and the explicit statement that T16 did not
+  close it; **DOC-001 annotated** (not closed) with the newly stale historical sample. No other row was touched.
+- No active worker, verifier, reviewer, refuter, validator or correction lineage at closeout; tracked tree clean; no T17 work
+  started; no auto-merge, push or history rewrite performed.
 
 ## Invariants for this ticket
 
