@@ -13,6 +13,16 @@
  * bridge (useJobSession), never React-local UI state. Transient selection,
  * filters and drawers stay in the components.
  *
+ * Low-confidence candidates (Work Order T14 #18, WU-B): the session returned
+ * by {@link createSessionFromEngineText} now ALSO carries the engine's
+ * below-threshold candidates as reviewable detections (marked
+ * `lowConfidence: true`, `source: 'engine'`, `requiresReview: true`), appended
+ * after the entity detections. They are adjudicated through the existing
+ * decision vocabulary (`accepted` = treat with the candidate's `proposed`,
+ * `restored` = decline keeping the original span) and, like every other
+ * engine detection, stay pending until explicitly decided. No signature or
+ * export change is needed for this: the T01 adapter maps them.
+ *
  * Privacy: content stays memory-only (D-013); nothing here logs, persists
  * or places sensitive text in URLs.
  */
@@ -79,8 +89,10 @@ export type DecisionExtras = {
  * the caller (the Job, via {@link startReviewSession}) decides it, so the
  * session's proposals are always produced under the job's actual policy;
  * known-but-unmapped policies fail typed through the engine instead of
- * silently falling back to `standard`. Main-thread processing is fine at
- * this stage; the Web Worker boundary is a later ticket (T22).
+ * silently falling back to `standard`. T14 #18 WU-B: the returned session
+ * also carries the engine's below-threshold candidates as pending
+ * `lowConfidence` detections (see the module header). Main-thread processing
+ * is fine at this stage; the Web Worker boundary is a later ticket (T22).
  */
 export function createSessionFromEngineText(
   text: string,

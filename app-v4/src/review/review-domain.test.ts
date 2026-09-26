@@ -280,7 +280,24 @@ describe("job → review-source mapping", () => {
     const engine = createRegistryEngine();
     const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
     const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
-    expect(session.detections.length).toBe(outcome.result.entities.length);
+    // T14 #18 WU-B: the session carries the entity detections PLUS the engine's
+    // below-threshold candidates (one detection each).
+    const candidates = outcome.result.candidates ?? [];
+    expect(session.detections.length).toBe(outcome.result.entities.length + candidates.length);
+    const lowConfidence = session.detections.filter(
+      (detection) => detection.lowConfidence === true
+    );
+    expect(lowConfidence).toHaveLength(candidates.length);
+    for (const candidate of candidates) {
+      expect(lowConfidence).toContainEqual(
+        expect.objectContaining({
+          type: candidate.type,
+          start: candidate.position.start,
+          end: candidate.position.end,
+          original: candidate.original ?? candidate.text,
+        })
+      );
+    }
   });
 });
 

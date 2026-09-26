@@ -20,6 +20,25 @@
  * value. Unknown classification never defaults to auto-accept. Export
  * (getFinalText) throws while any requiresReview detection is pending.
  *
+ * Low-confidence candidates (Work Order T14 #18, WU-B): a below-threshold
+ * engine candidate reaches the session as a NORMAL detection carrying the
+ * explicit marker `lowConfidence: true` plus the facts the engine produced
+ * (`proposed`, `reason`, immutable offsets). Candidates follow the same
+ * fail-closed rule as every other engine detection — they default to
+ * `requiresReview: true`, stay pending until the reviewer decides them and
+ * therefore block `canFinalize`/`getFinalText`. They are deliberately NOT
+ * subject to the `options.requiresReview` rule (which takes an entity): that
+ * asymmetry is intentional because unknown privacy state must never silently
+ * become KEEP. Adjudication introduces NO new decision kind: `accepted`
+ * treats (applies `proposed`), `restored` declines (keeps the original span
+ * as an explicit completed decision), `modified` supplies a replacement and
+ * `pending` resets. `canFinalize`, `getPendingDetections`, `getFinalText`,
+ * `getEffectiveStatus` and `composeText` keep their exact semantics; only the
+ * marker, its validation and the `getProgress` low-confidence views are new.
+ * `original` keeps being re-derived from the immutable source text by
+ * `normalizeDetection`, so candidate/detector metadata can never define a
+ * span's text.
+ *
  * Immutability style: every mutating operation (applyDecision,
  * addManualDetection) returns a NEW frozen session object; inputs
  * (Processor results, caller detection arrays, prior sessions) are never
@@ -105,6 +124,14 @@ function normalizeDetection(raw, originalText, index) {
   }
   // Fail-closed default (D-009): requireReview unless explicitly false.
   const requiresReview = raw.requiresReview === undefined ? true : Boolean(raw.requiresReview);
+  // Low-confidence candidate marker (T14 #18, WU-B): fail closed on a
+  // non-boolean value so a malformed marker can never be silently coerced.
+  if (raw.lowConfidence !== undefined && typeof raw.lowConfidence !== 'boolean') {
+    throw new ReviewSessionError(
+      'INVALID_DETECTION',
+      `detections[${index}].lowConfidence must be a boolean when present, got: ${String(raw.lowConfidence)}`,
+    );
+  }
   // Canonical source span (authority: exact text comes from source offsets):
   // `original` is ALWAYS derived from the immutable source text, so stale or
   // inconsistent detector metadata can never alter pending preview, restored
@@ -117,6 +144,9 @@ function normalizeDetection(raw, originalText, index) {
   if (raw.proposed !== undefined) normalized.proposed = raw.proposed;
   if (raw.reason !== undefined) normalized.reason = raw.reason;
   if (raw.note !== undefined) normalized.note = raw.note;
+  // Copy the marker ONLY when it is literally true; omit it for false or
+  // undefined so deep-equality snapshots of unaffected sessions stay stable.
+  if (raw.lowConfidence === true) normalized.lowConfidence = true;
   return normalized;
 }
 
@@ -414,13 +444,20 @@ export function canFinalize(session) {
 
 /**
  * Factual progress data for the review surface and the Privacy Gate.
- * Restored originals remain visible here (never silently dropped).
+ * Restored originals remain visible here (never silently dropped), and the
+ * low-confidence candidate view (`lowConfidence` count plus the frozen
+ * `lowConfidenceDetections` list, in detection order) mirrors the existing
+ * `pendingDetections`/`restoredDetections` style. Every pre-T14 field and
+ * derivation is unchanged.
  */
 export function getProgress(session) {
   assertSession(session);
   const pending = getPendingDetections(session);
   const restoredDetections = session.detections.filter(
     (detection) => session.decisions[detection.id]?.status === 'restored',
+  );
+  const lowConfidenceDetections = session.detections.filter(
+    (detection) => detection.lowConfidence === true,
   );
   const counts = { accepted: 0, modified: 0, restored: 0 };
   for (const detection of session.detections) {
@@ -435,8 +472,10 @@ export function getProgress(session) {
     modified: counts.modified,
     restored: counts.restored,
     manual: session.detections.filter((detection) => detection.source === 'manual').length,
+    lowConfidence: lowConfidenceDetections.length,
     pendingDetections: Object.freeze(pending),
     restoredDetections: Object.freeze(restoredDetections),
+    lowConfidenceDetections: Object.freeze(lowConfidenceDetections),
     canFinalize: pending.length === 0,
   });
 }

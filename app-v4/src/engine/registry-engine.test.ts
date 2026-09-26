@@ -159,10 +159,57 @@ describe("createRegistryEngine — legacy parity oracle (fresh mode vs createLeg
     const outcome = engine.process({ text: PARITY_TEXTS[0], context: FRESH });
     const session = createReviewSessionFromProcessor(outcome.result) as {
       originalText: string;
-      detections: unknown[];
+      detections: readonly {
+        readonly type: string;
+        readonly start: number;
+        readonly end: number;
+        readonly original: string;
+        readonly lowConfidence?: boolean;
+      }[];
     };
     expect(session.originalText).toBe(PARITY_TEXTS[0]);
-    expect(session.detections).toHaveLength(outcome.result.entities.length);
+    // T14 #18 WU-B: the adapter includes the engine's below-threshold
+    // candidates as one detection each, marked `lowConfidence: true`.
+    const candidates = outcome.result.candidates ?? [];
+    expect(session.detections).toHaveLength(outcome.result.entities.length + candidates.length);
+    const lowConfidence = session.detections.filter(
+      (detection) => detection.lowConfidence === true
+    );
+    expect(lowConfidence).toHaveLength(candidates.length);
+    for (const candidate of candidates) {
+      expect(lowConfidence).toContainEqual(
+        expect.objectContaining({
+          type: candidate.type,
+          start: candidate.position.start,
+          end: candidate.position.end,
+          original: candidate.original ?? candidate.text,
+        })
+      );
+    }
+
+    // Non-vacuous companion: a fixture that genuinely produces a candidate
+    // proves the adapter really appends it with `lowConfidence: true`.
+    const candidateText = "La paciente acudió ayer. Fisioterapeuta Nélida Otxoa realizó la sesión.";
+    const candidateOutcome = engine.process({ text: candidateText, context: FRESH });
+    const producedCandidates = candidateOutcome.result.candidates ?? [];
+    expect(producedCandidates.length).toBeGreaterThan(0);
+    const candidateSession = createReviewSessionFromProcessor(candidateOutcome.result) as {
+      detections: readonly { readonly lowConfidence?: boolean; readonly original: string }[];
+    };
+    const marked = candidateSession.detections.filter(
+      (detection) => detection.lowConfidence === true
+    );
+    expect(marked).toHaveLength(producedCandidates.length);
+    for (const candidate of producedCandidates) {
+      expect(marked).toContainEqual(
+        expect.objectContaining({
+          type: candidate.type,
+          start: candidate.position.start,
+          end: candidate.position.end,
+          original: candidate.original ?? candidate.text,
+        })
+      );
+    }
   });
 });
 
