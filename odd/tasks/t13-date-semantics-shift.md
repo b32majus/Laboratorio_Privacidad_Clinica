@@ -33,3 +33,10 @@ Execution profile: native-v4-heavy (unchanged; no lifecycle boundary switch)
 - [ ] WU-B: role-aware transform + generalize/redact/DATE_SHIFT operators, typed fail-closed
 - [ ] WU-C: composed longitudinal regression + debt disposition
 - [ ] Per-unit deterministic verification; ticket-level npm test chain
+
+## Native review disposition — 2026-09-26 (STOP recorded)
+
+- Operator instruction: if review_due -> review -> correction -> acknowledge -> burn.
+- Per-unit committed-range ASSESS (gentle_review facade): typed `risk=unassessable` / `schema-incompatible`, no diagnostic (documented seam #4791), 4th consecutive occurrence; plan (writer self-verification + independent verifier) satisfied; no review_due offered by ASSESS.
+- gentle_review {"operation":"inspect"}: offers review.start ONLY for a whole-workspace candidate (base b1c25e9c, pre-V4 3.0-main commit; ~105 changed paths = entire V4 branch T01..T13-WU-A). Starting it is prohibited by operator authority (launch contract + AGENTS.md: no whole-branch synthetic candidates; T01-T11 already carry APPROVED+burn receipts from PR #40 checkpoint).
+- Disposition: NO START executed; no consent manufactured; WU-A evidence stands on the fail-closed verifier path. Human decision required: authorize either (a) a working per-unit committed-range review route, or (b) explicitly the workspace candidate. Train halted at this point per operator instruction.
