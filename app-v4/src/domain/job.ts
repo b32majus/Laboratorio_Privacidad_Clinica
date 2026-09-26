@@ -31,10 +31,22 @@ export const FLOW_STEPS: readonly FlowStep[] = [
 ];
 
 /**
- * Heavy-processing lifecycle state. The Web Worker boundary arrives with a
- * later ticket; new jobs stay "idle" until real processing is wired.
+ * Heavy-processing lifecycle state for ONE processing attempt (T15 #19,
+ * D-009 fail-closed). The Web Worker boundary arrives with a later ticket.
+ *
+ * The five states are deliberately distinguishable so an outcome can never be
+ * inferred from its absence:
+ * - `idle`: no processing attempt has been made (a new job's default).
+ * - `running`: an attempt was explicitly started ({@link beginProcessing}).
+ * - `succeeded`: the attempt completed and its outcome was EXPLICITLY
+ *   recorded. This state is reachable ONLY through
+ *   {@link completeProcessing}; nothing else may infer success.
+ * - `failed`: the attempt ended in a recognized typed failure
+ *   ({@link failProcessing}).
+ * - `unknown`: an attempt was made but its outcome could not be established
+ *   (an unrecognized throw); the job is NOT silently treated as unprocessed.
  */
-export type ProcessingState = "idle" | "running" | "succeeded" | "failed";
+export type ProcessingState = "idle" | "running" | "succeeded" | "failed" | "unknown";
 
 /**
  * Lifecycle status placeholder: the real JobStatus vocabulary (draft/active/
@@ -121,7 +133,8 @@ export type JobModelErrorCode =
   | "input-too-large"
   | "invalid-policy"
   | "invalid-step"
-  | "review-incomplete";
+  | "review-incomplete"
+  | "invalid-processing-transition";
 
 /** Typed domain error; carries a machine-readable code (D-009 fail-closed). */
 export class JobModelError extends Error {
@@ -167,6 +180,29 @@ function freezeDeep<T>(value: T): T {
 }
 
 type FileClass = "document" | "structured";
+
+/**
+ * Machine-readable processing-failure vocabulary (T15 #19). It is deliberately
+ * a closed set: an unrecognized error collapses to `processing-unknown`
+ * instead of inventing a new code.
+ */
+export type ProcessingFailureCode =
+  | "input-too-large"
+  | "invalid-source"
+  | "policy-unsupported"
+  | "processing-failed"
+  | "processing-unknown";
+
+/**
+ * Typed processing-failure record appended to {@link Job.errors} by
+ * {@link failProcessing}. `message` is always authored by a typed contract
+ * (or the fixed unknown-outcome message); a raw unrecognized error message is
+ * never carried here.
+ */
+export type ProcessingFailure = {
+  readonly code: ProcessingFailureCode;
+  readonly message: string;
+};
 
 /** Whether the lowercase extension routes through the document adapters. */
 export function isDocumentExtension(extension: string): boolean {
@@ -463,6 +499,68 @@ export function setPolicy(job: Job, policyId: PrivacyPolicyId): Job {
       safeOutputReady: false,
       confidentialAuditReady: false,
     } as OutputAvailability,
+    // Consistency (PR #40 corrective C2 family): a REAL policy change also
+    // invalidates the derived processing outcome, so the next Review entry
+    // starts a fresh attempt instead of reusing a stale success/failure.
+    processing: "idle" as ProcessingState,
+  });
+}
+
+/**
+ * Start ONE processing attempt (T15 #19). From `idle`, `failed` or `unknown`
+ * the job moves to `running`; from `running` the SAME object is returned (a
+ * no-op, so ordered calls cannot restart an in-flight attempt); from
+ * `succeeded` it throws, because a completed processing outcome is never
+ * overwritten by a new attempt without an intervening invalidation (a policy
+ * change resets `processing` to `idle`). Frozen and never mutating.
+ */
+export function beginProcessing(job: Job): Job {
+  if (job.processing === "running") return job;
+  if (job.processing === "succeeded") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `Job "${job.id}" already processed successfully; a new attempt cannot start without an intervening invalidation.`
+    );
+  }
+  return freezeDeep({ ...job, processing: "running" as ProcessingState });
+}
+
+/**
+ * Record a processing SUCCESS (T15 #19). Only allowed from `running`: success
+ * is never inferred, so it may only be recorded for an attempt that was
+ * explicitly started with {@link beginProcessing}. ANY other state throws.
+ */
+export function completeProcessing(job: Job): Job {
+  if (job.processing !== "running") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `Job "${job.id}" has no running processing attempt to complete (state "${job.processing}"); success is never inferred.`
+    );
+  }
+  return freezeDeep({ ...job, processing: "succeeded" as ProcessingState });
+}
+
+/**
+ * Record a processing FAILURE (T15 #19, D-009). Only allowed from `running`:
+ * a failure is only recorded for a started attempt, and a success is never
+ * overwritten by a later failure. A `processing-unknown` failure moves the
+ * job to `unknown` (an attempt happened, its outcome could not be
+ * established); every other code moves it to `failed`. The failure is
+ * APPENDED to {@link Job.errors} — existing entries are never replaced. This
+ * is a frozen transition and never mutates the input job.
+ */
+export function failProcessing(job: Job, failure: ProcessingFailure): Job {
+  if (job.processing !== "running") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `Job "${job.id}" has no running processing attempt to fail (state "${job.processing}").`
+    );
+  }
+  const processing: ProcessingState = failure.code === "processing-unknown" ? "unknown" : "failed";
+  return freezeDeep({
+    ...job,
+    processing,
+    errors: [...job.errors, { code: failure.code, message: failure.message }],
   });
 }
 

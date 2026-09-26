@@ -8,18 +8,24 @@ import {
   addManualDetection,
   applyDecision,
   canFinalize,
+  startReviewSession,
 } from "./review/review-domain";
 import {
   type FlowStep,
   type Job,
   type JobInput,
   type PrivacyPolicyId,
+  type ProcessingFailure,
   advanceStep,
+  beginProcessing,
+  completeProcessing,
   createJob,
+  failProcessing,
   goToStep,
   setPolicy,
   withReviewState,
 } from "./domain/job";
+import { classifyProcessingFailure } from "./processing-outcome";
 
 /**
  * State bridge between the React shell and the pure domain models (SPEC §3).
@@ -35,6 +41,12 @@ import {
  * domain transition succeeded. Errors thrown inside a state updater would be
  * swallowed by React, so the current state is read through a ref and the
  * updater is replaced by a direct, atomic setState of the computed result.
+ *
+ * Review installation (T15 #19): {@link startReview} is the ONLY export that
+ * installs a ReviewSession from a job, and it always records a processing
+ * outcome in the same flow. There is deliberately no way for the shell to
+ * install a session without marking the attempt as `succeeded` or `failed`,
+ * so a failed attempt can never be mistaken for "not processed yet".
  */
 type SessionState = {
   readonly job: Job | null;
@@ -98,11 +110,48 @@ export function useJobSession() {
     });
   }, []);
 
-  /** Install a freshly created ReviewSession as the job's review authority. */
-  const beginReview = useCallback((review: ReviewSession) => {
-    setState((current) =>
-      current.job ? { job: withDerivedReviewState(current.job, review), review } : current
-    );
+  /**
+   * Run and record ONE processing attempt, then install the resulting
+   * ReviewSession. This is the single bridge entry point into review, and the
+   * only production path that installs a review session from a job (T15 #19).
+   *
+   * A processing attempt has two explicit halves: `beginProcessing` marks the
+   * attempt as `running` BEFORE any engine call, and a success may only be
+   * recorded with `completeProcessing`. That is why success is never inferred:
+   * the domain only reaches `succeeded` from `running`, so an outcome can
+   * never be fabricated for an attempt that was not started. On a throw the
+   * failure is classified and recorded with `failProcessing`, and the typed
+   * {@link ProcessingFailure} is returned so the caller can surface its
+   * message (this method never throws for a typed processing failure).
+   *
+   * Ordered calls inside one handler compose correctly: the attempt is
+   * recorded through functional state updaters, while the engine is invoked
+   * OUTSIDE any state updater (React swallows updater errors, and the source
+   * text is unchanged by the transition).
+   */
+  const startReview = useCallback((): ProcessingFailure | null => {
+    const current = stateRef.current;
+    if (!current.job || current.review) return null;
+    const job = current.job;
+    setState((state) => (state.job ? { ...state, job: beginProcessing(state.job) } : state));
+    try {
+      const review = startReviewSession(job);
+      setState((state) =>
+        state.job
+          ? {
+              job: completeProcessing(withDerivedReviewState(state.job, review)),
+              review,
+            }
+          : state
+      );
+      return null;
+    } catch (error) {
+      const failure = classifyProcessingFailure(error);
+      setState((state) =>
+        state.job ? { ...state, job: failProcessing(state.job, failure) } : state
+      );
+      return failure;
+    }
   }, []);
 
   const decide = useCallback(
@@ -136,7 +185,7 @@ export function useJobSession() {
     navigate,
     advance,
     updatePolicy,
-    beginReview,
+    startReview,
     decide,
     addManual,
   };

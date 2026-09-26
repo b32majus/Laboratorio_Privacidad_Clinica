@@ -467,6 +467,26 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     // No stale session was installed.
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
   });
+
+  it("a failed processing attempt stays on the current step and never exposes a review workspace (T15 #19)", () => {
+    render(<App />);
+    createTextJob();
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "external-ai" },
+    });
+    fireEvent.click(stepButton(2, "Configure"));
+    expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
+
+    fireEvent.click(stepButton(3, "Review"));
+
+    // The typed failure is surfaced and the app does NOT navigate: the Review
+    // workspace never appears and the export gate stays fail-closed.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
+    expect(stepButton(5, "Export")).toBeDisabled();
+  });
 });
 
 describe("App document intake (T06)", () => {

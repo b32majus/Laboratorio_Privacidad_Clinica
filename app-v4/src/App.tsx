@@ -32,7 +32,7 @@ import { extensionOf } from "./input/extracted-source";
 import { ExportStep } from "./export/ExportStep";
 import { PrivacyGate } from "./privacy-gate/PrivacyGate";
 import { ReviewWorkspace } from "./review/ReviewWorkspace";
-import { ReviewSessionError, jobSupportsReview, startReviewSession } from "./review/review-domain";
+import { ReviewSessionError, jobSupportsReview } from "./review/review-domain";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
@@ -172,14 +172,21 @@ export function App() {
   /**
    * Step transitions. Entering Review for a text or single-document job runs
    * the existing legacy engine on the job's source text ONCE and installs the
-   * resulting ReviewSession as the domain review authority (T07). Re-entering
+   * resulting ReviewSession as the domain review authority (T07). The attempt
+   * is recorded through `session.startReview()` (T15 #19): a typed processing
+   * failure is surfaced as an alert and the app STAYS on the current step, so
+   * a failed attempt is never presented as a successful review. Re-entering
    * Review never re-runs the engine or resets decisions; batch and structured
    * jobs keep an honest placeholder until their own tickets arrive.
    */
   const handleGoToStep = (step: FlowStep) => {
     try {
       if (step === "review" && job && !review && jobSupportsReview(job)) {
-        session.beginReview(startReviewSession(job));
+        const failure = session.startReview();
+        if (failure) {
+          setReviewError(failure.message);
+          return;
+        }
       }
       session.navigate(step);
       setInputError(null);

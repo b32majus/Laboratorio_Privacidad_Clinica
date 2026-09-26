@@ -4,8 +4,11 @@ import {
   FLOW_STEPS,
   JobModelError,
   advanceStep,
+  beginProcessing,
   canAdvanceStep,
+  completeProcessing,
   createJob,
+  failProcessing,
   goToStep,
   inferJobKind,
   isStepAccessible,
@@ -13,6 +16,7 @@ import {
   withReviewState,
   type Job,
   type JobSourceFile,
+  type ProcessingFailure,
 } from "./job";
 import { extractTxt } from "../input/extract";
 import { MAX_SUPPORTED_TEXT_LENGTH, oversizeInputFor } from "../engine/input-limits";
@@ -364,6 +368,134 @@ describe("step transitions", () => {
     const atExport = advanceStep(advanceStep(advanceStep(advanceStep(completed))));
     expect(atExport.currentStep).toBe("export");
     expect(canAdvanceStep(atExport)).toBe(false);
+  });
+});
+
+describe("processing outcome (T15 #19)", () => {
+  function idleJob(): Job {
+    return createJob(TEXT_INPUT);
+  }
+
+  function runningJob(): Job {
+    return beginProcessing(idleJob());
+  }
+
+  function failedJob(code: ProcessingFailure["code"] = "processing-failed"): Job {
+    return failProcessing(runningJob(), { code, message: `Synthetic ${code} failure.` });
+  }
+
+  function succeededJob(): Job {
+    return completeProcessing(runningJob());
+  }
+
+  function expectTransitionError(run: () => unknown): void {
+    try {
+      run();
+      throw new Error("expected the transition to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("invalid-processing-transition");
+    }
+  }
+
+  it("beginProcessing starts a new attempt from idle, failed and unknown", () => {
+    for (const from of [idleJob(), failedJob(), failedJob("processing-unknown")]) {
+      const started = beginProcessing(from);
+      expect(started.processing).toBe("running");
+      expect(started).not.toBe(from);
+      expect(Object.isFrozen(started)).toBe(true);
+      // The input job is never mutated.
+      expect(from.processing).not.toBe("running");
+    }
+  });
+
+  it("beginProcessing from running is an exact no-op (same object)", () => {
+    const running = runningJob();
+    expect(beginProcessing(running)).toBe(running);
+  });
+
+  it("beginProcessing refuses to restart a succeeded job", () => {
+    const succeeded = succeededJob();
+    expect(succeeded.processing).toBe("succeeded");
+    expectTransitionError(() => beginProcessing(succeeded));
+  });
+
+  it("completeProcessing records success only from running", () => {
+    const running = runningJob();
+    const succeeded = completeProcessing(running);
+    expect(succeeded.processing).toBe("succeeded");
+    expect(Object.isFrozen(succeeded)).toBe(true);
+    expect(running.processing).toBe("running");
+  });
+
+  it("completeProcessing never infers success from idle, failed or unknown", () => {
+    expectTransitionError(() => completeProcessing(idleJob()));
+    expectTransitionError(() => completeProcessing(failedJob()));
+    expectTransitionError(() => completeProcessing(failedJob("processing-unknown")));
+    // A fresh job can never already be succeeded; success needs an attempt.
+    expect(idleJob().processing).not.toBe("succeeded");
+  });
+
+  it("failProcessing with a recognized code reaches failed and appends the error, preserving existing entries", () => {
+    const first = failProcessing(runningJob(), {
+      code: "policy-unsupported",
+      message: "Policy is known but unmapped.",
+    });
+    expect(first.processing).toBe("failed");
+    expect(first.errors).toHaveLength(1);
+    expect(first.errors[0].code).toBe("policy-unsupported");
+    expect(first.errors[0].message).toBe("Policy is known but unmapped.");
+
+    // A retry that fails again APPENDS instead of replacing the history.
+    const second = failProcessing(beginProcessing(first), {
+      code: "processing-failed",
+      message: "Engine refused the source.",
+    });
+    expect(second.errors).toHaveLength(2);
+    expect(second.errors[0]).toEqual(first.errors[0]);
+    expect(second.errors[1].code).toBe("processing-failed");
+    // The failed input job was not mutated by the append.
+    expect(first.errors).toHaveLength(1);
+  });
+
+  it("failProcessing with processing-unknown reaches unknown", () => {
+    const unknown = failProcessing(runningJob(), {
+      code: "processing-unknown",
+      message: "Fixed unknown-outcome message.",
+    });
+    expect(unknown.processing).toBe("unknown");
+    expect(unknown.errors[0].code).toBe("processing-unknown");
+  });
+
+  it("failProcessing is refused from idle and from succeeded", () => {
+    expectTransitionError(() =>
+      failProcessing(idleJob(), { code: "processing-failed", message: "No attempt started." })
+    );
+    // A success is never overwritten by a later failure.
+    expectTransitionError(() =>
+      failProcessing(succeededJob(), { code: "processing-failed", message: "Too late." })
+    );
+  });
+
+  it("setPolicy with a real change resets the processing outcome to idle", () => {
+    const succeeded = succeededJob();
+    const changed = setPolicy(succeeded, "strict");
+    expect(changed.processing).toBe("idle");
+    expect(changed).not.toBe(succeeded);
+    expect(Object.isFrozen(changed)).toBe(true);
+    // The prior job keeps its recorded outcome.
+    expect(succeeded.processing).toBe("succeeded");
+  });
+
+  it("a real policy change also resets a failed attempt to idle", () => {
+    const failed = failedJob("processing-unknown");
+    expect(setPolicy(failed, "strict").processing).toBe("idle");
+  });
+
+  it("an unchanged policy remains an exact no-op for a succeeded job", () => {
+    const succeeded = succeededJob();
+    expect(setPolicy(succeeded, "standard")).toBe(succeeded);
+    expect(succeeded.processing).toBe("succeeded");
   });
 });
 
