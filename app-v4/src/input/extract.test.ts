@@ -12,8 +12,22 @@ import { fileURLToPath } from "url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { install, type NetworkMonitor } from "../testing/network-monitor";
-import { extractDocx, extractFile, extractFromPastedText, extractPdf, extractTxt } from "./extract";
+import {
+  extractDocx,
+  extractFile,
+  extractFromPastedText,
+  extractPdf,
+  extractTxt,
+  oversizeFailureFor,
+} from "./extract";
+import type { SourceFormat } from "./extracted-source";
 import { loadPdfJs, PDFJS_LIB_SRC, resetPdfJsLoaderForTests, type PdfJsLib } from "./pdfjs-loader";
+import {
+  MAX_SUPPORTED_TEXT_LENGTH,
+  OVERSIZE_INPUT_CODE,
+  isTextWithinSupportedSize,
+  oversizeInputFor,
+} from "../engine/input-limits";
 
 const EXPECTED_TXT = [
   "Nota clinica sintetica de prueba para el laboratorio.",
@@ -334,6 +348,129 @@ describe("memory-only invariant during adapter extraction", () => {
       expect(window.indexedDB).toBeUndefined();
     } finally {
       monitor.uninstall();
+    }
+  });
+});
+
+describe("supported input size (T15 #19)", () => {
+  const PHI_TOKEN_PREFIX = "SYNTH-PHI-ALPHA SYNTH-PHI-BETA ";
+
+  it("accepts pasted text at exactly the supported boundary without truncation", () => {
+    const text = PHI_TOKEN_PREFIX + "a".repeat(MAX_SUPPORTED_TEXT_LENGTH - PHI_TOKEN_PREFIX.length);
+    expect(text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH);
+    expect(isTextWithinSupportedSize(text)).toBe(true);
+
+    const result = extractFromPastedText(text);
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH);
+      expect(result.text).toBe(text);
+    }
+  });
+
+  it("refuses pasted text one character over the boundary and stays payload-free", () => {
+    const token = "SYNTH-PHI-GAMMA";
+    const text = `${token} ` + "b".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1 - token.length - 1);
+    expect(text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    expect(isTextWithinSupportedSize(text)).toBe(false);
+    const expected = oversizeInputFor(text)!;
+
+    const result = extractFromPastedText(text);
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") {
+      expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
+      expect(result.error.message).toBe(expected.message);
+    }
+    // SD-3/SD-7: failure diagnostics never carry source payload.
+    expect(JSON.stringify(result)).not.toContain(token);
+  });
+
+  it("accepts a TXT file of exactly the supported length without truncation", async () => {
+    const text = "c".repeat(MAX_SUPPORTED_TEXT_LENGTH);
+    const result = await extractTxt(new File([text], "boundary.txt"));
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH);
+      expect(result.text).toBe(text);
+    }
+  });
+
+  it("refuses a TXT file one character over the boundary and stays payload-free", async () => {
+    const token = "SYNTH-PHI-DELTA";
+    const text = `${token} ` + "d".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1 - token.length - 1);
+    const expected = oversizeInputFor(text)!;
+
+    const result = await extractTxt(new File([text], "oversize.txt"));
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") {
+      expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
+      expect(result.error.message).toBe(expected.message);
+    }
+    expect(JSON.stringify(result)).not.toContain(token);
+  });
+
+  it("refuses the same oversize TXT through the extractFile dispatcher", async () => {
+    const text = "e".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    const result = await extractFile(new File([text], "oversize.txt"));
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") {
+      expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
+      expect(result.error.message).toBe(oversizeInputFor(text)!.message);
+    }
+  });
+
+  it("oversizeFailureFor pins the branch for every format without parsing a fixture", () => {
+    const small = "Synthetic note.";
+    const boundary = "f".repeat(MAX_SUPPORTED_TEXT_LENGTH);
+    expect(oversizeFailureFor("pasted-text", "pasted text", small)).toBeNull();
+    expect(oversizeFailureFor("pasted-text", "pasted text", boundary)).toBeNull();
+
+    const text = "g".repeat(MAX_SUPPORTED_TEXT_LENGTH + 5);
+    const expected = oversizeInputFor(text)!;
+    const cases: readonly { format: SourceFormat; sourceName: string }[] = [
+      { format: "pasted-text", sourceName: "pasted text" },
+      { format: "txt", sourceName: "note.txt" },
+      { format: "docx", sourceName: "note.docx" },
+      { format: "pdf", sourceName: "note.pdf" },
+    ];
+    for (const { format, sourceName } of cases) {
+      const result = oversizeFailureFor(format, sourceName, text);
+      expect(result).not.toBeNull();
+      if (result) {
+        expect(result.status).toBe("failed");
+        expect(result.format).toBe(format);
+        expect(result.sourceName).toBe(sourceName);
+        expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
+        expect(result.error.message).toBe(expected.message);
+      }
+    }
+  });
+
+  it("refuses an oversize PDF text layer through the real PDF adapter", async () => {
+    // The DOCX and PDF adapters cannot have a >1M-character committed fixture,
+    // so the shared guard is pinned directly for those formats above. This case
+    // closes the wiring gap for PDF (the format most likely to reach the limit
+    // in practice) with the same pre-seeded fake lib the loader tests use: the
+    // guard must run on the decoded text of a real adapter call.
+    const pageText = "p".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    window.pdfjsLib = {
+      GlobalWorkerOptions: { workerSrc: "" },
+      getDocument: () => ({
+        promise: Promise.resolve({
+          numPages: 1,
+          getPage: () =>
+            Promise.resolve({
+              getTextContent: () => Promise.resolve({ items: [{ str: pageText }] }),
+            }),
+        }),
+      }),
+    };
+
+    const result = await extractPdf(new File([new Uint8Array([1])], "oversize.pdf"));
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") {
+      expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
+      expect(result.error.message).toBe(oversizeInputFor(pageText)!.message);
     }
   });
 });

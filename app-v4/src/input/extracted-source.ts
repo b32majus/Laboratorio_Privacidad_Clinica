@@ -12,6 +12,7 @@
  * content and stays memory-only (D-013): this module never persists, logs, or
  * transmits it, and contains no storage or network code.
  */
+import { OVERSIZE_INPUT_CODE } from "../engine/input-limits";
 
 /** Input formats owned by the T06 adapters. */
 export type SourceFormat = "pasted-text" | "txt" | "docx" | "pdf";
@@ -19,10 +20,18 @@ export type SourceFormat = "pasted-text" | "txt" | "docx" | "pdf";
 /**
  * Machine-readable failure codes (D-009). `empty-input` covers empty pasted
  * text and empty/whitespace-only TXT files; `pdf-no-text-layer` marks a
- * structurally valid PDF that yields no text (likely a scan).
+ * structurally valid PDF that yields no text (likely a scan);
+ * `input-too-large` refuses a document above the supported size authority
+ * (`../engine/input-limits`) with an actionable split path. The last member
+ * is derived from the shared code value so the vocabulary can never drift
+ * from the authority.
  */
 export type ExtractionErrorCode =
-  "empty-input" | "unsupported-format" | "extraction-failed" | "pdf-no-text-layer";
+  | "empty-input"
+  | "unsupported-format"
+  | "extraction-failed"
+  | "pdf-no-text-layer"
+  | typeof OVERSIZE_INPUT_CODE;
 
 export type ExtractedSourceSuccess = {
   readonly status: "success";

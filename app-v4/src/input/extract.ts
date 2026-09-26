@@ -19,8 +19,14 @@ import {
   type ExtractedSource,
   type ExtractedSourceFailure,
   type SourceFileLike,
+  type SourceFormat,
 } from "./extracted-source";
 import { loadPdfJs, PDFJS_WORKER_SRC } from "./pdfjs-loader";
+import {
+  OVERSIZE_INPUT_CODE,
+  isTextWithinSupportedSize,
+  oversizeInputFor,
+} from "../engine/input-limits";
 
 export const PDF_NO_TEXT_LAYER_MESSAGE =
   "The PDF contains no extractable text; it is likely a scan or has no text layer.";
@@ -55,6 +61,37 @@ async function readFileText(file: SourceFileLike): Promise<string> {
 }
 
 /**
+ * Shared oversize guard for the four input adapters (T15 #19, SD-1/SD-4).
+ * Exported so the deterministic oracle in `extract.test.ts` can execute this
+ * branch for every format; the four adapters `extractFromPastedText`,
+ * `extractTxt`, `extractDocx` and `extractPdf` are its only production
+ * callers.
+ *
+ * Returns `null` while the decoded text is within the supported size authority
+ * (`../engine/input-limits`), otherwise a typed failure carrying the SHARED
+ * actionable message verbatim. No part of the rejected text is ever included
+ * in the result (SD-3/SD-7).
+ *
+ * Ordering: each adapter runs its own empty/whitespace check BEFORE this guard,
+ * so an oversize input that is also whitespace-only still reports
+ * `empty-input`; oversize input with real content always reports
+ * `input-too-large`.
+ *
+ * Deliberate non-change: there is no byte-based pre-check on `File.size`. The
+ * authority is measured in UTF-16 code units, so a byte comparison would mix
+ * units and could falsely refuse valid multilingual input. Reading the file
+ * and refusing on the decoded text keeps one consistent unit.
+ */
+export function oversizeFailureFor(
+  format: SourceFormat,
+  sourceName: string,
+  text: string
+): ExtractedSourceFailure | null {
+  if (isTextWithinSupportedSize(text)) return null;
+  return failure(format, sourceName, OVERSIZE_INPUT_CODE, oversizeInputFor(text)!.message);
+}
+
+/**
  * Pasted text adapter (D-009): empty/whitespace-only input is an explicit
  * empty-input failure. Successful text is returned unmodified — the adapter
  * never trims or truncates user content.
@@ -68,6 +105,8 @@ export function extractFromPastedText(text: string): ExtractedSource {
       "Pasted text is empty; provide text before creating a job."
     );
   }
+  const oversize = oversizeFailureFor("pasted-text", "pasted text", text);
+  if (oversize) return oversize;
   return success("pasted-text", "pasted text", text);
 }
 
@@ -92,6 +131,8 @@ export async function extractTxt(file: SourceFileLike): Promise<ExtractedSource>
       `The TXT file "${file.name}" is empty; provide a file with content.`
     );
   }
+  const oversize = oversizeFailureFor("txt", file.name, text);
+  if (oversize) return oversize;
   return success("txt", file.name, text);
 }
 
@@ -127,6 +168,8 @@ export async function extractDocx(file: SourceFileLike): Promise<ExtractedSource
         `The DOCX file "${file.name}" contains no extractable text.`
       );
     }
+    const oversize = oversizeFailureFor("docx", file.name, text);
+    if (oversize) return oversize;
     return success("docx", file.name, text);
   } catch {
     return failure(
@@ -179,6 +222,8 @@ export async function extractPdf(file: SourceFileLike): Promise<ExtractedSource>
     if (fullText.length === 0) {
       return failure("pdf", file.name, "pdf-no-text-layer", PDF_NO_TEXT_LAYER_MESSAGE);
     }
+    const oversize = oversizeFailureFor("pdf", file.name, fullText);
+    if (oversize) return oversize;
     return success("pdf", file.name, fullText);
   } catch {
     return failure(

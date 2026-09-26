@@ -12,7 +12,10 @@ import {
   setPolicy,
   withReviewState,
   type Job,
+  type JobSourceFile,
 } from "./job";
+import { extractTxt } from "../input/extract";
+import { MAX_SUPPORTED_TEXT_LENGTH, oversizeInputFor } from "../engine/input-limits";
 
 const TEXT_INPUT = { type: "pasted-text", text: "Synthetic clinical note for testing." } as const;
 
@@ -417,5 +420,118 @@ describe("setPolicy", () => {
       outputs: Object.freeze({ safeOutputReady: true, confidentialAuditReady: true }),
     }) as Job;
     expect(setPolicy(reviewedJob, "standard")).toBe(reviewedJob);
+  });
+});
+
+describe("supported input size (T15 #19)", () => {
+  function extractedFile(name: string, extension: string, text: string): JobSourceFile {
+    return { name, extension, extraction: { status: "extracted" as const, extractedText: text } };
+  }
+
+  it("inferJobKind refuses oversize pasted text with the typed code", () => {
+    const text = "h".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    try {
+      inferJobKind({ type: "pasted-text", text });
+      throw new Error("expected inferJobKind to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("input-too-large");
+      expect((error as JobModelError).message).toBe(oversizeInputFor(text)!.message);
+    }
+  });
+
+  it("createJob refuses oversize pasted text and accepts exactly-at-limit text", () => {
+    const oversize = "i".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    try {
+      createJob({ type: "pasted-text", text: oversize });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("input-too-large");
+    }
+
+    const boundary = "j".repeat(MAX_SUPPORTED_TEXT_LENGTH);
+    const job = createJob({ type: "pasted-text", text: boundary });
+    expect(job.kind).toBe("text");
+    if (job.source.type !== "pasted-text") throw new Error("unreachable: pasted-text source");
+    expect(job.source.text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH);
+    expect(job.source.text).toBe(boundary);
+  });
+
+  it("createJob refuses an oversize extracted file even when the adapter is bypassed", () => {
+    const name = "oversize-note.txt";
+    const text = "k".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    try {
+      createJob({ type: "files", files: [extractedFile(name, "txt", text)] });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("input-too-large");
+      const message = (error as JobModelError).message;
+      expect(message).toContain(`"${name}"`);
+      expect(message).toContain(oversizeInputFor(text)!.message);
+      expect(message).toContain("Split");
+    }
+  });
+
+  it("names every oversize file in deterministic input order", () => {
+    const first = "first-oversize.txt";
+    const second = "second-oversize.txt";
+    try {
+      createJob({
+        type: "files",
+        files: [
+          extractedFile(first, "txt", "l".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1)),
+          extractedFile(second, "txt", "m".repeat(MAX_SUPPORTED_TEXT_LENGTH + 2)),
+        ],
+      });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("input-too-large");
+      const message = (error as JobModelError).message;
+      expect(message.indexOf(`"${first}"`)).toBeGreaterThanOrEqual(0);
+      expect(message.indexOf(`"${first}"`)).toBeLessThan(message.indexOf(`"${second}"`));
+    }
+  });
+
+  it("never creates a job from a real oversize TXT through the composed intake path", async () => {
+    const text = "n".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    const extracted = await extractTxt(new File([text], "oversize-note.txt"));
+    expect(extracted.status).toBe("failed");
+    // Mirror App.tsx's mapping of an adapter result to a JobSourceFile.
+    const jobFiles: JobSourceFile[] = [
+      {
+        name: extracted.sourceName,
+        extension: "txt",
+        extraction:
+          extracted.status === "success"
+            ? { status: "extracted", extractedText: extracted.text }
+            : {
+                status: "failed",
+                error: { code: extracted.error.code, message: extracted.error.message },
+              },
+      },
+    ];
+    try {
+      createJob({ type: "files", files: jobFiles });
+      throw new Error("expected createJob to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(JobModelError);
+      expect((error as JobModelError).code).toBe("input-too-large");
+    }
+  });
+
+  it("accepts exactly-at-limit extracted text with the length unchanged", () => {
+    const text = "o".repeat(MAX_SUPPORTED_TEXT_LENGTH);
+    const job = createJob({ type: "files", files: [extractedFile("boundary.txt", "txt", text)] });
+    expect(job.kind).toBe("document");
+    if (job.source.type !== "files") throw new Error("unreachable: files source");
+    const extraction = job.source.files[0].extraction;
+    expect(extraction?.status).toBe("extracted");
+    if (extraction?.status === "extracted") {
+      expect(extraction.extractedText.length).toBe(MAX_SUPPORTED_TEXT_LENGTH);
+      expect(extraction.extractedText).toBe(text);
+    }
   });
 });

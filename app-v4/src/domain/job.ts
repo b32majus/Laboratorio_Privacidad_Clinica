@@ -11,6 +11,7 @@
  * D-013): job data lives in RAM, is never persisted, serialized to storage,
  * or placed in URLs. Keep this module free of any persistence or network code.
  */
+import { oversizeInputFor } from "../engine/input-limits";
 
 /** Job families inferred from input (SPEC §2, CONTEXT.md §3). */
 export type JobKind = "text" | "document" | "document-batch" | "structured";
@@ -117,6 +118,7 @@ export type JobModelErrorCode =
   | "unsupported-file-type"
   | "extraction-failed"
   | "pdf-no-text-layer"
+  | "input-too-large"
   | "invalid-policy"
   | "invalid-step"
   | "review-incomplete";
@@ -188,7 +190,11 @@ function classifyFile(file: JobSourceFile): FileClass {
 /**
  * Infer the job family from input (SPEC §2). Fail-closed (D-009): empty,
  * mixed or invalid input throws a typed error instead of silently picking a
- * kind.
+ * kind. Oversize pasted text is refused here as well as in the input adapter
+ * (SD-5: the domain is the authority, the adapter is a convenience), with the
+ * shared actionable message verbatim. The boundary itself is never
+ * re-implemented here: it is asked of the size authority, so the rule lives in
+ * exactly one place.
  */
 export function inferJobKind(input: JobInput): JobKind {
   if (input.type === "pasted-text") {
@@ -197,6 +203,10 @@ export function inferJobKind(input: JobInput): JobKind {
         "empty-input",
         "Pasted text is empty; provide text before creating a job."
       );
+    }
+    const oversizeInput = oversizeInputFor(input.text);
+    if (oversizeInput !== null) {
+      throw new JobModelError("input-too-large", oversizeInput.message);
     }
     return "text";
   }
@@ -241,6 +251,8 @@ function jobErrorCodeFor(extractionCode: string): JobModelErrorCode {
       return "unsupported-file-type";
     case "pdf-no-text-layer":
       return "pdf-no-text-layer";
+    case "input-too-large":
+      return "input-too-large";
     default:
       return "extraction-failed";
   }
@@ -251,26 +263,53 @@ function jobErrorCodeFor(extractionCode: string): JobModelErrorCode {
  * created from files whose extraction failed — a failed file is never
  * representable as an apparently successful empty document. The error names
  * every failing file so failed batch items stay visible (D-011).
+ *
+ * A second, independent branch refuses a file whose extraction SUCCEEDED but
+ * whose text exceeds the supported size authority (T15 #19, SD-4/SD-5). This
+ * is the domain-level lock: it refuses an oversize extracted text even when a
+ * caller bypasses the input adapters, and it runs BEFORE any job object is
+ * created. Every oversize file is named, in input order, embedding the shared
+ * actionable message verbatim.
  */
 function assertExtractionsUsable(files: readonly JobSourceFile[]): void {
   const failed = files.filter((file) => file.extraction?.status === "failed");
-  if (failed.length === 0) return;
+  if (failed.length > 0) {
+    const details = failed
+      .map(
+        (file) =>
+          `"${file.name}": ${(file.extraction as { error: { message: string } }).error.message}`
+      )
+      .join(" ");
+    const firstCode = (failed[0].extraction as { error: { code: string } }).error.code;
+    const code = jobErrorCodeFor(firstCode);
+    const message =
+      failed.length === 1
+        ? `Document "${failed[0].name}" could not be used to create a job: ${
+            (failed[0].extraction as { error: { message: string } }).error.message
+          }`
+        : `Some documents could not be used and no job was created — failing files: ${details}`;
+    throw new JobModelError(code, message);
+  }
 
-  const details = failed
-    .map(
-      (file) =>
-        `"${file.name}": ${(file.extraction as { error: { message: string } }).error.message}`
-    )
-    .join(" ");
-  const firstCode = (failed[0].extraction as { error: { code: string } }).error.code;
-  const code = jobErrorCodeFor(firstCode);
+  const oversize: { name: string; message: string }[] = [];
+  for (const file of files) {
+    const extraction = file.extraction;
+    if (extraction?.status !== "extracted") continue;
+    // The boundary is asked of the size authority, never re-implemented here.
+    const oversizeInput = oversizeInputFor(extraction.extractedText);
+    if (oversizeInput !== null) {
+      oversize.push({ name: file.name, message: oversizeInput.message });
+    }
+  }
+  if (oversize.length === 0) return;
+
   const message =
-    failed.length === 1
-      ? `Document "${failed[0].name}" could not be used to create a job: ${
-          (failed[0].extraction as { error: { message: string } }).error.message
-        }`
-      : `Some documents could not be used and no job was created — failing files: ${details}`;
-  throw new JobModelError(code, message);
+    oversize.length === 1
+      ? `Document "${oversize[0].name}" is too large to create a job: ${oversize[0].message}`
+      : `Some documents are too large and no job was created — failing files: ${oversize
+          .map(({ name, message: oversizeMessage }) => `"${name}": ${oversizeMessage}`)
+          .join(" ")}`;
+  throw new JobModelError("input-too-large", message);
 }
 
 /**
