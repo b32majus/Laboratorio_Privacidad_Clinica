@@ -6,6 +6,7 @@ import { UbicacionesManager } from "../../../js/core/managers/UbicacionesManager
 import { Processor } from "../../../js/core/processor.js";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
 import { createLegacyOperatorRegistry } from "./legacy-operators";
+import { type DateRole } from "./date-semantics";
 import {
   LEGACY_OPERATOR_KEYS,
   type Operator,
@@ -71,6 +72,11 @@ const CATEGORY_OPERATOR_KEYS: Readonly<Record<string, string>> = Object.freeze({
 
 const STRICT_CONTEXT: OperatorContext = Object.freeze({ strictMode: true });
 const NORMAL_CONTEXT: OperatorContext = Object.freeze({ strictMode: false });
+
+/** Builds a frozen explicit operator context carrying a date sub-context. */
+function dateContext(role: DateRole): OperatorContext {
+  return Object.freeze({ strictMode: false, date: Object.freeze({ role }) });
+}
 
 /** Legacy `entity.original || entity.text` selector, mirrored for seeding. */
 function legacySource(observation: RecognizerObservation): string {
@@ -163,7 +169,7 @@ afterEach(() => {
 });
 
 describe("operator registry contracts (legacy composition)", () => {
-  it("registers the default operator set (legacy + V4 AGE) under stable keys, deterministically", () => {
+  it("registers the default operator set (legacy + V4 AGE + V4 date) under stable keys, deterministically", () => {
     const registry = createLegacyOperatorRegistry();
     expect(registry.keys()).toEqual([...registry.keys()].sort());
     expect(registry.keys()).toEqual([
@@ -173,6 +179,8 @@ describe("operator registry contracts (legacy composition)", () => {
       "legacy.pseudonymize",
       "legacy.redact",
       "v4.age-generalize",
+      "v4.date-generalize",
+      "v4.date-shift",
     ]);
     expect([...registry.keys()]).toEqual([...registry.keys()]);
     for (const key of Object.values(LEGACY_OPERATOR_KEYS)) {
@@ -299,6 +307,88 @@ describe("DATE_TRANSFORM — FechasManager semantics", () => {
       confidence: 1,
     });
     expect(dateTransform.apply(observation, NORMAL_CONTEXT)).toBe("45 años");
+  });
+});
+
+describe("DATE_TRANSFORM — role-aware explicit date roles (T13 #17 WU-B)", () => {
+  /** Real prepared visit state, exactly like the legacy semantics block above. */
+  function preparedDateObservations(): readonly RecognizerObservation[] {
+    const observations = observeAll(PARITY_TEXTS[1]).filter((o) => o.type === "FECHA");
+    prepareLegacyTransformationState(observations);
+    expect(observations.length).toBeGreaterThan(0);
+    return observations;
+  }
+
+  it("keeps the accepted visit semantics for role 'unknown' (no explicit non-visit cue)", () => {
+    const observations = preparedDateObservations();
+    const registry = createLegacyOperatorRegistry();
+    const dateTransform = registry.get(LEGACY_OPERATOR_KEYS.DATE_TRANSFORM);
+    for (const observation of observations) {
+      expect(dateTransform.apply(observation, dateContext("unknown"))).toBe(
+        dateTransform.apply(observation, NORMAL_CONTEXT)
+      );
+    }
+  });
+
+  it("stays byte-identical to the legacy branch when context.date is absent (parity preserved)", () => {
+    const observations = preparedDateObservations();
+    const registry = createLegacyOperatorRegistry();
+    const dateTransform = registry.get(LEGACY_OPERATOR_KEYS.DATE_TRANSFORM);
+    for (const observation of observations) {
+      const expected = FechasManager.visitasMap.get(observation.text.trim());
+      expect(expected).toBeDefined();
+      expect(dateTransform.apply(observation, NORMAL_CONTEXT)).toBe(expected as string);
+    }
+  });
+
+  it("redacts every explicit non-visit role instead of re-labelling it as a visit", () => {
+    const observations = preparedDateObservations();
+    const registry = createLegacyOperatorRegistry();
+    const dateTransform = registry.get(LEGACY_OPERATOR_KEYS.DATE_TRANSFORM);
+    const observation = observations[0];
+    const visitLabel = dateTransform.apply(observation, NORMAL_CONTEXT);
+    expect(visitLabel).toMatch(/^Visita \d/);
+    const roles: readonly DateRole[] = ["birth", "admission", "discharge", "future-appointment"];
+    for (const role of roles) {
+      const output = dateTransform.apply(observation, dateContext(role));
+      expect(output).toBe("");
+      expect(output).not.toBe(visitLabel);
+    }
+  });
+
+  it("keeps the category guard ahead of the date-role branch", () => {
+    const registry = createLegacyOperatorRegistry();
+    const dateTransform = registry.get(LEGACY_OPERATOR_KEYS.DATE_TRANSFORM);
+    const nombre = observeAll(PARITY_TEXTS[0]).find((o) => o.type === "NOMBRE");
+    expect(nombre).toBeDefined();
+    try {
+      dateTransform.apply(nombre as RecognizerObservation, dateContext("birth"));
+      throw new Error("expected apply to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(OperatorError);
+      expect((error as OperatorError).code).toBe("operator-category-mismatch");
+    }
+  });
+
+  it("rejects malformed date sub-contexts fail-closed", () => {
+    const observation = preparedDateObservations()[0];
+    const registry = createLegacyOperatorRegistry();
+    const dateTransform = registry.get(LEGACY_OPERATOR_KEYS.DATE_TRANSFORM);
+    const badContexts: unknown[] = [
+      { strictMode: false, date: null },
+      { strictMode: false, date: {} },
+      { strictMode: false, date: { role: "visita" } },
+      { strictMode: false, date: { role: "birth", shift: 42 } },
+    ];
+    for (const bad of badContexts) {
+      try {
+        dateTransform.apply(observation, bad as OperatorContext);
+        throw new Error("expected apply to throw");
+      } catch (error) {
+        expect(error).toBeInstanceOf(OperatorError);
+        expect((error as OperatorError).code).toBe("invalid-operator-context");
+      }
+    }
   });
 });
 

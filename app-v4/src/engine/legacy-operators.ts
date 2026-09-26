@@ -57,6 +57,11 @@ import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { UbicacionesManager } from "../../../js/core/managers/UbicacionesManager.js";
 import { AgeGeneralizeOperator } from "./age-operator";
 import {
+  DateGeneralizeOperator,
+  DateShiftOperator,
+  hasExplicitNonVisitRole,
+} from "./date-operator";
+import {
   assertCoveredType,
   assertObservation,
   assertOperatorContext,
@@ -120,12 +125,34 @@ class LegacyPseudonymizeOperator implements Operator {
 }
 
 /**
- * DATE_TRANSFORM — mirrors the FECHA branch of legacy `transformEntity`
- * exactly: full dates (`fecha_completa`), year-only (`ano`) and
+ * DATE_TRANSFORM — mirrors the FECHA branch of legacy `transformEntity` and,
+ * since T13 #17 WU-B, is role-aware for the explicit date roles.
+ *
+ * Parity (context.date ABSENT): byte-identical to the legacy `transformEntity`
+ * FECHA branch — full dates (`fecha_completa`), year-only (`ano`) and
  * slash/hyphen-prefixed partial dates go through the `FechasManager.visitasMap`
  * lookup first and `relativizarRespHoy` when unmapped (READ-only); every
- * other FECHA subtype returns the original text (legacy KEEP semantics,
- * kept inside this operator so the observation is never silently dropped).
+ * other FECHA subtype returns the original text (legacy KEEP semantics, kept
+ * inside this operator so the observation is never silently dropped). Every
+ * pre-T13 caller passes no date sub-context, so this parity is preserved.
+ *
+ * Role `"unknown"` (no explicit non-visit cue) keeps that accepted existing
+ * visit semantics: `"unknown"` is the absence of a claim, never a guess. An
+ * explicit NON-VISIT role (`birth`/`admission`/`discharge`/
+ * `future-appointment`) is never blindly re-labelled as a visit: the composed
+ * engine excludes it from the chronological Visit-N chronology and this
+ * operator redacts it here. The empty string is the same deletion encoding
+ * the accepted IDENTIFICADOR redaction uses, and
+ * SPEC_V4_PRIVACY_ENGINE.md §9 lists redaction as a required date behavior.
+ *
+ * Redaction is delivered by THIS operator rather than by a separate
+ * `...date-redact` registry key because T13 may not change the accepted policy
+ * mapping (`FECHA → legacy.date-transform`): a second date-redaction key would
+ * be equally unreachable and would duplicate this same semantic.
+ * `context.date.shift` is deliberately NOT consulted here — the shift
+ * semantic is owned by `v4.date-shift` (`./date-operator`). This separation
+ * is intentional, not an oversight: DATE_TRANSFORM owns visit labelling and
+ * redaction, DATE_SHIFT owns consistent shifting.
  */
 class LegacyDateTransformOperator implements Operator {
   readonly key = LEGACY_OPERATOR_KEYS.DATE_TRANSFORM;
@@ -134,6 +161,7 @@ class LegacyDateTransformOperator implements Operator {
     assertObservation(observation);
     assertOperatorContext(context);
     assertCoveredType(observation, this.key, ["FECHA"]);
+    if (context.date !== undefined && hasExplicitNonVisitRole(context.date.role)) return "";
     if (
       observation.subtype === "fecha_completa" ||
       observation.subtype === "ano" ||
@@ -193,9 +221,20 @@ class LegacyGeneralizeOperator implements Operator {
  * per legacy transformation category, registered under the stable
  * {@link LEGACY_OPERATOR_KEYS} keys (KEEP comes from the pure contracts
  * module), plus the V4 policy-owned {@link AgeGeneralizeOperator} added by
- * T12 WU-B. Category→operator dispatch is deliberately NOT part of this
- * module (policy lookup owns it; a worker must not invent mapping semantics
- * beyond accepted authority).
+ * T12 WU-B and the two V4 date operators added by T13 #17 WU-B
+ * ({@link DateGeneralizeOperator}, {@link DateShiftOperator}). The default
+ * registry therefore covers EVERY accepted transformation operator.
+ * Category→operator dispatch is deliberately NOT part of this module (policy
+ * lookup owns it; a worker must not invent mapping semantics beyond accepted
+ * authority).
+ *
+ * Reachability (T13 #17 WU-B): `AGE_GENERALIZE` is referenced by the accepted
+ * standard/strict policy mapping (GitHub #16), while `DATE_GENERALIZE` and
+ * `DATE_SHIFT` land as accepted operator capabilities that NO accepted policy
+ * mapping references yet — T13 deliberately keeps `FECHA →
+ * legacy.date-transform`, and `external-ai`/`longitudinal-research` remain
+ * fail-closed — so a later accepted policy can select them without touching
+ * this composer.
  */
 export function createLegacyOperatorRegistry(): OperatorRegistry {
   const registry = new OperatorRegistry();
@@ -205,5 +244,7 @@ export function createLegacyOperatorRegistry(): OperatorRegistry {
   registry.register(new LegacyGeneralizeOperator());
   registry.register(new KeepOperator());
   registry.register(new AgeGeneralizeOperator());
+  registry.register(new DateGeneralizeOperator());
+  registry.register(new DateShiftOperator());
   return registry;
 }

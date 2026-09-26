@@ -21,6 +21,19 @@
  * recognized observations before any operator is dispatched. Operators never
  * reset or prepare state themselves.
  *
+ * Role-aware date preparation (T13 #17 WU-B): after recognition the engine
+ * classifies each FECHA observation's explicit date role once (via
+ * `./date-operator`'s `classifyObservationDateRole`). Observations whose
+ * clause explicitly claims a NON-VISIT role (`birth`/`admission`/`discharge`/
+ * `future-appointment`) are excluded from the `preprocessFechas`
+ * chronological Visit-N chronology — a birth date must not consume a visit
+ * slot — and the date operator redacts them; every other observation keeps
+ * flowing through the same documented legacy-shape adapter. A caller-supplied
+ * `ProcessingContext.options.dateShift` (SPEC §7) is resolved once before any
+ * manager mutation and threaded into the date operator context so a future
+ * accepted policy can select `v4.date-shift`. The accepted policy mapping is
+ * UNCHANGED: `FECHA → legacy.date-transform` (`./policy`).
+ *
  * Policy semantics (D-007): the transformation profile resolves through
  * `lookupPolicyProfile` — `standard` by default (the accepted legacy
  * mapping, `modoEstricto=false`); `strict` maps to the legacy strict
@@ -77,7 +90,17 @@ import {
 } from "./legacy-engine";
 import { createLegacyOperatorRegistry } from "./legacy-operators";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
-import { type OperatorRegistry } from "./operator-registry";
+import {
+  classifyObservationDateRole,
+  hasExplicitNonVisitRole,
+  readDateShiftState,
+} from "./date-operator";
+import { type DateRole } from "./date-semantics";
+import {
+  type DateOperatorContext,
+  type OperatorContext,
+  type OperatorRegistry,
+} from "./operator-registry";
 import { lookupPolicyProfile, PolicyError } from "./policy";
 import {
   type RecognizerCategory,
@@ -280,6 +303,10 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
       // 2. Policy resolution BEFORE any state mutation: a typed policy
       //    failure must leave no side effects behind (D-009 fail-closed).
       const profile = lookupPolicyProfile(input.policyId ?? DEFAULT_POLICY_ID);
+      //    Resolve the caller's date-shift intent (SPEC §7) before any
+      //    manager mutation too: a malformed `options.dateShift` must fail
+      //    before the resets below touch shared state.
+      const dateShiftState = readDateShiftState(context.options);
 
       // 3. Transformation-manager preparation (the engine's job per the WU2
       //    state contract): the exact resets legacy `Processor.process`
@@ -293,29 +320,60 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
       //    Detection is policy-invariant and mutates no manager state.
       const observations = recognizerRegistry.get(LEGACY_RECOGNIZER_KEY).observe(text);
 
+      // 4b. Derive the explicit date role once per FECHA observation. Only
+      //     FECHA observations carry a date sub-context; every other
+      //     observation keeps its pre-T13 context unchanged.
+      const dateRoleByObservation = new Map<RecognizerObservation, DateRole>();
+      for (const observation of observations) {
+        if (observation.type !== "FECHA") continue;
+        dateRoleByObservation.set(
+          observation,
+          classifyObservationDateRole(text, observation.start, observation.end)
+        );
+      }
+
       // 5. Date-visit preparation via the legacy `preprocessFechas` over the
       //    recognized observations, explicitly adapted to the legacy entity
       //    shape that boundary consumes (same subset conditions and same
       //    date-ordered `procesarVisita` sequence as the legacy pipeline;
-      //    offsets are carried through unchanged). `preprocessFechas` filters
-      //    to `type === "FECHA"` internally, so it is a no-op for the EDAD
-      //    (and every other non-date) observation; EDAD offsets and text are
-      //    untouched by this stage (proven by the no-visit oracle in
-      //    registry-engine.test.ts).
+      //    offsets are carried through unchanged). `preprocessFechas` builds
+      //    the chronological Visit-N chronology, so an explicit NON-VISIT
+      //    date (birth/admission/discharge/future-appointment) must not enter
+      //    it. The filter below removes ONLY those explicit non-visit FECHA
+      //    observations; every other observation keeps flowing through the
+      //    same documented legacy-shape boundary (the R3-001 seam oracle still
+      //    holds). `preprocessFechas` itself filters to `type === "FECHA"`
+      //    internally, so it is a no-op for the EDAD (and every other
+      //    non-date) observation.
       Processor.preprocessFechas(
-        observations.map((observation) => toLegacyPreparationEntity(observation))
+        observations
+          .filter((observation) => {
+            const role = dateRoleByObservation.get(observation);
+            return role === undefined || !hasExplicitNonVisitRole(role);
+          })
+          .map((observation) => toLegacyPreparationEntity(observation))
       );
 
       // 6. Transformation through the operator registry by the explicit
       //    keys of the policy profile, applied back-to-front exactly like
       //    the legacy pipeline so pseudonym/location/visit counters align.
-      const operatorContext = { strictMode: profile.strictMode };
       const backToFront = [...observations].sort((a, b) => b.start - a.start);
       let processed = text;
       const entities: LegacyEntity[] = [];
       for (const observation of backToFront) {
         const operatorKey = resolveOperatorKey(profile, observation);
         const operator = operatorRegistry.get(operatorKey);
+        const role = dateRoleByObservation.get(observation);
+        const dateContext: DateOperatorContext | undefined =
+          role === undefined
+            ? undefined
+            : dateShiftState === undefined
+              ? { role }
+              : { role, shift: dateShiftState };
+        const operatorContext: OperatorContext = {
+          strictMode: profile.strictMode,
+          ...(dateContext === undefined ? {} : { date: dateContext }),
+        };
         const transformed = operator.apply(observation, operatorContext);
         processed =
           processed.slice(0, observation.start) + transformed + processed.slice(observation.end);

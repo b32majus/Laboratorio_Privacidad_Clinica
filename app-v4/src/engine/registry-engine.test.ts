@@ -4,12 +4,24 @@ import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitut
 import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { Processor } from "../../../js/core/processor.js";
 import { createReviewSessionFromProcessor } from "../../../js/domain/from-processor.js";
+import { classifyObservationDateRole, DateOperatorError } from "./date-operator";
+import { createDateShiftState } from "./date-shift";
 import { createLegacyEngine } from "./legacy-engine";
+import { createLegacyOperatorRegistry } from "./legacy-operators";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
 import { createRegistryEngine, SessionIdError } from "./registry-engine";
-import { OperatorRegistry, OperatorError } from "./operator-registry";
+import {
+  type Operator,
+  type OperatorContext,
+  OperatorRegistry,
+  OperatorError,
+} from "./operator-registry";
 import { PolicyError } from "./policy";
-import { RecognizerError, RecognizerRegistry } from "./recognizer-registry";
+import {
+  type RecognizerObservation,
+  RecognizerError,
+  RecognizerRegistry,
+} from "./recognizer-registry";
 import type { LegacyEntity, LegacyProcessorResult, ProcessingContext } from "./types";
 
 /**
@@ -698,5 +710,172 @@ describe("createRegistryEngine — EDAD generalization end-to-end (T12 WU-B)", (
         expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
       }
     }
+  });
+});
+
+describe("createRegistryEngine — role-aware date preparation end-to-end (T13 #17 WU-B)", () => {
+  /**
+   * Acceptance fixture: a labelled birth date followed (same line, separate
+   * clause) by an unlabelled visit date. The birth role is explicit, the
+   * second date has no non-visit cue and therefore keeps the accepted visit
+   * semantics.
+   */
+  const ACCEPTANCE_TEXT = "Fecha de nacimiento: 12/03/1954. Segunda visita: 02/06/2024.";
+
+  it("redacts the explicit birth date and keeps exactly one chronological visit (standard and strict)", () => {
+    for (const policyId of ["standard", "strict"] as const) {
+      FechasManager.reset();
+      const engine = createEngine();
+      const outcome = engine.process({ text: ACCEPTANCE_TEXT, context: FRESH, policyId });
+
+      const fechas = outcome.result.entities.filter((entity) => entity.type === "FECHA");
+      expect(fechas).toHaveLength(2);
+
+      const birth = fechas.find((entity) => entity.text === "12/03/1954");
+      const visit = fechas.find((entity) => entity.text === "02/06/2024");
+      expect(birth?.transformed).toBe("");
+      expect(visit?.transformed).toMatch(/^Visita \d/);
+
+      // The source birth date leaks into neither the transformed field nor
+      // the generated processed text; the visit label does.
+      expect(outcome.result.processed).not.toContain("12/03/1954");
+      expect(outcome.result.processed).toContain(visit?.transformed as string);
+
+      // The birth date never entered the chronological Visit-N chronology.
+      expect(FechasManager.visitasMap.size).toBe(1);
+      expect(FechasManager.visitasMap.has("12/03/1954")).toBe(false);
+    }
+  });
+
+  it("windowing guard: no parity fixture date claims an explicit non-visit role", () => {
+    // Planted-regression guard: if clause+cap windowing ever widens enough to
+    // pull a cue from an unrelated clause, a legacy parity date would be
+    // classified non-visit and break the accepted parity below.
+    const recognizer = createLegacyRecognizerRegistry().get(LEGACY_RECOGNIZER_KEY);
+    for (const text of PARITY_TEXTS) {
+      for (const observation of recognizer.observe(text)) {
+        if (observation.type !== "FECHA") continue;
+        expect(classifyObservationDateRole(text, observation.start, observation.end)).toBe(
+          "unknown"
+        );
+      }
+    }
+  });
+
+  it("parity re-proof: no FECHA entity in the parity fixtures is redacted", () => {
+    const engine = createEngine();
+    let fechaCount = 0;
+    for (const text of PARITY_TEXTS) {
+      const outcome = engine.process({ text, context: FRESH });
+      for (const entity of outcome.result.entities) {
+        if (entity.type !== "FECHA") continue;
+        fechaCount += 1;
+        expect(entity.transformed).not.toBe("");
+      }
+    }
+    expect(fechaCount).toBeGreaterThan(0);
+  });
+
+  /** One operator invocation captured by the recording registry. */
+  type RecordedContext = {
+    readonly type: string;
+    readonly text: string;
+    readonly context: OperatorContext;
+  };
+
+  /**
+   * Registry that mirrors every default operator key, records the exact
+   * {@link OperatorContext} for each invocation and delegates to the real
+   * operator. It proves what the composed engine actually threads without
+   * touching the operator implementations.
+   */
+  function createRecordingRegistry(records: RecordedContext[]): OperatorRegistry {
+    const real = createLegacyOperatorRegistry();
+    const registry = new OperatorRegistry();
+    for (const key of real.keys()) {
+      const delegate: Operator = real.get(key);
+      registry.register({
+        key,
+        apply(observation: RecognizerObservation, context: OperatorContext): string {
+          records.push({ type: observation.type, text: observation.text, context });
+          return delegate.apply(observation, context);
+        },
+      });
+    }
+    return registry;
+  }
+
+  it("threads a 'unknown' role (no cue) and the explicit acceptance roles to the operators", () => {
+    const records: RecordedContext[] = [];
+    const engine = createRegistryEngine({ operatorRegistry: createRecordingRegistry(records) });
+
+    engine.process({ text: "Revisión el 12/03/2024.", context: FRESH });
+    const cueFree = records.find((record) => record.type === "FECHA");
+    expect(cueFree?.context.date?.role).toBe("unknown");
+
+    records.length = 0;
+    engine.process({ text: ACCEPTANCE_TEXT, context: FRESH });
+    const roleByText = new Map(
+      records
+        .filter((record) => record.type === "FECHA")
+        .map((record) => [record.text, record.context.date?.role])
+    );
+    expect(roleByText.get("12/03/1954")).toBe("birth");
+    expect(roleByText.get("02/06/2024")).toBe("unknown");
+  });
+
+  it("threads options.dateShift into the date sub-context and leaves non-FECHA context date-free", () => {
+    const records: RecordedContext[] = [];
+    const engine = createRegistryEngine({ operatorRegistry: createRecordingRegistry(records) });
+    const shiftState = createDateShiftState("seed-x");
+
+    engine.process({
+      text: "Nombre: Carmen Sánchez\nFecha de nacimiento: 12/03/1954.",
+      context: { mode: "fresh", options: { dateShift: shiftState } },
+    });
+
+    const fechas = records.filter((record) => record.type === "FECHA");
+    expect(fechas.length).toBeGreaterThan(0);
+    for (const record of fechas) {
+      expect(record.context.date?.shift).toEqual(shiftState);
+    }
+
+    const nombres = records.filter((record) => record.type === "NOMBRE");
+    expect(nombres.length).toBeGreaterThan(0);
+    for (const record of nombres) {
+      expect(record.context.date).toBeUndefined();
+    }
+  });
+
+  it("threads no shift when options are absent", () => {
+    const records: RecordedContext[] = [];
+    const engine = createRegistryEngine({ operatorRegistry: createRecordingRegistry(records) });
+
+    engine.process({ text: ACCEPTANCE_TEXT, context: FRESH });
+
+    const fechas = records.filter((record) => record.type === "FECHA");
+    expect(fechas.length).toBeGreaterThan(0);
+    for (const record of fechas) {
+      expect(record.context.date?.shift).toBeUndefined();
+    }
+  });
+
+  it("fails closed on a malformed options.dateShift before mutating any manager", () => {
+    FechasManager.reset();
+    const engine = createEngine();
+    const malformedContext: ProcessingContext = {
+      mode: "fresh",
+      options: { dateShift: { seed: "", contextOffsetDays: 1, overrides: [] } },
+    };
+    try {
+      engine.process({ text: ACCEPTANCE_TEXT, context: malformedContext });
+      throw new Error("expected engine.process to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DateOperatorError);
+      expect((error as DateOperatorError).code).toBe("invalid-date-shift-state");
+    }
+    // The fail-closed validation runs BEFORE the legacy manager resets, so
+    // the singletons are left exactly as the caller prepared them.
+    expect(FechasManager.visitasMap.size).toBe(0);
   });
 });
