@@ -5,6 +5,7 @@ import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { UbicacionesManager } from "../../../js/core/managers/UbicacionesManager.js";
 import { Processor } from "../../../js/core/processor.js";
 import { AgeRecognizer } from "./age-recognizer";
+import { MAX_SUPPORTED_TEXT_LENGTH, OVERSIZE_INPUT_CODE, oversizeInputFor } from "./input-limits";
 import {
   createLegacyRecognizerRegistry,
   LegacyRecognizerAdapter,
@@ -258,6 +259,23 @@ describe("LegacyRecognizerAdapter — fail-closed input handling", () => {
       throw new Error("expected adapter.observe to throw");
     } catch (error) {
       expect((error as EngineError).code).toBe("empty-text");
+    }
+  });
+
+  it("refuses oversize input with the shared contract before any pipeline work", () => {
+    // The guard runs before any detection, so this stays cheap. Exact-boundary
+    // acceptance is pinned by the shared contract oracle (input-limits.test)
+    // and by assertValidText in legacy-engine.test, deliberately avoiding a
+    // 1,000,000-character pipeline run here.
+    const adapter = new LegacyRecognizerAdapter();
+    const oversized = "x".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    try {
+      adapter.observe(oversized);
+      throw new Error("expected adapter.observe to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(EngineError);
+      expect((error as EngineError).code).toBe(OVERSIZE_INPUT_CODE);
+      expect((error as EngineError).message).toBe(oversizeInputFor(oversized)!.message);
     }
   });
 });

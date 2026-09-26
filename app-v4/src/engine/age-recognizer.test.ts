@@ -6,6 +6,7 @@ import {
   AGE_RECOGNIZER_KEY,
   AgeRecognizer,
 } from "./age-recognizer";
+import { MAX_SUPPORTED_TEXT_LENGTH, OVERSIZE_INPUT_CODE, oversizeInputFor } from "./input-limits";
 import type { RecognizerObservation } from "./recognizer-registry";
 import { EngineError } from "./types";
 
@@ -194,7 +195,18 @@ describe("AgeRecognizer — fail-closed input handling", () => {
     const recognizer = new AgeRecognizer();
     expect(() => recognizer.observe(42 as unknown as string)).toThrowError(EngineError);
     expect(() => recognizer.observe("   \n\t ")).toThrowError(EngineError);
-    expect(() => recognizer.observe("x".repeat(1_000_001))).toThrowError(EngineError);
+
+    const oversized = "x".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    expect(() => recognizer.observe(oversized)).toThrowError(EngineError);
+    try {
+      recognizer.observe(oversized);
+      throw new Error("expected observe to throw");
+    } catch (error) {
+      // Consumes the shared authority: same code and byte-equal actionable
+      // message as the input-limits contract.
+      expect((error as EngineError).code).toBe(OVERSIZE_INPUT_CODE);
+      expect((error as EngineError).message).toBe(oversizeInputFor(oversized)!.message);
+    }
     try {
       recognizer.observe("");
       throw new Error("expected observe to throw");

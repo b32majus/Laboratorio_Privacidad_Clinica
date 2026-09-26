@@ -4,7 +4,8 @@ import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitut
 import { Processor } from "../../../js/core/processor.js";
 import { createReviewSessionFromProcessor } from "../../../js/domain/from-processor.js";
 import { PrivacyProcessor } from "../../../js/modular-processor.js";
-import { createLegacyEngine } from "./legacy-engine";
+import { assertValidText, createLegacyEngine } from "./legacy-engine";
+import { MAX_SUPPORTED_TEXT_LENGTH, oversizeInputFor } from "./input-limits";
 import {
   EngineError,
   type LegacyProcessorResult,
@@ -420,13 +421,23 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
 
   it("rejects oversized input instead of silently truncating (D-009)", () => {
     const engine = createEngine();
-    const oversized = "x".repeat(1_000_001);
+    const oversized = "x".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
     try {
       engine.process({ text: oversized, context: FRESH });
       throw new Error("expected engine.process to throw");
     } catch (error) {
       expect((error as EngineError).code).toBe("input-too-large");
+      // The adapter consumes the shared authority: same code and byte-equal
+      // actionable message as the input-limits contract.
+      expect((error as EngineError).message).toBe(oversizeInputFor(oversized)!.message);
     }
+  });
+
+  it("accepts text exactly at the supported boundary through the exported guard", () => {
+    // Call the exported guard directly: running the full legacy engine over a
+    // 1,000,000-character input would be pointlessly slow. Exact-boundary
+    // semantics are pinned by the shared contract oracle (input-limits.test).
+    expect(() => assertValidText("x".repeat(MAX_SUPPORTED_TEXT_LENGTH))).not.toThrow();
   });
 
   it("rejects unknown modes with a typed code", () => {

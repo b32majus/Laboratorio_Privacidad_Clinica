@@ -39,6 +39,7 @@
  * loading).
  */
 
+import { OVERSIZE_INPUT_CODE, oversizeInputFor } from "./input-limits";
 import { type Recognizer, type RecognizerObservation } from "./recognizer-registry";
 import { EngineError } from "./types";
 
@@ -54,9 +55,6 @@ export const AGE_PLAUSIBLE_MIN_YEARS = 0;
  * rather than a guessed age).
  */
 export const AGE_PLAUSIBLE_MAX_YEARS = 129;
-
-/** Same safety limit as the legacy core and the V4 engine adapter. */
-const MAX_TEXT_LENGTH = 1_000_000;
 
 /**
  * Explicit completed years: 1–3 digits, optional spaces/tabs, then
@@ -85,11 +83,9 @@ function assertRecognizableText(text: unknown): asserts text is string {
       "Recognizer input text is empty; provide text before recognition."
     );
   }
-  if (text.length > MAX_TEXT_LENGTH) {
-    throw new EngineError(
-      "input-too-large",
-      "Recognizer input text exceeds the supported size; use an explicit segmentation path instead of silent truncation."
-    );
+  const oversize = oversizeInputFor(text);
+  if (oversize !== null) {
+    throw new EngineError(OVERSIZE_INPUT_CODE, oversize.message);
   }
 }
 

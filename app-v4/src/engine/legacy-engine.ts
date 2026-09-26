@@ -52,6 +52,7 @@ import {
   NOMBRES_UNISEX,
   PROVINCIAS,
 } from "../../../js/data/index.js";
+import { OVERSIZE_INPUT_CODE, oversizeInputFor } from "./input-limits";
 import {
   EngineError,
   type EngineOutcome,
@@ -60,9 +61,6 @@ import {
   type ProcessingContext,
   type PseudonymState,
 } from "./types";
-
-/** Same safety limit as the legacy core, but fail-closed instead of truncating. */
-const MAX_TEXT_LENGTH = 1_000_000;
 
 const EMPTY_PSEUDONYM_STATE: PseudonymState = Object.freeze({
   asignaciones: Object.freeze([]),
@@ -137,11 +135,9 @@ export function assertValidText(text: unknown): asserts text is string {
       "Engine input text is empty; provide text before processing."
     );
   }
-  if (text.length > MAX_TEXT_LENGTH) {
-    throw new EngineError(
-      "input-too-large",
-      "Engine input text exceeds the supported size; use an explicit segmentation path instead of silent truncation."
-    );
+  const oversize = oversizeInputFor(text);
+  if (oversize !== null) {
+    throw new EngineError(OVERSIZE_INPUT_CODE, oversize.message);
   }
 }
 

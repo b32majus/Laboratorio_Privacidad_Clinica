@@ -76,6 +76,7 @@ import {
   PROVINCIAS,
 } from "../../../js/data/index.js";
 import { AgeRecognizer } from "./age-recognizer";
+import { OVERSIZE_INPUT_CODE, oversizeInputFor } from "./input-limits";
 import {
   type CandidateRecognizer,
   LEGACY_CATEGORY_RECOGNIZER_KEYS,
@@ -89,9 +90,6 @@ import {
   RecognizerRegistry,
 } from "./recognizer-registry";
 import { EngineError } from "./types";
-
-/** Same safety limit as the legacy core and the V4 engine adapter. */
-const MAX_TEXT_LENGTH = 1_000_000;
 
 /** Full-pipeline recognizer key: all legacy categories in one adapter. */
 export const LEGACY_RECOGNIZER_KEY = "legacy";
@@ -137,11 +135,9 @@ function assertRecognizableText(text: unknown): asserts text is string {
       "Recognizer input text is empty; provide text before recognition."
     );
   }
-  if (text.length > MAX_TEXT_LENGTH) {
-    throw new EngineError(
-      "input-too-large",
-      "Recognizer input text exceeds the supported size; use an explicit segmentation path instead of silent truncation."
-    );
+  const oversize = oversizeInputFor(text);
+  if (oversize !== null) {
+    throw new EngineError(OVERSIZE_INPUT_CODE, oversize.message);
   }
 }
 
