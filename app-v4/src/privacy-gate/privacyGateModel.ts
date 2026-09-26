@@ -3,9 +3,12 @@
  *
  * Everything derives factually from the frozen ReviewSession (the only
  * review authority, D-004) and the frozen Job; nothing is mutated. Only
- * what the session/job actually carries is derived: low-confidence queues
- * (T14) and batch/structured surfaces (T17/T18) own their own later
- * extensions and are deliberately NOT improvised here.
+ * what the session/job actually carries is derived: the low-confidence
+ * candidate queue facts (T14 #18) come from the review authority's own
+ * `getProgress` view (the marked detections and the pending list), so this
+ * model re-derives nothing about session semantics. Batch/structured
+ * surfaces (T17/T18) own their own later extensions and are deliberately
+ * NOT improvised here.
  *
  * D-006: this model never produces a privacy score, a safe percentage, an
  * anonymity claim or certification wording — factual state only.
@@ -45,6 +48,14 @@ export type PrivacyGateView = {
   readonly manualDetections: number;
   /** Restored originals — each one also yields a kept-original warning. */
   readonly restoredCount: number;
+  /**
+   * Low-confidence candidate facts (T14 #18): the total number of detections
+   * marked `lowConfidence === true` in the session, and how many of those are
+   * still pending (mandatory decisions not yet recorded). Derived only from
+   * the review authority's `getProgress` view; factual counts, never a score.
+   */
+  readonly lowConfidenceCount: number;
+  readonly lowConfidencePendingCount: number;
   readonly warnings: readonly PrivacyGateWarning[];
   /** Job errors surfaced factually, exactly as the job carries them. */
   readonly errors: readonly Job["errors"][number][];
@@ -91,6 +102,10 @@ export function derivePrivacyGateView(job: Job, review: ReviewSession): PrivacyG
     reviewedModified: progress.modified,
     manualDetections: progress.manual,
     restoredCount: progress.restored,
+    lowConfidenceCount: progress.lowConfidence,
+    lowConfidencePendingCount: progress.pendingDetections.filter(
+      (detection) => detection.lowConfidence === true
+    ).length,
     warnings,
     errors: job.errors,
     safeOutputReady: job.outputs.safeOutputReady,

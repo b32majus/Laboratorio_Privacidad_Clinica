@@ -49,6 +49,7 @@ const STATUS_FILTERS: readonly { readonly value: StatusFilter; readonly label: s
   { value: "accepted", label: "Accepted" },
   { value: "restored", label: "Restored" },
   { value: "manual", label: "Manual" },
+  { value: "low-confidence", label: "Low confidence" },
 ];
 
 export type ReviewWorkspaceProps = {
@@ -260,6 +261,8 @@ function FilterProgressPane(props: {
             <dd> {progress.restored}</dd>
             <dt className="font-semibold">Manual:</dt>
             <dd> {progress.manual}</dd>
+            <dt className="font-semibold">Low confidence:</dt>
+            <dd> {progress.lowConfidence}</dd>
             <dt className="col-span-2 mt-1 font-semibold">
               All mandatory decisions complete: {progress.canFinalize ? "yes" : "no"}
             </dt>
@@ -341,6 +344,7 @@ function FilterProgressPane(props: {
                     <span className="block text-xs">
                       {statusLabel(status)}
                       {detection.source === "manual" ? " · Manual" : ""}
+                      {detection.lowConfidence === true ? " · Low confidence" : ""}
                     </span>
                   </button>
                 </li>
@@ -515,6 +519,18 @@ function InspectorPane(props: {
                 : "Not provided"}
             </dd>
           </div>
+          {selected.reason !== undefined && (
+            <div>
+              <dt className="font-semibold">Detection reason</dt>
+              <dd className="font-mono">{selected.reason}</dd>
+            </div>
+          )}
+          {selected.lowConfidence === true && (
+            <div>
+              <dt className="font-semibold">Low confidence</dt>
+              <dd>Yes — below-threshold candidate</dd>
+            </div>
+          )}
           <div>
             <dt className="font-semibold">Context</dt>
             <dd className="font-mono">

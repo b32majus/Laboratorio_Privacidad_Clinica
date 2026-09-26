@@ -127,6 +127,15 @@ function ReviewSummary({ view }: { view: PrivacyGateView }): ReactElement {
         <dd> {view.manualDetections}</dd>
         <dt className="font-semibold">Kept originals (restored):</dt>
         <dd> {view.restoredCount}</dd>
+        {view.lowConfidenceCount > 0 && (
+          <>
+            <dt className="font-semibold">Low-confidence candidates:</dt>
+            <dd>
+              {" "}
+              {view.lowConfidenceCount} total, {view.lowConfidencePendingCount} pending
+            </dd>
+          </>
+        )}
       </dl>
     </section>
   );

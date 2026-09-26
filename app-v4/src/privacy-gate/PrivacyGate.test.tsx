@@ -222,3 +222,53 @@ describe("PrivacyGate (T08 U3)", () => {
     expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
   });
 });
+
+/**
+ * T14 #18 WU-C: the candidate queue is reported factually by the gate. Only
+ * the review authority (`getProgress`) supplies the facts; the row is a
+ * neutral count and never a score or a safety claim.
+ */
+describe("PrivacyGate — low-confidence candidate facts (T14 #18 WU-C)", () => {
+  const CANDIDATE_SOURCE = "Fisioterapeuta Nélida Otxoa realizó la sesión.";
+  const CANDIDATE_SPAN = "Fisioterapeuta Nélida Otxoa realizó";
+
+  function candidateSession(): ReviewSession {
+    const start = CANDIDATE_SOURCE.indexOf(CANDIDATE_SPAN);
+    return createReviewSession({
+      originalText: CANDIDATE_SOURCE,
+      sessionId: "privacy-gate-candidate-test",
+      detections: [
+        {
+          type: "NOMBRE",
+          start,
+          end: start + CANDIDATE_SPAN.length,
+          confidence: 0.45,
+          proposed: "Profesional Sanitario 1",
+          reason: "REVISION_MANUAL",
+          lowConfidence: true,
+        },
+      ],
+    });
+  }
+
+  it("reports the factual candidate total and pending count once the review completes", () => {
+    let review = candidateSession();
+    review = applyDecision(review, review.detections[0].id, "restored");
+    const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
+
+    const summary = screen.getByRole("group", { name: /review summary/i });
+    expect(summary).toHaveTextContent("Low-confidence candidates:");
+    expect(summary).toHaveTextContent("1 total, 0 pending");
+    // Factual counts only: no score, safe percentage, anonymity or certification.
+    expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
+  });
+
+  it("renders no candidate row for a session without candidates (pre-T14 gate unchanged)", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "accepted");
+    review = applyDecision(review, review.detections[1].id, "accepted");
+    const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
+    expect(screen.getByRole("group", { name: /review summary/i })).toBeInTheDocument();
+    expect(container.textContent ?? "").not.toMatch(/low-confidence/i);
+  });
+});

@@ -62,7 +62,15 @@ export function buildDocumentSegments(session: ReviewSession): readonly Document
   return segments;
 }
 
-export type StatusFilter = "all" | "pending" | "decided" | "accepted" | "restored" | "manual";
+/**
+ * Status filter vocabulary (UX-12). `"low-confidence"` is the below-threshold
+ * candidate queue: it selects detections marked `lowConfidence === true`
+ * regardless of decision status, exactly like every other value it composes
+ * with the type filter (AND). The marker is the explicit engine/domain
+ * contract (T14 #18 WU-B), never a numeric confidence threshold.
+ */
+export type StatusFilter =
+  "all" | "pending" | "decided" | "accepted" | "restored" | "manual" | "low-confidence";
 
 export type WorkspaceFilters = {
   readonly status: StatusFilter;
@@ -91,6 +99,9 @@ export function visibleDetections(
         break;
       case "manual":
         if (detection.source !== "manual") return false;
+        break;
+      case "low-confidence":
+        if (detection.lowConfidence !== true) return false;
         break;
       default:
         break;
