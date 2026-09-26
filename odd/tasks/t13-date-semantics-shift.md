@@ -46,6 +46,16 @@ Execution profile: native-v4-heavy (unchanged; no lifecycle boundary switch)
 - Independent-verifier observations recorded for WU-C (not WU-B defects): (a) the window is symmetric, so a same-clause cue AFTER a date can still claim it — add a false-positive control fixture; (b) year-only (`ano`) shifting stays year precision (WU-A foundation behavior) — cover composed year-only interval behavior.
 - Independent verifier note: `tsx` is unavailable in this environment, so its adversarial probe used an esbuild stdout bundle + `node --input-type=module`; no file was created.
 
+## WU-B native review gate — 2026-09-26
+
+- Pre-ASSESS hygiene: tracked tree clean after `5d3b123`; no untracked runtime artifacts; `.atl/` already ignored.
+- `gentle_review {"operation":"inspect"}` (read-only): offers `review.start` ONLY for the whole-workspace candidate (projection `workspace`, `base-ref=b1c25e9cd319c29fca958ca1ae134914acd9a352`, 133 paths = the entire V4 branch). **NOT started** — prohibited by the relaunch contract and `AGENTS.md`; read-only inspect is not ASSESS.
+- `gentle_review {"operation":"assess"}` over the exact WU-B committed range (`baseRef=86733e3ad2882342957da55da7685706c2590db1`, `committedOnly:true`) → `risk=unassessable`, `reasons=[schema-incompatible]` ("native review assess failed; no sanitized stderr diagnostic is available"), `changedPaths=0`, `changedLines=0`, `candidate=null`, `nativeReviewOutcome=unknown` (`outcome_source=unknown`), `writerProfile=small`.
+- `writerModelId`/`writerEffort` were deliberately NOT supplied: the effective DeepSeek reasoning tier is NaN-managed and cannot be stated, so the fail-closed small-writer profile was accepted rather than downgrading the plan with Pi's requested metadata.
+- **ASSESS_SEAM_4791** — Case C applies (known Gentle AI #4791 typed unassessable/schema-incompatible). Returned plan: `writerSelfVerification=true`, `independentVerifier=true`, reason "the candidate is treated as high risk: the writer self-verifies and a separate independent verifier always runs".
+- Both required gates are SATISFIED for a405486/5d3b123: deterministic writer self-verification (`npm test` full chain 506/506, `format:check:v4`, `build:v4`, plus two planted-violation falsification runs) and the independent verifier report (items 1-4 PASS).
+- `native START synthesized=no`; no review lineage opened; no consent manufactured; no retry loop. Per the relaunch contract this is not a STOP by itself, so WU-C proceeds.
+
 ## Native review disposition — 2026-09-26 (STOP recorded)
 
 - Operator instruction: if review_due -> review -> correction -> acknowledge -> burn.
