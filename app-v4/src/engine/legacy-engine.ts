@@ -68,6 +68,7 @@ const EMPTY_PSEUDONYM_STATE: PseudonymState = Object.freeze({
   familiares: Object.freeze([]),
   contadorProfesionales: 0,
   contadorFamiliares: 0,
+  contadorPacientes: 0,
 });
 
 let legacySetupDone = false;
@@ -154,7 +155,7 @@ function assertPseudonymStateShape(state: unknown): asserts state is PseudonymSt
       );
     }
   }
-  for (const key of ["contadorProfesionales", "contadorFamiliares"] as const) {
+  for (const key of ["contadorProfesionales", "contadorFamiliares", "contadorPacientes"] as const) {
     const counter = state[key];
     if (typeof counter !== "number" || !Number.isFinite(counter) || counter < 0) {
       throw new EngineError(
@@ -223,6 +224,7 @@ export function snapshotModulePseudonymState(): PseudonymState {
     familiares: [...AsignadorSustitutos.familiaresMap.entries()],
     contadorProfesionales: AsignadorSustitutos.contadorProfesionales,
     contadorFamiliares: AsignadorSustitutos.contadorFamiliares,
+    contadorPacientes: AsignadorSustitutos.contadorPacientes,
   };
 }
 
@@ -258,6 +260,7 @@ export function freezePseudonymState(state: PseudonymState): PseudonymState {
     familiares: state.familiares.map((entry) => [entry[0], entry[1]] as const),
     contadorProfesionales: state.contadorProfesionales,
     contadorFamiliares: state.contadorFamiliares,
+    contadorPacientes: state.contadorPacientes,
   });
 }
 
@@ -371,6 +374,7 @@ export function reconcileSharedContext(
   const finalFamiliares = new Map(state.familiares);
   let contadorProfesionales = state.contadorProfesionales;
   let contadorFamiliares = state.contadorFamiliares;
+  let contadorPacientes = state.contadorPacientes;
   const freshToFinal = new Map<string, string>();
 
   // Alias-aware reconciliation for profesionales: a fresh key that no exact
@@ -409,7 +413,10 @@ export function reconcileSharedContext(
   reconcileCategory(
     AsignadorSustitutos.mapaAsignaciones,
     finalAsignaciones,
-    () => null,
+    () => {
+      contadorPacientes += 1;
+      return `Paciente ${contadorPacientes}`;
+    },
     freshToFinal
   );
 
@@ -433,6 +440,7 @@ export function reconcileSharedContext(
         familiares: [...finalFamiliares.entries()],
         contadorProfesionales,
         contadorFamiliares,
+        contadorPacientes,
       }),
       ...(context.options === undefined ? {} : { options: context.options }),
     }),

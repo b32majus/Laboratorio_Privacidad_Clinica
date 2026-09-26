@@ -101,7 +101,8 @@ class LegacyRedactOperator implements Operator {
  * the same public `AsignadorSustitutos` calls legacy makes, in the same
  * subtype order: profesional → `obtenerSustitutoProfesional`, familiar →
  * `obtenerSustitutoFamiliar`, everything else (paciente and fall-through) →
- * `obtenerSustituto` (gender autodetected by the legacy module). Calls may
+ * `obtenerSustituto` (a distinct, stable `Paciente N` index; the legacy module
+ * performs no gender inference). Calls may
  * grow the manager maps — that is the accepted legacy transformation
  * semantics, not a state purity violation (see STATE CONTRACT: apply never
  * resets and never rewrites existing mappings).

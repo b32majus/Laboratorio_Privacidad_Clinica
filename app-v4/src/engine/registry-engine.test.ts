@@ -236,10 +236,10 @@ describe("createRegistryEngine — context semantics (ported legacy oracles)", (
     });
 
     // Patient "Carmen Sánchez" keeps the same pseudonym in both documents.
-    const patientA = outcomeA.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    const patientB = outcomeB.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    expect(patientA).toBeTruthy();
-    expect(patientB).toBe(patientA);
+    const patientA = outcomeA.result.processed.match(/Paciente \d+/)?.[0];
+    const patientB = outcomeB.result.processed.match(/Paciente \d+/)?.[0];
+    expect(patientA).toBe("Paciente 1");
+    expect(patientB).toBe("Paciente 1");
 
     // The returning professional keeps pseudonym 1; the new one gets 2.
     expect(outcomeA.result.processed).toContain("Profesional Sanitario 1");
@@ -445,11 +445,12 @@ describe("createRegistryEngine — input immutability and frozen outputs", () =>
     const context: ProcessingContext = {
       mode: "shared",
       pseudonymState: {
-        asignaciones: [["carmen sánchez", "Paciente Mujer"]],
+        asignaciones: [["carmen sánchez", "Paciente 1"]],
         profesionales: [],
         familiares: [],
         contadorProfesionales: 5,
         contadorFamiliares: 0,
+        contadorPacientes: 1,
       },
     };
     const snapshot = JSON.parse(JSON.stringify(context)) as ProcessingContext;
@@ -557,6 +558,7 @@ describe("createRegistryEngine — fail-closed typed errors (same rules as the l
         familiares: [],
         contadorProfesionales: -1,
         contadorFamiliares: 0,
+        contadorPacientes: 0,
       },
     } as ProcessingContext;
     expect(() => engine.process({ text: DOC_A, context: badCounter })).toThrowError(Error);

@@ -143,10 +143,10 @@ describe("createLegacyEngine — context semantics", () => {
     });
 
     // Patient "Carmen Sánchez" keeps the same pseudonym in both documents.
-    const patientA = outcomeA.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    const patientB = outcomeB.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    expect(patientA).toBeTruthy();
-    expect(patientB).toBe(patientA);
+    const patientA = outcomeA.result.processed.match(/Paciente \d+/)?.[0];
+    const patientB = outcomeB.result.processed.match(/Paciente \d+/)?.[0];
+    expect(patientA).toBe("Paciente 1");
+    expect(patientB).toBe("Paciente 1");
 
     // The returning professional keeps pseudonym 1; the new one gets 2.
     expect(outcomeA.result.processed).toContain("Profesional Sanitario 1");
@@ -362,11 +362,12 @@ describe("createLegacyEngine — input immutability", () => {
     const context: ProcessingContext = Object.freeze({
       mode: "shared",
       pseudonymState: {
-        asignaciones: [["carmen sánchez", "Paciente Mujer"]] as const,
+        asignaciones: [["carmen sánchez", "Paciente 1"]] as const,
         profesionales: [] as const,
         familiares: [] as const,
         contadorProfesionales: 5,
         contadorFamiliares: 0,
+        contadorPacientes: 1,
       } satisfies PseudonymState,
     });
     const snapshot = JSON.parse(JSON.stringify(context)) as ProcessingContext;
@@ -388,6 +389,7 @@ describe("createLegacyEngine — input immutability", () => {
         familiares: [],
         contadorProfesionales: 1,
         contadorFamiliares: 0,
+        contadorPacientes: 0,
       },
     };
     const outcome = engine.process({ text: DOC_B, context });
@@ -499,6 +501,7 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
         familiares: [],
         contadorProfesionales: -1,
         contadorFamiliares: 0,
+        contadorPacientes: 0,
       },
     } as ProcessingContext;
     expect(() => engine.process({ text: DOC_A, context: badCounter })).toThrowError(EngineError);

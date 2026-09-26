@@ -28,6 +28,7 @@ declare module "*/core/managers/AsignadorSustitutos.js" {
     familiaresMap: Map<string, string>;
     contadorProfesionales: number;
     contadorFamiliares: number;
+    contadorPacientes: number;
     reset(): void;
     obtenerSustituto(nombreOriginal: string, genero?: string | null): string;
     obtenerSustitutoProfesional(nombreOriginal: string): string;

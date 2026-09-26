@@ -443,6 +443,7 @@ describe("state purity — apply() never resets or mutates prepared manager stat
       familiares: [...AsignadorSustitutos.familiaresMap.entries()].sort(),
       contadorProfesionales: AsignadorSustitutos.contadorProfesionales,
       contadorFamiliares: AsignadorSustitutos.contadorFamiliares,
+      contadorPacientes: AsignadorSustitutos.contadorPacientes,
       visitas: [...FechasManager.visitasMap.entries()].sort(),
       visitasOrdenadas: FechasManager.visitasOrdenadas.length,
       centros: [...UbicacionesManager.centrosMap.entries()].sort(),

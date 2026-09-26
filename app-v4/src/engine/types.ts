@@ -22,8 +22,8 @@ export type PseudonymAssignmentEntry = readonly [key: string, value: string];
 
 /**
  * Serializable snapshot of the legacy `AsignadorSustitutos` state: the three
- * pseudonym maps as [key, value] pair arrays plus the professional/family
- * counters. JSON.stringify round-trip must preserve semantics.
+ * pseudonym maps as [key, value] pair arrays plus the professional/family/
+ * patient counters. JSON.stringify round-trip must preserve semantics.
  */
 export type PseudonymState = {
   readonly asignaciones: readonly PseudonymAssignmentEntry[];
@@ -31,6 +31,13 @@ export type PseudonymState = {
   readonly familiares: readonly PseudonymAssignmentEntry[];
   readonly contadorProfesionales: number;
   readonly contadorFamiliares: number;
+  /**
+   * Patient-identity counter of the intended processing context: the number of
+   * distinct patient identities already numbered in this context. Mirrors
+   * `contadorProfesionales`/`contadorFamiliares`; patient pseudonyms are
+   * `Paciente <n>` and never depend on gender (SPEC_V4_PRIVACY_ENGINE §12).
+   */
+  readonly contadorPacientes: number;
 };
 
 /**

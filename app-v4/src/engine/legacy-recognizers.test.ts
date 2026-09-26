@@ -214,6 +214,7 @@ describe("recognition purity — no transformation-side mutation", () => {
       familiares: [...AsignadorSustitutos.familiaresMap.entries()].sort(),
       contadorProfesionales: AsignadorSustitutos.contadorProfesionales,
       contadorFamiliares: AsignadorSustitutos.contadorFamiliares,
+      contadorPacientes: AsignadorSustitutos.contadorPacientes,
       visitas: [...FechasManager.visitasMap.entries()].sort(),
       centros: [...UbicacionesManager.centrosMap.entries()].sort(),
       ciudades: [...UbicacionesManager.ciudadesMap.entries()].sort(),
