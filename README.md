@@ -31,7 +31,7 @@ El sistema ahora genera **texto coherente y legible** en lugar de marcadores con
 
 | Tipo de Dato | Versión 1.x | Versión 3.0 |
 |--------------|-------------|-------------|
-| Pacientes | `[NOMBRE]` | "Paciente Hombre" / "Paciente Mujer" |
+| Pacientes | `[NOMBRE]` | "Paciente 1", "Paciente 2"... |
 | Profesionales | `[Facultativo]` | "Profesional Sanitario 1, 2..." |
 | Familiares | `[Dato Personal]` | "Familiar 1, 2..." |
 | Hospitales | `[Centro Sanitario]` | "Centro A", "Centro B"... |
