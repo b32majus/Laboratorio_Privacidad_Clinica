@@ -1,7 +1,7 @@
 # T16 / #20 — Deterministic pseudonyms without gender inference
 
 Status: COMPLETE (T16 #20)
-Final commits: WU-A `8266992`, WU-B `81811e2`, plus the ticket-open commit `bb3130d` and this evidence/closeout commit. Ticket range `0471f9c..81811e2` = 3 commits, 13 files, +805/−21. Ticket integration: `npm test` full chain PASS at the ticket HEAD (vitest 34 files / 613 tests, Node domain suite 55/55, privacy-eval 24/24 + gate PASS, CI checks PASS); `format:check:v4` / `typecheck:v4` / `lint:v4` / `build` PASS. Native review ledger: both per-unit committed-range ASSESS calls returned the known typed Gentle AI #4791 `unassessable`/`schema-incompatible` plan, so the Case C fail-closed path applied twice with writer self-verification plus an independent verifier per unit; no `review_due` was ever offered, no START was synthesized, no consent manufactured and zero lineages opened. Debt: PRODUCT-002 reconciled to DONE with its limits declared; ARCH-013 updated (still OPEN, T16 deliberately did not close it); DOC-001 annotated with the newly stale historical sample. No T17 work started.
+Final commits: WU-A `8266992`, WU-B `81811e2`, plus the ticket-open commit `bb3130d` and this evidence/closeout commit (plus one docs-only evidence correction). Ticket range `0471f9c..81811e2` = 3 commits, 13 files, +805/−21. Ticket integration: `npm test` full chain PASS at the ticket HEAD (vitest 34 files / 613 tests, Node domain suite 55/55, privacy-eval 24/24 + gate PASS, CI checks PASS); `format:check:v4` / `typecheck:v4` / `lint:v4` / `build` PASS. Native review ledger: both per-unit committed-range ASSESS calls returned the known typed Gentle AI #4791 `unassessable`/`schema-incompatible` plan, so the Case C fail-closed path applied twice with writer self-verification plus an independent verifier per unit; no `review_due` was ever offered, no START was synthesized, no consent manufactured and zero lineages opened. Debt: PRODUCT-002 reconciled to DONE with its limits declared; ARCH-013 updated (still OPEN, T16 deliberately did not close it); DOC-001 annotated with the newly stale historical sample. No T17 work started.
 Work Order: GitHub #20 (`EXECUTION_READY=YES`; `Blocked by: #15` CLOSED; no comments; DEBT_IDS=PRODUCT-002)
 Branch: `work/native/v4-travel-t12-t16-20260925`
 START_HEAD: `0471f9caf5d34ec2893ee46dd48a95362ee9a089`
@@ -161,7 +161,7 @@ silently dropped.
 ## WU-A evidence — 2026-09-26
 
 - Commit: `8266992` (base: `bb3130d`). Authored size: **10 files** — 9 modified (43 insertions / 15 deletions) plus the new
-  oracle file (220 lines) = **+263/−15**.
+  oracle file (220 lines) = **+272/−20** (52 insertions and 20 deletions across the 9 modified files).
 - Delivered: the patient branch of `AsignadorSustitutos.obtenerSustituto` returns `Paciente <n>` from a new module
   `contadorPacientes` instead of `genero || detectarGenero(...)` + the two gender literals; the key normalization and the
   mapped-identity lookup are untouched; the `genero` parameter is retained for legacy call compatibility and deliberately
