@@ -1,6 +1,6 @@
 # T17 / #21 — Batch state, failure, storage and consistency refactor
 
-Status: IN_PROGRESS (T17 #21)
+Status: COMPLETE (T17 #21)
 Work Order: GitHub #21 (`EXECUTION_READY=YES`; `Blocked by: #4, #8, #9` — all CLOSED; no comments;
 DEBT_IDS=FUNC-002, BATCH-001, BATCH-002, BATCH-004, UX-004; SPEC_AUTHORITY=docs/specs/SPEC_V4_BATCH_AND_STRUCTURED.md)
 Branch: `work/opencode/v4-overnight-t17-t18-20260928`
@@ -208,11 +208,12 @@ No size exception required. **Delivery: LOCAL_ONLY** — work-unit commits on th
 - [x] **T17.2 (WU-B)** Review/bridge seam + oracles (review-state, consistency, isolation); verification;
       falsification probes; commits `c57d593` (B1), `c3ff656` (B2), flake defusal `a76fe7f`; RDD assess
       recorded (REVIEW_TRANSPORT_UNAVAILABLE disposition, see evidence).
-- [ ] **T17.3 (WU-C)** Gate + UI + storage guard + e2e oracle; verification; falsification probes; commit
-      `feat(app): … (T17 #21 WU-C)`; RDD assess.
-- [ ] **T17.4** Ticket closeout: full `npm test` chain + build at final HEAD; debt reconciliation
-      (FUNC-002, BATCH-001, BATCH-002, BATCH-004, UX-004 → dispositions with limits; BATCH-003 annotated);
-      acceptance mapping; evidence in this doc + Engram; closeout commit; RDD assess on the closeout delta.
+- [x] **T17.3 (WU-C)** Gate + UI + storage guard + e2e oracle; verification; falsification probes; commits
+      `ad506c0` (C1), `8f50c10` (C2), `8caef1d` (C3 correction); consent granted by the human; transport
+      refusal recorded (see closeout).
+- [x] **T17.4** Ticket closeout: full `npm test` chain + build PASS at `8caef1d`; debt reconciliation
+      (FUNC-002, BATCH-001, BATCH-002, BATCH-004, UX-004 → DONE; BATCH-003 annotated OPEN); acceptance
+      mapping complete; evidence in this doc + Engram; closeout commit.
 
 ## Invariants for this ticket
 
@@ -345,9 +346,99 @@ No size exception required. **Delivery: LOCAL_ONLY** — work-unit commits on th
 
 ## WU-C evidence — 2026-09-28
 
-- Commit: (pending)
-- (pending)
+- Delivered as three sequential writers (C1/C2 split for transport reliability after the WU-B empty-result
+  pattern; C3 is a deliberate micro-correction): **C1** `ad506c0` (gate/export/checker; 7 files, +794/−44),
+  **C2** `8f50c10` (app wiring; 3 files, +582/−10 incl. new `BatchReviewView.tsx`), **C3** `8caef1d`
+  (policy-remedy correction; 4 files, +117/−34).
+- Delivered C1 (SD-9/SD-7/SD-10a): `PrivacyGateView` batch facts (per-item name/status/errorMessage from the
+  JOB via the domain helpers; pending count across non-error items; blocked copy names failed files + remedy;
+  no score/anonymity/certification claims — pinned against a FORBIDDEN_CLAIMS list; accessible text statuses,
+  no color-only); `ExportStep` batch Safe Output always disabled with explicit reason priority
+  (review-incomplete → failed-items → not-yet-defined batch Safe Output format); storage checker extended to
+  refuse ANY sessionStorage/localStorage reference in `app-v4/src` production sources (tests excluded, legacy
+  rules preserved) with a 9-case `--self-test` (known-good + planted violation + exclusions) and a
+  `check:storage:selftest` script.
+- Delivered C2 (SD-2/SD-3/SD-5/SD-11): two-phase batch intake in `App.tsx` (metadata-only `createJob` →
+  per-file `beginBatchItemRead`/`await extractFile`/`recordBatchItemRead` with the job-identity guard —
+  snapshot before await, stale outcomes discarded; failed reads surfaced immediately with name+message;
+  single-doc/text/structured flows unchanged); `BatchReviewView` (keyboard-operable document selector with
+  `aria-current` and visible status text, error/queued items listed but not selectable, active item's existing
+  `ReviewWorkspace` reused; `selectDocument` on selection only); reads-settle gating (no processing start
+  while any item is `reading`); the hook's read transitions are sequenced with scoped `flushSync` in the
+  intake loop (committed-state ref timing; zero act warnings — verifier-checked).
+- Delivered C3 (SD-8 CORRECTED): the original SD-8 spec was wrong — source text is policy-INDEPENDENT, so
+  dropping held extraction on a policy change created a remedy dead-end (items queued without text fail
+  `invalid-source` with no re-read path). Corrected semantics: a REAL policy change resets non-error items to
+  `queued` KEEPING their held text (read artifacts survive; processing artifacts do not), `policy-unsupported`
+  items become retryable WITH text, read-error items stay error; `recordItemFailed` likewise keeps the held
+  text (the read succeeded; the PROCESS failed). The read-XOR invariant now applies to read failures only
+  (process failures carry text + `itemError`). One bridge assertion (same extraction-dropped class) flipped as
+  the minimal necessary edit. New App-level remedy-loop oracle: external-ai → per-item `policy-unsupported`
+  fail-closed → standard → recovery to `review-required` (D-009 fail → remedy → recovery closed).
+- Oracles: C1 gate ×5 + export ×3 + checker self-test ×9; C2 App ×6 (REQUIRED forced read-error batch;
+  REQUIRED navigation-never-marks-reviewed; premium-free pin; reads-settle gating; SD-11 clear-mid-read
+  discard; C3 remedy loop); writer probes (failedCount neutralization → 3 gate/export oracles fail; planted
+  real-tree storage violation → checker exit 1). Honest coverage boundaries: process-error e2e is covered at
+  bridge level (injected-stub isolation oracle) because the App-level path needs the C3-fixed semantics;
+  consistency is pinned at bridge level (not duplicated in App e2e); the export failed-items copy is
+  defense-in-depth (the App gate is the reachable blocker surface).
+- Deterministic verification: C1 666/666, C2 671/671, C3 672/672; typecheck/lint/format/check:storage clean at
+  each commit; parent full-suite runs 658/658, 666/666, 672/672 with full logs; checker exclusion probe (test
+  file passes) + production-file violation probe (exit 1) both verified.
+- Independent verification (fresh read-only context): **WU-C PASS 10/10** — scope (13 files exactly; legacy
+  untouched), gate facts from the job, export reason priority, checker/self-test, intake identity guard,
+  review surface accessibility, C3 corrected semantics, e2e oracle presence at stated levels, privacy
+  invariants (no storage/network/logging; no `any`; frozen state), suite + checker runs. Zero closeout
+  blockers.
 
 ## T17 ticket closeout — 2026-09-28
 
-- (pending)
+- Work-unit chain terminal: open `0a8e1c4`; WU-A `979846d` + `afa3ec3` + `9224a9e`; WU-B `c57d593` +
+  `c3ff656`; flake defusal `a76fe7f`; WU-C `ad506c0` + `8f50c10` + `8caef1d`; evidence `cf0cffe`, `dda72ef`,
+  this closeout commit. Ticket range `0a8e1c4..HEAD`: 12 commits, 17 files, +3,366/−142 (approx.; docs
+  included).
+- Closeout chain at final HEAD `8caef1d`: `npm test` full chain **PASS** (exit 0 — links, storage,
+  external, vendor, pdfjs, smoke, positioning, domain suite, privacy-eval units + gate, vitest **34 files /
+  672 tests**); `build` **PASS**; `format:check:v4`, `typecheck:v4`, `lint:v4` **PASS**; tracked tree clean.
+- **Acceptance mapping (#21):**
+  - *Failed documents remain visible and block/affect Privacy Gate appropriately* → per-item `error` state
+    with retained typed failures (WU-A), immediate input surfacing + gate item facts + blocked copy naming
+    files/remedy (WU-C1/C2), export `batch-item-failed` domain guard (WU-A/C1); oracles: job.test retention,
+    App forced-read-error e2e, PrivacyGate/ExportStep batch suites.
+  - *Navigating a document does not mark it reviewed* → completion derives ONLY from `canFinalize` of the
+    item's own session; `selectDocument` writes the index only; step navigation via `goToStep` only; oracles:
+    bridge review-state/navigation-purity + App UI-level pin (WU-B/C2).
+  - *No large batch payload shuttle through sessionStorage* → memory-only Job state (D-013), zero V4 storage
+    use, structural guard `check-storage-policy.mjs` + self-test (WU-C1); network-invariant test still green.
+  - *No global monkey patch* → shared ProcessingContext + engine per-call reset; no import chain to
+    `js/batch-module.js`; isolation oracle proves no mutated global behavior after a mid-batch failure (WU-B).
+  - *Shared context produces intended cross-document consistency* → bridge threads first-`fresh` →
+    per-success-`shared` pseudonymState; consistency oracle (same identity → same `Paciente N` across docs)
+    + isolation oracle at bridge level; declared limit: `options` (dateShift) not threaded until an accepted
+    ticket wires app-level options (T19 #23 owns the policy surface) — BATCH-003 stays OPEN with the advance
+    recorded.
+  - *Batch is not presented as a separate Premium app* → batch is a natural Job capability in the one shell;
+    premium-free UI pin (WU-C2); legacy framing untouched until T25 #29.
+  - Required deterministic verification: multi-file synthetic batch with one forced read error (App e2e;
+    process-error at bridge level with injected stub), review-state test (bridge + UI), consistency test
+    (bridge) — all present and falsifiable (probes listed per unit).
+- **Native review ledger (complete):** WU-A: ASSESS `review_due=true`/`high_risk` + typed runtime
+  ineligibility; preflight STATUS refused (`immutable_review_transport_unsupported`, stop) → compensated.
+  WU-B: same disposition. WU-C: ASSESS returned a full plan (medium, `slice_budget_reached`, 13 paths/1,581
+  lines) → preflight STATUS offered a fresh start → **the human GRANTED consent** for the candidate (typed
+  `gentle-ai.review-integration.consent/v3`, relayed losslessly, `granted` selected) → the consented START
+  refused at the transport layer (typed `immutable_review_transport_unsupported`, `not_started`, `stop`,
+  `retry_safe: false`) → exact-lineage STATUS re-queried: no lineage exists. Disposition: consent honored and
+  recorded; no START synthesized beyond the provider's own offer, no retry, RDD NOT disabled (the off-path
+  suggestion was refused); the WU-C commits remain **explicitly unreviewed by native review**, with
+  compensation = writer self-verification + writer/parent falsification probes + independent verifiers
+  (WU-A 10/10, WU-B 11/11, WU-C 10/10). The reviewed boundary does NOT advance (stays `a3c8067`).
+- Debt reconciliation (`docs/DEBT_REGISTER.md`, this commit): **FUNC-002, BATCH-001, BATCH-002, BATCH-004,
+  UX-004 → DONE** with V4 evidence and declared legacy limits (legacy surfaces remain compatibility evidence
+  until T25 #29); **BATCH-003 → stays OPEN** with the T17 advance (app-level shared context) and the options
+  threading limit recorded. No other row touched.
+- Flaky-oracle disposition: the pre-existing pdf-intake flake was identified (identity captured), defused
+  test-only (`a76fe7f`), and post-fix stability recorded (8 consecutive clean full-suite runs at the time of
+  the fix; the closeout chain runs green end-to-end).
+- No T18 work started. Publication boundary respected: no push, no PR, no issue mutation, no merge, no
+  release, no deploy. Next step for the human: review/publish under ordinary repository policy.
