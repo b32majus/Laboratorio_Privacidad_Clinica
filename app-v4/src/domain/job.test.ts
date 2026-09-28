@@ -1018,6 +1018,21 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       expect(batchHasErrorItems(job)).toBe(false);
     });
 
+    it("fails closed on an error item with no recorded itemError", () => {
+      // Only reachable via a hand-crafted job: every domain transition that
+      // sets itemStatus "error" also records itemError (SD-3).
+      const job = batchJob(["a.txt", "b.txt"]);
+      const items = itemsOf(job);
+      const crafted = {
+        ...job,
+        source: {
+          type: "files" as const,
+          files: [{ ...items[0], itemStatus: "error" as const }, items[1]],
+        },
+      } as Job;
+      expectItemTransitionError(() => batchFailedItems(crafted));
+    });
+
     it("batchReviewComplete is true only when every non-error item is completed", () => {
       const fresh = batchJob(["a.txt", "b.txt"]);
       expect(batchReviewComplete(fresh)).toBe(false);
