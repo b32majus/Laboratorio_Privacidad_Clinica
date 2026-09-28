@@ -200,11 +200,11 @@ No size exception required. **Delivery: LOCAL_ONLY** — work-unit commits on th
 
 ## Tasks
 
-- [ ] **T17.0** Open ticket: this doc + Engram mirror `odd/t17-batch-state-storage-consistency/tasks`; commit
-      `docs(odd): open T17 #21 …` (evidence: commit recorded here).
-- [ ] **T17.1 (WU-A)** Domain contract + oracles; verification (`test:v4`, `typecheck:v4`, `lint:v4`,
-      `format:check:v4`); falsification probes; commit `feat(domain): … (T17 #21 WU-A)`; RDD assess on the
-      committed range.
+- [x] **T17.0** Open ticket: this doc + Engram mirror `odd/t17-batch-state-storage-consistency/tasks`; commit
+      `docs(odd): open T17 #21 …` — commit `0a8e1c4`.
+- [x] **T17.1 (WU-A)** Domain contract + oracles; verification (`test:v4`, `typecheck:v4`, `lint:v4`,
+      `format:check:v4`); falsification probes; commit `feat(domain): … (T17 #21 WU-A)` — commits `979846d`,
+      `afa3ec3`, `9224a9e`; RDD assess recorded (REVIEW_TRANSPORT_UNAVAILABLE disposition, see evidence).
 - [ ] **T17.2 (WU-B)** Review/bridge seam + oracles (review-state, consistency, isolation); verification;
       falsification probes; commit `feat(review): … (T17 #21 WU-B)`; RDD assess.
 - [ ] **T17.3 (WU-C)** Gate + UI + storage guard + e2e oracle; verification; falsification probes; commit
@@ -230,8 +230,54 @@ No size exception required. **Delivery: LOCAL_ONLY** — work-unit commits on th
 
 ## WU-A evidence — 2026-09-28
 
-- Commit: (pending)
-- (pending)
+- Commits: `979846d` (base `0a8e1c4`; authored size **3 files, +974/−53** — `job.ts` +439/−19,
+  `job.test.ts` +528/−? with 33 new oracles, `review-domain.test.ts` 41 lines adapted) plus two micro
+  corrections: `afa3ec3` (+3, missing wrong-state assertion) and `9224a9e` (+15, fail-closed pin).
+- Delivered: `BatchItemStatus` six-state vocabulary (SD-1); two-phase batch `createJob` (metadata-only → all
+  `queued`; extraction-carrying batch input → typed `invalid-batch-intake`; single-document all-or-nothing and
+  oversize-at-creation PRESERVED; text job unchanged) (SD-2); item transitions `beginItemRead`/
+  `recordItemRead` (size authority asked, message verbatim, oversize text never stored, empty →
+  `empty-input`, adapter codes via `jobErrorCodeFor`)/`beginItemProcessing`/`recordItemProcessed`/
+  `recordItemFailed`/`recordItemReviewCompletion` (only path to `completed`) with typed preconditions
+  (SD-2/3/4); accessors `batchItemStatus`/`batchFailedItems`/`batchReviewComplete`/`batchHasErrorItems`
+  (SD-6; error items excluded from review completeness per SD-6 — the safeOutputReady error conjunction is
+  WU-B's derivation); `batch-item-failed` export guard AFTER `review-incomplete` priority in all three step
+  transitions (SD-7); `setPolicy` batch reset incl. `policy-unsupported` item retry (SD-8).
+- Deliberate test adaptation (reported by the writer, verified): 3 `review-domain.test.ts` batch fixtures
+  built 2-file batches WITH extraction outcomes — invalid under the new two-phase intake — minimally adapted
+  to metadata-only; the asserted semantics (`jobSupportsReview` false, `jobSourceText` null,
+  `startReviewSession` throw) are unchanged. The obsolete `job.test.ts` "names every failing file" batch
+  abort test (~:217) and the multi-file oversize batch test (~:609) were rewritten to pin the NEW contract
+  (`invalid-batch-intake` naming the files, order preserved). No other existing test edited.
+- Deterministic verification: writer first pass `npm run test:v4` 34 files / 646 tests (baseline 613 + 33);
+  `typecheck:v4`, `lint:v4`, `format:check:v4` clean. Parent runs: one unidentified non-reproducible failure
+  (suite output truncated by the parent's log tail before identity was captured) followed by **8 consecutive
+  clean 646/646 runs** incl. a 6-run flake hunt with full logs; recorded as an OPEN WATCH ITEM — any
+  recurrence with identity becomes a correction unit.
+- Independent verification (fresh read-only context): **PASS 10/10** — scope, contract completeness,
+  transition table, export guard, setPolicy reset, helper authority, immutability, oracle strength (fixtures
+  strengthened, not weakened), single-doc/text regression safety (non-batch guards provably gated under
+  `document-batch`), full suite 646/646 + typecheck/lint/format clean. Two non-blocking notes, both adopted:
+  WU-B must derive `safeOutputReady = batchReviewComplete && !batchHasErrorItems` (SD-6); the
+  `batchFailedItems` error-without-itemError branch was unpinned → pinned in `9224a9e`.
+- Falsification probes (parent-side, each restored byte-exactly, verified clean afterwards):
+  - **P1** completion allowed from `processing` → **ORACLE GAP FOUND**: all 81 domain tests passed (the suite
+    pinned `processing/false` but not `processing/true`). Corrected by adding the missing wrong-state
+    assertion (`afa3ec3`); re-planted probe → **1 failed | 80 passed**; restored → 81 passed.
+  - **P2** `assertBatchExportable` neutralized (guard removed) → **1 failed | 80 passed** (export-guard
+    oracle disagrees).
+  - **P3** oversize read retains the refused text on the error item → **1 failed | 80 passed** (payload-never-
+    stored oracle disagrees).
+- Native review gate: committed-range ASSESS (`--base-ref a3c8067 --committed-only`) returned
+  `review_due=true` (`high_risk`) with typed `unassessable` (active runtime not eligible for immutable
+  receipt review). The due-path preflight STATUS (`--contract gentle-ai.review-integration/v2 --agent
+  opencode --next-transition`) returned typed **`immutable_review_transport_unsupported`**
+  (`next_action: stop`, `mutation_outcome: not_started`, `retry_safe: false`). Disposition
+  **REVIEW_TRANSPORT_UNAVAILABLE**: no START synthesized, no consent manufactured, RDD NOT disabled
+  (user-owned switch; the tool's `review mode disable` suggestion is refused), no blind retry. Compensation
+  for the high tier: writer self-verification (above) + independent verifier (PASS 10/10) + parent
+  falsification probes (P1–P3, one oracle gap found and closed). The WU-A commits remain **explicitly
+  unreviewed by native review**; the reviewed boundary does NOT advance (stays `a3c8067`).
 
 ## WU-B evidence — 2026-09-28
 
