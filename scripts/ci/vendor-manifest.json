@@ -146,11 +146,20 @@
     "notes": "Byte-identical copy of lib/pdf.worker.min.js (identity verified at scan time via copyOf hash equality). Introduced by V4/T06 #10."
   },
   {
+    "path": "app-v4/public/vendor/xlsx.full.min.js",
+    "description": "SheetJS xlsx full browser bundle served same-origin to the V4 app (lazy-loaded by the V4 structured Excel adapter; NOT bundled into dist JS chunks; repository ships it as a git symlink to the governed source).",
+    "upstream": "SheetJS CE (SheetJS/sheetjs) - https://github.com/SheetJS/sheetjs",
+    "version": "0.20.2",
+    "copyOf": "lib/xlsx.full.min.js",
+    "sha256": "0dcbc967984de297bd4233cbb77febad8a396c72d8ac0cfab09094d6d7f6e805",
+    "notes": "Byte-identical copy of lib/xlsx.full.min.js (identity verified at scan time via copyOf hash equality; the repository path is a git symlink, so check:vendor verifies the governed target bytes). Introduced by V4/T18 #22 as the V4 Excel runtime; same SheetJS CE 0.20.2 provenance as the legacy lib entry. Loaded lazily same-origin by app-v4/src/structured/xlsx-loader.ts; no new npm dependency was added."
+  },
+  {
     "path": "app-v4/public/vendor/README.md",
     "description": "Provenance note for the V4 same-origin vendored parser assets (documentation only, not runtime code).",
     "upstream": "Internal documentation (laboratorio-privacidad-clinica repository)",
     "version": "n/a",
-    "sha256": "955a9261a6b91cf1c4d1cb516ddbdb47d406bda7def2a640f7641a363dbfd9e5",
+    "sha256": "04348c7e1bfc3103a39589fd465b8db931b231fe3b76432b8dfc4d56286953e6",
     "notes": "Not a third-party asset: documents the synthetic provenance and byte-identity relationship of the app-v4/public/vendor copies to their governed lib/ sources."
   }
 ]
