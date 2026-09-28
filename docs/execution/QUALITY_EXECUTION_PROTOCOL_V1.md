@@ -1,24 +1,22 @@
 # Laboratorio de Privacidad Clínica — Quality Execution Protocol v1
 
 Status: **CURRENT**  
-Adopted: 2026-09-24  
-Reconciled with Atenea C-077: 2026-09-28
+Adopted: 2026-09-24
 
 ## 1. Purpose and ownership
 
-This protocol turns field lessons from the V4 trains into repository-owned execution-quality rules.
+This protocol turns the field lessons from PR #35 into repository-owned execution quality rules.
 
 It complements, and does not replace:
-
 - GitHub Work Orders as executable scope authority;
 - accepted V4 specs and `docs/shaping/CURRENT_DECISIONS.md` as product/architecture authority;
-- Atenea current `docs/START_HERE.md`, C-077, `AGENTS.md` and `CODING_STANDARDS.md` as global execution/engineering policy;
-- native Gentle as candidate review/correction/validation/burn authority;
+- Atenea current `docs/START_HERE.md`, `AGENTS.md` and `CODING_STANDARDS.md` as global execution/engineering policy;
+- native Gentle as review/correction/validation/burn authority;
 - deterministic tests/checkers/CI as evidence;
 - Promotion Review / independent Cora audit as optional read-only promotion-boundary evidence;
 - the human as final publication/merge authority.
 
-Do not copy Atenea routing/version tables into this repo.
+Do not copy Atenea routing/version tables into this repo. Consume the current prepared-ticket runtime/profile at execution preflight.
 
 ## 2. Executable authority must be falsifiable
 
@@ -36,63 +34,92 @@ The method used to author the ticket is optional. The quality of the executable 
 
 ## 3. Work Order readiness additions
 
-Before executing a material Work Order, ensure the ticket/spec combination makes applicable invariants, adversarial examples, integration seams, deferred behavior and verification explicit enough that implementation does not need to invent product/privacy meaning.
+Before executing a material Work Order, ensure the ticket/spec combination makes the following explicit when applicable.
 
-A new or materially changed checker/scanner/gate over privacy, security, parsing, state or another trust boundary must include both known-good evidence and a representative planted violation that it rejects. Built-artifact checks are required when the invariant concerns shipped/generated behavior.
+### 3.1 Invariants
+State what must remain true, including preserved legacy semantics, memory-only handling, fail-closed behavior and authority boundaries.
 
-Representative exceptional branches such as malformed input, EOF, partial failure, unknown state or fallback must execute in deterministic tests when mechanically testable.
+### 3.2 Adversarial examples
+Use concrete fixtures/call shapes capable of falsifying the intended behavior. “Handle edge cases” is not an oracle.
 
-Work touching PDF/DOCX/XLSX/ZIP/parser/rendering dependencies must identify effective version/provenance and relevant security disposition. Distinguish vulnerable dependency present, application path reachable and exploitability demonstrated.
+### 3.3 Integration seams and deferred behavior
+Name the existing contracts the work crosses and the behavior deliberately left to later tickets. A worker must not silently implement later roadmap scope to make the current ticket convenient.
 
-Debt IDs expected to close, partially resolve or remain deliberately open must be reconciled in `docs/DEBT_REGISTER.md` without deleting historical evidence.
+### 3.4 Active-surface inventory
+For copy, privacy, security and policy checks, enumerate the active surfaces the claim applies to. Passing an arbitrary subset is not repository-wide evidence.
 
-## 4. Work-unit composition is conditional
+### 3.5 Oracle self-test
+A new or materially changed checker/scanner/gate over privacy, security, parsing, state or another trust boundary must include:
+- at least one known-good case;
+- at least one representative planted violation that must fail;
+- built-artifact verification when the invariant concerns shipped/generated runtime behavior.
 
-Follow current Atenea `WORK_UNIT_COMPOSITION_POLICY_V1`; do not invent project-local numeric review bands.
+### 3.6 Exceptional branches must execute in tests
+If implementation documents explicit exceptional branches such as malformed input, no-end-tag, EOF, retry, partial failure, unknown state or fallback, representative branches must be exercised by deterministic tests when mechanically testable.
 
-Composition is **not** a mandatory pre-writer ritual for every substantial Work Order. Activate it when current evidence shows one of the following:
+Documentation claiming an error path exists is not evidence that the path works.
 
-- several independently coherent delivery units are already visible;
-- the expected/observed candidate shape is materially likely to exceed reliable native review/context limits;
-- prior/current evidence shows the candidate is too coarse to review or recover safely.
+### 3.7 Untrusted-input dependency disposition
+Work touching PDF/DOCX/XLSX/ZIP/parser/rendering dependencies must identify effective version/provenance and relevant security advisories. Distinguish:
+- vulnerable dependency present;
+- application path reachable;
+- exploitability demonstrated.
 
-When triggered, define the smallest semantic work-unit chain that:
+When an upgrade is intentionally deferred, preserve a bounded mitigation and regression guard where possible.
 
-- keeps behavior with the tests/oracle that prove it;
-- is independently verifiable/reviewable;
-- preserves the accepted Work Order semantics when composed;
-- does not split mechanically by file count or line count.
+### 3.8 Debt closure
+List debt IDs expected to close, partially resolve or remain deliberately open. On completion, reconcile `docs/DEBT_REGISTER.md`; preserve historical evidence rather than deleting it.
 
-A Work Order may remain capability-sized in GitHub. Do not fragment the issue tracker merely to reduce review size.
+## 4. Work-unit composition
 
-If one honest composition pass still leaves an indivisible unit beyond current Atenea policy, STOP before writing that unit and obtain the required exception/human decision.
+Follow current Atenea `WORK_UNIT_COMPOSITION_POLICY_V1` rather than inventing project-local line-count review logic.
 
-## 5. Per-ticket / per-work-unit execution
+Composition is **conditional**, not a universal ceremony. Trigger it only when current evidence indicates materially coarse/over-budget candidate risk or several independently coherent delivery surfaces.
 
-For already-shaped executable authority:
+When triggered, forecast from actual expected surfaces (domain/contracts, parser/extractor logic and fixtures, UI integration, security/CI guards, dependency/provenance/debt work, deterministic tests) and define a short semantic work-unit chain before an oversized candidate forms.
+
+Each planned unit must:
+- represent coherent behavior or a coherent protection/compatibility seam;
+- carry the tests/oracle that prove that behavior;
+- be independently verifiable and reviewable;
+- preserve accepted Work Order semantics when composed with later units.
+
+Do not split mechanically by file/line count and do not fragment the GitHub issue merely to reduce review size. If one honest composition pass still leaves an indivisible unit beyond current Atenea policy, STOP before implementing that unit and obtain the required exception/human decision.
+
+## 5. Prepared profile selection
+
+The current Atenea supervisor selects the implementation profile at a clean candidate/work-unit boundary. This repository does not own the model map.
+
+Operationally:
+
+- `production-volume` is the default for bounded/low-novelty work;
+- `complex` is appropriate when the current ticket itself introduces material privacy/security/trust-boundary semantics, difficult state/temporal/concurrency behavior, cross-cutting architecture, delicate migration/back-compat, or repeated semantic/correction failure;
+- this being a privacy product **does not make every ticket complex**. Mechanical UI/docs, ordinary wiring and other low-novelty work remain production-volume unless their actual semantics trigger escalation.
+
+Profile selection changes implementation reasoning route only. It never weakens this repository's privacy invariants, deterministic oracles, native Gentle review, STOP conditions or publication authority.
+
+## 6. Per-work-unit execution
+
+For each coherent substantial unit:
 
 ```text
-read current repository + Work Order/spec authority
-→ plain Pi ticket worker implements only authorized behavior + oracle
+read current authority
+→ current Atenea prepared Pi worker implements only authorized behavior + oracle
 → deterministic verification
 → coherent local candidate commit
-→ `gentle-ai review assess --agent codex` from the real candidate boundary
-→ exact provider-issued native review continuation when due
-→ terminal / durable checkpoint
+→ native Gentle ASSESS through current Atenea review transport
+→ exact provider-issued RDD/correction/validator/burn when review is due
 ```
 
-Do not run ODD or `gentle-orchestrator` merely because the ticket is substantial. If product meaning is actually unresolved, STOP and return to shaping/human authority.
+The prepared worker must not enter ODD/`gentle-orchestrator` merely to rediscover an already-shaped Work Order.
 
-Do not manufacture a whole-branch Gentle candidate merely to “review the train”.
+Per-work-unit review does not prove cross-ticket integration. Do not manufacture a whole-branch Gentle candidate merely to “review the train”.
 
-Plain Pi is not a Gentle Shell review host; do not manually export `GENTLE_PI_REVIEW_RELAY_CONTRACT`.
-
-## 6. Train integration closeout
+## 7. Train Integration Closeout
 
 After the final authorized Work Order and before publication, run deterministic closeout over the composed exact HEAD.
 
-For a material multi-ticket train, include as applicable:
-
+For a material multi-ticket train, closeout includes as applicable:
 - full repository test chain and clean build;
 - typecheck/lint/format gates;
 - privacy/domain regression suites;
@@ -104,17 +131,21 @@ For a material multi-ticket train, include as applicable:
 - clean tracked tree after generation/build;
 - exact base SHA, HEAD SHA and ordered commit inventory.
 
-If closeout finds a defect, create the smallest coherent correction unit, verify/commit it, follow native Gentle review for that exact delta when due, and rerun affected closeout gates.
+If closeout finds a defect, create the smallest coherent correction unit, verify/commit it, follow native Gentle review for that exact delta, and rerun affected closeout gates.
 
-Per-unit review does not prove cross-ticket integration.
+## 8. Micro-correction discipline
 
-## 7. Micro-correction discipline
+When a defect has an exact reproduction and a narrow cause, keep the corrective contract narrow.
 
-When a defect has an exact reproduction and narrow cause, keep the corrective contract narrow.
+Do not use a microfix as permission to:
+- re-audit unrelated neighboring code;
+- remediate informational debt not required by the defect;
+- refactor a subsystem that can be repaired locally;
+- broaden dependency or formatting scope.
 
-Do not use a microfix as permission to re-audit unrelated neighboring code, remediate informational debt not required by the defect, refactor a subsystem that can be repaired locally, or broaden dependency/formatting scope.
+A tiny defect should normally produce a tiny candidate. Native Gentle still owns its risk/review decision.
 
-## 8. Publication and promotion
+## 9. Publication and promotion
 
 After clean local closeout:
 
@@ -123,16 +154,20 @@ normal non-force push when explicitly authorized
 → canonical PR
 → repository CI + platform security/static analysis
 → independent Promotion Review / Cora audit when material risk warrants it
-→ corrections as new bounded reviewed units
+→ corrections as new reviewed units
 → exact-head revalidation
 → explicit human merge
 ```
 
-Do not equate an aggregate workflow `SUCCESS` with zero security findings. Reconcile current platform findings/annotations/threads before promotion. Any HEAD mutation invalidates a promotion audit bound to the previous HEAD.
+Do not equate an aggregate workflow `SUCCESS` with zero security findings. Before promotion reconcile current platform findings/annotations/threads (for example CodeQL) and require no unresolved current blocker.
 
-## 9. Durable field lessons
+Any HEAD mutation invalidates a promotion audit bound to the previous HEAD.
 
-Prior V4 trains established several reusable lessons:
+## 10. PR #35 field lessons
+
+PR #35 demonstrated that bounded native review can complete successfully while composed-state defects can still survive per-unit review.
+
+Preventive lessons:
 
 | Failure class observed | Durable prevention |
 |---|---|
@@ -145,17 +180,31 @@ Prior V4 trains established several reusable lessons:
 | vulnerable PDF parser default | advisory review + deterministic mitigation guard |
 | workflow green while CodeQL thread remained | reconcile current platform findings, not only aggregate status |
 
-T06 additionally proved that a capability-sized Work Order can produce an over-coarse first candidate. The durable lesson is **triggered composition before an obviously coarse unit materializes**, not universal forecasting ceremony.
+These findings are not evidence of a model-routing defect. Correct contract/oracle/composition failures first; investigate routing only from role/model-specific runtime evidence.
 
-These findings are not by themselves evidence of a model-routing defect. Correct authority/oracle/composition failures first; investigate routing only from role/runtime-specific evidence.
+## 11. T06 field lesson — composition can matter before writing
 
-## 10. Non-goals
+On 2026-09-24, T06 #10 was implemented and deterministically green, but its first native review attempt failed in preflight with typed `lens_context_budget_exceeded` before review authority was created.
+
+The first implementation commit contained approximately 1,566 textual changed lines across 22 files and mixed source contracts, extraction paths, scan/no-text handling, Job/UI integration, fixtures/loaders/typings and tests.
+
+Durable conclusion:
+
+```text
+concrete coarse-candidate evidence
+→ composition trigger
+→ semantic reviewable work units
+→ implementation / verify / commit / native review
+```
+
+This is evidence for trigger-driven composition, not a requirement to forecast every substantial ticket by ritual.
+
+## 12. Non-goals
 
 This protocol does not:
-
 - create an Atenea-owned or project-owned reviewer controller;
 - require another LLM review after every ticket;
-- prescribe reviewer models beyond consuming current Atenea review transport;
+- prescribe reviewer models locally;
 - replace native Gentle RDD;
 - make the whole feature branch a default Gentle candidate;
 - authorize unrelated cleanup or opportunistic upgrades;
