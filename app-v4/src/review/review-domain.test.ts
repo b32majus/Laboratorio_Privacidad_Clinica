@@ -191,17 +191,11 @@ describe("job → review-source mapping", () => {
       jobSupportsReview(
         createJob({
           type: "files",
+          // T17 #21 SD-2: batch intake is metadata only; text arrives via the
+          // per-item read transitions, so a batch is represented by its kind.
           files: [
-            {
-              name: "a.txt",
-              extension: "txt",
-              extraction: { status: "extracted", extractedText: "A." },
-            },
-            {
-              name: "b.txt",
-              extension: "txt",
-              extraction: { status: "extracted", extractedText: "B." },
-            },
+            { name: "a.txt", extension: "txt" },
+            { name: "b.txt", extension: "txt" },
           ],
         })
       )
@@ -234,17 +228,11 @@ describe("job → review-source mapping", () => {
 
     const batchJob = createJob({
       type: "files",
+      // T17 #21 SD-2: metadata-only batch; text is held per item after the read
+      // phase, so the kind alone drives this mapping.
       files: [
-        {
-          name: "a.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "A." },
-        },
-        {
-          name: "b.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "B." },
-        },
+        { name: "a.txt", extension: "txt" },
+        { name: "b.txt", extension: "txt" },
       ],
     });
     expect(jobSourceText(batchJob)).toBeNull();
@@ -260,17 +248,10 @@ describe("job → review-source mapping", () => {
   it("fails closed when a job family has no single reviewable source text", () => {
     const batchJob = createJob({
       type: "files",
+      // T17 #21 SD-2: metadata-only batch (see the review-source mapping above).
       files: [
-        {
-          name: "a.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "A." },
-        },
-        {
-          name: "b.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "B." },
-        },
+        { name: "a.txt", extension: "txt" },
+        { name: "b.txt", extension: "txt" },
       ],
     });
     expect(() => startReviewSession(batchJob)).toThrowError(ReviewSessionError);
