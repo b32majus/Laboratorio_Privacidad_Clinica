@@ -117,7 +117,7 @@ For a new train/session:
 - let the current Atenea supervisor select `production-volume` or `complex` from the ticket's real reasoning/semantic risk; do not pin model routing in this repository;
 - run exactly one prepared Pi ticket worker for the current work unit; do not use Gentle Shell/ODD/`gentle-orchestrator` to rediscover an already-shaped Work Order;
 - current Atenea default is `production-volume`; material privacy/security/trust-boundary semantics are a valid `complex` trigger, while mechanical UI/docs/low-novelty work is not automatically complex merely because this is a privacy product;
-- the selected implementation profile never changes native reviewer ownership: current Atenea review remains Gentle RDD through Codex with distinct risk/readability/reliability/resilience roles plus conditional refuter/validator;
+- the selected profile preserves native reviewer ownership: Gentle RDD runs through the qualified OpenCode V1 review transport with distinct risk/readability/reliability/resilience roles plus conditional refuter/validator;
 - implementation must preserve this repository's deterministic privacy/oracle requirements regardless of selected route;
 - after the local candidate commit, enter native Gentle review through the current Atenea review transport and follow only provider-issued lifecycle transitions;
 - keep `max_concurrency=1` at the external ticket/frontier level for this project;
