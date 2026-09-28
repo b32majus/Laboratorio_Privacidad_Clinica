@@ -29,17 +29,15 @@ If required authority is contradictory or materially incomplete, STOP rather tha
 
 Do not expand the ticket to unrelated cleanup. Record newly discovered debt separately.
 
-### Mandatory pre-implementation composition gate
+### Conditional work-unit composition
 
 A GitHub Work Order is a product/delivery scope boundary, **not automatically one implementation/review unit**.
 
-Before any writer starts a substantial Work Order, forecast the likely authored-change shape using current Atenea `WORK_UNIT_COMPOSITION_POLICY_V1` and the ticket's real surfaces (domain, parser, UI, tests, CI/security, fixtures, dependency/debt work).
+Use Atenea `WORK_UNIT_COMPOSITION_POLICY_V1` only when there is concrete evidence before or during implementation that the accepted Work Order contains several independently coherent delivery units or is likely to exceed a reliable review/context boundary. Do not run a forecast ritual for every substantial ticket merely because the control exists.
 
-If the forecast indicates material over-budget risk or several independently coherent surfaces, define the intended chain of semantic work units **before writing code**. Each work unit must keep behavior with the tests/oracle that prove it and must be independently verifiable/reviewable.
+When the trigger is real, define the smallest semantic work-unit chain that keeps behavior with the tests/oracle that prove it. Do not split mechanically by files or line count, and do not create tiny GitHub issues merely to satisfy review size.
 
-Do not wait for `lens_context_budget_exceeded` after implementation to discover that composition was too coarse. Do not split mechanically by files or line count, and do not create tiny GitHub issues merely to satisfy review size. The Work Order may remain capability-sized while its implementation is composed into smaller reviewable units.
-
-If one honest composition pass still leaves an indivisible unit beyond current Atenea policy, STOP before writing that unit and obtain the required size-exception/human decision.
+If an indivisible coherent unit still exceeds current Atenea policy, STOP before writing that unit and obtain the required size-exception/human decision.
 
 ## V4 architecture invariants
 
@@ -111,20 +109,26 @@ The clinical origin must be able to enforce a strict CSP and zero unexpected out
 
 ## Atenea execution boundary
 
-Use the current Atenea native production protocol, not historical GP2.7/GP3.x orchestration recipes.
+Use the current Atenea prepared-ticket protocol, starting at `b32majus/Atenea/docs/START_HERE.md` and current execution decision C-077. Do not copy Atenea runtime internals into this repository beyond the stable boundary below.
 
 For a new train/session:
+
 - reconcile current Git/GitHub/product authority first;
-- start from a clean isolated worktree and a fresh `pi` session; do not resume stale Pi state;
-- consume the current qualified Atenea runtime/profile (currently `native-balanced`) after conformance preflight; do not pin reviewer routing in this repo;
-- let native Gentle own ODD/exploration, decomposition, workers, verification, work-unit commits, RDD/risk/review timing, correction lifecycle and acknowledgement/burn;
+- preserve or create a clean isolated worktree; do not discard valid existing train progress merely because the runtime protocol changed;
+- use a Pi supervisor + Herdr and exactly one plain Pi ticket worker (`pi --no-extensions`) per active ticket;
+- the worker reads this file, `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md`, current Work Order/spec authority and applicable project skills before writing;
+- the Work Order is already shaped: do not run ODD or `gentle-orchestrator`, and do not reopen accepted product semantics unless current authority is actually incomplete or contradictory;
+- implement only the accepted bounded scope, run its deterministic/privacy/security/oracle checks and create the authorized local candidate commit;
+- enter native Gentle review with Codex transport from the real candidate boundary and follow only exact provider-issued transitions when review is due;
 - keep `max_concurrency=1` at the external ticket/frontier level for this project;
-- after each accepted work unit/ticket, rediscover blockers/frontier from durable GitHub authority;
-- per-work-unit APPROVED + burn does not replace deterministic composed-state integration closeout for a multi-ticket train;
+- after each accepted ticket/work unit, rediscover blockers/frontier from durable GitHub authority;
+- per-work-unit review does not replace deterministic composed-state integration closeout for a material multi-ticket train;
 - use `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md` before publication;
 - publication/PR/issue mutation requires explicit human authority; merge is always human-owned.
 
-Do not auto-merge, force-push, rewrite history, invent review transitions, recreate Atenea controllers, or treat a whole branch as a synthetic Gentle candidate merely to close a train.
+Do not manually export `GENTLE_PI_REVIEW_RELAY_CONTRACT`, auto-merge, force-push, rewrite history, invent review transitions, recreate Atenea controllers, or treat a whole branch as a synthetic Gentle candidate merely to close a train.
+
+OpenCode Build is the qualified Atenea fallback only after a concrete Pi runtime/tooling failure; fallback does not authorize ODD or product rediscovery.
 
 ## Legacy retirement
 
