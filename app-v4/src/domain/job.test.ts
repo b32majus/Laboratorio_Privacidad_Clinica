@@ -1147,7 +1147,7 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       return job;
     }
 
-    it("resets every non-error item to queued, keeping held text and clearing itemError", () => {
+    it("resets processing-derived item state to queued, keeping held text; a reading item stays reading (CORR-A)", () => {
       const job = mixedBatch();
       const changed = setPolicy(job, "strict");
       expect(changed.policyId).toBe("strict");
@@ -1160,7 +1160,7 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
         "queued", // was review-required
         "queued", // policy-unsupported error reset
         "error", // policy-independent error retained
-        "queued", // was reading
+        "reading", // was reading: STAYS reading (CORR-A) so its in-flight read can commit
         "queued", // was completed
       ]);
       // A policy change invalidates PROCESSING state only: the read text is
@@ -1182,7 +1182,8 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
         status: "extracted",
         extractedText: "Synthetic d.",
       });
-      // Items that were never read carry no text, before or after the change.
+      // Items that were never read carry no text, before or after the change
+      // (index 5 stays reading and unread).
       for (const index of [0, 5, 6]) {
         expect(itemsOf(changed)[index].extraction).toBeUndefined();
       }
@@ -1204,6 +1205,53 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
     it("is an exact no-op for an unchanged policy", () => {
       const job = mixedBatch();
       expect(setPolicy(job, "standard")).toBe(job);
+    });
+
+    // T17 #21 CORR-A: a policy change during the asynchronous batch read must
+    // not invalidate the policy-independent read phase. The deterministic
+    // race: the item enters `reading`, the policy changes BEFORE the read
+    // resolves, then the read outcome arrives — committing it must NOT throw
+    // `invalid-processing-transition`, and the real outcome is recorded
+    // under the new policy.
+    it("keeps a reading item reading across a policy change so its in-flight read commits", () => {
+      let job = batchJob(["a.txt", "b.txt"]);
+      // The item enters reading; the read (extractFile) is conceptually
+      // pending. A completed sibling proves the change still invalidates
+      // processing-derived state.
+      job = beginItemRead(job, 0);
+      job = toCompleted(job, 1);
+
+      const changed = setPolicy(job, "strict");
+      expect(changed.policyId).toBe("strict");
+      expect(batchItemStatus(changed, 0)).toBe("reading");
+      expect(batchItemStatus(changed, 1)).toBe("queued");
+
+      // The read resolves under the NEW policy: a successful outcome commits.
+      const committed = recordItemRead(changed, 0, {
+        ok: true,
+        extractedText: "Synthetic a.",
+      });
+      expect(batchItemStatus(committed, 0)).toBe("queued");
+      expect(itemsOf(committed)[0].extraction).toEqual({
+        status: "extracted",
+        extractedText: "Synthetic a.",
+      });
+      expect(committed.policyId).toBe("strict");
+    });
+
+    it("commits a failed read outcome for an item whose policy changed mid-read", () => {
+      let job = beginItemRead(batchJob(["scan.pdf", "b.txt"]), 0);
+      job = setPolicy(job, "strict");
+      expect(batchItemStatus(job, 0)).toBe("reading");
+      const committed = recordItemRead(job, 0, {
+        ok: false,
+        error: { code: "pdf-no-text-layer", message: "No layer." },
+      });
+      expect(batchItemStatus(committed, 0)).toBe("error");
+      expect(itemsOf(committed)[0].itemError).toEqual({
+        code: "pdf-no-text-layer",
+        message: "No layer.",
+      });
     });
   });
 

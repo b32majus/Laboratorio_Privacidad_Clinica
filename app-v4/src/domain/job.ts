@@ -723,17 +723,32 @@ function assertBatchExportable(job: Job): void {
 }
 
 /**
- * Policy-change item reset (T17 #21 SD-8, corrected by WU-C3). Non-error items
- * (`queued`/`reading`/`processing`/`review-required`/`completed`) return to
- * `queued` KEEPING their held `extraction` and with any `itemError` cleared:
- * the read artifact is policy-INDEPENDENT, so only the processing-derived
- * state is invalidated. A `policy-unsupported` error item also returns to
- * `queued` keeping its held text (the new policy may support it, so the item
- * is genuinely retryable); every other error item, including read errors, is
- * retained unchanged.
+ * Policy-change item reset (T17 #21 SD-8, corrected by WU-C3 and CORR-A).
+ * A policy change invalidates PROCESSING-derived state, never the
+ * policy-independent read phase:
+ *
+ * - `queued` items are left untouched (already pre-processing, possibly
+ *   holding their read text);
+ * - `reading` items STAY `reading` (CORR-A): their in-flight read is not a
+ *   processing-derived outcome, so it must still be able to commit through
+ *   {@link recordItemRead} under the new policy instead of throwing
+ *   `invalid-processing-transition`;
+ * - `processing`/`review-required`/`completed` items return to `queued`
+ *   KEEPING their held `extraction` and with any `itemError` cleared: the
+ *   read artifact is policy-INDEPENDENT, so only the processing-derived
+ *   state is invalidated;
+ * - a `policy-unsupported` error item also returns to `queued` keeping its
+ *   held text (the new policy may support it, so the item is genuinely
+ *   retryable, WU-C3);
+ * - every other error item, including read errors, is retained unchanged
+ *   (read errors are policy-independent).
  */
 function resetBatchItemsForPolicy(files: readonly JobSourceFile[]): JobSourceFile[] {
   return files.map((file) => {
+    // CORR-A: the read phase is policy-INDEPENDENT, so a `queued` item needs
+    // no reset at all and a `reading` item stays `reading` — resetting it to
+    // `queued` would make its in-flight read impossible to commit.
+    if (file.itemStatus === "queued" || file.itemStatus === "reading") return file;
     const resets = file.itemStatus !== "error" || file.itemError?.code === "policy-unsupported";
     if (!resets) return file;
     const resetItem: JobSourceFile = {
@@ -903,14 +918,18 @@ export function isStepAccessible(job: Job, target: FlowStep): boolean {
  * under the new policy and a fresh session replaces the now-invalid one.
  * An unchanged policy is an exact no-op (the same object is returned).
  *
- * Batch reset invariant (T17 #21 SD-8, corrected by WU-C3): on a REAL policy
- * change for a document-batch job, every non-error item returns to `queued`
- * KEEPING its held `extraction` (read artifacts are policy-INDEPENDENT) with
- * its `itemError` cleared — only the processing-derived state is invalidated,
- * so the read+process cycle restarts from the already-read text. A
- * `policy-unsupported` error item also returns to `queued` with its held text
- * (the new policy may support it, making it genuinely retryable); every other
- * error item, including read errors, is retained unchanged.
+ * Batch reset invariant (T17 #21 SD-8, corrected by WU-C3 and CORR-A): on a
+ * REAL policy change for a document-batch job only the processing-derived
+ * item state is invalidated — `processing`/`review-required`/`completed`
+ * items return to `queued` KEEPING their held `extraction` (read artifacts
+ * are policy-INDEPENDENT) with their `itemError` cleared, so the read+process
+ * cycle restarts from the already-read text. `queued` items are untouched and
+ * `reading` items STAY `reading` (CORR-A): an in-flight read is not
+ * processing-derived, so it can still commit through {@link recordItemRead}
+ * under the new policy. A `policy-unsupported` error item also returns to
+ * `queued` with its held text (the new policy may support it, making it
+ * genuinely retryable); every other error item, including read errors, is
+ * retained unchanged.
  */
 export function setPolicy(job: Job, policyId: PrivacyPolicyId): Job {
   if (!POLICY_IDS.includes(policyId)) {

@@ -157,12 +157,18 @@ export type BatchReviewRun =
  * Order and isolation: items are visited in selection order; only `queued`
  * items are processed. Each item is marked `processing` before the engine is
  * invoked OUTSIDE any React state updater, then `review-required` on success
- * or `error` on a classified failure. A failure is recorded and the loop
- * CONTINUES so later documents still process (SD-4). The first item runs
- * `mode: "fresh"`; every success PROMOTES the engine's returned context to
- * `mode: "shared"` for the next item (passing it as `"fresh"` would reset the
- * pseudonym counters). A failed item contributes NOTHING to the carried
- * context, so cross-document consistency survives a mid-batch failure.
+ * or `error` on a classified failure. Zero-pending completion (T17 #21
+ * CORR-A): a successful item whose ReviewSession already has zero pending
+ * mandatory detections transitions DIRECTLY to `completed` via
+ * {@link recordItemReviewCompletion} (a documented no-op-safe path from
+ * `review-required`), because a session that can already be finalized must
+ * never demand a fictitious decide/addManual action. A failure is recorded
+ * and the loop CONTINUES so later documents still process (SD-4). The first
+ * item runs `mode: "fresh"`; every success PROMOTES the engine's returned
+ * context to `mode: "shared"` for the next item (passing it as `"fresh"`
+ * would reset the pseudonym counters). A failed item contributes NOTHING to
+ * the carried context, so cross-document consistency survives a mid-batch
+ * failure.
  *
  * The returned job has `completeProcessing` applied and the batch review state
  * derived in one place; `engineFactory` is an oracle-only seam and production
@@ -187,6 +193,13 @@ export function runBatchReview(job: Job, options: BatchReviewRunOptions = {}): B
         working = recordItemProcessed(working, index);
         sessions[index] = outcome.session;
         if (activeIndex === null) activeIndex = index;
+        // Zero-pending completion (T17 #21 CORR-A): a session with no pending
+        // mandatory detections is already finalizable, so the item goes
+        // straight to `completed` (no-op-safe from `review-required`)
+        // instead of requiring a fictitious review decision.
+        if (canFinalize(outcome.session)) {
+          working = recordItemReviewCompletion(working, index, true);
+        }
         carriedContext = {
           mode: "shared",
           pseudonymState: outcome.context.pseudonymState,

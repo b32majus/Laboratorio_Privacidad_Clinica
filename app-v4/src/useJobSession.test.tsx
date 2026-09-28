@@ -332,6 +332,157 @@ describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
   });
 });
 
+/**
+ * T17 #21 CORR-A oracles.
+ *
+ * 1. Policy change during the asynchronous batch read: the read phase is
+ *    policy-INDEPENDENT, so a policy change between `beginBatchItemRead`
+ *    and `recordBatchItemRead` must leave the item `reading` and the read
+ *    outcome must still commit under the new policy.
+ * 2. Zero-pending ReviewSession completion: a session produced by the engine
+ *    with zero pending mandatory detections completes its item immediately.
+ *
+ * All content is synthetic; no real clinical data anywhere.
+ */
+describe("useJobSession batch read vs policy change race (T17 #21 CORR-A)", () => {
+  it("commits an in-flight batch read after a mid-read policy change", () => {
+    const { result } = renderHook(() => useJobSession());
+    act(() =>
+      result.current.create({
+        type: "files",
+        files: [
+          { name: "doc-a.txt", extension: "txt" },
+          { name: "doc-b.txt", extension: "txt" },
+        ],
+      })
+    );
+    // The item enters reading; extractFile is conceptually pending.
+    act(() => result.current.beginBatchItemRead(0));
+    // The policy changes BEFORE the read resolves. The bridge must keep the
+    // item `reading` (the domain reset contract), and the commit below must
+    // not throw the typed invalid-processing-transition error.
+    act(() => result.current.updatePolicy("strict"));
+    expect(result.current.job!.policyId).toBe("strict");
+    expect(batchItemStatus(result.current.job!, 0)).toBe("reading");
+
+    // The read resolves under the NEW policy: the real outcome is committed.
+    act(() => result.current.recordBatchItemRead(0, { ok: true, extractedText: BATCH_DOC_A }));
+    expect(batchItemStatus(result.current.job!, 0)).toBe("queued");
+    const job = result.current.job!;
+    if (job.source.type !== "files") throw new Error("expected a files source");
+    expect(job.source.files[0].extraction).toEqual({
+      status: "extracted",
+      extractedText: BATCH_DOC_A,
+    });
+    // The policy change did not disturb the untouched sibling.
+    expect(batchItemStatus(job, 1)).toBe("queued");
+  });
+
+  it("commits a failed read outcome after a mid-read policy change", () => {
+    const { result } = renderHook(() => useJobSession());
+    act(() =>
+      result.current.create({
+        type: "files",
+        files: [
+          { name: "scan.pdf", extension: "pdf" },
+          { name: "doc-b.txt", extension: "txt" },
+        ],
+      })
+    );
+    act(() => result.current.beginBatchItemRead(0));
+    act(() => result.current.updatePolicy("strict"));
+    act(() =>
+      result.current.recordBatchItemRead(0, {
+        ok: false,
+        error: { code: "pdf-no-text-layer", message: "The PDF has no text layer." },
+      })
+    );
+    expect(batchItemStatus(result.current.job!, 0)).toBe("error");
+    const job = result.current.job!;
+    if (job.source.type !== "files") throw new Error("expected a files source");
+    expect(job.source.files[0].itemError).toEqual({
+      code: "pdf-no-text-layer",
+      message: "The PDF has no text layer.",
+    });
+  });
+});
+
+describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
+  type EngineProcess = ReturnType<typeof createRegistryEngine>["process"];
+  type EngineReturn = ReturnType<EngineProcess>;
+
+  /** A stub engine outcome whose result maps to a session with ZERO detections. */
+  function zeroPendingResult(text: string): EngineReturn["result"] {
+    return {
+      original: text,
+      processed: text,
+      entities: [],
+      alerts: [],
+      stats: { totalEntities: 0, byType: {} },
+      sessionId: "stub-zero-pending-session",
+      processingTime: 0,
+    };
+  }
+
+  it("completes an item whose session already has zero pending mandatory detections", () => {
+    const stub: ReturnType<typeof createRegistryEngine> = {
+      process(input) {
+        return { result: zeroPendingResult(input.text), context: input.context };
+      },
+    };
+    const job = domainBatchJob([
+      { name: "doc-a.txt", read: { ok: true, extractedText: BATCH_DOC_A } },
+      { name: "doc-b.txt", read: { ok: true, extractedText: BATCH_DOC_B } },
+    ]);
+
+    const run = runBatchReview(beginProcessing(job), { engineFactory: () => stub });
+    if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
+
+    // Both sessions have zero pending detections: both items complete
+    // immediately without any fictitious decide/addManual action, and the
+    // derived batch state reflects the completed review.
+    for (const index of [0, 1]) {
+      expect(batchItemStatus(run.job, index)).toBe("completed");
+      expect(getPendingDetections(run.sessions[index]!)).toHaveLength(0);
+    }
+    expect(run.job.review.complete).toBe(true);
+    expect(run.job.outputs.safeOutputReady).toBe(true);
+    expect(run.job.outputs.confidentialAuditReady).toBe(true);
+    expect(run.activeIndex).toBe(0);
+  });
+
+  it("keeps a session with pending detections review-required in the same mixed run", () => {
+    // The stub returns a zero-pending session for doc A only; doc B goes
+    // through the REAL engine (its detections stay pending). The real engine
+    // still RUNS for doc A so its fresh-mode reset keeps the shared legacy
+    // module state consistent for the shared-mode doc B pass; only the
+    // RESULT is swapped for the zero-pending one.
+    const real = createRegistryEngine();
+    const stub: ReturnType<typeof createRegistryEngine> = {
+      process(input) {
+        const realOutcome = real.process(input);
+        if (input.text === BATCH_DOC_A) {
+          return { result: zeroPendingResult(input.text), context: realOutcome.context };
+        }
+        return realOutcome;
+      },
+    };
+    const job = domainBatchJob([
+      { name: "doc-a.txt", read: { ok: true, extractedText: BATCH_DOC_A } },
+      { name: "doc-b.txt", read: { ok: true, extractedText: BATCH_DOC_B } },
+    ]);
+
+    const run = runBatchReview(beginProcessing(job), { engineFactory: () => stub });
+    if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
+
+    expect(batchItemStatus(run.job, 0)).toBe("completed");
+    expect(batchItemStatus(run.job, 1)).toBe("review-required");
+    expect(getPendingDetections(run.sessions[1]!).length).toBeGreaterThan(0);
+    expect(run.job.review.complete).toBe(false);
+    expect(run.job.outputs.safeOutputReady).toBe(false);
+  });
+});
+
 describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
   it("makes a second batch startReview an exact no-op while sessions exist", () => {
     const { result } = renderHook(() => useJobSession());
