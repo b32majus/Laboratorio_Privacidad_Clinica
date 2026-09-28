@@ -1011,4 +1011,70 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
     expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
   });
+
+  it("keeps a non-active document's restored-original warning visible at the Privacy Gate (T17 #21 CORR-B)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+
+    // Complete doc A with restored ("Keep original") decisions.
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+
+    // Switch the ACTIVE document to B; doc A's restored decisions still exist.
+    fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
+
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    const warnings = screen.getByRole("list", { name: /kept-original warnings/i });
+    expect(warnings).toHaveTextContent("kept-original");
+    expect(warnings).toHaveTextContent(
+      "the original text was deliberately kept by reviewer decision (restored)"
+    );
+    // B (the active document) is still pending; the warning came from A.
+    expect(screen.getByRole("alert")).toHaveTextContent(/mandatory review decision/i);
+  });
+
+  it("keeps a completed error-free batch's output surfaces unavailable at gate and export (T17 #21 CORR-B)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+
+    // Complete BOTH documents → batch review complete, zero error items.
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
+    fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completed/));
+
+    // Privacy Gate: review is complete, yet both batch outputs are unavailable.
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Safe Output is not available for a document batch yet/)
+    ).toBeInTheDocument();
+
+    // Export reports the SAME fact: both actions disabled with explicit reasons.
+    fireEvent.click(stepButton(5, "Export"));
+    expect(screen.getByRole("button", { name: "Download Safe Output (.txt)" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Download Confidential Audit (.txt)" })
+    ).toBeDisabled();
+  });
 });

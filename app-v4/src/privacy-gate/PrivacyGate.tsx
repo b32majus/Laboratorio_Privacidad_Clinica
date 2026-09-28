@@ -23,7 +23,9 @@ import type { BatchItemStatus, Job, PrivacyPolicyId } from "../domain/job";
 import type { ReviewSession } from "../review/review-domain";
 import {
   type PrivacyGateView,
+  batchConfidentialAuditUnavailableMessage,
   batchFailedItemsMessage,
+  batchSafeOutputUnavailableMessage,
   derivePrivacyGateView,
   pendingDecisionMessage,
 } from "./privacyGateModel";
@@ -57,12 +59,19 @@ export type PrivacyGateProps = {
    * readiness comes from the Job, not from this session (T17 #21 SD-9).
    */
   readonly review: ReviewSession | null;
+  /**
+   * EVERY available per-document ReviewSession of a document batch (T17 #21
+   * CORR-B). Batch-wide restored-original warnings are derived from this
+   * complete set, so a non-active document's restored decision stays visible.
+   * Absent/empty for single-document and text jobs.
+   */
+  readonly batchSessions?: readonly ReviewSession[];
 };
 
 export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   const view = useMemo(
-    () => derivePrivacyGateView(props.job, props.review),
-    [props.job, props.review]
+    () => derivePrivacyGateView(props.job, props.review, props.batchSessions ?? []),
+    [props.job, props.review, props.batchSessions]
   );
 
   return (
@@ -104,7 +113,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
 
       {view.errors.length > 0 && <JobErrors view={view} />}
 
-      {view.batch === null && view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
+      {view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
     </section>
   );
 }
@@ -167,6 +176,12 @@ function AvailabilityFacts({ view }: { view: PrivacyGateView }): ReactElement {
         <dt className="font-semibold">Confidential audit:</dt>
         <dd> {view.confidentialAuditReady ? "Available" : "Not available"}</dd>
       </dl>
+      {view.batch !== null && (
+        <div className="mt-3 space-y-1 text-sm text-neutral-800">
+          <p>{batchSafeOutputUnavailableMessage()}</p>
+          <p>{batchConfidentialAuditUnavailableMessage()}</p>
+        </div>
+      )}
     </section>
   );
 }

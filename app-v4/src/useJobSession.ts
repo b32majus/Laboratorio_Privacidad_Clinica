@@ -19,7 +19,6 @@ import {
   type PrivacyPolicyId,
   type ProcessingFailure,
   advanceStep,
-  batchHasErrorItems,
   batchItemStatus,
   batchReviewComplete,
   beginItemProcessing,
@@ -101,20 +100,25 @@ function withDerivedReviewState(job: Job, review: ReviewSession): Job {
 
 /**
  * Derive a document-batch job's review-gated state in ONE atomic write
- * (T17 #21 SD-6). `review.complete` is the domain's single source of truth
- * ({@link batchReviewComplete}: every non-error item is `completed`), so the
- * existing export step gate keeps working unchanged. `safeOutputReady`
- * ADDS the error-items conjunction here — a failed document blocks the batch
- * output, because silently excluding it would hide a failed item (D-011).
- * The confidential audit becomes available once the processing attempt ran.
+ * (T17 #21 SD-6, corrected by CORR-B). `review.complete` remains the domain's
+ * single source of truth ({@link batchReviewComplete}: every non-error item is
+ * `completed`), so the existing export step gate keeps working unchanged.
+ *
+ * Output authority (CORR-B): the accepted specification defines NO batch Safe
+ * Output format and NO batch-wide Confidential Audit format, so BOTH output
+ * flags stay `false` for a document batch regardless of review completion — a
+ * completed batch review is a real, separate fact from output availability.
+ * In particular, the ACTIVE document's ReviewSession is never presented as a
+ * batch-wide Confidential Audit. Single-document/text behavior is owned by
+ * {@link withDerivedReviewState} and unchanged.
  */
 function withDerivedBatchReviewState(job: Job): Job {
   const complete = batchReviewComplete(job);
   return Object.freeze({
     ...withReviewState(job, { complete }),
     outputs: Object.freeze({
-      safeOutputReady: complete && !batchHasErrorItems(job),
-      confidentialAuditReady: true,
+      safeOutputReady: false,
+      confidentialAuditReady: false,
     }),
   }) as Job;
 }

@@ -16,6 +16,7 @@ import {
   beginItemProcessing,
   beginItemRead,
   createJob,
+  recordItemFailed,
   recordItemProcessed,
   recordItemRead,
   recordItemReviewCompletion,
@@ -457,5 +458,68 @@ describe("document batch export (T17 #21 WU-C1, SD-7): batch Safe Output stays u
     const reason = screen.getByRole("alert");
     expect(reason).toHaveTextContent("Safe Output is not available for a document batch yet");
     expect(reason).not.toHaveTextContent(/batch item failed/i);
+  });
+});
+
+/**
+ * T17 #21 CORR-B: batch output authority and failure-remedy copy. A fully
+ * reviewed batch has no accepted Safe Output or batch-wide Confidential Audit
+ * format, so both actions are disabled and never present the ACTIVE
+ * document's session as a batch-wide audit. The failure remedy must match the
+ * failure semantics (policy vs read/source/input). Synthetic fixtures only.
+ */
+function policyUnsupportedBatchJob(): Job {
+  let job = readBatchOk(buildBatchJob(), 0, "Contenido sintético A.");
+  job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+    code: "policy-unsupported",
+    message: "Policy is known but has no accepted per-category operator mapping.",
+  });
+  job = completeBatchItem(job, 1, "Contenido sintético B.");
+  return withReviewState(job, { complete: true });
+}
+
+describe("document batch export (T17 #21 CORR-B): batch output authority", () => {
+  it("reports Safe Output not ready and the batch audit unavailable for a fully reviewed error-free batch", () => {
+    render(<ExportStep job={completedBatchJob()} review={null} />);
+
+    const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
+    expect(safeButton).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Safe Output is not available for a document batch yet"
+    );
+
+    const auditButton = screen.getByRole("button", { name: AUDIT_BUTTON });
+    expect(auditButton).toBeDisabled();
+    expect(auditButton).toHaveAttribute("aria-describedby", "confidential-audit-blocked-reason");
+    expect(
+      screen.getByText(/Confidential Audit is not available for a document batch yet/)
+    ).toBeInTheDocument();
+  });
+
+  it("never presents the active document's review as a batch-wide Confidential Audit", () => {
+    const session = completedSession();
+    render(<ExportStep job={completedBatchJob()} review={session} />);
+
+    expect(screen.getByRole("button", { name: AUDIT_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: SAFE_BUTTON })).toBeDisabled();
+    expect(screen.getByText(/not a batch-wide audit/i)).toBeInTheDocument();
+  });
+
+  it("offers the policy remedy for a policy-unsupported failure instead of removing the document", () => {
+    render(<ExportStep job={policyUnsupportedBatchJob()} review={null} />);
+
+    const reason = screen.getByRole("alert");
+    expect(reason).toHaveTextContent("Policy is known but has no accepted per-category operator");
+    expect(reason).toHaveTextContent("Choose a supported Privacy Policy");
+    expect(reason).not.toHaveTextContent(/new job without/i);
+  });
+
+  it("keeps the recreate remedy for a representative read failure", () => {
+    render(<ExportStep job={failedBatchJob()} review={null} />);
+
+    const reason = screen.getByRole("alert");
+    expect(reason).toHaveTextContent('"informe-a.txt"');
+    expect(reason).toHaveTextContent("Create a new job without it to continue.");
+    expect(reason).not.toHaveTextContent(/supported Privacy Policy/i);
   });
 });

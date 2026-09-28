@@ -250,12 +250,16 @@ describe("useJobSession batch review state (T17 #21 WU-B)", () => {
     expect(result.current.job!.review.complete).toBe(false);
     expect(result.current.batchSessions).toBe(sessionsBefore);
 
-    // Complete doc B → both completed, the gate and Safe Output open.
+    // Complete doc B → both completed, so the BATCH REVIEW is complete. The
+    // batch output surfaces stay unavailable (T17 #21 CORR-B): review
+    // completion and output availability are separate facts while no accepted
+    // batch output format exists.
     completeItem(result, 1);
     expect(batchItemStatus(result.current.job!, 0)).toBe("completed");
     expect(batchItemStatus(result.current.job!, 1)).toBe("completed");
     expect(result.current.job!.review.complete).toBe(true);
-    expect(result.current.job!.outputs.safeOutputReady).toBe(true);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    expect(result.current.job!.outputs.confidentialAuditReady).toBe(false);
 
     // A later mandatory manual detection re-opens A only and re-derives the gate.
     act(() => result.current.selectDocument(0));
@@ -446,8 +450,11 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
       expect(getPendingDetections(run.sessions[index]!)).toHaveLength(0);
     }
     expect(run.job.review.complete).toBe(true);
-    expect(run.job.outputs.safeOutputReady).toBe(true);
-    expect(run.job.outputs.confidentialAuditReady).toBe(true);
+    // T17 #21 CORR-B: a completed batch review does NOT make batch output
+    // available; no accepted batch Safe Output / Confidential Audit format
+    // exists, so both output flags stay fail-closed.
+    expect(run.job.outputs.safeOutputReady).toBe(false);
+    expect(run.job.outputs.confidentialAuditReady).toBe(false);
     expect(run.activeIndex).toBe(0);
   });
 
@@ -480,6 +487,29 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
     expect(getPendingDetections(run.sessions[1]!).length).toBeGreaterThan(0);
     expect(run.job.review.complete).toBe(false);
     expect(run.job.outputs.safeOutputReady).toBe(false);
+  });
+});
+
+/**
+ * T17 #21 CORR-B oracles for the batch output authority. A document batch can
+ * complete its review legitimately, but the accepted specification defines no
+ * batch Safe Output and no batch-wide Confidential Audit, so both output
+ * surfaces stay unavailable. The active document's session is never promoted
+ * to a batch-wide audit.
+ */
+describe("useJobSession batch output authority (T17 #21 CORR-B)", () => {
+  it("keeps review.complete true while both batch output surfaces stay unavailable", () => {
+    const { result } = renderHook(() => useJobSession());
+    reviewedBatch(result);
+    act(() => {
+      result.current.startReview();
+    });
+    completeItem(result, 0);
+    completeItem(result, 1);
+
+    expect(result.current.job!.review.complete).toBe(true);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    expect(result.current.job!.outputs.confidentialAuditReady).toBe(false);
   });
 });
 

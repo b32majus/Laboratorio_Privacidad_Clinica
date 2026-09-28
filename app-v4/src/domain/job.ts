@@ -702,10 +702,40 @@ export function batchHasErrorItems(job: Job): boolean {
 }
 
 /**
- * Batch export blocker (T17 #21 SD-7). Called only for `document-batch` jobs,
- * AFTER the review-completeness guard so `review-incomplete` keeps priority
- * when both apply. A single failed item blocks export with the typed
- * `batch-item-failed` code naming the failed files and the explicit remedy.
+ * Factual remedy sentence for failed batch items (T17 #21 CORR-B). The remedy
+ * must match the failure semantics:
+ *
+ * - `policy-unsupported` means the document is HEALTHY input blocked by the
+ *   current Privacy Policy, so the remedy is to choose a supported policy and
+ *   retry — never to remove the document;
+ * - every other failure is a read/source/input problem, whose remedy remains
+ *   job recreation without the failing file(s);
+ * - a mixed batch names both remedies.
+ *
+ * The caller supplies one error code per failed item (never empty). The
+ * underlying typed failure code/message is always preserved ALONGSIDE this
+ * remedy, never replaced by it.
+ */
+export function batchFailureRemedy(errorCodes: readonly string[]): string {
+  const policyBlocked = errorCodes.some((code) => code === "policy-unsupported");
+  const otherFailures = errorCodes.some((code) => code !== "policy-unsupported");
+  if (policyBlocked && otherFailures) {
+    return "Choose a supported Privacy Policy for the policy-blocked documents, and create a new job without the unreadable ones to continue.";
+  }
+  if (policyBlocked) {
+    return "Choose a supported Privacy Policy and start review again.";
+  }
+  return errorCodes.length === 1
+    ? "Create a new job without it to continue."
+    : "Create a new job without them to continue.";
+}
+
+/**
+ * Batch export blocker (T17 #21 SD-7, remedy copy corrected by CORR-B). Called
+ * only for `document-batch` jobs, AFTER the review-completeness guard so
+ * `review-incomplete` keeps priority when both apply. A single failed item
+ * blocks export with the typed `batch-item-failed` code naming the failed
+ * files and the {@link batchFailureRemedy remedy} that matches each failure.
  */
 function assertBatchExportable(job: Job): void {
   if (job.kind !== "document-batch" || !batchHasErrorItems(job)) return;
@@ -715,10 +745,7 @@ function assertBatchExportable(job: Job): void {
     failed.length === 1
       ? `a batch item failed: ${names}`
       : `${failed.length} batch items failed: ${names}`;
-  const remedy =
-    failed.length === 1
-      ? "Create a new job without that file to continue."
-      : "Create a new job without those files to continue.";
+  const remedy = batchFailureRemedy(failed.map((item) => item.error.code));
   throw new JobModelError("batch-item-failed", `Export is blocked because ${subject}. ${remedy}`);
 }
 

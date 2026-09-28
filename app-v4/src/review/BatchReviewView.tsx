@@ -21,7 +21,7 @@
  */
 import type { ReactElement } from "react";
 
-import type { BatchItemStatus, Job } from "../domain/job";
+import { batchFailureRemedy, type BatchItemStatus, type Job } from "../domain/job";
 import {
   type DecisionExtras,
   type ExplicitDecisionStatus,
@@ -72,6 +72,12 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
   const files = job.source.type === "files" ? job.source.files : [];
   const stillReading = files.some((file) => file.itemStatus === "reading");
   const activeSession = activeIndex === null ? undefined : sessions?.[activeIndex];
+  // Remedy must match the failure semantics (T17 #21 CORR-B): a
+  // `policy-unsupported` item is healthy input blocked by the current policy.
+  const failedCodes = files
+    .filter((file) => file.itemStatus === "error")
+    .map((file) => file.itemError?.code)
+    .filter((code): code is string => code !== undefined);
 
   return (
     <section aria-labelledby="batch-review-step-heading">
@@ -149,7 +155,9 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
         >
           {stillReading
             ? "Documents are still being read. Review starts automatically once every document has been read."
-            : "No document is available for review. Failed documents stay listed above; create a new job without them to continue."}
+            : failedCodes.length > 0
+              ? `No document is available for review. Failed documents stay listed above. ${batchFailureRemedy(failedCodes)}`
+              : "No document is available for review yet."}
         </p>
       )}
     </section>

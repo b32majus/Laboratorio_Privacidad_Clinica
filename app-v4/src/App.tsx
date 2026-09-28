@@ -464,7 +464,11 @@ export function App() {
             onAddManual={session.addManual}
           />
         ) : currentStep === "privacy-gate" && job && (activeReview !== null || isBatch) ? (
-          <PrivacyGate job={job} review={activeReview} />
+          <PrivacyGate
+            job={job}
+            review={activeReview}
+            batchSessions={batchSessions === null ? [] : Object.values(batchSessions)}
+          />
         ) : currentStep === "export" && job && (activeReview !== null || isBatch) ? (
           <ExportStep job={job} review={activeReview} />
         ) : (

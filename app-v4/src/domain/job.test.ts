@@ -1123,6 +1123,48 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       expect(canAdvanceStep(gate)).toBe(true);
       expect(advanceStep(gate).currentStep).toBe("export");
     });
+
+    it("offers the policy remedy for a policy-unsupported failure instead of removing the document (CORR-B)", () => {
+      let job = readText(batchJob(["blocked.txt", "ok.txt"]), 0, "Healthy synthetic text.");
+      job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+        code: "policy-unsupported",
+        message: "Policy is known but has no accepted per-category operator mapping.",
+      });
+      job = toCompleted(job, 1);
+      const gate = atPrivacyGate(withReviewState(job, { complete: true }));
+      expect(canAdvanceStep(gate)).toBe(false);
+      try {
+        advanceStep(gate);
+        throw new Error("expected advanceStep to throw");
+      } catch (error) {
+        expect(error).toBeInstanceOf(JobModelError);
+        expect((error as JobModelError).code).toBe("batch-item-failed");
+        expect((error as JobModelError).message).toContain('"blocked.txt"');
+        // The document is healthy; the remedy is policy configuration, not removal.
+        expect((error as JobModelError).message).toMatch(/supported Privacy Policy/i);
+        expect((error as JobModelError).message).not.toMatch(/new job/i);
+      }
+    });
+
+    it("names both remedies for a mixed policy + read failure (CORR-B)", () => {
+      let job = readText(batchJob(["blocked.txt", "scan.pdf", "ok.txt"]), 0, "Healthy.");
+      job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+        code: "policy-unsupported",
+        message: "Policy mapping unavailable.",
+      });
+      job = readFailure(job, 1, "pdf-no-text-layer", "No layer.");
+      job = toCompleted(job, 2);
+      const gate = atPrivacyGate(withReviewState(job, { complete: true }));
+      try {
+        advanceStep(gate);
+        throw new Error("expected advanceStep to throw");
+      } catch (error) {
+        expect(error).toBeInstanceOf(JobModelError);
+        const message = (error as JobModelError).message;
+        expect(message).toMatch(/supported Privacy Policy/i);
+        expect(message).toMatch(/new job/i);
+      }
+    });
   });
 
   describe("setPolicy batch reset (SD-8)", () => {
