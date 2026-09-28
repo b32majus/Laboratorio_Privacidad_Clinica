@@ -15,6 +15,7 @@
     "test:v4": "vitest run",
     "check:links": "node scripts/ci/check-links.mjs",
     "check:storage": "node scripts/ci/check-storage-policy.mjs",
+    "check:storage:selftest": "node scripts/ci/check-storage-policy.mjs --self-test",
     "check:external": "node scripts/ci/check-external-resources.mjs",
     "check:vendor": "node scripts/ci/check-vendor-manifest.mjs",
     "check:pdfjs": "node scripts/ci/check-pdfjs-eval-guard.mjs",

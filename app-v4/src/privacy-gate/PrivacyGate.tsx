@@ -9,15 +9,21 @@
  *   - kept-original (restored) entries appear as factual warnings, phrased
  *     as completed reviewer decisions, never as leakage.
  *
+ * For a document batch (T17 #21 SD-9) the gate additionally renders the
+ * factual per-item list (name + visible status text + failure message) read
+ * from the Job, and the explicit fail-closed batch copy. The active review
+ * session may be absent for a batch.
+ *
  * No export actions live here: the Export step owns them (U4). No privacy
  * score, safe percentage, anonymity or certification claim anywhere (D-006).
  */
 import { useMemo, type ReactElement } from "react";
 
-import type { Job, PrivacyPolicyId } from "../domain/job";
+import type { BatchItemStatus, Job, PrivacyPolicyId } from "../domain/job";
 import type { ReviewSession } from "../review/review-domain";
 import {
   type PrivacyGateView,
+  batchFailedItemsMessage,
   derivePrivacyGateView,
   pendingDecisionMessage,
 } from "./privacyGateModel";
@@ -32,11 +38,25 @@ const POLICY_LABELS: Record<PrivacyPolicyId, string> = {
   strict: "Strict",
 };
 
+/** Visible text label per batch item status: status is never conveyed by color. */
+const BATCH_STATUS_LABELS: Record<BatchItemStatus, string> = {
+  queued: "Queued",
+  reading: "Reading",
+  processing: "Processing",
+  "review-required": "Review required",
+  completed: "Completed",
+  error: "Error",
+};
+
 export type PrivacyGateProps = {
   /** The frozen domain job (policy, errors, output availability). */
   readonly job: Job;
-  /** The frozen ReviewSession; the single review authority (D-004). */
-  readonly review: ReviewSession;
+  /**
+   * The frozen ReviewSession; the single review authority (D-004). For a
+   * document-batch job this is the active item's session or `null`; batch
+   * readiness comes from the Job, not from this session (T17 #21 SD-9).
+   */
+  readonly review: ReviewSession | null;
 };
 
 export function PrivacyGate(props: PrivacyGateProps): ReactElement {
@@ -67,13 +87,62 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         </p>
       )}
 
+      {view.batch !== null && view.batch.failedCount > 0 && (
+        <p
+          role="alert"
+          className={`mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+        >
+          {batchFailedItemsMessage(view.batch.items)}
+        </p>
+      )}
+
+      {view.batch !== null && <BatchItems view={view} />}
+
       <AvailabilityFacts view={view} />
 
-      {view.complete && <ReviewSummary view={view} />}
+      {view.batch === null && view.complete && <ReviewSummary view={view} />}
 
       {view.errors.length > 0 && <JobErrors view={view} />}
 
-      {view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
+      {view.batch === null && view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
+    </section>
+  );
+}
+
+/**
+ * Factual document-batch item facts (T17 #21 SD-9): every item stays visible
+ * with a text status label and, when it failed, its typed message. No
+ * hover-only information and no color-only state.
+ */
+function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
+  const batch = view.batch;
+  if (batch === null) return null;
+  return (
+    <section
+      aria-label="Batch items"
+      className="mt-4 rounded border border-primary bg-surface-light p-3"
+    >
+      <h3 className="font-display text-base font-bold text-primary-dark">Batch items</h3>
+      <dl
+        role="group"
+        aria-label="Batch item counts"
+        className="mt-2 grid grid-cols-3 gap-x-4 gap-y-1 text-sm text-neutral-800"
+      >
+        <dt className="font-semibold">Pending:</dt>
+        <dd> {batch.pendingCount}</dd>
+        <dt className="font-semibold">Completed:</dt>
+        <dd> {batch.completedCount}</dd>
+        <dt className="font-semibold">Failed:</dt>
+        <dd> {batch.failedCount}</dd>
+      </dl>
+      <ul aria-label="Batch item status" className="mt-3 space-y-1 text-sm text-neutral-800">
+        {batch.items.map((item) => (
+          <li key={item.index}>
+            <span className="font-semibold">{item.name}</span>: {BATCH_STATUS_LABELS[item.status]}
+            {item.errorMessage !== undefined && <> — {item.errorMessage}</>}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

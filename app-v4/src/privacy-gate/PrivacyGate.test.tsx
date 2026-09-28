@@ -2,7 +2,17 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
-import { createJob, setPolicy, type Job } from "../domain/job";
+import {
+  beginItemProcessing,
+  beginItemRead,
+  createJob,
+  recordItemProcessed,
+  recordItemRead,
+  recordItemReviewCompletion,
+  setPolicy,
+  withReviewState,
+  type Job,
+} from "../domain/job";
 import {
   applyDecision,
   canFinalize,
@@ -90,7 +100,7 @@ function buildFechaSession(): ReviewSession {
   });
 }
 
-function renderGate(job: Job, review: ReviewSession) {
+function renderGate(job: Job, review: ReviewSession | null) {
   return render(<PrivacyGate job={job} review={review} />);
 }
 
@@ -270,5 +280,122 @@ describe("PrivacyGate — low-confidence candidate facts (T14 #18 WU-C)", () => 
     const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
     expect(screen.getByRole("group", { name: /review summary/i })).toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/low-confidence/i);
+  });
+});
+
+/**
+ * T17 #21 WU-C1 (SD-9): document-batch facts. The Job is the single authority
+ * for item state; the active review session is `null` in these oracles, so a
+ * null session must never break the gate. Fixtures are synthetic; no real
+ * content anywhere.
+ */
+function buildBatchJob(names: readonly string[] = ["informe-a.txt", "informe-b.txt"]): Job {
+  return createJob({
+    type: "files",
+    files: names.map((name) => ({ name, extension: "txt" })),
+  });
+}
+
+/** Read one item successfully (queued → queued with held text). */
+function readOk(job: Job, index: number, text: string): Job {
+  return recordItemRead(beginItemRead(job, index), index, { ok: true, extractedText: text });
+}
+
+/** Fail one item's read with a typed adapter message (queued → error). */
+function readFail(job: Job, index: number, message: string): Job {
+  return recordItemRead(beginItemRead(job, index), index, {
+    ok: false,
+    error: { code: "pdf-no-text-layer", message },
+  });
+}
+
+/** Drive one healthy item to its completed review state. */
+function completeItem(job: Job, index: number, text: string): Job {
+  const processed = recordItemProcessed(
+    beginItemProcessing(readOk(job, index, text), index),
+    index
+  );
+  return recordItemReviewCompletion(processed, index, true);
+}
+
+/** Item 0 failed, item 1 completed: review complete with one failed item. */
+function failedBatchJob(): Job {
+  const withFailure = readFail(buildBatchJob(), 0, "El PDF no tiene capa de texto.");
+  const completed = completeItem(withFailure, 1, "Contenido sintético B.");
+  return withReviewState(completed, { complete: true });
+}
+
+/** Both items read and queued: review incomplete, two pending items. */
+function pendingBatchJob(): Job {
+  return readOk(readOk(buildBatchJob(), 0, "Contenido sintético A."), 1, "Contenido sintético B.");
+}
+
+/** Both items completed: review complete, no failed items. */
+function completedBatchJob(): Job {
+  const first = completeItem(buildBatchJob(), 0, "Contenido sintético A.");
+  const both = completeItem(first, 1, "Contenido sintético B.");
+  return withReviewState(both, { complete: true });
+}
+
+/** Mirror of the bridge's batch output availability write (SD-6). */
+function withBatchOutputs(job: Job, safeOutputReady: boolean): Job {
+  return {
+    ...job,
+    outputs: { safeOutputReady, confidentialAuditReady: true },
+  } as Job;
+}
+
+describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
+  it("lists every batch item with a visible status and the failed item's message", () => {
+    renderGate(failedBatchJob(), null);
+
+    const list = screen.getByRole("list", { name: /batch item status/i });
+    expect(list).toHaveTextContent("informe-a.txt");
+    expect(list).toHaveTextContent("Error");
+    expect(list).toHaveTextContent("El PDF no tiene capa de texto.");
+    expect(list).toHaveTextContent("informe-b.txt");
+    expect(list).toHaveTextContent("Completed");
+
+    const counts = screen.getByRole("group", { name: /batch item counts/i });
+    expect(counts).toHaveTextContent("Pending: 0");
+    expect(counts).toHaveTextContent("Completed: 1");
+    expect(counts).toHaveTextContent("Failed: 1");
+  });
+
+  it("names the failed file and the remedy in the blocked copy", () => {
+    renderGate(failedBatchJob(), null);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent('"informe-a.txt"');
+    expect(alert).toHaveTextContent("El PDF no tiene capa de texto.");
+    expect(alert).toHaveTextContent("Create a new job without it to continue.");
+  });
+
+  it("blocks with the pending count across non-error items while review is incomplete", () => {
+    renderGate(pendingBatchJob(), null);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Safe export is blocked while 2 mandatory review decisions are pending."
+    );
+    const list = screen.getByRole("list", { name: /batch item status/i });
+    expect(list).toHaveTextContent("Queued");
+    // No failed-items copy when there are no error items.
+    expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
+  });
+
+  it("renders no failed-items copy for a fully reviewed batch without errors", () => {
+    renderGate(withBatchOutputs(completedBatchJob(), true), null);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
+    const counts = screen.getByRole("group", { name: /batch item counts/i });
+    expect(counts).toHaveTextContent("Failed: 0");
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+  });
+
+  it("never renders score, percentage, anonymity or certification claims with batch facts (D-006)", () => {
+    const { container } = renderGate(failedBatchJob(), null);
+    expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
   });
 });
