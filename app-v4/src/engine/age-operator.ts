@@ -146,6 +146,27 @@ function labelForCompletedYears(years: number): string {
 }
 
 /**
+ * Public pure banding entry point for a DERIVED completed-year count
+ * (Work Order T19 #23 WU-A). Structured age-at-event semantics derive an
+ * integer age from a birth date and the clinically relevant visit/event
+ * date (SPEC_V4_BATCH_AND_STRUCTURED.md §10); banding that derived age must
+ * reuse the accepted T12 bands (this module) instead of duplicating them,
+ * so the band labels stay identical across the text and structured paths.
+ *
+ * Fail-closed (D-009): a non-integer, negative or out-of-band value raises
+ * the typed {@link AgeOperatorError} — never a guessed label.
+ */
+export function generalizeCompletedYears(years: number): string {
+  if (!Number.isInteger(years) || years < 0) {
+    throw new AgeOperatorError(
+      "invalid-age-observation",
+      "generalizeCompletedYears requires a non-negative integer completed-year count; failing closed instead of guessing an age band."
+    );
+  }
+  return labelForCompletedYears(years);
+}
+
+/**
  * AGE-GENERALIZE — the accepted T12 AGE transformation. `apply` returns ONLY
  * the banded general label for an `EDAD` observation:
  *
