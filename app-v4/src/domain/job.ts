@@ -134,11 +134,13 @@ export type OutputAvailability = {
  * Batch item-state invariant (T17 #21 SD-1/SD-2/SD-3): on `document-batch`
  * jobs both `itemStatus` and `itemError` follow the item-state contract —
  * fail-closed validated at creation and maintained by the item transitions in
- * this module. On single-document and text jobs they are absent. A batch item
- * carries text via `extraction: { status: "extracted", extractedText }` OR a
- * failure via `itemError`, never both; the adapter's `extraction: { status:
- * "failed" }` shape never appears on a batch item (read failures are recorded
- * as `itemError` through {@link recordItemRead}).
+ * this module. On single-document and text jobs they are absent. A READ failure
+ * is recorded as `itemError` with no `extraction`, and the adapter's
+ * `extraction: { status: "failed" }` shape never appears on a batch item (read
+ * failures are recorded as `itemError` through {@link recordItemRead}). A
+ * PROCESSING failure KEEPS the held read text alongside `itemError` (T17 #21
+ * WU-C3): source text is policy-INDEPENDENT, so the read artifact must survive
+ * a policy change and keep the item genuinely retryable.
  */
 export type JobSourceFileExtraction =
   | { readonly status: "extracted"; readonly extractedText: string }
@@ -597,16 +599,18 @@ export function recordItemProcessed(job: Job, index: number): Job {
  * Record a processing FAILURE for one item (T17 #21 SD-3): `processing →
  * error`. The classified {@link ProcessingFailure} is retained as the item's
  * `itemError` (its message is already authored by contract). The held
- * extraction is dropped so the item carries a failure only, never both; the
- * failed item stays visible in the batch.
+ * `extraction` (the read artifact) is RETAINED (T17 #21 WU-C3): source text is
+ * policy-INDEPENDENT, so a later policy change can return the item to `queued`
+ * with its text intact and it stays genuinely retryable. Only a READ failure
+ * carries `itemError` without text (see {@link recordItemRead}). The failed
+ * item stays visible in the batch.
  */
 export function recordItemFailed(job: Job, index: number, failure: ProcessingFailure): Job {
   const files = batchFiles(job, "recordItemFailed");
   const file = requireBatchItem(files, index, "recordItemFailed");
   assertItemStatus(file, index, "recordItemFailed", "processing");
   return replaceBatchItem(job, files, index, {
-    name: file.name,
-    extension: file.extension,
+    ...file,
     itemStatus: "error",
     itemError: { code: failure.code, message: failure.message },
   });
@@ -719,22 +723,27 @@ function assertBatchExportable(job: Job): void {
 }
 
 /**
- * Policy-change item reset (T17 #21 SD-8). Non-error items
+ * Policy-change item reset (T17 #21 SD-8, corrected by WU-C3). Non-error items
  * (`queued`/`reading`/`processing`/`review-required`/`completed`) return to
- * `queued` with their `extraction` and `itemError` removed (detections and
- * text are stale under the new policy). A `policy-unsupported` error item also
- * returns to `queued` (the new policy may support it); every other error item
- * is retained unchanged.
+ * `queued` KEEPING their held `extraction` and with any `itemError` cleared:
+ * the read artifact is policy-INDEPENDENT, so only the processing-derived
+ * state is invalidated. A `policy-unsupported` error item also returns to
+ * `queued` keeping its held text (the new policy may support it, so the item
+ * is genuinely retryable); every other error item, including read errors, is
+ * retained unchanged.
  */
 function resetBatchItemsForPolicy(files: readonly JobSourceFile[]): JobSourceFile[] {
   return files.map((file) => {
     const resets = file.itemStatus !== "error" || file.itemError?.code === "policy-unsupported";
     if (!resets) return file;
-    return {
+    const resetItem: JobSourceFile = {
       name: file.name,
       extension: file.extension,
       itemStatus: "queued" as BatchItemStatus,
     };
+    return file.extraction === undefined
+      ? resetItem
+      : { ...resetItem, extraction: file.extraction };
   });
 }
 
@@ -894,12 +903,14 @@ export function isStepAccessible(job: Job, target: FlowStep): boolean {
  * under the new policy and a fresh session replaces the now-invalid one.
  * An unchanged policy is an exact no-op (the same object is returned).
  *
- * Batch reset invariant (T17 #21 SD-8): on a REAL policy change for a
- * document-batch job, every non-error item returns to `queued` with its
- * `extraction` and `itemError` removed — detections and text are stale under
- * the new policy, so the read+process cycle restarts. A `policy-unsupported`
- * error item also returns to `queued` (the new policy may support it); every
- * other error item is retained unchanged.
+ * Batch reset invariant (T17 #21 SD-8, corrected by WU-C3): on a REAL policy
+ * change for a document-batch job, every non-error item returns to `queued`
+ * KEEPING its held `extraction` (read artifacts are policy-INDEPENDENT) with
+ * its `itemError` cleared — only the processing-derived state is invalidated,
+ * so the read+process cycle restarts from the already-read text. A
+ * `policy-unsupported` error item also returns to `queued` with its held text
+ * (the new policy may support it, making it genuinely retryable); every other
+ * error item, including read errors, is retained unchanged.
  */
 export function setPolicy(job: Job, policyId: PrivacyPolicyId): Job {
   if (!POLICY_IDS.includes(policyId)) {

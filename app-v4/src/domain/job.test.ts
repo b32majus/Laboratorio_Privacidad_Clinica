@@ -901,19 +901,21 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       expect(batchItemStatus(job, 1)).toBe("queued");
     });
 
-    it("records a classified processing failure and drops the held extraction", () => {
+    it("records a classified processing failure and keeps the held extraction", () => {
       const failure: ProcessingFailure = {
         code: "policy-unsupported",
         message: "Policy is known but unmapped.",
       };
-      const job = recordItemFailed(
-        beginItemProcessing(batchJob(["a.txt", "b.txt"]), 0),
-        0,
-        failure
-      );
+      const read = readText(batchJob(["a.txt", "b.txt"]), 0, "Synthetic a.");
+      const job = recordItemFailed(beginItemProcessing(read, 0), 0, failure);
       expect(batchItemStatus(job, 0)).toBe("error");
       expect(itemsOf(job)[0].itemError).toEqual(failure);
-      expect(itemsOf(job)[0].extraction).toBeUndefined();
+      // The read text is policy-INDEPENDENT, so a processing failure keeps it
+      // and the item stays retryable after a policy change (T17 #21 WU-C3).
+      expect(itemsOf(job)[0].extraction).toEqual({
+        status: "extracted",
+        extractedText: "Synthetic a.",
+      });
     });
 
     it("refuses every wrong-state process precondition", () => {
@@ -1131,8 +1133,8 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       job = beginItemProcessing(readText(job, 1, "Synthetic b."), 1);
       // c: review-required
       job = recordItemProcessed(beginItemProcessing(readText(job, 2, "Synthetic c."), 2), 2);
-      // d: policy-unsupported error
-      job = recordItemFailed(beginItemProcessing(job, 3), 3, {
+      // d: policy-unsupported error that keeps its held text
+      job = recordItemFailed(beginItemProcessing(readText(job, 3, "Synthetic d."), 3), 3, {
         code: "policy-unsupported",
         message: "Policy is known but unmapped.",
       });
@@ -1145,7 +1147,7 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       return job;
     }
 
-    it("resets every non-error item to queued, dropping extraction and itemError", () => {
+    it("resets every non-error item to queued, keeping held text and clearing itemError", () => {
       const job = mixedBatch();
       const changed = setPolicy(job, "strict");
       expect(changed.policyId).toBe("strict");
@@ -1161,16 +1163,41 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
         "queued", // was reading
         "queued", // was completed
       ]);
+      // A policy change invalidates PROCESSING state only: the read text is
+      // policy-INDEPENDENT and survives on every reset item that had been read
+      // (T17 #21 WU-C3), while itemError is cleared on all of them.
       for (const index of [0, 1, 2, 3, 5, 6]) {
-        expect(itemsOf(changed)[index].extraction).toBeUndefined();
         expect(itemsOf(changed)[index].itemError).toBeUndefined();
       }
-      // The retained error keeps its message; the source job is untouched.
+      expect(itemsOf(changed)[1].extraction).toEqual({
+        status: "extracted",
+        extractedText: "Synthetic b.",
+      });
+      expect(itemsOf(changed)[2].extraction).toEqual({
+        status: "extracted",
+        extractedText: "Synthetic c.",
+      });
+      // The policy-unsupported item keeps its held text → genuinely retryable.
+      expect(itemsOf(changed)[3].extraction).toEqual({
+        status: "extracted",
+        extractedText: "Synthetic d.",
+      });
+      // Items that were never read carry no text, before or after the change.
+      for (const index of [0, 5, 6]) {
+        expect(itemsOf(changed)[index].extraction).toBeUndefined();
+      }
+      // The retained read error is untouched and carries no text.
       expect(itemsOf(changed)[4].itemError).toEqual({
         code: "pdf-no-text-layer",
         message: "No layer.",
       });
+      expect(itemsOf(changed)[4].extraction).toBeUndefined();
+      // The source job keeps the read text the reset item came from.
       expect(batchItemStatus(job, 1)).toBe("processing");
+      expect(itemsOf(job)[3].extraction).toEqual({
+        status: "extracted",
+        extractedText: "Synthetic d.",
+      });
       expect(Object.isFrozen(changed)).toBe(true);
     });
 

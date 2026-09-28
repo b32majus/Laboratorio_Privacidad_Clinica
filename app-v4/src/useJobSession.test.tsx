@@ -313,7 +313,12 @@ describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
       code: "policy-unsupported",
       message: "Injected stub: refusing the marker text.",
     });
-    expect(run.job.source.files[1].extraction).toBeUndefined();
+    // The read text is policy-INDEPENDENT, so the processing failure keeps it
+    // and the item stays retryable after a policy change (T17 #21 WU-C3).
+    expect(run.job.source.files[1].extraction).toEqual({
+      status: "extracted",
+      extractedText: BATCH_MARKER,
+    });
 
     // Context carried from the last SUCCESS (doc A): a known identity keeps
     // its pseudonym and a new identity takes the next index instead of the

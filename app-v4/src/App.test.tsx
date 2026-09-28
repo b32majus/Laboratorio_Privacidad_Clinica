@@ -971,4 +971,44 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     );
     expect(document.body.textContent ?? "").not.toMatch(/premium|activar/i);
   });
+
+  it("keeps the batch read text across a real policy change so a failed attempt can be remedied (T17 #21 WU-C3)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+
+    // Remedy loop, step 1: switch to a known-but-unmapped policy. The read
+    // text is policy-INDEPENDENT, so the items stay queued WITH their text.
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "external-ai" },
+    });
+
+    // Entering review runs the attempt: every item fails closed with the
+    // classified policy-unsupported failure, surfaced on the documents list.
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() => {
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Error/);
+    });
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Error/);
+    expect(documentSelector()).toHaveTextContent(/no accepted per-category operator mapping/i);
+    // No item is reviewable while every read item is a policy failure.
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+
+    // Remedy loop, step 2: return to a supported policy. The reset items stay
+    // queued WITH their held text, so re-entering review processes them
+    // successfully instead of dead-ending on invalid-source.
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "standard" },
+    });
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() => {
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+    });
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+  });
 });
