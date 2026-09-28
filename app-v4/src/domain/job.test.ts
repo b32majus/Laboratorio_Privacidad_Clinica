@@ -961,6 +961,9 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       expectItemTransitionError(() =>
         recordItemReviewCompletion(beginItemProcessing(queued, 0), 0, false)
       );
+      expectItemTransitionError(() =>
+        recordItemReviewCompletion(beginItemProcessing(queued, 0), 0, true)
+      );
       const failed = readFailure(queued, 0, "pdf-no-text-layer", "No layer.");
       expectItemTransitionError(() => recordItemReviewCompletion(failed, 0, true));
     });
