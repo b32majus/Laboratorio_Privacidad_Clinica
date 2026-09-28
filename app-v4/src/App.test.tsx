@@ -547,7 +547,10 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([fixtureFile("sample-scanned.pdf")]);
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
-    const alert = await screen.findByRole("alert");
+    // Real pdf.js extraction under parallel vitest workers can exceed the
+    // default 1s poll budget on a loaded machine; the oracle disagrees on
+    // alert CONTENT, not on millisecond latency.
+    const alert = await screen.findByRole("alert", {}, { timeout: 10_000 });
     expect(alert).toHaveTextContent(/no extractable text|no text layer/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
@@ -557,9 +560,13 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.pdf")]);
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    // Same pdf.js latency budget as the scan-like-PDF oracle above.
+    await waitFor(
+      () => {
+        expect(screen.getByText("Document job")).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
     expect(screen.getByText("sample-clinical-note.pdf")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
