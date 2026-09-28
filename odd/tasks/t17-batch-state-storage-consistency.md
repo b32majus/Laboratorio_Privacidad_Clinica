@@ -205,8 +205,9 @@ No size exception required. **Delivery: LOCAL_ONLY** — work-unit commits on th
 - [x] **T17.1 (WU-A)** Domain contract + oracles; verification (`test:v4`, `typecheck:v4`, `lint:v4`,
       `format:check:v4`); falsification probes; commit `feat(domain): … (T17 #21 WU-A)` — commits `979846d`,
       `afa3ec3`, `9224a9e`; RDD assess recorded (REVIEW_TRANSPORT_UNAVAILABLE disposition, see evidence).
-- [ ] **T17.2 (WU-B)** Review/bridge seam + oracles (review-state, consistency, isolation); verification;
-      falsification probes; commit `feat(review): … (T17 #21 WU-B)`; RDD assess.
+- [x] **T17.2 (WU-B)** Review/bridge seam + oracles (review-state, consistency, isolation); verification;
+      falsification probes; commits `c57d593` (B1), `c3ff656` (B2), flake defusal `a76fe7f`; RDD assess
+      recorded (REVIEW_TRANSPORT_UNAVAILABLE disposition, see evidence).
 - [ ] **T17.3 (WU-C)** Gate + UI + storage guard + e2e oracle; verification; falsification probes; commit
       `feat(app): … (T17 #21 WU-C)`; RDD assess.
 - [ ] **T17.4** Ticket closeout: full `npm test` chain + build at final HEAD; debt reconciliation
@@ -281,8 +282,66 @@ No size exception required. **Delivery: LOCAL_ONLY** — work-unit commits on th
 
 ## WU-B evidence — 2026-09-28
 
-- Commit: (pending)
-- (pending)
+- Delivered as two sequential writers (composition adapted for transport reliability after two consecutive
+  empty sub-agent results on the combined brief — delivery shape only, not review size): **B1** `c57d593`
+  (primitive; 2 files, +225/−15) and **B2** `c3ff656` (bridge; 2 files, +565/−7). Combined WU-B: 4 files,
+  +790/−22.
+- Delivered: `jobSupportsReview` batch; `startReviewSession` still refuses batch with an honest message;
+  `processBatchItem(job, index, context, engine?)` — held-text-only (fail-closed `invalid-source`), engine
+  called with the job's policy, T01 adapter mapping, classified failures returned never thrown, engine
+  parameter is an oracle-only injection seam; bridge `SessionState.batch` (sessions record + activeIndex),
+  batch `startReview` with the `current.batch` idempotence guard, ordered per-item loop
+  (`beginItemProcessing` → `processBatchItem` → `recordItemProcessed`+session / `recordItemFailed`, loop
+  CONTINUES past item failures), context threading first-item `fresh` → per-success shared promotion
+  (idiom established by the B1 consistency oracle), `completeProcessing` + SD-6 derivation
+  (`review.complete = batchReviewComplete`, `safeOutputReady = complete && !batchHasErrorItems`,
+  `confidentialAuditReady: true`) in one atomic write; `selectDocument` navigation purity (FUNC-002);
+  decide/addManual batch path with per-item completion recording; policy change drops sessions (SD-8);
+  plus two hook intake methods `beginBatchItemRead`/`recordBatchItemRead` (SD-2 read seam; deliberate
+  deviation, needed by the hook-level oracles and WU-C intake wiring).
+- Oracles: B1 ×4 (mapping+context, invalid-source fail-closed, cross-document consistency
+  Carmen→`Paciente 1` in both docs / Lucía→`Paciente 2` + contador 1→2, injected typed failure classified
+  while a healthy item still exercises the real adapter); B2 ×7 (review-state/navigation purity FUNC-002,
+  isolation with mid-batch failure, idempotence, policy reset, no-active-session no-ops, safeOutputReady
+  error-conjunction, single-path free of batch state).
+- Deterministic verification: B1 651/651 (baseline corrected: 647 at HEAD `cf0cffe`, not 646 — the
+  `9224a9e` pin added one test); B2 658/658; typecheck/lint/format clean at both commits; parent full-suite
+  run 658/658 (full log kept).
+- Falsification probes (all restored byte-exact, suite green after restore):
+  - B1 parent probes: **PB1** carried context ignored (always `fresh`) → 1 failed (consistency oracle);
+    **PB2** classified failure rethrown → 2 failed (never-throws oracle); **PB3** missing extraction guessed
+    as empty text → 1 failed (fail-closed oracle). First PB1 attempt planted nothing (string mismatch); the
+    "20 passed" run before re-plant was the unmutated suite — recorded to keep probe attribution honest.
+  - B2 writer probes: P1 promotion as `fresh` → isolation oracle fails; P2 `selectDocument` mutating the job
+    → purity oracle fails; P3 `current.batch` guard removed → idempotence oracle fails; P4 error-conjunction
+    dropped → conjunction oracle fails; P5 `break` on item failure → isolation oracle fails.
+  - B2 parent probe: **PB6** decide never records item completion → 1 failed (review-state oracle);
+    **PB7** control no-op mutation → 11 passed (probe harness sanity).
+- Independent verification (fresh read-only context): **PASS 11/11** — scope, primitive contract, threading,
+  guard (+ the App effect-loop defect it prevents), navigation purity, atomic SD-6 derivation, SD-8 wiring,
+  single-path preservation, oracle strength, privacy/quality invariants, suite runs.
+- **Flake identified and defused** (`a76fe7f`): the WU-A-era unidentified failure has an identity —
+  `App.test.tsx > App document intake (T06) > surfaces the pdf-no-text-layer alert for a scan-like PDF and
+  creates no job`, 1-in-3 under parallel vitest load, passes isolated; pre-existing (App.test.tsx is outside
+  every T17 diff). Root cause: real pdf.js extraction latency can exceed the default 1s polling budget on a
+  loaded machine. Fix is test-only: explicit 10s latency budget on the two real-pdf.js intake waits; the
+  oracles still disagree on alert CONTENT. Post-fix: 8 consecutive clean full-suite runs (658/658).
+- Declared limits (honest, for closeout): the bridge's shared promotion threads `pseudonymState` but not
+  `options` — nothing in the app produces engine `options` today (dateShift has no app-level input; T19 owns
+  the policy surface), so nothing observable is lost; when an accepted ticket wires app-level options, the
+  batch promotion must carry them. `runBatchReview` is exported solely as the oracle seam (same pattern as
+  the primitive's engine parameter).
+- WU-C wiring requirements (from the independent verification): (1) SD-11 job-identity guard at the intake
+  call site — snapshot `job.id` before each awaited read and discard outcomes for a superseded job; (2) all
+  item reads must settle before review entry (the one-shot batch startReview skips still-`reading` items and
+  they would later be unprocessable); (3) never surface never-read items as `invalid-source` errors (same
+  coordination).
+- Native review gate: same **REVIEW_TRANSPORT_UNAVAILABLE** disposition as WU-A (assess `review_due=true`
+  /`high_risk` + typed runtime-ineligibility; STATUS preflight `immutable_review_transport_unsupported`, stop,
+  not_started, retry_safe=false; no START synthesized, no consent manufactured, RDD not disabled);
+  compensation = writer self-verification + writer probes + parent probes PB1–PB7 + independent verifier
+  (PASS 11/11). WU-B commits remain **explicitly unreviewed by native review**; the reviewed boundary stays
+  `a3c8067`.
 
 ## WU-C evidence — 2026-09-28
 
