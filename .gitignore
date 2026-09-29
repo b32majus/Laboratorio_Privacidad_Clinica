@@ -39,3 +39,7 @@ __pycache__/
 
 # Gentle runtime metadata
 .atl/
+
+# Playwright
+test-results/
+playwright-report/

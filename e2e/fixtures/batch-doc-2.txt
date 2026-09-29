@@ -1,0 +1,3 @@
+Documento sintetico batch dos.
+Identificador de prueba: DNI 87654321B.
+Contenido clinico simulado para E2E.
