@@ -38,6 +38,14 @@ import {
 import { createRegistryEngine } from "./engine/registry-engine";
 import type { ProcessingContext } from "./engine/types";
 import { classifyProcessingFailure } from "./processing-outcome";
+import {
+  createStructuredConfiguration,
+  overrideColumnClass,
+  selectPatientIdColumn,
+  type StructuredConfiguration,
+} from "./structured/configuration";
+import type { ColumnClass } from "./structured/classification";
+import type { StructuredGrid } from "./structured/grid";
 
 /**
  * State bridge between the React shell and the pure domain models (SPEC §3).
@@ -231,12 +239,23 @@ export function useJobSession() {
   const [state, setState] = useState<SessionState>(EMPTY_STATE);
   const stateRef = useRef(state);
   stateRef.current = state;
+  /**
+   * Canonical structured configuration (T20 #24), held as DOMAIN state
+   * alongside the job — never React-local UI state. It is keyed by job id so
+   * a stale configuration can never leak onto a different job.
+   */
+  const [structured, setStructured] = useState<{
+    readonly jobId: string;
+    readonly configuration: StructuredConfiguration;
+  } | null>(null);
 
   const create = useCallback((input: JobInput) => {
+    setStructured(null);
     setState({ job: createJob(input), review: null, batch: null });
   }, []);
 
   const clear = useCallback(() => {
+    setStructured(null);
     setState(EMPTY_STATE);
   }, []);
 
@@ -434,11 +453,50 @@ export function useJobSession() {
     );
   }, []);
 
+  /**
+   * Install the canonical structured configuration built from a parsed grid
+   * (T20 #24). Refuses to install onto a non-structured job, so the bridge can
+   * never attach structured authority to another job family.
+   */
+  const installStructuredGrid = useCallback((grid: StructuredGrid) => {
+    const current = stateRef.current;
+    if (!current.job || current.job.kind !== "structured") return;
+    setStructured({
+      jobId: current.job.id,
+      configuration: createStructuredConfiguration(grid),
+    });
+  }, []);
+
+  /** Explicit reviewer override of one structured column's class (domain transition). */
+  const overrideStructuredColumn = useCallback((columnIndex: number, columnClass: ColumnClass) => {
+    setStructured((current) =>
+      current === null
+        ? current
+        : {
+            jobId: current.jobId,
+            configuration: overrideColumnClass(current.configuration, columnIndex, columnClass),
+          }
+    );
+  }, []);
+
+  /** Set (or clear) the single structured patient-ID column authority. */
+  const selectStructuredPatientId = useCallback((header: string | null) => {
+    setStructured((current) =>
+      current === null
+        ? current
+        : {
+            jobId: current.jobId,
+            configuration: selectPatientIdColumn(current.configuration, header),
+          }
+    );
+  }, []);
+
   return {
     job: state.job,
     review: state.review,
     batchSessions: state.batch ? state.batch.sessions : null,
     batchActiveIndex: state.batch ? state.batch.activeIndex : null,
+    structured,
     create,
     clear,
     navigate,
@@ -450,5 +508,8 @@ export function useJobSession() {
     decide,
     addManual,
     selectDocument,
+    installStructuredGrid,
+    overrideStructuredColumn,
+    selectStructuredPatientId,
   };
 }

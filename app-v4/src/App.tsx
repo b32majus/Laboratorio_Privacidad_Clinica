@@ -37,6 +37,8 @@ import { PrivacyGate } from "./privacy-gate/PrivacyGate";
 import { BatchReviewView } from "./review/BatchReviewView";
 import { ReviewWorkspace } from "./review/ReviewWorkspace";
 import { ReviewSessionError, jobSupportsReview } from "./review/review-domain";
+import { StructuredConfigureWorkspace } from "./structured/StructuredConfigureWorkspace";
+import { readStructuredFile, readStructuredSheet } from "./structured/intake";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
@@ -103,6 +105,20 @@ export function App() {
     readonly done: number;
   } | null>(null);
   /**
+   * Structured Configure workspace state (T20 #24). `structuredError` is a
+   * typed intake failure and `structuredSheet` is a multi-sheet workbook
+   * awaiting an explicit selection; both are job-scoped or cleared whenever a
+   * new job is created. The File is transient INPUT state used to parse the
+   * selected sheet — the canonical configuration itself lives in the domain
+   * bridge (`useJobSession.structured`).
+   */
+  const [structuredError, setStructuredError] = useState<string | null>(null);
+  const [structuredSheet, setStructuredSheet] = useState<{
+    readonly jobId: string;
+    readonly sheetNames: readonly string[];
+  } | null>(null);
+  const structuredFileRef = useRef<File | null>(null);
+  /**
    * Latest rendered job id (SD-11): the async batch-read loop snapshots it
    * before each awaited read and discards an outcome whose job was superseded
    * or cleared while the read was in flight. Mirrors the hook's own state-ref
@@ -115,6 +131,9 @@ export function App() {
     setDraftText("");
     setDraftFiles([]);
     setInputError(null);
+    setStructuredError(null);
+    setStructuredSheet(null);
+    structuredFileRef.current = null;
   };
 
   const handleCreateJob = (input: JobInput) => {
@@ -254,9 +273,24 @@ export function App() {
     const hasStructured = draftFiles.some((file) => isStructuredExtension(extensionOf(file.name)));
     const hasDocument = draftFiles.some((file) => isDocumentExtension(extensionOf(file.name)));
     if (hasStructured) {
-      // Structured files carry metadata only until T18; a mixed selection
-      // reaches the domain and fails with its own typed ambiguous-input error.
+      // A mixed document/structured selection is NOT a structured intake: let
+      // the domain produce its typed ambiguous-input error unchanged.
+      if (hasDocument) {
+        handleCreateJob({ type: "files", files: metadataFiles() });
+        return;
+      }
+      // Structured classification profiles one table. A single file is read
+      // through the T20 structured intake; a multi-file selection is refused
+      // fail-closed instead of silently guessing which table to profile.
+      if (draftFiles.length !== 1) {
+        setInputError(
+          "Structured jobs classify one table at a time; create a separate job per CSV or Excel file."
+        );
+        return;
+      }
+      const previousJobId = jobIdRef.current;
       handleCreateJob({ type: "files", files: metadataFiles() });
+      void intakeStructured(draftFiles[0], previousJobId);
       return;
     }
     if (isDocumentBatchSelection(draftFiles)) {
@@ -342,6 +376,62 @@ export function App() {
       : null;
   const activeReview = review ?? activeBatchSession;
   const isBatch = job !== null && job.kind === "document-batch";
+  /** The canonical structured configuration for the CURRENT structured job. */
+  const structuredConfiguration =
+    session.structured !== null && job !== null && session.structured.jobId === job.id
+      ? session.structured.configuration
+      : null;
+
+  /**
+   * Structured intake (T20 #24): parse the single selected CSV/XLS/XLSX file
+   * with the T18 authorities and install the canonical configuration in the
+   * domain bridge. A multi-sheet workbook waits for an explicit sheet choice;
+   * every failure is typed and surfaced (never a silent empty table). The
+   * parsed configuration is only installed when the job it was read for is
+   * still the current job (stale reads are discarded).
+   */
+  const intakeStructured = async (file: File, previousJobId: string | null) => {
+    setIsExtracting(true);
+    try {
+      const outcome = await readStructuredFile(file);
+      const jobId = await waitForNewJobId(previousJobId);
+      if (jobId === null || jobIdRef.current !== jobId) return;
+      if (outcome.status === "parsed") {
+        session.installStructuredGrid(outcome.grid);
+        setStructuredError(null);
+        setStructuredSheet(null);
+      } else if (outcome.status === "sheet-required") {
+        structuredFileRef.current = file;
+        setStructuredSheet({ jobId, sheetNames: outcome.sheetNames });
+      } else {
+        setStructuredError(outcome.message);
+      }
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  /** Load an explicitly selected worksheet of the pending structured workbook. */
+  const handleSelectStructuredSheet = async (sheetName: string) => {
+    const file = structuredFileRef.current;
+    const pending = structuredSheet;
+    if (!file || !pending) return;
+    setIsExtracting(true);
+    try {
+      const outcome = await readStructuredSheet(file, sheetName);
+      if (jobIdRef.current !== pending.jobId) return;
+      if (outcome.status === "parsed") {
+        session.installStructuredGrid(outcome.grid);
+        setStructuredError(null);
+        setStructuredSheet(null);
+        structuredFileRef.current = null;
+      } else if (outcome.status === "failed") {
+        setStructuredError(outcome.message);
+      }
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   /**
    * Reads-settle gating and one-shot batch review start (T17 #21 SD-2/SD-4).
@@ -446,6 +536,15 @@ export function App() {
             onDraftTextChange={setDraftText}
             onFileSelection={handleFileSelection}
             onCreate={handleCreateFromDraft}
+          />
+        ) : currentStep === "configure" && job && job.kind === "structured" ? (
+          <StructuredConfigureWorkspace
+            configuration={structuredConfiguration}
+            errorMessage={structuredError}
+            sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
+            onSelectSheet={handleSelectStructuredSheet}
+            onOverrideClass={session.overrideStructuredColumn}
+            onSelectPatientId={session.selectStructuredPatientId}
           />
         ) : currentStep === "review" && isBatch && job ? (
           <BatchReviewView

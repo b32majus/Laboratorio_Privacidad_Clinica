@@ -111,16 +111,31 @@ describe("App shell", () => {
     expect(screen.getByLabelText("Paste text")).toHaveValue("");
   });
 
-  it("creates a structured job from CSV file metadata", () => {
+  it("creates a structured job and classifies its columns in the Configure workspace (T20 #24)", async () => {
     render(<App />);
-    const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
+    const csvFile = new File(
+      [
+        "NHC,Nombre,Diagnostico,CampoLibre",
+        "00123,Ana,Gripe A,rotación de sala",
+        "00456,Luis,Fractura,seguimiento",
+      ],
+      "labs.csv",
+      { type: "text/csv" }
+    );
     fireEvent.change(screen.getByLabelText(/select files/i), {
       target: { files: [csvFile] },
     });
-    expect(screen.getByText("labs.csv")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     expect(screen.getByText("labs.csv")).toBeInTheDocument();
     expect(screen.getByText("Structured job")).toBeInTheDocument();
+
+    // The parsed canonical configuration arrives asynchronously.
+    fireEvent.click(stepButton(2, "Configure"));
+    const list = await screen.findByRole("list", { name: /column classification list/i });
+    expect(list).toHaveTextContent("NHC");
+    expect(list).toHaveTextContent("CampoLibre");
+    const facts = screen.getByRole("status", { name: /structured configuration facts/i });
+    expect(facts).toHaveTextContent("Structured export ready: No");
   });
 
   it("surfaces the typed domain error instead of guessing a job kind", () => {
@@ -1076,5 +1091,81 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(
       screen.getByRole("button", { name: "Download Confidential Audit (.txt)" })
     ).toBeDisabled();
+  });
+});
+
+describe("App structured Configure workspace (T20 #24)", () => {
+  const CSV = [
+    "NHC,Fecha_Nac,Diagnostico,CampoLibre",
+    "00123,1990-05-01,Gripe A,rotación de sala",
+    "00456,1985-11-23,Fractura,seguimiento",
+  ].join("\n");
+
+  function createStructuredJob(csv: string) {
+    render(<App />);
+    const csvFile = new File([csv], "labs.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText(/select files/i), { target: { files: [csvFile] } });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+  }
+
+  it("shows the five-class classification, unknown review and the single patient-ID authority", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    expect(screen.getByLabelText("Reviewer classification for NHC")).toHaveValue("identifier");
+    expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
+      "quasi-identifier"
+    );
+    expect(screen.getByLabelText("Reviewer classification for Diagnostico")).toHaveValue(
+      "sensitive"
+    );
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
+    expect(screen.getAllByRole("region", { name: /patient id authority/i })).toHaveLength(1);
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+  });
+
+  it("resolves the unknown review gate only through an explicit override", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    // Unknown is not KEEP and keeps the gate closed until the human decides.
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "insensitive" },
+    });
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: Yes");
+  });
+
+  it("refuses a multi-file structured selection fail-closed", async () => {
+    render(<App />);
+    const first = new File(["a,b\n1,2"], "one.csv", { type: "text/csv" });
+    const second = new File(["c,d\n3,4"], "two.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText(/select files/i), {
+      target: { files: [first, second] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/one table at a time/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("keeps structured classification state when navigating away and back", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "sensitive" },
+    });
+    fireEvent.click(stepButton(1, "Input"));
+    fireEvent.click(stepButton(2, "Configure"));
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
+      "sensitive"
+    );
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: Yes");
   });
 });

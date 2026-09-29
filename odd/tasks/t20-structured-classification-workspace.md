@@ -1,6 +1,6 @@
 # T20 / #24 — Structured privacy-classification workspace
 
-Status: IN PROGRESS (T20 #24)
+Status: COMPLETE (T20 #24)
 Work Order: GitHub #24 (`EXECUTION_READY=YES`; `Blocked by: #11, #22` — both CLOSED; no comments;
 `DEBT_IDS=UX-015, PRODUCT-006`; `SPEC_AUTHORITY=docs/specs/SPEC_V4_BATCH_AND_STRUCTURED.md`)
 Branch: `work/opencode/v4-overnight-t17-t18-20260928`
@@ -66,5 +66,19 @@ WU-B consumes WU-A's frozen configuration; WU-A is independently verifiable with
 
 ## Evidence ledger
 
-- WU-A commit: see below.
-- WU-B commit: see below.
+- **WU-A** (commit `bd8c5b6`): `configuration.ts` + `intake.ts` + `configuration.test.ts` (13 tests)
+  + `intake.test.ts` (7 tests). Proves the five accepted classes, `unknown` never KEEP/exportable,
+  override changing the canonical object, cross-column isolation, single patient-ID authority, frozen
+  configuration, CSV/XLSX parsing through the T18 authorities and explicit multi-sheet selection.
+- **WU-B** (this commit): `StructuredConfigureWorkspace.tsx` + `useJobSession.ts` structured domain state
+  + `App.tsx` Configure wiring; `StructuredConfigureWorkspace.test.tsx` (13 tests) and four new App
+  integration cases. Proves visible five-class display, confidence/evidence matching domain facts,
+  unknown review + export gate, explicit override changing canonical authority, cross-column isolation,
+  single patient-ID authority region, keyboard/responsive/no-color-only, and state persistence across
+  navigation.
+- Full quality gates at final HEAD: `npm test` (full chain PASS; vitest 46 files / 832 tests, Node domain
+  suite, privacy-eval and CI checkers PASS), `npm run test:v4`, `typecheck:v4`, `lint:v4`,
+  `format:check:v4`, `npm run build` PASS. Tree clean.
+- Debt: UX-015 and PRODUCT-006 reconciled to DONE in `docs/DEBT_REGISTER.md`. Out-of-scope later surfaces
+  (structured export pipeline, ARX-lite risk layer, structured date/age app threading) remain OPEN under
+  their own IDs (PRODUCT-007, BATCH-003) and were not touched.
