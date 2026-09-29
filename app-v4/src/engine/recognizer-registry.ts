@@ -10,6 +10,13 @@
  * transformed value, no review/workflow state. Transformation stays with the
  * operator/policy boundary (WU2/WU3).
  *
+ * Since T14 #18 WU-A the surface also declares the OPTIONAL below-threshold
+ * candidate view ({@link CandidateRecognizer}/{@link RecognizerCandidate}),
+ * which carries the same identity fields plus immutable source offsets and
+ * the legacy scoring reason for spans the recognizer's own acceptance rule
+ * rejected. It is an additive capability: `Recognizer` keeps its exact
+ * required shape, so existing recognizers and test doubles are unaffected.
+ *
  * This module deliberately has NO dependency on the legacy brownfield core
  * (no js/core, no js/data). The legacy adaptation of these contracts lives
  * in `./legacy-recognizers` (CURRENT_DECISIONS D-003: wrap, do not rewrite).
@@ -40,10 +47,75 @@ export type RecognizerObservation = {
 /**
  * A recognizer answers "what is this?" for its own scope. `key` is stable
  * across runs and must be unique within a registry.
+ *
+ * `observe` is the SURVIVOR view: it reports only what cleared the
+ * recognizer's own acceptance rule (for the legacy pipeline, the confidence
+ * threshold filter). A recognizer that also carries sub-threshold detail
+ * additionally implements {@link CandidateRecognizer}; the optional
+ * capability is deliberately NOT a member of this interface so every
+ * existing recognizer and test double keeps compiling unchanged.
  */
 export interface Recognizer {
   readonly key: string;
   observe(text: string): readonly RecognizerObservation[];
+}
+
+/**
+ * Explicit below-threshold candidate contract (Work Order T14 #18, WU-A;
+ * DEBT_REGISTER ARCH-012).
+ *
+ * Legacy provenance: `js/core/processor.js` used to expose its discarded
+ * entities as `scoring.descartadas` — `{ text, type, confidence, razon }`
+ * with `razon = e.scoring?.recomendacion || 'BAJO_SCORE'` — but WITHOUT
+ * source offsets, so a discarded span was not addressable. This contract
+ * carries the exact same information plus the immutable source offsets
+ * (`start`/`end` against the immutable source text), so a candidate stays
+ * inspectable and reviewable (CONTEXT.md §10).
+ *
+ * A candidate is the complement of the kept observations on the same
+ * conflict-resolved set: an item the recognizer rejected because its
+ * confidence fell below the SAME effective threshold that kept the
+ * survivors. Recognition still answers only "what is this?": the candidate
+ * proposes no transformation of its own (`proposed` is resolved by the
+ * engine's policy boundary, never by the recognizer).
+ */
+export type RecognizerCandidate = {
+  readonly type: string;
+  readonly subtype?: string;
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+  readonly original?: string;
+  readonly confidence: number;
+  /** Legacy `razon`: the scoring recommendation, or `BAJO_SCORE`. */
+  readonly reason: string;
+};
+
+/** One recognition pass: the kept observations plus the rejected candidates. */
+export type RecognitionResult = {
+  readonly observations: readonly RecognizerObservation[];
+  readonly candidates: readonly RecognizerCandidate[];
+};
+
+/**
+ * A recognizer that exposes its below-threshold candidates. `recognize` must
+ * perform ONE recognition pass and return the kept observations together
+ * with the rejected candidates (never re-running detection per view).
+ * Implemented by the legacy full-pipeline adapter
+ * (`./legacy-recognizers`); the pure contracts module stays free of any
+ * recognition implementation.
+ */
+export interface CandidateRecognizer extends Recognizer {
+  recognize(text: string): RecognitionResult;
+}
+
+/**
+ * Fail-closed capability probe: true only when `recognize` is a callable
+ * function, so a registry entry that merely looks like a candidate
+ * recognizer never gets its `recognize` invoked (no guessed behavior).
+ */
+export function isCandidateRecognizer(recognizer: Recognizer): recognizer is CandidateRecognizer {
+  return typeof (recognizer as { recognize?: unknown }).recognize === "function";
 }
 
 /** Machine-readable codes carried by {@link RecognizerError} (D-009). */
@@ -120,7 +192,9 @@ export class RecognizerRegistry {
 /**
  * Legacy/ground-truth category taxonomy (scripts/privacy-eval ENTITY_TYPES;
  * SPEC §4 initial categories). NOMBRE covers the legacy subtypes
- * paciente/profesional/familiar.
+ * paciente/profesional/familiar. EDAD is the first-class AGE category
+ * (SPEC §4/§8; D-010), added by T12 WU-B now that its recognition (WU-A)
+ * and policy mapping (WU-B) both exist.
  */
 export const RECOGNIZER_CATEGORIES = [
   "NOMBRE",
@@ -128,6 +202,7 @@ export const RECOGNIZER_CATEGORIES = [
   "FECHA",
   "UBICACION",
   "SOSPECHOSO",
+  "EDAD",
 ] as const;
 
 export type RecognizerCategory = (typeof RECOGNIZER_CATEGORIES)[number];
@@ -140,6 +215,7 @@ export const LEGACY_CATEGORY_RECOGNIZER_KEYS: Readonly<Record<RecognizerCategory
     FECHA: "legacy.fecha",
     UBICACION: "legacy.ubicacion",
     SOSPECHOSO: "legacy.sospechoso",
+    EDAD: "v4.edad",
   });
 
 /**

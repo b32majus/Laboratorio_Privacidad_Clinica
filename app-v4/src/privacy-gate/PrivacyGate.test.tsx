@@ -2,11 +2,22 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
-import { createJob, setPolicy, type Job } from "../domain/job";
+import {
+  beginItemProcessing,
+  beginItemRead,
+  createJob,
+  recordItemProcessed,
+  recordItemRead,
+  recordItemReviewCompletion,
+  setPolicy,
+  withReviewState,
+  type Job,
+} from "../domain/job";
 import {
   applyDecision,
   canFinalize,
   createReviewSession,
+  getProgress,
   type ReviewSession,
 } from "../review/review-domain";
 import { PrivacyGate } from "./PrivacyGate";
@@ -90,7 +101,7 @@ function buildFechaSession(): ReviewSession {
   });
 }
 
-function renderGate(job: Job, review: ReviewSession) {
+function renderGate(job: Job, review: ReviewSession | null) {
   return render(<PrivacyGate job={job} review={review} />);
 }
 
@@ -220,5 +231,262 @@ describe("PrivacyGate (T08 U3)", () => {
     review = applyDecision(review, review.detections[1].id, "accepted");
     const { container } = renderGate(job, review);
     expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
+  });
+});
+
+/**
+ * T14 #18 WU-C: the candidate queue is reported factually by the gate. Only
+ * the review authority (`getProgress`) supplies the facts; the row is a
+ * neutral count and never a score or a safety claim.
+ */
+describe("PrivacyGate — low-confidence candidate facts (T14 #18 WU-C)", () => {
+  const CANDIDATE_SOURCE = "Fisioterapeuta Nélida Otxoa realizó la sesión.";
+  const CANDIDATE_SPAN = "Fisioterapeuta Nélida Otxoa realizó";
+
+  function candidateSession(): ReviewSession {
+    const start = CANDIDATE_SOURCE.indexOf(CANDIDATE_SPAN);
+    return createReviewSession({
+      originalText: CANDIDATE_SOURCE,
+      sessionId: "privacy-gate-candidate-test",
+      detections: [
+        {
+          type: "NOMBRE",
+          start,
+          end: start + CANDIDATE_SPAN.length,
+          confidence: 0.45,
+          proposed: "Profesional Sanitario 1",
+          reason: "REVISION_MANUAL",
+          lowConfidence: true,
+        },
+      ],
+    });
+  }
+
+  it("reports the factual candidate total and pending count once the review completes", () => {
+    let review = candidateSession();
+    review = applyDecision(review, review.detections[0].id, "restored");
+    const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
+
+    const summary = screen.getByRole("group", { name: /review summary/i });
+    expect(summary).toHaveTextContent("Low-confidence candidates:");
+    expect(summary).toHaveTextContent("1 total, 0 pending");
+    // Factual counts only: no score, safe percentage, anonymity or certification.
+    expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
+  });
+
+  it("renders no candidate row for a session without candidates (pre-T14 gate unchanged)", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "accepted");
+    review = applyDecision(review, review.detections[1].id, "accepted");
+    const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
+    expect(screen.getByRole("group", { name: /review summary/i })).toBeInTheDocument();
+    expect(container.textContent ?? "").not.toMatch(/low-confidence/i);
+  });
+});
+
+/**
+ * T17 #21 WU-C1 (SD-9): document-batch facts. The Job is the single authority
+ * for item state; the active review session is `null` in these oracles, so a
+ * null session must never break the gate. Fixtures are synthetic; no real
+ * content anywhere.
+ */
+function buildBatchJob(names: readonly string[] = ["informe-a.txt", "informe-b.txt"]): Job {
+  return createJob({
+    type: "files",
+    files: names.map((name) => ({ name, extension: "txt" })),
+  });
+}
+
+/** Read one item successfully (queued → queued with held text). */
+function readOk(job: Job, index: number, text: string): Job {
+  return recordItemRead(beginItemRead(job, index), index, { ok: true, extractedText: text });
+}
+
+/** Fail one item's read with a typed adapter message (queued → error). */
+function readFail(job: Job, index: number, message: string): Job {
+  return recordItemRead(beginItemRead(job, index), index, {
+    ok: false,
+    error: { code: "pdf-no-text-layer", message },
+  });
+}
+
+/** Drive one healthy item to its completed review state. */
+function completeItem(job: Job, index: number, text: string): Job {
+  const processed = recordItemProcessed(
+    beginItemProcessing(readOk(job, index, text), index),
+    index
+  );
+  return recordItemReviewCompletion(processed, index, true);
+}
+
+/** Item 0 failed, item 1 completed: review complete with one failed item. */
+function failedBatchJob(): Job {
+  const withFailure = readFail(buildBatchJob(), 0, "El PDF no tiene capa de texto.");
+  const completed = completeItem(withFailure, 1, "Contenido sintético B.");
+  return withReviewState(completed, { complete: true });
+}
+
+/** Both items read and queued: review incomplete, two pending items. */
+function pendingBatchJob(): Job {
+  return readOk(readOk(buildBatchJob(), 0, "Contenido sintético A."), 1, "Contenido sintético B.");
+}
+
+/** Both items completed: review complete, no failed items. */
+function completedBatchJob(): Job {
+  const first = completeItem(buildBatchJob(), 0, "Contenido sintético A.");
+  const both = completeItem(first, 1, "Contenido sintético B.");
+  return withReviewState(both, { complete: true });
+}
+
+/**
+ * Mirror of the bridge's batch output authority (T17 #21 SD-6, corrected by
+ * CORR-B): while no accepted batch output format exists, BOTH batch output
+ * flags are false regardless of review completion.
+ */
+function withBatchOutputs(job: Job): Job {
+  return {
+    ...job,
+    outputs: { safeOutputReady: false, confidentialAuditReady: false },
+  } as Job;
+}
+
+describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
+  it("lists every batch item with a visible status and the failed item's message", () => {
+    renderGate(failedBatchJob(), null);
+
+    const list = screen.getByRole("list", { name: /batch item status/i });
+    expect(list).toHaveTextContent("informe-a.txt");
+    expect(list).toHaveTextContent("Error");
+    expect(list).toHaveTextContent("El PDF no tiene capa de texto.");
+    expect(list).toHaveTextContent("informe-b.txt");
+    expect(list).toHaveTextContent("Completed");
+
+    const counts = screen.getByRole("group", { name: /batch item counts/i });
+    expect(counts).toHaveTextContent("Pending: 0");
+    expect(counts).toHaveTextContent("Completed: 1");
+    expect(counts).toHaveTextContent("Failed: 1");
+  });
+
+  it("names the failed file and the remedy in the blocked copy", () => {
+    renderGate(failedBatchJob(), null);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent('"informe-a.txt"');
+    expect(alert).toHaveTextContent("El PDF no tiene capa de texto.");
+    expect(alert).toHaveTextContent("Create a new job without it to continue.");
+  });
+
+  it("blocks with the pending count across non-error items while review is incomplete", () => {
+    renderGate(pendingBatchJob(), null);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Safe export is blocked while 2 mandatory review decisions are pending."
+    );
+    const list = screen.getByRole("list", { name: /batch item status/i });
+    expect(list).toHaveTextContent("Queued");
+    // No failed-items copy when there are no error items.
+    expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
+  });
+
+  it("reports both batch output surfaces unavailable for a fully reviewed error-free batch", () => {
+    renderGate(withBatchOutputs(completedBatchJob()), null);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
+    const counts = screen.getByRole("group", { name: /batch item counts/i });
+    expect(counts).toHaveTextContent("Failed: 0");
+    // T17 #21 CORR-B: review completion is true, but no accepted batch output
+    // format exists, so both batch output surfaces stay unavailable.
+    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Safe Output is not available for a document batch yet/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Confidential Audit is not available for a document batch yet/)
+    ).toBeInTheDocument();
+  });
+
+  it("never renders score, percentage, anonymity or certification claims with batch facts (D-006)", () => {
+    const { container } = renderGate(failedBatchJob(), null);
+    expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
+  });
+});
+
+/**
+ * T17 #21 CORR-B: batch-wide restored-original warnings. A batch has one
+ * ReviewSession per document, so the Privacy Gate aggregates warning facts
+ * over the COMPLETE set of available sessions. The selected document is
+ * navigation state only, so a restored decision in a non-active document
+ * stays visible at the gate.
+ */
+describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", () => {
+  function restoredSession(text: string, sessionId: string): ReviewSession {
+    const name = "Carmen Sánchez";
+    const start = text.indexOf(name);
+    const session = createReviewSession({
+      originalText: text,
+      sessionId,
+      detections: [
+        {
+          type: "NOMBRE",
+          start,
+          end: start + name.length,
+          confidence: 0.95,
+          proposed: "PACIENTE-1",
+        },
+      ],
+    });
+    return applyDecision(session, session.detections[0].id, "restored");
+  }
+
+  function pendingSession(text: string, sessionId: string): ReviewSession {
+    const name = "Roberto Díaz";
+    const start = text.indexOf(name);
+    return createReviewSession({
+      originalText: text,
+      sessionId,
+      detections: [
+        {
+          type: "NOMBRE",
+          start,
+          end: start + name.length,
+          confidence: 0.95,
+          proposed: "PACIENTE-2",
+        },
+      ],
+    });
+  }
+
+  it("shows document A's restored warning while document B is the active session", () => {
+    const textA = "Contenido sintético A. Nombre: Carmen Sánchez.";
+    const textB = "Contenido sintético B. Paciente: Roberto Díaz.";
+    const sessionA = restoredSession(textA, "batch-a");
+    const sessionB = pendingSession(textB, "batch-b");
+    render(
+      <PrivacyGate job={buildBatchJob()} review={sessionB} batchSessions={[sessionA, sessionB]} />
+    );
+
+    // The active document is B (its own detections are pending), yet A's
+    // restored decision is reported by the gate.
+    const warnings = screen.getByRole("list", { name: /kept-original warnings/i });
+    expect(warnings).toHaveTextContent("kept-original");
+    expect(warnings).toHaveTextContent(
+      "the original text was deliberately kept by reviewer decision (restored)"
+    );
+    expect(getProgress(sessionB).restored).toBe(0);
+  });
+
+  it("does not synthesize the non-active document's warning from the active session alone", () => {
+    const sessionA = restoredSession("Nombre: Carmen Sánchez.", "batch-a-only");
+    const sessionB = pendingSession("Paciente: Roberto Díaz.", "batch-b-only");
+    render(<PrivacyGate job={buildBatchJob()} review={sessionB} />);
+
+    // Without the complete set, only B's (pending) facts are visible; A's
+    // restored warning must not be inferred from B.
+    expect(screen.queryByRole("list", { name: /kept-original warnings/i })).not.toBeInTheDocument();
+    // Sanity: A genuinely carries a restored decision.
+    expect(getProgress(sessionA).restored).toBe(1);
   });
 });

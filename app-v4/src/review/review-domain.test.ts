@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createJob, setPolicy } from "../domain/job";
+import { beginItemRead, createJob, recordItemRead, setPolicy, type Job } from "../domain/job";
 import { createRegistryEngine } from "../engine/registry-engine";
 import { PolicyError } from "../engine/policy";
 import {
@@ -15,6 +15,7 @@ import {
   getProgress,
   jobSourceText,
   jobSupportsReview,
+  processBatchItem,
   startReviewSession,
   type ReviewSession,
 } from "./review-domain";
@@ -169,7 +170,7 @@ describe("decision semantics over a deterministic session", () => {
 });
 
 describe("job → review-source mapping", () => {
-  it("supports text and single-document jobs only", () => {
+  it("supports text, single-document and document-batch jobs", () => {
     expect(
       jobSupportsReview(createJob({ type: "pasted-text", text: "Síntesis: 612345678." }))
     ).toBe(true);
@@ -191,21 +192,15 @@ describe("job → review-source mapping", () => {
       jobSupportsReview(
         createJob({
           type: "files",
+          // T17 #21 WU-B: a document batch is reviewable as per-document
+          // sessions over the shared context, so its kind is supported.
           files: [
-            {
-              name: "a.txt",
-              extension: "txt",
-              extraction: { status: "extracted", extractedText: "A." },
-            },
-            {
-              name: "b.txt",
-              extension: "txt",
-              extraction: { status: "extracted", extractedText: "B." },
-            },
+            { name: "a.txt", extension: "txt" },
+            { name: "b.txt", extension: "txt" },
           ],
         })
       )
-    ).toBe(false);
+    ).toBe(true);
     expect(
       jobSupportsReview(
         createJob({
@@ -234,17 +229,11 @@ describe("job → review-source mapping", () => {
 
     const batchJob = createJob({
       type: "files",
+      // T17 #21 SD-2: metadata-only batch; text is held per item after the read
+      // phase, so the kind alone drives this mapping.
       files: [
-        {
-          name: "a.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "A." },
-        },
-        {
-          name: "b.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "B." },
-        },
+        { name: "a.txt", extension: "txt" },
+        { name: "b.txt", extension: "txt" },
       ],
     });
     expect(jobSourceText(batchJob)).toBeNull();
@@ -260,27 +249,40 @@ describe("job → review-source mapping", () => {
   it("fails closed when a job family has no single reviewable source text", () => {
     const batchJob = createJob({
       type: "files",
+      // T17 #21 SD-2: metadata-only batch (see the review-source mapping above).
       files: [
-        {
-          name: "a.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "A." },
-        },
-        {
-          name: "b.txt",
-          extension: "txt",
-          extraction: { status: "extracted", extractedText: "B." },
-        },
+        { name: "a.txt", extension: "txt" },
+        { name: "b.txt", extension: "txt" },
       ],
     });
     expect(() => startReviewSession(batchJob)).toThrowError(ReviewSessionError);
+    // The single-text entry points the caller at the batch primitive instead of
+    // the obsolete "arrives with a later ticket" claim.
+    expect(() => startReviewSession(batchJob)).toThrowError(/processBatchItem/);
   });
 
   it("the engine behind startReviewSession is the registry-composed V4 engine", () => {
     const engine = createRegistryEngine();
     const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
     const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
-    expect(session.detections.length).toBe(outcome.result.entities.length);
+    // T14 #18 WU-B: the session carries the entity detections PLUS the engine's
+    // below-threshold candidates (one detection each).
+    const candidates = outcome.result.candidates ?? [];
+    expect(session.detections.length).toBe(outcome.result.entities.length + candidates.length);
+    const lowConfidence = session.detections.filter(
+      (detection) => detection.lowConfidence === true
+    );
+    expect(lowConfidence).toHaveLength(candidates.length);
+    for (const candidate of candidates) {
+      expect(lowConfidence).toContainEqual(
+        expect.objectContaining({
+          type: candidate.type,
+          start: candidate.position.start,
+          end: candidate.position.end,
+          original: candidate.original ?? candidate.text,
+        })
+      );
+    }
   });
 });
 
@@ -380,5 +382,128 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     const job = createJob({ type: "pasted-text", text: ENGINE_TEXT });
     const viaJob = startReviewSession(job);
     expect(proposalsOf(viaJob)).toEqual(proposalsOf(standardSession));
+  });
+});
+
+/**
+ * T17 #21 WU-B — batch per-item review seam. `processBatchItem` is the batch
+ * counterpart of `startReviewSession`: one held item in, one per-document
+ * ReviewSession plus the updated shared context out. All fixtures are
+ * synthetic clinical-style strings; no real content anywhere.
+ */
+const BATCH_DOC_A = "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López.";
+const BATCH_DOC_B =
+  "Nombre: Carmen Sánchez\nLa paciente Lucía Ruiz acude a consulta. El Dr. García López firmó el informe. Familiar: Rosa Martínez.";
+const BATCH_MARKER = "Texto sintético que el motor inyectado rechaza.";
+
+/** A metadata-only batch (T17 #21 SD-2): every item starts `queued`. */
+function batchJob(names: readonly string[]): Job {
+  return createJob({
+    type: "files",
+    files: names.map((name) => ({ name, extension: "txt" })),
+  });
+}
+
+/** Read held text into the first N items of a batch through the read phase. */
+function readHeldTexts(job: Job, texts: readonly string[]): Job {
+  return texts.reduce((current, text, index) => {
+    return recordItemRead(beginItemRead(current, index), index, {
+      ok: true,
+      extractedText: text,
+    });
+  }, job);
+}
+
+/** Proposed value of the non-candidate engine detection for one source span. */
+function engineProposal(session: ReviewSession, original: string): string | undefined {
+  return session.detections.find(
+    (detection) => detection.original === original && detection.lowConfidence !== true
+  )?.proposed;
+}
+
+describe("batch per-item processing (T17 #21 WU-B)", () => {
+  it("maps a held item to a per-document session and returns the updated context", () => {
+    const job = readHeldTexts(batchJob(["a.txt", "b.txt"]), [BATCH_DOC_A]);
+    const result = processBatchItem(job, 0, { mode: "fresh" });
+    if (!result.ok) {
+      throw new Error(`expected ok: true, received failure ${result.failure.code}`);
+    }
+    expect(result.session.originalText).toBe(BATCH_DOC_A);
+    // The session reflects the engine's transformations (one patient substitution).
+    expect(engineProposal(result.session, "Carmen Sánchez")).toBe("Paciente 1");
+    // The returned context is the engine's shared-context carrier.
+    expect(result.context.pseudonymState?.asignaciones).toContainEqual([
+      "carmen sánchez",
+      "Paciente 1",
+    ]);
+  });
+
+  it("refuses an item without held text as invalid-source and never throws", () => {
+    const job = batchJob(["a.txt", "b.txt"]);
+    const missing = processBatchItem(job, 0, { mode: "fresh" });
+    expect(missing.ok).toBe(false);
+    if (missing.ok) throw new Error("unreachable: expected a classified refusal");
+    expect(missing.failure.code).toBe("invalid-source");
+    expect(missing.failure.message).toContain("no held extracted text");
+
+    // An out-of-range index is fail-closed through the same classified refusal.
+    const outOfRange = processBatchItem(job, 9, { mode: "fresh" });
+    expect(outOfRange.ok).toBe(false);
+    if (outOfRange.ok) throw new Error("unreachable: expected a classified refusal");
+    expect(outOfRange.failure.code).toBe("invalid-source");
+  });
+
+  it("threads the shared context so a returning identity keeps its pseudonym and a new identity takes the next index", () => {
+    const job = readHeldTexts(batchJob(["a.txt", "b.txt"]), [BATCH_DOC_A, BATCH_DOC_B]);
+    const first = processBatchItem(job, 0, { mode: "fresh" });
+    if (!first.ok) throw new Error(`expected ok: true, received failure ${first.failure.code}`);
+    // The bridge promotes the first fresh outcome to shared mode for item 1.
+    const sharedContext = {
+      mode: "shared" as const,
+      pseudonymState: first.context.pseudonymState,
+    };
+    const second = processBatchItem(job, 1, sharedContext);
+    if (!second.ok) throw new Error(`expected ok: true, received failure ${second.failure.code}`);
+
+    // Same identity → the SAME pseudonym in both documents.
+    expect(engineProposal(first.session, "Carmen Sánchez")).toBe("Paciente 1");
+    expect(engineProposal(second.session, "Carmen Sánchez")).toBe("Paciente 1");
+    // New identity → the NEXT patient index, never a reused value.
+    expect(engineProposal(second.session, "Lucía Ruiz")).toBe("Paciente 2");
+    expect(first.context.pseudonymState?.contadorPacientes).toBe(1);
+    expect(second.context.pseudonymState?.contadorPacientes).toBe(2);
+    expect(second.context.pseudonymState?.asignaciones).toEqual([
+      ["carmen sánchez", "Paciente 1"],
+      ["lucía ruiz", "Paciente 2"],
+    ]);
+  });
+
+  it("classifies an injected typed engine failure and still processes a healthy item through the real adapter", () => {
+    const real = createRegistryEngine();
+    const stub: ReturnType<typeof createRegistryEngine> = {
+      process(input) {
+        if (input.text === BATCH_MARKER) {
+          throw new PolicyError(
+            "policy-operator-mapping-unavailable",
+            "Injected stub: refusing the marker text under a simulated unmapped policy."
+          );
+        }
+        return real.process(input);
+      },
+    };
+    const job = readHeldTexts(batchJob(["a.txt", "b.txt"]), [BATCH_MARKER, BATCH_DOC_A]);
+
+    const failed = processBatchItem(job, 0, { mode: "fresh" }, stub);
+    expect(failed).toEqual({
+      ok: false,
+      failure: {
+        code: "policy-unsupported",
+        message: "Injected stub: refusing the marker text under a simulated unmapped policy.",
+      },
+    });
+
+    const healthy = processBatchItem(job, 1, { mode: "fresh" }, stub);
+    if (!healthy.ok) throw new Error(`expected ok: true, received failure ${healthy.failure.code}`);
+    expect(engineProposal(healthy.session, "Carmen Sánchez")).toBe("Paciente 1");
   });
 });

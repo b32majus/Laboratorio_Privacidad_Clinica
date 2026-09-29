@@ -11,14 +11,22 @@
  *     blocked reason is rendered as text.
  *   - Confidential Audit: the internal traceability artifact (original
  *     values, mapping, notes). It is visually and semantically separate,
- *     always marked with CONFIDENTIAL_AUDIT_WARNING_LINE, and stays
- *     available while review is pending (U2 contract) because it is the
- *     internal record, never a deliverable.
+ *     always marked with CONFIDENTIAL_AUDIT_WARNING_LINE, and for a
+ *     single/text job stays available while review is pending (U2 contract)
+ *     because it is the internal record, never a deliverable.
  *
  * Both downloads are client-side only (Blob + object URL + anchor click;
  * the object URL is revoked afterwards): no network, no persistence
  * (D-013). Status is always conveyed as text, never by color alone; all
  * controls are keyboard-operable buttons with visible focus.
+ *
+ * Document-batch jobs (T17 #21 SD-7, output authority corrected by CORR-B):
+ * the accepted specification defines no batch Safe Output format and no
+ * batch-wide Confidential Audit, so BOTH actions stay DISABLED with explicit
+ * typed reasons — review pending, failed items (naming each file and the
+ * matching remedy) or the not-yet-defined batch format, in that order. The
+ * active document's session is never presented as a batch-wide audit.
+ * Single-job behavior is byte-unchanged.
  *
  * Single review authority (D-004): no pending/final-text logic is
  * re-implemented here; the blocked reason reuses the reviewed gate
@@ -36,7 +44,13 @@ import {
   CONFIDENTIAL_AUDIT_WARNING_LINE,
   serializeConfidentialAudit,
 } from "../output/confidential-audit-serializer";
-import { pendingDecisionMessage } from "../privacy-gate/privacyGateModel";
+import {
+  batchConfidentialAuditUnavailableMessage,
+  batchFailedItemsMessage,
+  batchSafeOutputUnavailableMessage,
+  deriveBatchFacts,
+  pendingDecisionMessage,
+} from "../privacy-gate/privacyGateModel";
 
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
@@ -64,23 +78,65 @@ export function downloadTextFile(fileName: string, content: string): void {
 export type ExportStepProps = {
   /** The frozen domain job (carries the derived output availability). */
   readonly job: Job;
-  /** The frozen ReviewSession; the single review authority (D-004). */
-  readonly review: ReviewSession;
+  /**
+   * The frozen ReviewSession; the single review authority (D-004). For a
+   * document-batch job this is the active item's session or `null`; the batch
+   * reason is derived from the Job (T17 #21 SD-7), never from bare presence.
+   */
+  readonly review: ReviewSession | null;
 };
 
 export function ExportStep({ job, review }: ExportStepProps): ReactElement {
+  const isBatch = job.kind === "document-batch";
   const safeOutputReady = job.outputs.safeOutputReady;
-  const pendingCount = getProgress(review).pending;
+  const batchFacts = isBatch ? deriveBatchFacts(job) : null;
+  // Single/text behavior is unchanged: pending count comes from the session.
+  const pendingCount = batchFacts
+    ? batchFacts.pendingCount
+    : review === null
+      ? 0
+      : getProgress(review).pending;
+
+  // A batch Safe Output is never available in the accepted spec (SD-7), so the
+  // action is disabled for every batch regardless of derived readiness.
+  const safeOutputBlocked = isBatch || !safeOutputReady;
+
+  let safeOutputReason: string | null = null;
+  if (batchFacts !== null) {
+    if (!job.review.complete && batchFacts.pendingCount > 0) {
+      // Review-incomplete keeps priority (same order as the domain guard).
+      safeOutputReason = pendingDecisionMessage(batchFacts.pendingCount);
+    } else if (batchFacts.failedCount > 0) {
+      safeOutputReason = batchFailedItemsMessage(batchFacts.items);
+    } else {
+      safeOutputReason = batchSafeOutputUnavailableMessage();
+    }
+  } else if (!safeOutputReady) {
+    safeOutputReason = pendingDecisionMessage(pendingCount);
+  }
+
+  // Batch Confidential Audit authority (CORR-B): no accepted batch-wide audit
+  // exists, so the ACTIVE document's ReviewSession is never presented as one.
+  // Single-document/text behavior is unchanged (the bridge always marks it
+  // ready once a session exists).
+  const confidentialAuditBlocked = isBatch || !job.outputs.confidentialAuditReady;
+  const confidentialAuditReason = isBatch
+    ? batchConfidentialAuditUnavailableMessage()
+    : !job.outputs.confidentialAuditReady
+      ? "Confidential Audit is not available for this job yet."
+      : null;
 
   const handleDownloadSafeOutput = () => {
     // Fail-closed guard (D-009): the disabled button already prevents this,
-    // but the artifact is never built from a pending session.
-    if (!safeOutputReady) return;
+    // but the artifact is never built from a blocked or batch state.
+    if (safeOutputBlocked || review === null) return;
     downloadTextFile(SAFE_OUTPUT_FILE_NAME, serializeSafeOutput(buildSafeOutput(review)));
   };
 
   const handleDownloadConfidentialAudit = () => {
-    // Always available, even while review is pending: internal traceability.
+    // Available while review is pending for a single job (internal
+    // traceability); never built from a blocked batch state (CORR-B).
+    if (confidentialAuditBlocked || review === null) return;
     downloadTextFile(
       CONFIDENTIAL_AUDIT_FILE_NAME,
       serializeConfidentialAudit(buildConfidentialAudit(review))
@@ -108,20 +164,20 @@ export function ExportStep({ job, review }: ExportStepProps): ReactElement {
           The final reviewed text of this session. It contains no original↔replacement mapping, no
           reviewer notes and no original values kept for traceability.
         </p>
-        {!safeOutputReady && (
+        {safeOutputBlocked && safeOutputReason !== null && (
           <p
             role="alert"
             id="safe-output-blocked-reason"
             className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
           >
-            {pendingDecisionMessage(pendingCount)}
+            {safeOutputReason}
           </p>
         )}
         <button
           type="button"
           onClick={handleDownloadSafeOutput}
-          disabled={!safeOutputReady}
-          aria-describedby={safeOutputReady ? undefined : "safe-output-blocked-reason"}
+          disabled={safeOutputBlocked}
+          aria-describedby={safeOutputBlocked ? "safe-output-blocked-reason" : undefined}
           className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
         >
           Download Safe Output (.txt)
@@ -146,10 +202,23 @@ export function ExportStep({ job, review }: ExportStepProps): ReactElement {
           It is an internal traceability record and must never be shared or delivered outside the
           authorized audit trail.
         </p>
+        {confidentialAuditBlocked && confidentialAuditReason !== null && (
+          <p
+            role="status"
+            id="confidential-audit-blocked-reason"
+            className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+          >
+            {confidentialAuditReason}
+          </p>
+        )}
         <button
           type="button"
           onClick={handleDownloadConfidentialAudit}
-          className={`mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+          disabled={confidentialAuditBlocked}
+          aria-describedby={
+            confidentialAuditBlocked ? "confidential-audit-blocked-reason" : undefined
+          }
+          className={`mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
         >
           Download Confidential Audit (.txt)
         </button>

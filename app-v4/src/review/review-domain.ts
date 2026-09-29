@@ -13,6 +13,16 @@
  * bridge (useJobSession), never React-local UI state. Transient selection,
  * filters and drawers stay in the components.
  *
+ * Low-confidence candidates (Work Order T14 #18, WU-B): the session returned
+ * by {@link createSessionFromEngineText} now ALSO carries the engine's
+ * below-threshold candidates as reviewable detections (marked
+ * `lowConfidence: true`, `source: 'engine'`, `requiresReview: true`), appended
+ * after the entity detections. They are adjudicated through the existing
+ * decision vocabulary (`accepted` = treat with the candidate's `proposed`,
+ * `restored` = decline keeping the original span) and, like every other
+ * engine detection, stay pending until explicitly decided. No signature or
+ * export change is needed for this: the T01 adapter maps them.
+ *
  * Privacy: content stays memory-only (D-013); nothing here logs, persists
  * or places sensitive text in URLs.
  */
@@ -31,7 +41,9 @@ import {
   type ReviewSession,
 } from "../../../js/domain/review-session.js";
 import { createRegistryEngine } from "../engine/registry-engine";
-import type { Job, PrivacyPolicyId } from "../domain/job";
+import { classifyProcessingFailure } from "../processing-outcome";
+import type { Job, PrivacyPolicyId, ProcessingFailure } from "../domain/job";
+import type { ProcessingContext } from "../engine/types";
 
 export {
   addManualDetection,
@@ -79,8 +91,10 @@ export type DecisionExtras = {
  * the caller (the Job, via {@link startReviewSession}) decides it, so the
  * session's proposals are always produced under the job's actual policy;
  * known-but-unmapped policies fail typed through the engine instead of
- * silently falling back to `standard`. Main-thread processing is fine at
- * this stage; the Web Worker boundary is a later ticket (T22).
+ * silently falling back to `standard`. T14 #18 WU-B: the returned session
+ * also carries the engine's below-threshold candidates as pending
+ * `lowConfidence` detections (see the module header). Main-thread processing
+ * is fine at this stage; the Web Worker boundary is a later ticket (T22).
  */
 export function createSessionFromEngineText(
   text: string,
@@ -94,19 +108,22 @@ export function createSessionFromEngineText(
 }
 
 /**
- * Whether the job family has a single reviewable source text. Batch jobs
- * need per-document sessions and the shared processing context (D-011) and
- * structured jobs need the classification workspace; both own later tickets
- * and are deliberately NOT improvised here.
+ * Whether the job family has a V4 review workflow. Text and single-document
+ * jobs have one reviewable source text. A document batch is reviewable too, as
+ * PER-DOCUMENT sessions over its items, all threaded through the same explicit
+ * shared processing context (T17 #21 WU-B, D-011) via {@link processBatchItem}.
+ * Structured jobs need the classification workspace (T18/T19) and are
+ * deliberately NOT improvised here.
  */
 export function jobSupportsReview(job: Job): boolean {
-  return job.kind === "text" || job.kind === "document";
+  return job.kind === "text" || job.kind === "document" || job.kind === "document-batch";
 }
 
 /**
  * The single source text a review session is built from: pasted text for
  * text jobs, the extracted text of the one document for document jobs.
- * Returns null for job families whose review arrives with later tickets.
+ * Returns null for a document batch (its text is held per item and it has no
+ * single source text) and for structured jobs.
  */
 export function jobSourceText(job: Job): string | null {
   if (job.source.type === "pasted-text") return job.source.text;
@@ -118,15 +135,17 @@ export function jobSourceText(job: Job): string | null {
 
 /**
  * Start review for a job: run the engine on its source text and build the
- * ReviewSession. Fails closed (typed ReviewSessionError) when the job has
- * no single reviewable source text instead of guessing.
+ * ReviewSession. This is the SINGLE-TEXT entry only — a document batch has no
+ * single source text and is reviewed per document through
+ * {@link processBatchItem} instead. Fails closed (typed ReviewSessionError)
+ * when the job has no single reviewable source text instead of guessing.
  */
 export function startReviewSession(job: Job): ReviewSession {
   const text = jobSourceText(job);
   if (text === null || text.trim().length === 0) {
     throw new ReviewSessionError(
       "INVALID_SOURCE",
-      `Job "${job.name}" (${job.kind}) has no single reviewable source text; its review workflow arrives with a later V4 ticket.`
+      `Job "${job.name}" (${job.kind}) has no single reviewable source text; this entry starts single-text review only. A document batch is reviewed per document via processBatchItem, not as one session.`
     );
   }
   // PR #40 corrective C1: the job's own policy is the policy the engine
@@ -134,4 +153,80 @@ export function startReviewSession(job: Job): ReviewSession {
   // longitudinal-research) fails closed with the typed PolicyError — never
   // a session silently produced under `standard`.
   return createSessionFromEngineText(text, job.policyId);
+}
+
+/**
+ * The concrete process seam of the registry-composed engine
+ * (`../engine/registry-engine`), typed structurally from the factory's return
+ * type so a deterministic oracle can inject a stub without a new engine
+ * contract.
+ */
+type RegistryEngine = ReturnType<typeof createRegistryEngine>;
+
+/**
+ * Result of processing ONE batch item (T17 #21 WU-B): either the per-document
+ * ReviewSession plus the engine's returned context, or a typed
+ * {@link ProcessingFailure}. The context is the exact engine
+ * {@link ProcessingContext} — no new context shape is introduced here.
+ */
+export type BatchItemProcessing =
+  | { readonly ok: true; readonly session: ReviewSession; readonly context: ProcessingContext }
+  | { readonly ok: false; readonly failure: ProcessingFailure };
+
+/**
+ * Process ONE held batch item through the registry-composed engine and map the
+ * result into a per-document ReviewSession (T17 #21 WU-B, SD-4). This is the
+ * batch counterpart of {@link startReviewSession}: batch review is per
+ * document, so there is no single job-level session.
+ *
+ * The item's held `extraction.extractedText` is the ONLY source text accepted;
+ * an item without held text (still `queued`, or an `error` item) is refused
+ * fail-closed as `invalid-source` instead of guessing content. The caller owns
+ * the {@link ProcessingContext}: the first item of a batch runs `mode:
+ * "fresh"`, and every later item runs `mode: "shared"` carrying the previous
+ * outcome's returned context, so cross-document pseudonym consistency is
+ * threaded explicitly (never through monkey-patched globals, D-011).
+ *
+ * This method NEVER throws for a classified failure: any throw from the engine
+ * (typed policy/engine/session failures) is mapped through
+ * {@link classifyProcessingFailure} to `{ ok: false, failure }`, so a batch
+ * loop can record the item outcome and keep processing the remaining items
+ * (SD-4). `engine` is an injection seam for deterministic oracles ONLY;
+ * production callers pass nothing.
+ */
+export function processBatchItem(
+  job: Job,
+  index: number,
+  context: ProcessingContext,
+  engine: RegistryEngine = createRegistryEngine()
+): BatchItemProcessing {
+  try {
+    if (job.kind !== "document-batch" || job.source.type !== "files") {
+      throw new ReviewSessionError(
+        "INVALID_SOURCE",
+        `Job "${job.name}" (${job.kind}) is not a document batch; processBatchItem requires a document-batch job.`
+      );
+    }
+    const extraction = job.source.files[index]?.extraction;
+    if (extraction?.status !== "extracted") {
+      throw new ReviewSessionError(
+        "INVALID_SOURCE",
+        `Batch item ${index} of job "${job.name}" has no held extracted text; read the item before processing it.`
+      );
+    }
+    const outcome = engine.process({
+      text: extraction.extractedText,
+      context,
+      policyId: job.policyId,
+    });
+    // The T01 adapter validates the result shape fail-closed and returns a
+    // frozen session; the ambient declaration keeps the structural type.
+    return {
+      ok: true,
+      session: createReviewSessionFromProcessor(outcome.result) as ReviewSession,
+      context: outcome.context,
+    };
+  } catch (error) {
+    return { ok: false, failure: classifyProcessingFailure(error) };
+  }
 }

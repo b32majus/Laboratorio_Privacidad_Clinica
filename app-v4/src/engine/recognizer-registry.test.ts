@@ -86,10 +86,16 @@ describe("taxonomy coverage oracle — contracts", () => {
       "FECHA",
       "UBICACION",
       "SOSPECHOSO",
+      "EDAD",
     ]);
     for (const category of RECOGNIZER_CATEGORIES) {
       expect(typeof LEGACY_CATEGORY_RECOGNIZER_KEYS[category]).toBe("string");
     }
+  });
+
+  it("requires the first-class EDAD category to be covered by the age recognizer key", () => {
+    expect(RECOGNIZER_CATEGORIES).toContain("EDAD");
+    expect(LEGACY_CATEGORY_RECOGNIZER_KEYS.EDAD).toBe("v4.edad");
   });
 
   it("can disagree: a registry missing one planted category fails the coverage check", () => {

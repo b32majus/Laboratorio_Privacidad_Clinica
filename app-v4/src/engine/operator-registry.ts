@@ -26,20 +26,45 @@
  * transformation, no default operator, and a category/operator mismatch is an
  * explicit typed error instead of a guessed replacement.
  *
+ * The context also carries an OPTIONAL date sub-context (T13 #17 WU-B):
+ * {@link DateOperatorContext} names the explicit {@link DateRole} recognized
+ * for one observation and, when the caller has shift intent, the serialized
+ * {@link DateShiftState}. It is optional precisely so every existing caller
+ * of the operator surface keeps working unchanged; when present it is
+ * validated fail-closed alongside `strictMode`.
+ *
  * Privacy: this module never logs content and is Worker-safe (no
  * window/document access anywhere in its module graph).
  */
 
+import { type DateRole } from "./date-semantics";
+import { type DateShiftState } from "./date-shift";
 import { type RecognizerObservation } from "./recognizer-registry";
+
+/**
+ * Explicit date semantics for one observation (T13 #17 WU-B). The caller
+ * resolves the role from the observation's surrounding clause (see
+ * `./date-operator`'s `classifyObservationDateRole`) and, when it has shift
+ * intent, carries the serialized date-shift state here. Recognition and
+ * policy stay outside this contract: the registry only validates shape.
+ */
+export type DateOperatorContext = {
+  readonly role: DateRole;
+  /** Serialized date-shift state from ProcessingContext.options.dateShift. */
+  readonly shift?: DateShiftState;
+};
 
 /**
  * Explicit transformation context threaded by the caller (the composed
  * engine in WU3; the parity tests). `strictMode` mirrors the legacy
  * `Processor.config.modoEstricto` profile branch of `transformEntity`; it is
  * an explicit input so operators never read mutable global configuration.
+ * `date` is the OPTIONAL T13 #17 date sub-context; its absence preserves the
+ * exact pre-T13 behavior for every existing caller.
  */
 export type OperatorContext = {
   readonly strictMode: boolean;
+  readonly date?: DateOperatorContext;
 };
 
 /** Machine-readable codes carried by {@link OperatorError} (D-009). */
@@ -95,7 +120,24 @@ export function assertOperatorShape(operator: unknown): asserts operator is Oper
   }
 }
 
-/** Validates the explicit operator context (fail-closed; no guessing). */
+/** The only five accepted date roles (mirrors the `DateRole` union). */
+const DATE_ROLE_VALUES: readonly string[] = Object.freeze([
+  "birth",
+  "admission",
+  "discharge",
+  "future-appointment",
+  "unknown",
+]);
+
+/**
+ * Validates the explicit operator context (fail-closed; no guessing).
+ * `strictMode` must be boolean. When the optional `date` sub-context is
+ * present it must be a non-null, non-array object whose `role` is one of the
+ * five accepted {@link DateRole} strings; a present `shift` must be a
+ * non-null, non-array object. Deep date-shift validity is owned by
+ * `./date-shift` when the state is consumed, so this contract stays at the
+ * shape boundary.
+ */
 export function assertOperatorContext(context: unknown): asserts context is OperatorContext {
   if (
     context === null ||
@@ -105,6 +147,32 @@ export function assertOperatorContext(context: unknown): asserts context is Oper
     throw new OperatorError(
       "invalid-operator-context",
       "Operator context must expose a boolean strictMode flag mirroring the legacy modoEstricto profile."
+    );
+  }
+
+  const dateCandidate: unknown = (context as OperatorContext).date;
+  if (dateCandidate === undefined) return;
+  if (dateCandidate === null || typeof dateCandidate !== "object" || Array.isArray(dateCandidate)) {
+    throw new OperatorError(
+      "invalid-operator-context",
+      "Operator context date sub-context must be a non-null, non-array object when present; failing closed instead of guessing."
+    );
+  }
+
+  const role: unknown = (dateCandidate as DateOperatorContext).role;
+  if (typeof role !== "string" || !DATE_ROLE_VALUES.includes(role)) {
+    throw new OperatorError(
+      "invalid-operator-context",
+      "Operator context date sub-context role must be one of the five accepted date roles; failing closed instead of guessing."
+    );
+  }
+
+  const shift: unknown = (dateCandidate as DateOperatorContext).shift;
+  if (shift === undefined) return;
+  if (shift === null || typeof shift !== "object" || Array.isArray(shift)) {
+    throw new OperatorError(
+      "invalid-operator-context",
+      "Operator context date shift state must be a non-null, non-array object when present; failing closed instead of guessing."
     );
   }
 }
@@ -183,15 +251,44 @@ export class OperatorRegistry {
   }
 }
 
-/** Stable registry keys of the legacy-mirroring operators (SPEC §5 names). */
+/**
+ * Stable registry keys of the accepted transformation operators (SPEC §5
+ * names). The first five mirror the legacy `Processor.transformEntity`
+ * branches (WU2a); `AGE_GENERALIZE` is the V4 policy-owned AGE
+ * generalization operator added by T12 WU-B (`./age-operator`);
+ * `DATE_GENERALIZE` and `DATE_SHIFT` are the two V4 date operators added by
+ * T13 #17 WU-B (`./date-operator`). None of the last three is a legacy
+ * branch.
+ *
+ * Policy reachability is NOT uniform: `AGE_GENERALIZE` is selected by the
+ * accepted standard/strict policy mapping (GitHub #16), while
+ * `DATE_GENERALIZE` and `DATE_SHIFT` land as accepted operator capabilities
+ * that NO accepted policy mapping references yet — T13 keeps `FECHA →
+ * legacy.date-transform`, and `external-ai`/`longitudinal-research` remain
+ * fail-closed. A later accepted policy can select the two date keys without
+ * touching this contract.
+ */
 export const LEGACY_OPERATOR_KEYS: Readonly<
-  Record<"REDACT" | "PSEUDONYMIZE" | "DATE_TRANSFORM" | "GENERALIZE" | "KEEP", string>
+  Record<
+    | "REDACT"
+    | "PSEUDONYMIZE"
+    | "DATE_TRANSFORM"
+    | "GENERALIZE"
+    | "KEEP"
+    | "AGE_GENERALIZE"
+    | "DATE_GENERALIZE"
+    | "DATE_SHIFT",
+    string
+  >
 > = Object.freeze({
   REDACT: "legacy.redact",
   PSEUDONYMIZE: "legacy.pseudonymize",
   DATE_TRANSFORM: "legacy.date-transform",
   GENERALIZE: "legacy.generalize",
   KEEP: "legacy.keep",
+  AGE_GENERALIZE: "v4.age-generalize",
+  DATE_GENERALIZE: "v4.date-generalize",
+  DATE_SHIFT: "v4.date-shift",
 });
 
 /**

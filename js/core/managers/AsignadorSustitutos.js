@@ -9,6 +9,7 @@ export const AsignadorSustitutos = {
     familiaresMap: new Map(),
     contadorProfesionales: 0,
     contadorFamiliares: 0,
+    contadorPacientes: 0,
 
     /**
      * Resetea todos los mapas para una nueva sesión
@@ -19,12 +20,17 @@ export const AsignadorSustitutos = {
         this.familiaresMap.clear();
         this.contadorProfesionales = 0;
         this.contadorFamiliares = 0;
+        this.contadorPacientes = 0;
     },
 
     /**
-     * Obtiene sustituto para PACIENTES: "Paciente Hombre" o "Paciente Mujer"
+     * Obtiene sustituto para PACIENTES: "Paciente 1", "Paciente 2"...
+     * El valor es un índice estable y distinto por identidad dentro del
+     * contexto de procesamiento; no depende del género.
      * @param {string} nombreOriginal - Nombre del paciente
-     * @param {string|null} genero - 'M' o 'F', o null para autodetectar
+     * @param {string|null} genero - Argumento heredado ('M' o 'F', o null).
+     *   Se conserva por compatibilidad de llamadas legacy, pero se ignora
+     *   deliberadamente: el valor generado no depende del género (SPEC §12).
      * @returns {string} - Pseudónimo asignado
      */
     obtenerSustituto(nombreOriginal, genero = null) {
@@ -35,8 +41,8 @@ export const AsignadorSustitutos = {
             return this.mapaAsignaciones.get(key);
         }
 
-        const generoDetectado = genero || this.detectarGenero(nombreOriginal);
-        const sustituto = generoDetectado === 'F' ? 'Paciente Mujer' : 'Paciente Hombre';
+        this.contadorPacientes++;
+        const sustituto = `Paciente ${this.contadorPacientes}`;
 
         this.mapaAsignaciones.set(key, sustituto);
         return sustituto;
@@ -179,7 +185,9 @@ export const AsignadorSustitutos = {
     },
 
     /**
-     * Detecta el género basándose en el nombre
+     * Detecta el género basándose en el nombre.
+     * Ya NO se consulta al generar reemplazos de privacidad: la generación de
+     * pseudónimos de paciente no depende del género (SPEC §12).
      * @param {string} nombre - Nombre a analizar
      * @returns {string} - 'M' o 'F'
      */

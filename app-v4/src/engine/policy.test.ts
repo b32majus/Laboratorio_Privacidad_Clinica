@@ -27,13 +27,14 @@ import { RECOGNIZER_CATEGORIES } from "./recognizer-registry";
  * content is used anywhere.
  */
 
-/** The accepted legacy category→operator mapping (js/core/processor.js). */
+/** The accepted category→operator mapping (legacy transformEntity + T12 AGE). */
 const EXPECTED_LEGACY_MAPPING = Object.freeze({
   NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
   IDENTIFICADOR: LEGACY_OPERATOR_KEYS.REDACT,
   FECHA: LEGACY_OPERATOR_KEYS.DATE_TRANSFORM,
   UBICACION: LEGACY_OPERATOR_KEYS.GENERALIZE,
   SOSPECHOSO: LEGACY_OPERATOR_KEYS.GENERALIZE,
+  EDAD: LEGACY_OPERATOR_KEYS.AGE_GENERALIZE,
 });
 
 /** Captures a typed {@link PolicyError} or fails the test with a clear reason. */
@@ -92,6 +93,18 @@ describe("lookupPolicyProfile — accepted legacy-mirroring profiles", () => {
     expect(standard.strictMode).toBe(false);
     expect(strict.strictMode).toBe(true);
     expect(strict.categoryOperatorKeys).toEqual(standard.categoryOperatorKeys);
+  });
+
+  it("maps EDAD to the age-generalization operator identically for standard and strict (T12 #16)", () => {
+    for (const policyId of ["standard", "strict"] as const) {
+      const profile = lookupPolicyProfile(policyId);
+      const keys = profile.categoryOperatorKeys as Readonly<Record<string, string | undefined>>;
+      expect(keys.EDAD).toBe(LEGACY_OPERATOR_KEYS.AGE_GENERALIZE);
+      expect(keys.EDAD).toBe("v4.age-generalize");
+    }
+    expect(lookupPolicyProfile("standard").categoryOperatorKeys.EDAD).toBe(
+      lookupPolicyProfile("strict").categoryOperatorKeys.EDAD
+    );
   });
 
   it("maps every taxonomy category through operator keys registered in the legacy operator registry", () => {
@@ -177,6 +190,20 @@ describe("policy profile consistency checker — planted violations (protocol §
     const planted = mutableClone(lookupPolicyProfile("standard"));
     const mapping = planted.categoryOperatorKeys as Record<string, string>;
     delete mapping.FECHA;
+    expectPolicyError(() => assertPolicyProfileConsistent(planted), "inconsistent-policy-profile");
+  });
+
+  it("detects a planted mapping that drops the EDAD category", () => {
+    const planted = mutableClone(lookupPolicyProfile("standard"));
+    const mapping = planted.categoryOperatorKeys as Record<string, string>;
+    delete mapping.EDAD;
+    expectPolicyError(() => assertPolicyProfileConsistent(planted), "inconsistent-policy-profile");
+  });
+
+  it("detects a planted mapping that redirects EDAD to the wrong operator", () => {
+    const planted = mutableClone(lookupPolicyProfile("standard"));
+    const mapping = planted.categoryOperatorKeys as Record<string, string>;
+    mapping.EDAD = LEGACY_OPERATOR_KEYS.KEEP;
     expectPolicyError(() => assertPolicyProfileConsistent(planted), "inconsistent-policy-profile");
   });
 

@@ -3,14 +3,28 @@
  *
  * Everything derives factually from the frozen ReviewSession (the only
  * review authority, D-004) and the frozen Job; nothing is mutated. Only
- * what the session/job actually carries is derived: low-confidence queues
- * (T14) and batch/structured surfaces (T17/T18) own their own later
- * extensions and are deliberately NOT improvised here.
+ * what the session/job actually carries is derived: the low-confidence
+ * candidate queue facts (T14 #18) come from the review authority's own
+ * `getProgress` view (the marked detections and the pending list), so this
+ * model re-derives nothing about session semantics.
+ *
+ * Batch facts (T17 #21 SD-9): for a `document-batch` job the per-item list,
+ * its statuses and its failures are read from the JOB through the domain item
+ * helpers (`batchItemStatus`/`batchFailedItems`) — the Job is the single
+ * authority for batch state, never the active review session, which may be
+ * absent. Structured surfaces (T18) still own their own later extensions and
+ * are deliberately NOT improvised here.
  *
  * D-006: this model never produces a privacy score, a safe percentage, an
  * anonymity claim or certification wording — factual state only.
  */
-import type { Job } from "../domain/job";
+import {
+  batchFailureRemedy,
+  batchFailedItems,
+  batchItemStatus,
+  type BatchItemStatus,
+  type Job,
+} from "../domain/job";
 import {
   type ReviewSession,
   canFinalize,
@@ -22,6 +36,32 @@ import {
 export type PrivacyGateWarning = {
   readonly code: string;
   readonly message: string;
+};
+
+/**
+ * One factual document-batch item (T17 #21 SD-9). `errorMessage` is present
+ * exactly when the item failed; the item stays visible either way.
+ */
+export type PrivacyGateBatchItem = {
+  readonly index: number;
+  readonly name: string;
+  readonly status: BatchItemStatus;
+  /** The item's typed failure message; present exactly when `status` is `error`. */
+  readonly errorMessage?: string;
+  /** The item's typed failure code; present exactly when `status` is `error`. */
+  readonly errorCode?: string;
+};
+
+/**
+ * Factual aggregate of a document batch's per-item state (T17 #21 SD-9).
+ * `pendingCount` counts non-error items whose review is not yet `completed`;
+ * failed items are counted separately and never hidden.
+ */
+export type PrivacyGateBatchFacts = {
+  readonly items: readonly PrivacyGateBatchItem[];
+  readonly pendingCount: number;
+  readonly completedCount: number;
+  readonly failedCount: number;
 };
 
 /** The complete factual Privacy Gate view, derived in one pure pass. */
@@ -45,12 +85,25 @@ export type PrivacyGateView = {
   readonly manualDetections: number;
   /** Restored originals — each one also yields a kept-original warning. */
   readonly restoredCount: number;
+  /**
+   * Low-confidence candidate facts (T14 #18): the total number of detections
+   * marked `lowConfidence === true` in the session, and how many of those are
+   * still pending (mandatory decisions not yet recorded). Derived only from
+   * the review authority's `getProgress` view; factual counts, never a score.
+   */
+  readonly lowConfidenceCount: number;
+  readonly lowConfidencePendingCount: number;
   readonly warnings: readonly PrivacyGateWarning[];
   /** Job errors surfaced factually, exactly as the job carries them. */
   readonly errors: readonly Job["errors"][number][];
   /** Output availability facts as written by the state bridge (D-005). */
   readonly safeOutputReady: boolean;
   readonly confidentialAuditReady: boolean;
+  /**
+   * Batch item facts; `null` for single-document and text jobs, whose
+   * existing fields keep their byte-unchanged semantics (T17 #21 SD-9).
+   */
+  readonly batch: PrivacyGateBatchFacts | null;
 };
 
 /**
@@ -64,10 +117,111 @@ export function pendingDecisionMessage(count: number): string {
 }
 
 /**
+ * Factual, fail-closed batch failure copy (T17 #21 SD-9, remedy copy corrected
+ * by CORR-B): every failed file is named with its own typed item error and a
+ * remedy that matches the failure semantics (see {@link batchFailureRemedy}).
+ * No safety/anonymity claim, no hidden failure, and no instruction to remove a
+ * healthy document that is merely blocked by the current policy.
+ */
+export function batchFailedItemsMessage(items: readonly PrivacyGateBatchItem[]): string {
+  const failed = items.filter((item) => item.status === "error");
+  const detail = failed
+    .map((item) => `"${item.name}"${item.errorMessage ? ` — ${item.errorMessage}` : ""}`)
+    .join("; ");
+  const subject =
+    failed.length === 1 ? "a batch item failed" : `${failed.length} batch items failed`;
+  const remedy = batchFailureRemedy(
+    failed.map((item) => item.errorCode).filter((code): code is string => code !== undefined)
+  );
+  return `Safe export is blocked because ${subject}: ${detail}. ${remedy}`;
+}
+
+/**
+ * Explicit typed reason for the batch Safe Output unavailability (T17 #21
+ * SD-7). The accepted specification defines no batch Safe Output format, so
+ * the action stays disabled with this factual reason instead of inventing one.
+ */
+export function batchSafeOutputUnavailableMessage(): string {
+  return (
+    "Safe Output is not available for a document batch yet: the accepted " +
+    "specification does not define a batch Safe Output format."
+  );
+}
+
+/**
+ * Explicit typed reason for the batch Confidential Audit unavailability
+ * (T17 #21 CORR-B). No accepted batch-wide Confidential Audit/export semantics
+ * exist, so the ACTIVE document's ReviewSession is never presented as if it
+ * were a batch-wide audit.
+ */
+export function batchConfidentialAuditUnavailableMessage(): string {
+  return (
+    "Confidential Audit is not available for a document batch yet: the accepted " +
+    "specification does not define a batch-wide Confidential Audit, and a single " +
+    "document's review is not a batch-wide audit."
+  );
+}
+
+/**
+ * Derive the factual batch item facts from the JOB (T17 #21 SD-9). The domain
+ * helpers are the single authority: `batchItemStatus` names each item's state
+ * and `batchFailedItems` (fail-closed) supplies the failure details.
+ */
+export function deriveBatchFacts(job: Job): PrivacyGateBatchFacts {
+  if (job.kind !== "document-batch" || job.source.type !== "files") {
+    throw new Error(
+      `deriveBatchFacts requires a document-batch job; job "${job.id}" is kind "${job.kind}".`
+    );
+  }
+  const errorByIndex = new Map(
+    batchFailedItems(job).map((item) => [item.index, item.error] as const)
+  );
+  const items = job.source.files.map((file, index) => {
+    const status = batchItemStatus(job, index);
+    const error = errorByIndex.get(index);
+    return Object.freeze({
+      index,
+      name: file.name,
+      status,
+      ...(error === undefined ? {} : { errorMessage: error.message, errorCode: error.code }),
+    });
+  });
+  return Object.freeze({
+    items: Object.freeze(items),
+    pendingCount: items.filter((item) => item.status !== "error" && item.status !== "completed")
+      .length,
+    completedCount: items.filter((item) => item.status === "completed").length,
+    failedCount: errorByIndex.size,
+  });
+}
+
+/**
  * Derive the Privacy Gate view from the job + review session. Frozen result;
  * the session and job are never mutated.
+ *
+ * Signature/order unchanged (T17 #21 SD-9): for a `document-batch` job,
+ * `review` is the active item's session or `null`; the batch facts come from
+ * the Job, so the model never breaks when it is null. Single-document and text
+ * jobs keep the exact previous derivation.
  */
-export function derivePrivacyGateView(job: Job, review: ReviewSession): PrivacyGateView {
+export function derivePrivacyGateView(
+  job: Job,
+  review: ReviewSession | null,
+  batchSessions: readonly ReviewSession[] = []
+): PrivacyGateView {
+  if (job.kind === "document-batch") {
+    return deriveBatchView(job, review, batchSessions);
+  }
+  if (review === null) {
+    throw new Error(
+      `derivePrivacyGateView requires a review session for job "${job.id}" of kind "${job.kind}".`
+    );
+  }
+  return deriveSingleView(job, review);
+}
+
+/** Single-document and text derivation; byte-unchanged semantics (SD-9). */
+function deriveSingleView(job: Job, review: ReviewSession): PrivacyGateView {
   const progress = getProgress(review);
   const pending = getPendingDetections(review);
   const complete = canFinalize(review);
@@ -91,9 +245,107 @@ export function derivePrivacyGateView(job: Job, review: ReviewSession): PrivacyG
     reviewedModified: progress.modified,
     manualDetections: progress.manual,
     restoredCount: progress.restored,
+    lowConfidenceCount: progress.lowConfidence,
+    lowConfidencePendingCount: pending.filter((detection) => detection.lowConfidence === true)
+      .length,
     warnings,
     errors: job.errors,
     safeOutputReady: job.outputs.safeOutputReady,
     confidentialAuditReady: job.outputs.confidentialAuditReady,
+    batch: null,
+  });
+}
+
+/** Aggregate neutral review facts over EVERY available batch session. */
+type BatchSessionFacts = {
+  readonly accepted: number;
+  readonly modified: number;
+  readonly manual: number;
+  readonly restored: number;
+  readonly lowConfidence: number;
+  readonly lowConfidencePending: number;
+  readonly warnings: readonly PrivacyGateWarning[];
+};
+
+/**
+ * Aggregate the neutral per-detection facts of all available batch sessions
+ * (T17 #21 CORR-B). A batch has one ReviewSession per document, so batch-wide
+ * facts — in particular the restored-original warnings — must come from the
+ * COMPLETE set, never from the currently selected document alone. The active
+ * document is navigation state, not batch-wide privacy authority.
+ */
+function aggregateBatchSessions(sessions: readonly ReviewSession[]): BatchSessionFacts {
+  let accepted = 0;
+  let modified = 0;
+  let manual = 0;
+  let restored = 0;
+  let lowConfidence = 0;
+  let lowConfidencePending = 0;
+  const warnings: PrivacyGateWarning[] = [];
+  for (const session of sessions) {
+    const progress = getProgress(session);
+    accepted += progress.accepted;
+    modified += progress.modified;
+    manual += progress.manual;
+    restored += progress.restored;
+    lowConfidence += progress.lowConfidence;
+    for (const detection of progress.restoredDetections) {
+      warnings.push(
+        Object.freeze({
+          code: "kept-original",
+          message: `Kept original — ${detection.type}: the original text was deliberately kept by reviewer decision (restored).`,
+        })
+      );
+    }
+    for (const detection of getPendingDetections(session)) {
+      if (detection.lowConfidence === true) lowConfidencePending += 1;
+    }
+  }
+  return {
+    accepted,
+    modified,
+    manual,
+    restored,
+    lowConfidence,
+    lowConfidencePending,
+    warnings: Object.freeze(warnings),
+  };
+}
+
+/**
+ * Document-batch derivation (T17 #21 SD-9, corrected by CORR-B): readiness
+ * comes from the Job's derived `review.complete`; the batch item facts come
+ * from the Job's items. The review facts (counts + restored-original warnings)
+ * are aggregated over EVERY available per-document ReviewSession, never the
+ * ACTIVE one alone: the selected document is navigation state, not batch-wide
+ * privacy authority, so a restored decision in a non-active document stays
+ * visible (CORR-B). Export unavailability itself is ExportStep's concern.
+ */
+function deriveBatchView(
+  job: Job,
+  review: ReviewSession | null,
+  batchSessions: readonly ReviewSession[]
+): PrivacyGateView {
+  const batch = deriveBatchFacts(job);
+  // Prefer the complete set; fall back to the active session for callers that
+  // only hold one (keeps the model usable without inventing session state).
+  const sessions = batchSessions.length > 0 ? batchSessions : review === null ? [] : [review];
+  const aggregate = aggregateBatchSessions(sessions);
+
+  return Object.freeze({
+    policyId: job.policyId,
+    complete: job.review.complete,
+    pendingCount: batch.pendingCount,
+    reviewedAccepted: aggregate.accepted,
+    reviewedModified: aggregate.modified,
+    manualDetections: aggregate.manual,
+    restoredCount: aggregate.restored,
+    lowConfidenceCount: aggregate.lowConfidence,
+    lowConfidencePendingCount: aggregate.lowConfidencePending,
+    warnings: aggregate.warnings,
+    errors: job.errors,
+    safeOutputReady: job.outputs.safeOutputReady,
+    confidentialAuditReady: job.outputs.confidentialAuditReady,
+    batch,
   });
 }

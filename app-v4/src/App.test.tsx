@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { readFileSync } from "node:fs";
@@ -111,16 +111,31 @@ describe("App shell", () => {
     expect(screen.getByLabelText("Paste text")).toHaveValue("");
   });
 
-  it("creates a structured job from CSV file metadata", () => {
+  it("creates a structured job and classifies its columns in the Configure workspace (T20 #24)", async () => {
     render(<App />);
-    const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
+    const csvFile = new File(
+      [
+        "NHC,Nombre,Diagnostico,CampoLibre",
+        "00123,Ana,Gripe A,rotación de sala",
+        "00456,Luis,Fractura,seguimiento",
+      ],
+      "labs.csv",
+      { type: "text/csv" }
+    );
     fireEvent.change(screen.getByLabelText(/select files/i), {
       target: { files: [csvFile] },
     });
-    expect(screen.getByText("labs.csv")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     expect(screen.getByText("labs.csv")).toBeInTheDocument();
     expect(screen.getByText("Structured job")).toBeInTheDocument();
+
+    // The parsed canonical configuration arrives asynchronously.
+    fireEvent.click(stepButton(2, "Configure"));
+    const list = await screen.findByRole("list", { name: /column classification list/i });
+    expect(list).toHaveTextContent("NHC");
+    expect(list).toHaveTextContent("CampoLibre");
+    const facts = screen.getByRole("status", { name: /structured configuration facts/i });
+    expect(facts).toHaveTextContent("Structured export ready: No");
   });
 
   it("surfaces the typed domain error instead of guessing a job kind", () => {
@@ -467,6 +482,26 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     // No stale session was installed.
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
   });
+
+  it("a failed processing attempt stays on the current step and never exposes a review workspace (T15 #19)", () => {
+    render(<App />);
+    createTextJob();
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "external-ai" },
+    });
+    fireEvent.click(stepButton(2, "Configure"));
+    expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
+
+    fireEvent.click(stepButton(3, "Review"));
+
+    // The typed failure is surfaced and the app does NOT navigate: the Review
+    // workspace never appears and the export gate stays fail-closed.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
+    expect(stepButton(5, "Export")).toBeDisabled();
+  });
 });
 
 describe("App document intake (T06)", () => {
@@ -527,7 +562,10 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([fixtureFile("sample-scanned.pdf")]);
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
-    const alert = await screen.findByRole("alert");
+    // Real pdf.js extraction under parallel vitest workers can exceed the
+    // default 1s poll budget on a loaded machine; the oracle disagrees on
+    // alert CONTENT, not on millisecond latency.
+    const alert = await screen.findByRole("alert", {}, { timeout: 10_000 });
     expect(alert).toHaveTextContent(/no extractable text|no text layer/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
@@ -537,9 +575,13 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.pdf")]);
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    // Same pdf.js latency budget as the scan-like-PDF oracle above.
+    await waitFor(
+      () => {
+        expect(screen.getByText("Document job")).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
     expect(screen.getByText("sample-clinical-note.pdf")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -732,5 +774,398 @@ describe("App export step (T08 U4)", () => {
     } finally {
       captured.restore();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T17 #21 WU-C2: two-phase batch intake, batch review navigation, gate/export
+// wiring. Synthetic fixtures only; the pdf oracles' 10s budgets are untouched.
+// ---------------------------------------------------------------------------
+describe("App document batch (T17 #21 WU-C2)", () => {
+  const BATCH_NOTE_A =
+    "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López. Contacto: 612345678.";
+  const BATCH_NOTE_B =
+    "Paciente: Roberto Díaz\nRevisado por la Dra. Elena Vidal. Contacto: 654321987.";
+
+  /** Select files, create the job and wait until every read has settled. */
+  async function createBatchAndSettle(files: File[]) {
+    selectFiles(files);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    // The Create control is disabled while reads are in flight; it becomes
+    // enabled again exactly when the read phase settled (isExtracting false).
+    await waitFor(
+      () => {
+        expect(screen.getByRole("button", { name: "Create job" })).toBeEnabled();
+      },
+      { timeout: 10_000 }
+    );
+    expect(screen.getByText("Document batch")).toBeInTheDocument();
+  }
+
+  /** Complete the ACTIVE document's mandatory decisions via restored. */
+  function completeActiveDocument() {
+    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    for (;;) {
+      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
+      if (!first) break;
+      fireEvent.click(first);
+      fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+    }
+  }
+
+  function documentSelector(): HTMLElement {
+    return screen.getByRole("region", { name: "Batch documents" });
+  }
+
+  it("creates a batch with one failed document: the failure stays visible on input and blocks gate/export", async () => {
+    render(<App />);
+    // One good synthetic TXT + one forced-failure DOCX fixture → a batch, NOT
+    // an all-or-nothing refusal (BATCH-001).
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "historia-buena.txt"),
+      fixtureFile("corrupt.docx"),
+    ]);
+
+    // The failed item is surfaced IMMEDIATELY on the input step (name + message).
+    const failedList = screen.getByRole("list", { name: "Failed documents" });
+    expect(within(failedList).getByText("corrupt.docx")).toBeInTheDocument();
+    expect(failedList).toHaveTextContent(/could not be parsed/i);
+
+    // Enter review: the good item is reviewable; the failed item is listed but
+    // not selectable and keeps its message.
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(
+      () => {
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
+    const selector = documentSelector();
+    expect(selector).toHaveTextContent("historia-buena.txt");
+    expect(selector).toHaveTextContent(/historia-buena\.txt — Review required/);
+    expect(selector).toHaveTextContent(/corrupt\.docx — Error/);
+    expect(selector).toHaveTextContent(/could not be parsed/i);
+    // The failed item exposes no review button (no session exists).
+    expect(within(selector).queryByRole("button", { name: /corrupt\.docx/ })).toBeNull();
+
+    // Privacy Gate lists both items with their statuses and blocks, naming the
+    // failed file with its message.
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+    const batchList = screen.getByRole("list", { name: "Batch item status" });
+    expect(within(batchList).getByText("historia-buena.txt")).toBeInTheDocument();
+    expect(within(batchList).getByText("corrupt.docx")).toBeInTheDocument();
+    expect(batchList).toHaveTextContent(/historia-buena\.txt: Review required/);
+    expect(batchList).toHaveTextContent(/corrupt\.docx: Error/);
+    expect(batchList).toHaveTextContent(/could not be parsed/i);
+
+    const failedAlert = screen
+      .getAllByRole("alert")
+      .find((alert) => /corrupt\.docx/.test(alert.textContent ?? ""));
+    expect(failedAlert).toBeDefined();
+    expect(failedAlert).toHaveTextContent(/could not be parsed/i);
+
+    // Safe Export stays disabled (review incomplete and a failed item).
+    expect(stepButton(5, "Export")).toBeDisabled();
+  });
+
+  it("selecting and navigating between documents never marks one reviewed (FUNC-002, SD-5)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+
+    // The active document is A: complete its mandatory decisions.
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+
+    // Select B: only the viewed document changes; A keeps its completion.
+    const docB = within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ });
+    fireEvent.click(docB);
+    expect(docB).toHaveAttribute("aria-current", "true");
+    const progress = screen.getByRole("status", { name: /review progress/i });
+    const pendingB = Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
+    expect(pendingB).toBeGreaterThan(0);
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+
+    // Navigate away and back: nothing was auto-accepted or flipped.
+    fireEvent.click(stepButton(1, "Input"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    const progressAfter = screen.getByRole("status", { name: /review progress/i });
+    expect(progressAfter.textContent?.match(/Pending: (\d+)/)?.[1]).toBe(String(pendingB));
+    // B's review controls are present and untouched: nothing was auto-accepted.
+    const detectionButtons = within(
+      screen.getByRole("list", { name: "Detections" })
+    ).queryAllByRole("button");
+    expect(detectionButtons.length).toBeGreaterThan(0);
+  });
+
+  it("does not start processing while a read is in flight and starts once reads settle", async () => {
+    render(<App />);
+    let resolveText!: (value: string) => void;
+    const deferred = new Promise<string>((resolve) => {
+      resolveText = resolve;
+    });
+    // A File-like whose read only resolves when the oracle says so.
+    const slowFile = { name: "doc-a.txt", text: () => deferred } as unknown as File;
+
+    selectFiles([slowFile, new File([BATCH_NOTE_B], "doc-b.txt")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
+    expect(screen.getByRole("status")).toHaveTextContent(/reading documents… 0 of 2 read/i);
+
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    // Reads have NOT settled: no processing and a factual reading state.
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Reading/);
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/still being read/i)).toBeInTheDocument();
+
+    // Settle the read: the one-shot batch attempt starts automatically.
+    await act(async () => {
+      resolveText(BATCH_NOTE_A);
+    });
+    await waitFor(
+      () => {
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+  });
+
+  it("discards a read outcome whose job was cleared while the read was in flight (SD-11)", async () => {
+    render(<App />);
+    let resolveText!: (value: string) => void;
+    const deferred = new Promise<string>((resolve) => {
+      resolveText = resolve;
+    });
+    const slowFile = { name: "doc-a.txt", text: () => deferred } as unknown as File;
+    selectFiles([slowFile, new File([BATCH_NOTE_B], "doc-b.txt")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
+
+    // Clear the session mid-read: the job is gone before the read resolves.
+    fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveText(BATCH_NOTE_A);
+    });
+    await waitFor(() => expect(screen.queryByText(/reading documents/i)).not.toBeInTheDocument());
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.queryByText("Document batch")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("never renders Premium framing anywhere in the V4 batch flow (UX-004)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+    expect(document.body.textContent ?? "").not.toMatch(/premium|activar/i);
+  });
+
+  it("keeps the batch read text across a real policy change so a failed attempt can be remedied (T17 #21 WU-C3)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+
+    // Remedy loop, step 1: switch to a known-but-unmapped policy. The read
+    // text is policy-INDEPENDENT, so the items stay queued WITH their text.
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "external-ai" },
+    });
+
+    // Entering review runs the attempt: every item fails closed with the
+    // classified policy-unsupported failure, surfaced on the documents list.
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() => {
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Error/);
+    });
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Error/);
+    expect(documentSelector()).toHaveTextContent(/no accepted per-category operator mapping/i);
+    // No item is reviewable while every read item is a policy failure.
+    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+
+    // Remedy loop, step 2: return to a supported policy. The reset items stay
+    // queued WITH their held text, so re-entering review processes them
+    // successfully instead of dead-ending on invalid-source.
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "standard" },
+    });
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() => {
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+    });
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+  });
+
+  it("keeps a non-active document's restored-original warning visible at the Privacy Gate (T17 #21 CORR-B)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+
+    // Complete doc A with restored ("Keep original") decisions.
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+
+    // Switch the ACTIVE document to B; doc A's restored decisions still exist.
+    fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
+
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    const warnings = screen.getByRole("list", { name: /kept-original warnings/i });
+    expect(warnings).toHaveTextContent("kept-original");
+    expect(warnings).toHaveTextContent(
+      "the original text was deliberately kept by reviewer decision (restored)"
+    );
+    // B (the active document) is still pending; the warning came from A.
+    expect(screen.getByRole("alert")).toHaveTextContent(/mandatory review decision/i);
+  });
+
+  it("keeps a completed error-free batch's output surfaces unavailable at gate and export (T17 #21 CORR-B)", async () => {
+    render(<App />);
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "doc-a.txt"),
+      new File([BATCH_NOTE_B], "doc-b.txt"),
+    ]);
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.click(stepButton(3, "Review"));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+    );
+
+    // Complete BOTH documents → batch review complete, zero error items.
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
+    fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
+    completeActiveDocument();
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completed/));
+
+    // Privacy Gate: review is complete, yet both batch outputs are unavailable.
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Safe Output is not available for a document batch yet/)
+    ).toBeInTheDocument();
+
+    // Export reports the SAME fact: both actions disabled with explicit reasons.
+    fireEvent.click(stepButton(5, "Export"));
+    expect(screen.getByRole("button", { name: "Download Safe Output (.txt)" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Download Confidential Audit (.txt)" })
+    ).toBeDisabled();
+  });
+});
+
+describe("App structured Configure workspace (T20 #24)", () => {
+  const CSV = [
+    "NHC,Fecha_Nac,Diagnostico,CampoLibre",
+    "00123,1990-05-01,Gripe A,rotación de sala",
+    "00456,1985-11-23,Fractura,seguimiento",
+  ].join("\n");
+
+  function createStructuredJob(csv: string) {
+    render(<App />);
+    const csvFile = new File([csv], "labs.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText(/select files/i), { target: { files: [csvFile] } });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(stepButton(2, "Configure"));
+  }
+
+  it("shows the five-class classification, unknown review and the single patient-ID authority", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    expect(screen.getByLabelText("Reviewer classification for NHC")).toHaveValue("identifier");
+    expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
+      "quasi-identifier"
+    );
+    expect(screen.getByLabelText("Reviewer classification for Diagnostico")).toHaveValue(
+      "sensitive"
+    );
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
+    expect(screen.getAllByRole("region", { name: /patient id authority/i })).toHaveLength(1);
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+  });
+
+  it("resolves the unknown review gate only through an explicit override", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    // Unknown is not KEEP and keeps the gate closed until the human decides.
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "insensitive" },
+    });
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: Yes");
+  });
+
+  it("refuses a multi-file structured selection fail-closed", async () => {
+    render(<App />);
+    const first = new File(["a,b\n1,2"], "one.csv", { type: "text/csv" });
+    const second = new File(["c,d\n3,4"], "two.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText(/select files/i), {
+      target: { files: [first, second] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/one table at a time/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("keeps structured classification state when navigating away and back", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "sensitive" },
+    });
+    fireEvent.click(stepButton(1, "Input"));
+    fireEvent.click(stepButton(2, "Configure"));
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
+      "sensitive"
+    );
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: Yes");
   });
 });

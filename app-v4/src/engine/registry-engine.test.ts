@@ -1,14 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitutos.js";
+import { FechasManager } from "../../../js/core/managers/FechasManager.js";
 import { Processor } from "../../../js/core/processor.js";
 import { createReviewSessionFromProcessor } from "../../../js/domain/from-processor.js";
+import { classifyObservationDateRole, DateOperatorError } from "./date-operator";
+import { createDateShiftState } from "./date-shift";
 import { createLegacyEngine } from "./legacy-engine";
+import { createLegacyOperatorRegistry } from "./legacy-operators";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
 import { createRegistryEngine, SessionIdError } from "./registry-engine";
-import { OperatorRegistry, OperatorError } from "./operator-registry";
+import {
+  type Operator,
+  type OperatorContext,
+  OperatorRegistry,
+  OperatorError,
+} from "./operator-registry";
 import { PolicyError } from "./policy";
-import { RecognizerError, RecognizerRegistry } from "./recognizer-registry";
+import {
+  type RecognizerObservation,
+  RecognizerError,
+  RecognizerRegistry,
+} from "./recognizer-registry";
 import type { LegacyEntity, LegacyProcessorResult, ProcessingContext } from "./types";
 
 /**
@@ -77,12 +90,18 @@ function comparableEntity(entity: LegacyEntity) {
 }
 
 function comparableResult(result: LegacyProcessorResult) {
+  // The composed engine adds the V4-only `edades` counter (T12 WU-B); the
+  // legacy `Processor.calculateStats` contract has no EDAD category. Strip it
+  // from the legacy parity projection (a dedicated EDAD oracle proves the
+  // V4 addition below) so the legacy key set stays bit-comparable.
+  const legacyByType: Record<string, number> = { ...result.stats.byType };
+  delete legacyByType.edades;
   return {
     original: result.original,
     processed: result.processed,
     entities: result.entities.map(comparableEntity),
     alerts: result.alerts,
-    stats: result.stats,
+    stats: { totalEntities: result.stats.totalEntities, byType: legacyByType },
   };
 }
 
@@ -140,10 +159,57 @@ describe("createRegistryEngine — legacy parity oracle (fresh mode vs createLeg
     const outcome = engine.process({ text: PARITY_TEXTS[0], context: FRESH });
     const session = createReviewSessionFromProcessor(outcome.result) as {
       originalText: string;
-      detections: unknown[];
+      detections: readonly {
+        readonly type: string;
+        readonly start: number;
+        readonly end: number;
+        readonly original: string;
+        readonly lowConfidence?: boolean;
+      }[];
     };
     expect(session.originalText).toBe(PARITY_TEXTS[0]);
-    expect(session.detections).toHaveLength(outcome.result.entities.length);
+    // T14 #18 WU-B: the adapter includes the engine's below-threshold
+    // candidates as one detection each, marked `lowConfidence: true`.
+    const candidates = outcome.result.candidates ?? [];
+    expect(session.detections).toHaveLength(outcome.result.entities.length + candidates.length);
+    const lowConfidence = session.detections.filter(
+      (detection) => detection.lowConfidence === true
+    );
+    expect(lowConfidence).toHaveLength(candidates.length);
+    for (const candidate of candidates) {
+      expect(lowConfidence).toContainEqual(
+        expect.objectContaining({
+          type: candidate.type,
+          start: candidate.position.start,
+          end: candidate.position.end,
+          original: candidate.original ?? candidate.text,
+        })
+      );
+    }
+
+    // Non-vacuous companion: a fixture that genuinely produces a candidate
+    // proves the adapter really appends it with `lowConfidence: true`.
+    const candidateText = "La paciente acudió ayer. Fisioterapeuta Nélida Otxoa realizó la sesión.";
+    const candidateOutcome = engine.process({ text: candidateText, context: FRESH });
+    const producedCandidates = candidateOutcome.result.candidates ?? [];
+    expect(producedCandidates.length).toBeGreaterThan(0);
+    const candidateSession = createReviewSessionFromProcessor(candidateOutcome.result) as {
+      detections: readonly { readonly lowConfidence?: boolean; readonly original: string }[];
+    };
+    const marked = candidateSession.detections.filter(
+      (detection) => detection.lowConfidence === true
+    );
+    expect(marked).toHaveLength(producedCandidates.length);
+    for (const candidate of producedCandidates) {
+      expect(marked).toContainEqual(
+        expect.objectContaining({
+          type: candidate.type,
+          start: candidate.position.start,
+          end: candidate.position.end,
+          original: candidate.original ?? candidate.text,
+        })
+      );
+    }
   });
 });
 
@@ -170,10 +236,10 @@ describe("createRegistryEngine — context semantics (ported legacy oracles)", (
     });
 
     // Patient "Carmen Sánchez" keeps the same pseudonym in both documents.
-    const patientA = outcomeA.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    const patientB = outcomeB.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    expect(patientA).toBeTruthy();
-    expect(patientB).toBe(patientA);
+    const patientA = outcomeA.result.processed.match(/Paciente \d+/)?.[0];
+    const patientB = outcomeB.result.processed.match(/Paciente \d+/)?.[0];
+    expect(patientA).toBe("Paciente 1");
+    expect(patientB).toBe("Paciente 1");
 
     // The returning professional keeps pseudonym 1; the new one gets 2.
     expect(outcomeA.result.processed).toContain("Profesional Sanitario 1");
@@ -379,11 +445,12 @@ describe("createRegistryEngine — input immutability and frozen outputs", () =>
     const context: ProcessingContext = {
       mode: "shared",
       pseudonymState: {
-        asignaciones: [["carmen sánchez", "Paciente Mujer"]],
+        asignaciones: [["carmen sánchez", "Paciente 1"]],
         profesionales: [],
         familiares: [],
         contadorProfesionales: 5,
         contadorFamiliares: 0,
+        contadorPacientes: 1,
       },
     };
     const snapshot = JSON.parse(JSON.stringify(context)) as ProcessingContext;
@@ -491,6 +558,7 @@ describe("createRegistryEngine — fail-closed typed errors (same rules as the l
         familiares: [],
         contadorProfesionales: -1,
         contadorFamiliares: 0,
+        contadorPacientes: 0,
       },
     } as ProcessingContext;
     expect(() => engine.process({ text: DOC_A, context: badCounter })).toThrowError(Error);
@@ -630,5 +698,233 @@ describe("createRegistryEngine — session identity (PR #40 corrective C3)", () 
     } finally {
       if (original) Object.defineProperty(globalThis, "crypto", original);
     }
+  });
+});
+
+describe("createRegistryEngine — EDAD generalization end-to-end (T12 WU-B)", () => {
+  const AGE_TEXT = "La paciente refiere dolor abdominal; se registra una edad de 45 años.";
+
+  it("transforms EDAD through the policy mapping in processed text (standard and strict)", () => {
+    const engine = createEngine();
+    for (const policyId of ["standard", "strict"] as const) {
+      const outcome = engine.process({ text: AGE_TEXT, context: FRESH, policyId });
+      const edad = outcome.result.entities.find((entity) => entity.type === "EDAD");
+      expect(edad).toBeDefined();
+      expect(edad?.subtype).toBe("anios");
+      expect(edad?.text).toBe("45 años");
+      expect(edad?.transformed).toBe("40–49 años");
+      // The exact source value leaks into neither the transformed field nor
+      // the generated processed text (WU-C owns the Safe Output no-leak proof).
+      expect(edad?.transformed).not.toContain("45");
+      expect(outcome.result.processed).toContain("40–49 años");
+      expect(outcome.result.processed).not.toContain("45 años");
+      // Offsets unchanged: the band replaces exactly the recognized span.
+      const start = edad?.position.start ?? -1;
+      const end = edad?.position.end ?? -1;
+      expect(AGE_TEXT.slice(start, end)).toBe("45 años");
+      expect(outcome.result.processed.slice(start, start + "40–49 años".length)).toBe("40–49 años");
+    }
+  });
+
+  it("counts EDAD entities in stats.byType.edades (V4 contract addition)", () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: AGE_TEXT, context: FRESH });
+    expect(outcome.result.stats.byType.edades).toBe(1);
+  });
+
+  it('bands a pediatric EDAD to "<1 año" end-to-end and counts it', () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: "Lactante de 6 semanas en control.", context: FRESH });
+    const edad = outcome.result.entities.find((entity) => entity.type === "EDAD");
+    expect(edad?.transformed).toBe("<1 año");
+    expect(outcome.result.processed).toContain("<1 año");
+    expect(outcome.result.stats.byType.edades).toBe(1);
+  });
+
+  it("keeps preprocessFechas a no-op for EDAD (no visit is registered)", () => {
+    FechasManager.reset();
+    const engine = createEngine();
+    engine.process({ text: AGE_TEXT, context: FRESH });
+    expect(FechasManager.visitasMap.size).toBe(0);
+  });
+
+  it("keeps external-ai/longitudinal-research fail-closed (no AGE mapping cloned)", () => {
+    const engine = createEngine();
+    for (const policyId of ["external-ai", "longitudinal-research"] as const) {
+      try {
+        engine.process({ text: AGE_TEXT, context: FRESH, policyId });
+        throw new Error("expected engine.process to throw");
+      } catch (error) {
+        expect(error).toBeInstanceOf(PolicyError);
+        expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+      }
+    }
+  });
+});
+
+describe("createRegistryEngine — role-aware date preparation end-to-end (T13 #17 WU-B)", () => {
+  /**
+   * Acceptance fixture: a labelled birth date followed (same line, separate
+   * clause) by an unlabelled visit date. The birth role is explicit, the
+   * second date has no non-visit cue and therefore keeps the accepted visit
+   * semantics.
+   */
+  const ACCEPTANCE_TEXT = "Fecha de nacimiento: 12/03/1954. Segunda visita: 02/06/2024.";
+
+  it("redacts the explicit birth date and keeps exactly one chronological visit (standard and strict)", () => {
+    for (const policyId of ["standard", "strict"] as const) {
+      FechasManager.reset();
+      const engine = createEngine();
+      const outcome = engine.process({ text: ACCEPTANCE_TEXT, context: FRESH, policyId });
+
+      const fechas = outcome.result.entities.filter((entity) => entity.type === "FECHA");
+      expect(fechas).toHaveLength(2);
+
+      const birth = fechas.find((entity) => entity.text === "12/03/1954");
+      const visit = fechas.find((entity) => entity.text === "02/06/2024");
+      expect(birth?.transformed).toBe("");
+      expect(visit?.transformed).toMatch(/^Visita \d/);
+
+      // The source birth date leaks into neither the transformed field nor
+      // the generated processed text; the visit label does.
+      expect(outcome.result.processed).not.toContain("12/03/1954");
+      expect(outcome.result.processed).toContain(visit?.transformed as string);
+
+      // The birth date never entered the chronological Visit-N chronology.
+      expect(FechasManager.visitasMap.size).toBe(1);
+      expect(FechasManager.visitasMap.has("12/03/1954")).toBe(false);
+    }
+  });
+
+  it("windowing guard: no parity fixture date claims an explicit non-visit role", () => {
+    // Planted-regression guard: if clause+cap windowing ever widens enough to
+    // pull a cue from an unrelated clause, a legacy parity date would be
+    // classified non-visit and break the accepted parity below.
+    const recognizer = createLegacyRecognizerRegistry().get(LEGACY_RECOGNIZER_KEY);
+    for (const text of PARITY_TEXTS) {
+      for (const observation of recognizer.observe(text)) {
+        if (observation.type !== "FECHA") continue;
+        expect(classifyObservationDateRole(text, observation.start, observation.end)).toBe(
+          "unknown"
+        );
+      }
+    }
+  });
+
+  it("parity re-proof: no FECHA entity in the parity fixtures is redacted", () => {
+    const engine = createEngine();
+    let fechaCount = 0;
+    for (const text of PARITY_TEXTS) {
+      const outcome = engine.process({ text, context: FRESH });
+      for (const entity of outcome.result.entities) {
+        if (entity.type !== "FECHA") continue;
+        fechaCount += 1;
+        expect(entity.transformed).not.toBe("");
+      }
+    }
+    expect(fechaCount).toBeGreaterThan(0);
+  });
+
+  /** One operator invocation captured by the recording registry. */
+  type RecordedContext = {
+    readonly type: string;
+    readonly text: string;
+    readonly context: OperatorContext;
+  };
+
+  /**
+   * Registry that mirrors every default operator key, records the exact
+   * {@link OperatorContext} for each invocation and delegates to the real
+   * operator. It proves what the composed engine actually threads without
+   * touching the operator implementations.
+   */
+  function createRecordingRegistry(records: RecordedContext[]): OperatorRegistry {
+    const real = createLegacyOperatorRegistry();
+    const registry = new OperatorRegistry();
+    for (const key of real.keys()) {
+      const delegate: Operator = real.get(key);
+      registry.register({
+        key,
+        apply(observation: RecognizerObservation, context: OperatorContext): string {
+          records.push({ type: observation.type, text: observation.text, context });
+          return delegate.apply(observation, context);
+        },
+      });
+    }
+    return registry;
+  }
+
+  it("threads a 'unknown' role (no cue) and the explicit acceptance roles to the operators", () => {
+    const records: RecordedContext[] = [];
+    const engine = createRegistryEngine({ operatorRegistry: createRecordingRegistry(records) });
+
+    engine.process({ text: "Revisión el 12/03/2024.", context: FRESH });
+    const cueFree = records.find((record) => record.type === "FECHA");
+    expect(cueFree?.context.date?.role).toBe("unknown");
+
+    records.length = 0;
+    engine.process({ text: ACCEPTANCE_TEXT, context: FRESH });
+    const roleByText = new Map(
+      records
+        .filter((record) => record.type === "FECHA")
+        .map((record) => [record.text, record.context.date?.role])
+    );
+    expect(roleByText.get("12/03/1954")).toBe("birth");
+    expect(roleByText.get("02/06/2024")).toBe("unknown");
+  });
+
+  it("threads options.dateShift into the date sub-context and leaves non-FECHA context date-free", () => {
+    const records: RecordedContext[] = [];
+    const engine = createRegistryEngine({ operatorRegistry: createRecordingRegistry(records) });
+    const shiftState = createDateShiftState("seed-x");
+
+    engine.process({
+      text: "Nombre: Carmen Sánchez\nFecha de nacimiento: 12/03/1954.",
+      context: { mode: "fresh", options: { dateShift: shiftState } },
+    });
+
+    const fechas = records.filter((record) => record.type === "FECHA");
+    expect(fechas.length).toBeGreaterThan(0);
+    for (const record of fechas) {
+      expect(record.context.date?.shift).toEqual(shiftState);
+    }
+
+    const nombres = records.filter((record) => record.type === "NOMBRE");
+    expect(nombres.length).toBeGreaterThan(0);
+    for (const record of nombres) {
+      expect(record.context.date).toBeUndefined();
+    }
+  });
+
+  it("threads no shift when options are absent", () => {
+    const records: RecordedContext[] = [];
+    const engine = createRegistryEngine({ operatorRegistry: createRecordingRegistry(records) });
+
+    engine.process({ text: ACCEPTANCE_TEXT, context: FRESH });
+
+    const fechas = records.filter((record) => record.type === "FECHA");
+    expect(fechas.length).toBeGreaterThan(0);
+    for (const record of fechas) {
+      expect(record.context.date?.shift).toBeUndefined();
+    }
+  });
+
+  it("fails closed on a malformed options.dateShift before mutating any manager", () => {
+    FechasManager.reset();
+    const engine = createEngine();
+    const malformedContext: ProcessingContext = {
+      mode: "fresh",
+      options: { dateShift: { seed: "", contextOffsetDays: 1, overrides: [] } },
+    };
+    try {
+      engine.process({ text: ACCEPTANCE_TEXT, context: malformedContext });
+      throw new Error("expected engine.process to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DateOperatorError);
+      expect((error as DateOperatorError).code).toBe("invalid-date-shift-state");
+    }
+    // The fail-closed validation runs BEFORE the legacy manager resets, so
+    // the singletons are left exactly as the caller prepared them.
+    expect(FechasManager.visitasMap.size).toBe(0);
   });
 });

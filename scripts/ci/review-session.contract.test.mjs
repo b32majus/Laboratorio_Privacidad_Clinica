@@ -21,6 +21,7 @@ import {
 } from '../../js/domain/review-session.js';
 import {
   createReviewSessionFromProcessor,
+  candidateDetectionsFromProcessorResult,
   detectionsFromProcessorResult,
 } from '../../js/domain/from-processor.js';
 
@@ -788,5 +789,206 @@ describe('getEffectiveStatus (ARCH-011 coherence, T11 #15 WU4)', () => {
     getEffectiveStatus(session, session.detections[0].id);
     getEffectiveStatus(session, session.detections[1].id);
     assert.equal(JSON.stringify(session), snapshot);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 13. Low-confidence candidate queue (Work Order T14 #18, WU-B)
+//
+// A Processor result may carry explicit below-threshold candidates. They
+// become NORMAL ReviewSession detections marked `lowConfidence: true`, always
+// `requiresReview: true` (fail-closed), adjudicated with the EXISTING decision
+// vocabulary (`accepted` = treat, `restored` = decline). The pre-T14
+// `fixtureResult` above has no `candidates`, so the entity-only semantics stay
+// proven unchanged; this section uses its own candidate-bearing fixture.
+// ---------------------------------------------------------------------------
+
+describe('low-confidence candidates (T14 #18, WU-B)', () => {
+  const CANDIDATE_SOURCE =
+    'Paciente Ana Lopez. Fisioterapeuta Nélida Otxoa realizó la sesión. NHC 2024/089756.';
+
+  const candidateSpan = (needle) => {
+    const start = CANDIDATE_SOURCE.indexOf(needle);
+    assert.notEqual(start, -1, `candidate fixture offset missing for: ${needle}`);
+    return { start, end: start + needle.length };
+  };
+
+  const candidateResult = {
+    original: CANDIDATE_SOURCE,
+    processed: CANDIDATE_SOURCE,
+    entities: [
+      {
+        type: 'NOMBRE', subtype: 'paciente', text: 'Ana Lopez', original: 'Ana Lopez',
+        position: candidateSpan('Ana Lopez'), confidence: 0.9, transformed: 'PACIENTE_1',
+      },
+      {
+        type: 'IDENTIFICADOR', subtype: 'NHC', text: '2024/089756', original: '2024/089756',
+        position: candidateSpan('2024/089756'), confidence: 0.99, transformed: 'NHC_1',
+      },
+    ],
+    alerts: [],
+    stats: { total: 2 },
+    sessionId: 'sess-candidate-0002',
+    processingTime: 7,
+    candidates: [
+      {
+        type: 'NOMBRE', subtype: 'profesional', text: 'Fisioterapeuta Nélida Otxoa realizó',
+        original: 'Fisioterapeuta Nélida Otxoa realizó',
+        position: candidateSpan('Fisioterapeuta Nélida Otxoa realizó'),
+        confidence: 0.45, reason: 'REVISION_MANUAL', proposed: 'Profesional Sanitario 1',
+      },
+    ],
+  };
+
+  const ENTITIES_ACCEPTED_CANDIDATE_TREATED =
+    'Paciente PACIENTE_1. Profesional Sanitario 1 la sesión. NHC NHC_1.';
+  const ENTITIES_ACCEPTED_CANDIDATE_RESTORED =
+    'Paciente PACIENTE_1. Fisioterapeuta Nélida Otxoa realizó la sesión. NHC NHC_1.';
+
+  test('a result carrying candidates yields marked, fail-closed, source-derived detections', () => {
+    const session = createReviewSessionFromProcessor(candidateResult);
+    assert.equal(session.detections.length, 3);
+    const candidate = session.detections[2];
+    assert.equal(candidate.lowConfidence, true);
+    assert.equal(candidate.requiresReview, true);
+    assert.equal(candidate.source, 'engine');
+    assert.equal(candidate.original, 'Fisioterapeuta Nélida Otxoa realizó');
+    // `original` is re-derived from the immutable source, never trusted from
+    // the candidate metadata.
+    assert.equal(candidate.original, CANDIDATE_SOURCE.slice(candidate.start, candidate.end));
+    assert.equal(candidate.proposed, 'Profesional Sanitario 1');
+    assert.equal(candidate.reason, 'REVISION_MANUAL');
+    // Pending and blocking finalization exactly like every engine detection.
+    assert.equal(getDecision(session, candidate.id).status, 'pending');
+    assert.equal(canFinalize(session), false);
+    assert.equal(getPendingDetections(session).length, 3);
+    // Entity detections are not marked.
+    for (const entity of session.detections.slice(0, 2)) {
+      assert.equal(entity.lowConfidence, undefined);
+    }
+  });
+
+  test('the mapper marks only candidates and treats an absent candidates field as the empty set', () => {
+    const detections = candidateDetectionsFromProcessorResult(candidateResult);
+    assert.equal(detections.length, 1);
+    assert.equal(detections[0].lowConfidence, true);
+    assert.equal(detections[0].requiresReview, true);
+    assert.equal(detections[0].source, 'engine');
+    assert.equal(detections[0].proposed, 'Profesional Sanitario 1');
+    assert.equal(detections[0].reason, 'REVISION_MANUAL');
+    // Absent candidates = explicit empty set (pre-V4 legacy result shape).
+    assert.deepEqual(candidateDetectionsFromProcessorResult({ entities: [] }), []);
+  });
+
+  test('accepted treats the candidate (proposed) and restored declines (exact original span)', () => {
+    const treated = acceptAll(createReviewSessionFromProcessor(candidateResult));
+    assert.equal(canFinalize(treated), true);
+    assert.equal(getFinalText(treated), ENTITIES_ACCEPTED_CANDIDATE_TREATED);
+
+    let declined = createReviewSessionFromProcessor(candidateResult);
+    declined = applyDecision(declined, declined.detections[0].id, 'accepted');
+    declined = applyDecision(declined, declined.detections[1].id, 'accepted');
+    declined = applyDecision(declined, declined.detections[2].id, 'restored');
+    assert.equal(canFinalize(declined), true);
+    assert.equal(getFinalText(declined), ENTITIES_ACCEPTED_CANDIDATE_RESTORED);
+  });
+
+  test('getProgress counts and lists only the marked detections, in detection order', () => {
+    const session = createReviewSessionFromProcessor(candidateResult);
+    const progress = getProgress(session);
+    assert.equal(progress.lowConfidence, 1);
+    assert.equal(Object.isFrozen(progress.lowConfidenceDetections), true);
+    assert.deepEqual(
+      progress.lowConfidenceDetections.map((d) => d.id),
+      [session.detections[2].id],
+    );
+
+    const entityOnly = createReviewSessionFromProcessor(candidateResult, {
+      includeCandidates: false,
+    });
+    assert.equal(getProgress(entityOnly).lowConfidence, 0);
+    assert.deepEqual(getProgress(entityOnly).lowConfidenceDetections, []);
+  });
+
+  test('fail-closed: malformed candidates and non-boolean markers throw typed errors', () => {
+    assert.throws(() => candidateDetectionsFromProcessorResult(null), TypeError);
+    assert.throws(() => candidateDetectionsFromProcessorResult({ candidates: 'nope' }), TypeError);
+    assert.throws(() => candidateDetectionsFromProcessorResult({ candidates: [null] }), TypeError);
+    assert.throws(
+      () => candidateDetectionsFromProcessorResult({ candidates: [{ type: 'X' }] }),
+      TypeError,
+    );
+    assert.throws(
+      () =>
+        candidateDetectionsFromProcessorResult({
+          candidates: [
+            { type: 'X', position: { start: '0', end: 1 }, proposed: 'p', confidence: 0.4, reason: 'r' },
+          ],
+        }),
+      TypeError,
+    );
+    assert.throws(
+      () => createReviewSession({
+        originalText: 'ABCDE',
+        detections: [{ type: 'X', start: 0, end: 2, lowConfidence: 'yes' }],
+      }),
+      (error) => error instanceof ReviewSessionError && error.code === 'INVALID_DETECTION',
+    );
+    // Detached candidate metadata is rejected at the mapper boundary instead of
+    // becoming detection metadata: a non-finite confidence is not a fact the
+    // engine can produce, and a non-string subtype is not in the contract.
+    assert.throws(
+      () =>
+        candidateDetectionsFromProcessorResult({
+          candidates: [
+            { type: 'X', position: { start: 0, end: 1 }, proposed: 'p', confidence: NaN, reason: 'r' },
+          ],
+        }),
+      TypeError,
+    );
+    assert.throws(
+      () =>
+        candidateDetectionsFromProcessorResult({
+          candidates: [
+            {
+              type: 'X',
+              subtype: 42,
+              position: { start: 0, end: 1 },
+              proposed: 'p',
+              confidence: 0.4,
+              reason: 'r',
+            },
+          ],
+        }),
+      TypeError,
+    );
+    // The default composed path (candidates included) also fails closed.
+    assert.throws(
+      () =>
+        createReviewSessionFromProcessor({
+          original: 'ABCDE',
+          sessionId: 'bad-candidate',
+          entities: [],
+          candidates: [{ type: 'X' }],
+        }),
+      TypeError,
+    );
+  });
+
+  test('includeCandidates: false reproduces the entity-only session with the same entity ids', () => {
+    const withCandidates = createReviewSessionFromProcessor(candidateResult);
+    const entityOnly = createReviewSessionFromProcessor(candidateResult, {
+      includeCandidates: false,
+    });
+    assert.equal(entityOnly.sessionId, withCandidates.sessionId);
+    assert.equal(
+      withCandidates.detections.length,
+      entityOnly.detections.length + candidateResult.candidates.length,
+    );
+    // Appending candidates never renumbers the entity detection ids.
+    assert.deepEqual(
+      withCandidates.detections.slice(0, entityOnly.detections.length).map((d) => d.id),
+      entityOnly.detections.map((d) => d.id),
+    );
   });
 });

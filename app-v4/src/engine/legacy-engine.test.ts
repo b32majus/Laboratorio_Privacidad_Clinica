@@ -4,7 +4,8 @@ import { AsignadorSustitutos } from "../../../js/core/managers/AsignadorSustitut
 import { Processor } from "../../../js/core/processor.js";
 import { createReviewSessionFromProcessor } from "../../../js/domain/from-processor.js";
 import { PrivacyProcessor } from "../../../js/modular-processor.js";
-import { createLegacyEngine } from "./legacy-engine";
+import { assertValidText, createLegacyEngine } from "./legacy-engine";
+import { MAX_SUPPORTED_TEXT_LENGTH, oversizeInputFor } from "./input-limits";
 import {
   EngineError,
   type LegacyProcessorResult,
@@ -142,10 +143,10 @@ describe("createLegacyEngine — context semantics", () => {
     });
 
     // Patient "Carmen Sánchez" keeps the same pseudonym in both documents.
-    const patientA = outcomeA.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    const patientB = outcomeB.result.processed.match(/Paciente (Hombre|Mujer)/)?.[0];
-    expect(patientA).toBeTruthy();
-    expect(patientB).toBe(patientA);
+    const patientA = outcomeA.result.processed.match(/Paciente \d+/)?.[0];
+    const patientB = outcomeB.result.processed.match(/Paciente \d+/)?.[0];
+    expect(patientA).toBe("Paciente 1");
+    expect(patientB).toBe("Paciente 1");
 
     // The returning professional keeps pseudonym 1; the new one gets 2.
     expect(outcomeA.result.processed).toContain("Profesional Sanitario 1");
@@ -361,11 +362,12 @@ describe("createLegacyEngine — input immutability", () => {
     const context: ProcessingContext = Object.freeze({
       mode: "shared",
       pseudonymState: {
-        asignaciones: [["carmen sánchez", "Paciente Mujer"]] as const,
+        asignaciones: [["carmen sánchez", "Paciente 1"]] as const,
         profesionales: [] as const,
         familiares: [] as const,
         contadorProfesionales: 5,
         contadorFamiliares: 0,
+        contadorPacientes: 1,
       } satisfies PseudonymState,
     });
     const snapshot = JSON.parse(JSON.stringify(context)) as ProcessingContext;
@@ -387,6 +389,7 @@ describe("createLegacyEngine — input immutability", () => {
         familiares: [],
         contadorProfesionales: 1,
         contadorFamiliares: 0,
+        contadorPacientes: 0,
       },
     };
     const outcome = engine.process({ text: DOC_B, context });
@@ -420,13 +423,23 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
 
   it("rejects oversized input instead of silently truncating (D-009)", () => {
     const engine = createEngine();
-    const oversized = "x".repeat(1_000_001);
+    const oversized = "x".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
     try {
       engine.process({ text: oversized, context: FRESH });
       throw new Error("expected engine.process to throw");
     } catch (error) {
       expect((error as EngineError).code).toBe("input-too-large");
+      // The adapter consumes the shared authority: same code and byte-equal
+      // actionable message as the input-limits contract.
+      expect((error as EngineError).message).toBe(oversizeInputFor(oversized)!.message);
     }
+  });
+
+  it("accepts text exactly at the supported boundary through the exported guard", () => {
+    // Call the exported guard directly: running the full legacy engine over a
+    // 1,000,000-character input would be pointlessly slow. Exact-boundary
+    // semantics are pinned by the shared contract oracle (input-limits.test).
+    expect(() => assertValidText("x".repeat(MAX_SUPPORTED_TEXT_LENGTH))).not.toThrow();
   });
 
   it("rejects unknown modes with a typed code", () => {
@@ -488,6 +501,7 @@ describe("createLegacyEngine — fail-closed typed errors", () => {
         familiares: [],
         contadorProfesionales: -1,
         contadorFamiliares: 0,
+        contadorPacientes: 0,
       },
     } as ProcessingContext;
     expect(() => engine.process({ text: DOC_A, context: badCounter })).toThrowError(EngineError);

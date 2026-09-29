@@ -28,6 +28,7 @@ declare module "*/core/managers/AsignadorSustitutos.js" {
     familiaresMap: Map<string, string>;
     contadorProfesionales: number;
     contadorFamiliares: number;
+    contadorPacientes: number;
     reset(): void;
     obtenerSustituto(nombreOriginal: string, genero?: string | null): string;
     obtenerSustitutoProfesional(nombreOriginal: string): string;
@@ -57,6 +58,7 @@ declare module "*/modular-processor.js" {
 
 declare module "*/domain/from-processor.js" {
   export function detectionsFromProcessorResult(result: unknown, options?: unknown): unknown[];
+  export function candidateDetectionsFromProcessorResult(result: unknown): unknown[];
   export function createReviewSessionFromProcessor(result: unknown, options?: unknown): unknown;
 }
 
@@ -72,6 +74,15 @@ interface V4ReviewDetectionInput {
   note?: string;
   source?: "engine" | "manual";
   requiresReview?: boolean;
+  /**
+   * Below-threshold candidate marker (T14 #18, WU-B). Present and `true` only
+   * for engine candidates; the WU-B adapter always pairs it with
+   * `requiresReview: true`, which is what makes an undecided candidate block
+   * export. The domain validates only the boolean type here (a raw
+   * `createReviewSession` caller could still pair the marker with
+   * `requiresReview: false`), so omit it for every non-candidate detection.
+   */
+  lowConfidence?: boolean;
 }
 
 /** Normalized, frozen detection record owned by a ReviewSession (T01 contract). */
@@ -110,8 +121,12 @@ interface V4ReviewProgress {
   readonly modified: number;
   readonly restored: number;
   readonly manual: number;
+  /** Count of detections marked `lowConfidence === true` (T14 #18, WU-B). */
+  readonly lowConfidence: number;
   readonly pendingDetections: readonly V4ReviewDetection[];
   readonly restoredDetections: readonly V4ReviewDetection[];
+  /** The marked detections, in detection order (T14 #18, WU-B). */
+  readonly lowConfidenceDetections: readonly V4ReviewDetection[];
   readonly canFinalize: boolean;
 }
 
