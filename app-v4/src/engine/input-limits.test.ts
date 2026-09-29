@@ -5,6 +5,7 @@ import {
   MAX_SUPPORTED_TEXT_LENGTH,
   OVERSIZE_INPUT_CODE,
   oversizeInputFor,
+  oversizeInputForLength,
 } from "./input-limits";
 
 /**
@@ -79,5 +80,29 @@ describe("supported input size — payload safety with teeth", () => {
     expect(serialized).not.toContain("Paciente");
     expect(serialized).not.toContain("sintetico");
     expect(serialized).not.toContain("600000000");
+  });
+});
+
+describe("supported input size — length-based authority form (STRUCT-012)", () => {
+  it("agrees exactly with the string form at and around the boundary", () => {
+    expect(oversizeInputForLength(MAX)).toBeNull();
+    expect(oversizeInputForLength(0)).toBeNull();
+    const facts = oversizeInputForLength(MAX + 1)!;
+    expect(facts.code).toBe(OVERSIZE_INPUT_CODE);
+    expect(facts.measuredLength).toBe(MAX + 1);
+    expect(facts.supportedLength).toBe(MAX);
+    expect(facts.excessLength).toBe(1);
+    // Exact parity with the string form for the same measured length:
+    const viaString = oversizeInputFor("x".repeat(MAX + 1))!;
+    expect(facts).toEqual(viaString);
+    expect(facts.message).toBe(viaString.message);
+  });
+
+  it("reports exact facts for a large measured overshoot without holding the text", () => {
+    const measured = MAX * 3;
+    const facts = oversizeInputForLength(measured)!;
+    expect(facts.measuredLength).toBe(measured);
+    expect(facts.excessLength).toBe(MAX * 2);
+    expect(facts).toEqual(oversizeInputFor("x".repeat(measured))!);
   });
 });

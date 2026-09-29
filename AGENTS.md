@@ -116,7 +116,7 @@ Use the current Atenea native production protocol, not historical GP2.7/GP3.x or
 For a new train/session:
 - reconcile current Git/GitHub/product authority first;
 - start from a clean isolated worktree and a fresh `pi` session; do not resume stale Pi state;
-- consume the current qualified Atenea runtime/profile (currently `native-balanced`) after conformance preflight; do not pin reviewer routing in this repo;
+- consume the current Atenea authority (CURRENT) after conformance preflight; do not pin reviewer routing in this repo; implementation uses the `production-volume` profile by default and `complex` only with a material trigger; review is independent of the implementation profile and uses the single assurance profile; a technical reviewer failure is a typed failure that means HUMAN STOP (no automatic recovery, no permits, no alternate-model fallback, no second attempt); review routing is per-process only — never mutate global OpenCode configuration;
 - let native Gentle own ODD/exploration, decomposition, workers, verification, work-unit commits, RDD/risk/review timing, correction lifecycle and acknowledgement/burn;
 - keep `max_concurrency=1` at the external ticket/frontier level for this project;
 - after each accepted work unit/ticket, rediscover blockers/frontier from durable GitHub authority;

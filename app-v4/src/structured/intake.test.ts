@@ -5,6 +5,7 @@ import * as vm from "node:vm";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { SourceFileLike } from "../input/extracted-source";
+import { MAX_SUPPORTED_TEXT_LENGTH, oversizeInputFor } from "../engine/input-limits";
 import { readStructuredFile, readStructuredSheet } from "./intake";
 import { resetXlsxLoaderForTests, type XlsxCell, type XlsxLib } from "./xlsx-loader";
 
@@ -80,6 +81,21 @@ function buildWorkbookBytes(): ArrayBuffer {
   return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 }
 
+/** XLSX cells are capped at 32767 characters; distribute large text across rows. */
+const XLSX_CELL_MAX = 32767;
+
+function stringRowsTotaling(targetLength: number): string[][] {
+  if (targetLength < 0) throw new Error("Negative target length.");
+  const rows: string[][] = [];
+  let remaining = targetLength;
+  while (remaining > XLSX_CELL_MAX) {
+    rows.push(["a".repeat(XLSX_CELL_MAX)]);
+    remaining -= XLSX_CELL_MAX;
+  }
+  rows.push(["a".repeat(remaining)]);
+  return rows;
+}
+
 describe("readStructuredFile — CSV through the consolidated parser", () => {
   it("parses a CSV file into a normalized grid", async () => {
     const outcome = await readStructuredFile(
@@ -150,5 +166,87 @@ describe("readStructuredFile — workbook sheet selection (SPEC §9)", () => {
     if (outcome.status !== "failed") return;
     expect(outcome.code).toBe("sheet-not-found");
     expect(outcome.message).toContain("Portada");
+  });
+});
+
+describe("readStructuredFile/readStructuredSheet — supported-size authority (STRUCT-012, issue #43 A1)", () => {
+  const MAX = MAX_SUPPORTED_TEXT_LENGTH;
+
+  it("refuses an oversize CSV before parsing, with the shared typed failure and the common message verbatim", async () => {
+    // Planted over-limit fixture: a valid, parseable CSV whose decoded text is
+    // above the common supported-size authority. The current implementation
+    // parses it fully; the correction must refuse it with code
+    // `input-too-large` and the exact shared actionability message — never a
+    // truncated or apparently-successful grid.
+    const text = `col\n${"a".repeat(MAX)}`;
+    expect(text.length).toBe(MAX + 4);
+    const outcome = await readStructuredFile(textFile("big.csv", text));
+    expect(outcome.status).toBe("failed");
+    if (outcome.status !== "failed") return;
+    expect(outcome.code).toBe("input-too-large");
+    expect(outcome.message).toBe(oversizeInputFor(text)!.message);
+  });
+
+  it("still parses a CSV exactly at the supported boundary", async () => {
+    const text = `col\n${"a".repeat(MAX - 4)}`;
+    expect(text.length).toBe(MAX);
+    const outcome = await readStructuredFile(textFile("boundary.csv", text));
+    expect(outcome.status).toBe("parsed");
+  });
+
+  it("refuses an oversize workbook sheet over the accepted grid representation", async () => {
+    window.XLSX = XLSX;
+    // Planted over-limit fixture: one sheet whose cell text totals one code
+    // unit above the limit (headers + cells are the accepted structured
+    // representation). Header "col" (3) + cells (MAX - 2) = MAX + 1. Cell
+    // text is spread across rows because XLSX caps one cell at 32767 chars.
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([["col"], ...stringRowsTotaling(MAX - 2)]),
+      "DatosClinicos"
+    );
+    const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const outcome = await readStructuredSheet(bytesFile("big.xlsx", bytes), "DatosClinicos");
+    expect(outcome.status).toBe("failed");
+    if (outcome.status !== "failed") return;
+    expect(outcome.code).toBe("input-too-large");
+    // The shared message template, built from the same authority for the
+    // measured grid text length (headers + cells):
+    expect(outcome.message).toBe(oversizeInputFor("x".repeat(MAX + 1))!.message);
+  });
+
+  it("refuses an oversize sheet selected through the sheet-required path", async () => {
+    window.XLSX = XLSX;
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["x"], ["1"]]), "Portada");
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([["col"], ...stringRowsTotaling(MAX)]),
+      "DatosClinicos"
+    );
+    const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const file = bytesFile("big.xlsx", bytes);
+    const first = await readStructuredFile(file);
+    expect(first.status).toBe("sheet-required");
+    const second = await readStructuredSheet(file, "DatosClinicos");
+    expect(second.status).toBe("failed");
+    if (second.status !== "failed") return;
+    expect(second.code).toBe("input-too-large");
+  });
+
+  it("still parses a workbook whose grid text is exactly at the supported boundary", async () => {
+    window.XLSX = XLSX;
+    // Boundary: header "col" (3) + string cells (MAX - 4) + numeric cell
+    // rendered as "1" (1) = MAX code units exactly.
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([["col"], ...stringRowsTotaling(MAX - 4), [1]]),
+      "DatosClinicos"
+    );
+    const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const outcome = await readStructuredSheet(bytesFile("boundary.xlsx", bytes), "DatosClinicos");
+    expect(outcome.status).toBe("parsed");
   });
 });

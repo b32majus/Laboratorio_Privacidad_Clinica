@@ -8,6 +8,12 @@
  * re-implements a parser and never guesses a sheet:
  *
  *  - a CSV file is parsed through the consolidated `parseCsv` authority;
+ *  - the common supported-size authority (`engine/input-limits.ts`, T15 #19;
+ *    STRUCT-012 / issue #43 A1) is applied before any grid is returned: an
+ *    oversize CSV is refused with the shared typed `input-too-large` failure
+ *    BEFORE full parsing, and a workbook sheet is measured over the accepted
+ *    structured representation (header row + cells) and refused the same way;
+ *    nothing is ever truncated;
  *  - a workbook with several sheets returns `sheet-required` with the sheet
  *    names, so the human chooses explicitly (SPEC §9). A single-sheet workbook
  *    is parsed directly;
@@ -19,9 +25,10 @@
  * URL. This module contains no console.* calls.
  */
 import { extensionOf, type SourceFileLike } from "../input/extracted-source";
+import { oversizeInputFor, oversizeInputForLength } from "../engine/input-limits";
 import { CsvParseError, parseCsv } from "./csv";
 import { listSheetNames, parseStructuredWorkbook, type ParsedWorkbookResult } from "./excel";
-import type { StructuredGrid } from "./grid";
+import type { StructuredCell, StructuredGrid } from "./grid";
 
 /** Outcome of reading one structured source. */
 export type StructuredReadOutcome =
@@ -60,6 +67,23 @@ function readFailure(fileName: string): StructuredReadOutcome {
   };
 }
 
+/**
+ * Measure the accepted structured representation of one sheet: the header row
+ * plus every cell (absence contributes nothing). The measurement is a pure
+ * count of UTF-16 code units — no cell content is copied, logged or retained.
+ */
+function gridTextLength(grid: StructuredGrid): number {
+  let total = 0;
+  for (const header of grid.headers) total += header.length;
+  for (const row of grid.rows) {
+    for (const cell of row as readonly StructuredCell[]) {
+      if (typeof cell === "string") total += cell.length;
+      else if (cell !== null) total += String(cell).length;
+    }
+  }
+  return total;
+}
+
 /** Map the T18 Excel adapter result onto this module's outcome union. */
 function workbookOutcome(result: ParsedWorkbookResult): StructuredReadOutcome {
   return result.status === "success"
@@ -73,8 +97,9 @@ async function parseWorkbookBytes(
 ): Promise<StructuredReadOutcome> {
   // `parseStructuredWorkbook` returns typed failures; only the governed
   // SheetJS loader can throw, and that too must fail closed.
+  let outcome: StructuredReadOutcome;
   try {
-    return workbookOutcome(await parseStructuredWorkbook(bytes, { sheetName }));
+    outcome = workbookOutcome(await parseStructuredWorkbook(bytes, { sheetName }));
   } catch (error) {
     return {
       status: "failed",
@@ -85,6 +110,16 @@ async function parseWorkbookBytes(
           : "The Excel reader could not be loaded.",
     };
   }
+  if (outcome.status !== "parsed") return outcome;
+  // Supported-size authority (STRUCT-012) over the accepted representation of
+  // the selected sheet. The grid is measured, never truncated and never
+  // returned when it is above the limit: the caller gets the shared typed
+  // `input-too-large` failure instead.
+  const oversize = oversizeInputForLength(gridTextLength(outcome.grid));
+  if (oversize) {
+    return { status: "failed", code: oversize.code, message: oversize.message };
+  }
+  return outcome;
 }
 
 /**
@@ -96,8 +131,21 @@ export async function readStructuredFile(file: SourceFileLike): Promise<Structur
   const extension = extensionOf(file.name);
 
   if (extension === "csv") {
+    let text: string;
     try {
-      return { status: "parsed", grid: parseCsv(await readText(file)) };
+      text = await readText(file);
+    } catch {
+      return readFailure(file.name);
+    }
+    // Supported-size authority (STRUCT-012): an oversize CSV is refused with
+    // the shared typed failure BEFORE the full parse, exactly like every
+    // other input path (T15 #19). Nothing is truncated.
+    const oversize = oversizeInputFor(text);
+    if (oversize) {
+      return { status: "failed", code: oversize.code, message: oversize.message };
+    }
+    try {
+      return { status: "parsed", grid: parseCsv(text) };
     } catch (error) {
       return error instanceof CsvParseError
         ? { status: "failed", code: error.code, message: error.message }

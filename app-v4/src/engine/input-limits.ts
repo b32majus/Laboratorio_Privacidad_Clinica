@@ -53,7 +53,18 @@ function oversizeMessage(measuredLength: number, supportedLength: number): strin
  * yields `null`. `excessLength` is `measuredLength - supportedLength`.
  */
 export function oversizeInputFor(text: string): OversizeInput | null {
-  const measuredLength = text.length;
+  return oversizeInputForLength(text.length);
+}
+
+/**
+ * Length-based form of the same authority (STRUCT-012): identical limit,
+ * facts and message template as {@link oversizeInputFor}, for callers that
+ * measured the text without holding it as one string (e.g. a structured grid
+ * whose cells live in separate arrays). This keeps ONE source of truth for
+ * the supported size: both forms share the boundary, the typed facts and the
+ * actionability message by construction.
+ */
+export function oversizeInputForLength(measuredLength: number): OversizeInput | null {
   if (measuredLength <= MAX_SUPPORTED_TEXT_LENGTH) return null;
   return Object.freeze({
     code: OVERSIZE_INPUT_CODE,
