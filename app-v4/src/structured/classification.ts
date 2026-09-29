@@ -154,13 +154,31 @@ const CLASS_CONTENT_PATTERNS: readonly {
   },
 ];
 
-const PROPOSAL_BY_CLASS: Readonly<
-  Record<Exclude<ColumnClass, "unknown" | "insensitive">, ProposedAction>
-> = {
+/**
+ * Action proposal per accepted class (D-012). The unknown class is ALWAYS
+ * `review-required` (D-009 fail-closed: never KEEP); only an explicit human
+ * review decision can move a column out of it. `insensitive` maps to `keep`
+ * because that is the whole meaning of the class — it is only reachable
+ * through an explicit human override, never through automatic inference
+ * (see {@link classifyColumn}).
+ */
+const ACTION_BY_CLASS: Readonly<Record<ColumnClass, ProposedAction>> = Object.freeze({
   identifier: "remove",
   "quasi-identifier": "generalize",
   sensitive: "codify",
-};
+  insensitive: "keep",
+  unknown: "review-required",
+});
+
+/**
+ * The accepted class→action proposal, exposed so the structured configuration
+ * authority (`configuration.ts`, T20 #24) can derive the effective action for
+ * a human override without duplicating the mapping. `unknown` is NEVER
+ * `keep`.
+ */
+export function proposedActionForClass(columnClass: ColumnClass): ProposedAction {
+  return ACTION_BY_CLASS[columnClass];
+}
 
 export function matchesPatientIdHeader(header: string): boolean {
   return CLASS_HEADER_PATTERNS[0].pattern.test(header);
@@ -181,7 +199,7 @@ export function classifyColumn(
       column,
       columnClass: headerMatch.columnClass,
       requiresReview: false,
-      proposedAction: PROPOSAL_BY_CLASS[headerMatch.columnClass],
+      proposedAction: proposedActionForClass(headerMatch.columnClass),
       matchedBy: "header-pattern",
       confidence: 0.9,
       evidence: [`header matches ${headerMatch.label}`, ...column.evidence],
@@ -219,7 +237,7 @@ export function classifyColumn(
       column,
       columnClass: contentMatch.columnClass,
       requiresReview: false,
-      proposedAction: PROPOSAL_BY_CLASS[contentMatch.columnClass],
+      proposedAction: proposedActionForClass(contentMatch.columnClass),
       matchedBy: "content",
       confidence: 0.7,
       evidence: [`${contentMatch.label} in the distributed sample`, ...column.evidence],
