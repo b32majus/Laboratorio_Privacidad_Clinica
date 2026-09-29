@@ -28,19 +28,21 @@ A ticket is executable only when:
 When more than one ticket is unblocked, map order below is the deterministic preference.
 
 
-## Current accepted checkpoint and next prepared train — 2026-09-24
+## Current accepted checkpoint and next frontier — 2026-09-29
 
 ```text
 CURRENT_BASE_BRANCH=3.0-main
-CURRENT_BASE_SHA=f58b7823e7050a6387f59e5bd27007398a7bd41c
-LAST_MERGED_PR=#35
-COMPLETED=T01,T02,T03,T04,T05,T09,T10,T23
-NEXT_PREPARED_TRAIN=T06 #10 → T07 #11 → T08 #12
+CURRENT_BASE_SHA=5625f9b01cc1bac78eda27169c41ae96a669eed5
+LAST_MERGED_PR=#42
+COMPLETED=T01–T20,T23
+NEXT_PREPARED_TRAIN=T21 #25
 ```
 
-The next prepared train is intentionally bounded to the core V4 path **input adapters → review workspace → Safe Output / Confidential Audit**. T11+ engine-policy migration and T17/T18 batch/structured branches are deliberately excluded from this train.
+PR #42 (merge de `work/opencode/v4-overnight-t17-t18-20260928`) integró y cerró el checkpoint T12–T20: T12 AGE, T13 fechas/shift, T14 low-confidence, T15 fail-closed input, T16 pseudónimos, T17 batch, T18 parsers estructurados, T19 política fecha/edad estructurada y T20 workspace de clasificación. T23 #27 (supply-chain/CI) había cerrado antes. La rama/worktree histórica `work/opencode/v4-overnight-t17-t18-20260928` ya no es superficie de trabajo vigente.
 
-Exact launch/closeout plan: `docs/execution/TRAIN_T06_T08_20260924.md`.
+**Next prepared frontier: T21 #25 — Critical Playwright E2E + browser privacy contract** (`EXECUTION_READY=YES`, deudas QA-002/QA-003, spec `SPEC_V4_QUALITY_SECURITY_DEPLOY.md`; bloqueos #12, #13, #14, #18, #21, #24 todos cerrados).
+
+**Deuda post-PR#42 (auditoría de promoción READ-ONLY):** registrada como duradero en issue #43 y en `docs/DEBT_REGISTER.md` (STRUCT-012/A1 alta, BATCH-003 actualización A2, CI-003/A4, DOC-002/A5 factual). No son bloqueantes retroactivos (la auditoría concluyó PASS) y NO se pliegan en T21 #25: A1 recibe una corrección propia y acotada (fail-closed de tamaño soportado en la entrada estructurada, misma autoridad `oversizeInputFor` aceptada por T15); A2 corrige propiedad de BATCH-003 (pipeline estructurado de app, no T20/T21); A4 es CI de proceso; A5 es factual only. El plan de lanzamiento histórico del tren T06–T08 (`TRAIN_T06_T08_20260924.md`) se conserva como evidencia cerrada, no como frontier vigente.
 
 ## 3. Work packages
 
