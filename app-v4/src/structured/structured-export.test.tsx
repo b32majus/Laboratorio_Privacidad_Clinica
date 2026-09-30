@@ -41,12 +41,12 @@ function readyInput() {
   return { configuration, plan, preparation: prepareStructuredOutput(configuration, plan) };
 }
 
-function jobFor(ready: boolean): Job {
+function jobFor(ready: boolean, confidentialReady = ready): Job {
   return {
     kind: "structured",
     id: "job-1",
     policyId: "standard",
-    outputs: { safeOutputReady: ready, confidentialAuditReady: ready },
+    outputs: { safeOutputReady: ready, confidentialAuditReady: confidentialReady },
     errors: [],
   } as unknown as Job;
 }
@@ -149,5 +149,20 @@ describe("ExportStep — structured", () => {
       screen.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" })
     ).toBeDisabled();
     expect(screen.getByRole("alert")).toHaveTextContent(/requires review/);
+  });
+
+  it("keeps the Confidential download blocked when only confidentialAuditReady is false", () => {
+    const structured = readyInput();
+    render(<ExportStep job={jobFor(true, false)} review={null} structured={structured} />);
+    expect(
+      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
+    ).toBeEnabled();
+    const auditButton = screen.getByRole("button", {
+      name: "Download Structured Confidential Audit (.txt)",
+    });
+    expect(auditButton).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Confidential Audit is not available for this job yet."
+    );
   });
 });

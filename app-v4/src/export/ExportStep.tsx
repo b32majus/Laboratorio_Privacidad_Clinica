@@ -119,6 +119,19 @@ function StructuredExport({
   const blocked =
     preparation === null || preparation.status !== "ready" || !job.outputs.safeOutputReady;
   const reasons = preparation === null ? [] : preparation.reasons;
+  // Fail-closed, per artifact: the Confidential Audit additionally honors its
+  // OWN readiness flag (same authority as the document path below).
+  const confidentialBlocked = blocked || !job.outputs.confidentialAuditReady;
+  const sharedReasonVisible = blocked && reasons.length > 0;
+  const confidentialReasonVisible =
+    confidentialBlocked && !sharedReasonVisible && !job.outputs.confidentialAuditReady;
+  const confidentialDescribedBy = !confidentialBlocked
+    ? undefined
+    : sharedReasonVisible
+      ? "safe-structured-blocked-reason"
+      : confidentialReasonVisible
+        ? "structured-confidential-blocked-reason"
+        : undefined;
 
   const handleDownloadSafe = () => {
     if (blocked || preparation === null || preparation.status !== "ready") return;
@@ -128,7 +141,7 @@ function StructuredExport({
     );
   };
   const handleDownloadConfidential = () => {
-    if (blocked || preparation === null || preparation.status !== "ready") return;
+    if (confidentialBlocked || preparation === null || preparation.status !== "ready") return;
     downloadTextFile(
       CONFIDENTIAL_STRUCTURED_FILE_NAME,
       serializeStructuredConfidentialAudit(preparation.output.confidential)
@@ -200,11 +213,20 @@ function StructuredExport({
           columns). It is an internal traceability record and must never be shared or delivered
           outside the authorized audit trail.
         </p>
+        {confidentialReasonVisible && (
+          <p
+            role="status"
+            id="structured-confidential-blocked-reason"
+            className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+          >
+            Confidential Audit is not available for this job yet.
+          </p>
+        )}
         <button
           type="button"
           onClick={handleDownloadConfidential}
-          disabled={blocked}
-          aria-describedby={blocked ? "safe-structured-blocked-reason" : undefined}
+          disabled={confidentialBlocked}
+          aria-describedby={confidentialDescribedBy}
           className={`mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
         >
           Download Structured Confidential Audit (.txt)
