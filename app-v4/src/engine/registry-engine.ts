@@ -95,6 +95,7 @@ import {
   freezeDeep,
   freezePseudonymState,
   reconcileSharedContext,
+  seedModulePseudonymState,
   snapshotModulePseudonymState,
 } from "./legacy-engine";
 import { createLegacyOperatorRegistry } from "./legacy-operators";
@@ -446,6 +447,17 @@ export function createRegistryEngine(options: RegistryEngineOptions = {}) {
         const reconciled = reconcileSharedContext(context, keptResult);
         resolvedResult = reconciled.result;
         resolvedContext = reconciled.context;
+        // 8b. Seed the legacy pseudonym managers from the AUTHORITATIVE
+        //     shared state BEFORE the candidate pass (HARDEN-02 WU-C;
+        //     DEBT ARCH-013). The candidate pass is advisory and must
+        //     propose batch pseudonyms, not document-local ones: the
+        //     kept pass above only populated the LOCAL maps, and
+        //     `reconcileSharedContext` returns the authoritative state
+        //     without re-seeding. The returned context is already frozen,
+        //     so this injection reaches only the candidate pass.
+        if (resolvedContext.pseudonymState !== undefined) {
+          seedModulePseudonymState(resolvedContext.pseudonymState);
+        }
       }
 
       // 9. Candidate pass: resolve each candidate's `proposed` outcome with

@@ -265,6 +265,36 @@ export function freezePseudonymState(state: PseudonymState): PseudonymState {
 }
 
 /**
+ * Seeds the legacy pseudonym managers from an authoritative
+ * {@link PseudonymState} (Work Order HARDEN-02 WU-C; DEBT ARCH-013).
+ *
+ * The registry-composed engine resolves the RETURNED shared context before
+ * the below-threshold candidate pass (state isolation, T14 acceptance 3), but
+ * `reconcileSharedContext` only rewrites the kept result and returns the
+ * authoritative state — it never re-seeds the module maps. Without this
+ * seeding, a candidate `NOMBRE` resolved in the candidate pass would consult
+ * the DOCUMENT-LOCAL maps left by the kept pass and propose a local
+ * `Paciente N` instead of the batch-authoritative pseudonym. This function
+ * uses the EXISTING authoritative state carried by the shared context (no new
+ * pseudonym authority) and must only be called after the returned context has
+ * been frozen, so the injected state reaches the advisory candidate pass and
+ * never the observable result/context.
+ */
+export function seedModulePseudonymState(state: PseudonymState): void {
+  AsignadorSustitutos.mapaAsignaciones.clear();
+  AsignadorSustitutos.profesionalesMap.clear();
+  AsignadorSustitutos.familiaresMap.clear();
+  for (const [key, value] of state.asignaciones)
+    AsignadorSustitutos.mapaAsignaciones.set(key, value);
+  for (const [key, value] of state.profesionales)
+    AsignadorSustitutos.profesionalesMap.set(key, value);
+  for (const [key, value] of state.familiares) AsignadorSustitutos.familiaresMap.set(key, value);
+  AsignadorSustitutos.contadorProfesionales = state.contadorProfesionales;
+  AsignadorSustitutos.contadorFamiliares = state.contadorFamiliares;
+  AsignadorSustitutos.contadorPacientes = state.contadorPacientes;
+}
+
+/**
  * Reconcile one legacy manager map (fresh state produced by the just-run
  * legacy call) against the authoritative state from the shared context.
  * Keys are the ones the legacy module itself computed, so no key semantics

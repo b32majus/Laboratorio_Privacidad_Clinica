@@ -367,3 +367,76 @@ describe("candidate-pass state isolation for patient numbering (T14 acceptance 3
     expect(withoutCandidate.result.candidates).toEqual([]);
   });
 });
+
+describe("ARCH-013 — shared-batch candidate proposals use the authoritative pseudonym", () => {
+  const SHARED_DOC_A = "Nombre: Carmen Sánchez.";
+  const SHARED_DOC_B = "Nombre: Lucía Ruiz. Carmen Sánchez firmó. Mª Carmen Ruiz Gil también.";
+
+  function sharedEngine() {
+    return createRegistryEngine({
+      recognizerRegistry: candidateRegistry((text) =>
+        text === SHARED_DOC_A
+          ? {
+              observations: [
+                observation("NOMBRE", SHARED_DOC_A, "Carmen Sánchez", {
+                  subtype: "paciente",
+                  confidence: 0.9,
+                }),
+              ],
+              candidates: [],
+            }
+          : {
+              observations: [
+                observation("NOMBRE", SHARED_DOC_B, "Lucía Ruiz", {
+                  subtype: "paciente",
+                  confidence: 0.9,
+                }),
+              ],
+              candidates: [
+                candidate("NOMBRE", SHARED_DOC_B, "Carmen Sánchez", {
+                  subtype: "paciente",
+                  confidence: 0.35,
+                  reason: "BAJO_SCORE",
+                }),
+                candidate("NOMBRE", SHARED_DOC_B, "Mª Carmen Ruiz Gil", {
+                  subtype: "paciente",
+                  confidence: 0.35,
+                  reason: "BAJO_SCORE",
+                }),
+              ],
+            }
+      ),
+    });
+  }
+
+  it("resolves candidates with the final batch pseudonym, never the document-local one", () => {
+    const engine = sharedEngine();
+    const first = engine.process({ text: SHARED_DOC_A, context: { mode: "shared" } });
+    expect(first.context.pseudonymState?.asignaciones).toEqual([["carmen sánchez", "Paciente 1"]]);
+    expect(first.context.pseudonymState?.contadorPacientes).toBe(1);
+
+    const second = engine.process({
+      text: SHARED_DOC_B,
+      context: { mode: "shared", pseudonymState: first.context.pseudonymState },
+    });
+
+    // Final authoritative batch state: Carmen Sánchez keeps Paciente 1 and the
+    // NEW patient Lucía Ruiz takes Paciente 2.
+    expect(second.context.pseudonymState?.asignaciones).toEqual([
+      ["carmen sánchez", "Paciente 1"],
+      ["lucía ruiz", "Paciente 2"],
+    ]);
+    expect(second.context.pseudonymState?.contadorPacientes).toBe(2);
+
+    const proposals = new Map(
+      (second.result.candidates ?? []).map((item) => [item.text, item.proposed])
+    );
+    // FALSATION under the documented ARCH-013 bug: Carmen Sánchez would take
+    // the DOCUMENT-LOCAL "Paciente 2" (the module map lacked an entry for it
+    // after the kept pass) instead of the batch-authoritative "Paciente 1".
+    expect(proposals.get("Carmen Sánchez")).toBe("Paciente 1");
+    // A genuinely new identity takes the NEXT authoritative index (3), not the
+    // local "Paciente 2" that would collide with Lucía Ruiz.
+    expect(proposals.get("Mª Carmen Ruiz Gil")).toBe("Paciente 3");
+  });
+});
