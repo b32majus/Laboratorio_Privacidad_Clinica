@@ -177,7 +177,17 @@ const waitForServer = async () => {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
       const probe = await fetch(`${BASE}/`);
-      if (probe.ok) return;
+      if (probe.ok) {
+        // T24 review hardening: the assertions must run against the server
+        // THIS run spawned, not a stale server already occupying the port.
+        // The spawned process prints its startup banner; anything else on
+        // the port means our process failed to bind (it would have exited
+        // with a bind error in the log).
+        if (!serverLog.includes('preview-server: serving')) {
+          fail(`port ${PORT} is occupied by a server this run did not start;\nspawned process log:\n${serverLog}`);
+        }
+        return;
+      }
     } catch {
       /* not up yet */
     }

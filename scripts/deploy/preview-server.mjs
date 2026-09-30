@@ -275,7 +275,16 @@ function serve(options) {
       res.end();
       return;
     }
-    const urlPath = decodeURIComponent((req.url ?? '/').split('?')[0]);
+    let urlPath;
+    try {
+      // Fail-closed: a malformed percent-encoded path is a CLIENT error
+      // (400), never a server crash (review hardening).
+      urlPath = decodeURIComponent((req.url ?? '/').split('?')[0]);
+    } catch {
+      res.writeHead(400);
+      res.end();
+      return;
+    }
     const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
     let filePath = path.join(distDir, safePath);
     if (!filePath.startsWith(distDir)) {
