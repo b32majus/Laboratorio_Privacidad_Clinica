@@ -40,7 +40,7 @@ import {
   ReviewSessionError,
   type ReviewSession,
 } from "../../../js/domain/review-session.js";
-import { loadRegistryEngine } from "../engine/engine-seam";
+import { loadRegistryEngine, type EngineLoader } from "../engine/engine-seam";
 import { classifyProcessingFailure } from "../processing-outcome";
 import type { Job, PrivacyPolicyId, ProcessingFailure } from "../domain/job";
 import type { RegistryEngineInput } from "../engine/registry-engine";
@@ -101,9 +101,10 @@ export type DecisionExtras = {
  */
 export async function createSessionFromEngineTextAsync(
   text: string,
-  policyId: PrivacyPolicyId
+  policyId: PrivacyPolicyId,
+  load: EngineLoader = loadRegistryEngine
 ): Promise<ReviewSession> {
-  const engine = await loadRegistryEngine();
+  const engine = await load();
   const outcome = await engine.process({ text, context: { mode: "fresh" }, policyId });
   // The T01 adapter validates the result shape fail-closed and returns a
   // frozen session; the ambient declaration keeps the structural type.
@@ -143,7 +144,10 @@ export function jobSourceText(job: Job): string | null {
  * {@link processBatchItem} instead. Fails closed (typed ReviewSessionError)
  * when the job has no single reviewable source text instead of guessing.
  */
-export async function startReviewSessionAsync(job: Job): Promise<ReviewSession> {
+export async function startReviewSessionAsync(
+  job: Job,
+  load: EngineLoader = loadRegistryEngine
+): Promise<ReviewSession> {
   const text = jobSourceText(job);
   if (text === null || text.trim().length === 0) {
     throw new ReviewSessionError(
@@ -155,7 +159,7 @@ export async function startReviewSessionAsync(job: Job): Promise<ReviewSession> 
   // consumes. A known-but-unmapped job policy (external-ai,
   // longitudinal-research) fails closed with the typed PolicyError — never
   // a session silently produced under `standard`.
-  return createSessionFromEngineTextAsync(text, job.policyId);
+  return createSessionFromEngineTextAsync(text, job.policyId, load);
 }
 
 /**

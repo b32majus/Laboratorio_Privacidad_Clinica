@@ -35,7 +35,8 @@ import {
   setPolicy,
   withReviewState,
 } from "./domain/job";
-import { loadRegistryEngine, type AsyncV4Engine } from "./engine/engine-seam";
+import type { EngineLoader } from "./engine/engine-seam";
+import { createDefaultEngineLoader } from "./engine/production-engine";
 import type { ProcessingContext } from "./engine/types";
 import { classifyProcessingFailure } from "./processing-outcome";
 import {
@@ -46,6 +47,9 @@ import {
 } from "./structured/configuration";
 import type { ColumnClass } from "./structured/classification";
 import type { StructuredGrid } from "./structured/grid";
+
+/** Production engine loader: heavy processing runs in the engine Worker. */
+const DEFAULT_ENGINE_LOADER = createDefaultEngineLoader();
 
 /**
  * State bridge between the React shell and the pure domain models (SPEC §3).
@@ -132,11 +136,12 @@ function withDerivedBatchReviewState(job: Job): Job {
 }
 
 /**
- * Engine loader seam (T22 #26 WU-D): production callers use the lazy async
- * engine seam (`loadRegistryEngine`); deterministic oracles inject a stub
- * loader. The loader runs ONCE per batch loop, not once per item.
+ * Engine loader seam (T22 #26 WU-D/WU-E): production callers use the default
+ * loader (dedicated engine Worker off the main thread; in-process lazy seam
+ * in Worker-less test environments); deterministic oracles inject a stub.
+ * The loader runs ONCE per batch loop, not once per item.
  */
-export type BatchEngineLoader = () => Promise<AsyncV4Engine>;
+export type BatchEngineLoader = EngineLoader;
 
 /**
  * Per-item outcome callbacks for {@link runBatchReview}. Production callers
@@ -204,7 +209,7 @@ export async function runBatchReviewAsync(
     // Inside the try (T22 #26 review correction): a rejected engine load is a
     // classified processing failure recorded on the job, never an unhandled
     // rejection or a permanently `running` attempt.
-    const engine = await (options.engineLoader ?? loadRegistryEngine)();
+    const engine = await (options.engineLoader ?? DEFAULT_ENGINE_LOADER)();
     const totalItems = job.source.type === "files" ? job.source.files.length : 0;
     for (let index = 0; index < totalItems; index += 1) {
       if (batchItemStatus(working, index) !== "queued") continue;
@@ -384,7 +389,7 @@ export function useJobSession() {
 
     setState((state) => (state.job ? { ...state, job: beginProcessing(state.job) } : state));
     try {
-      const review = await startReviewSessionAsync(job);
+      const review = await startReviewSessionAsync(job, DEFAULT_ENGINE_LOADER);
       // Async gap guard: a cleared, replaced or policy-changed session drops
       // the stale outcome instead of attaching a review to the wrong job or
       // to a job under a different policy.

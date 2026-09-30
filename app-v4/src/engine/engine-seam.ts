@@ -28,6 +28,9 @@ export type AsyncV4Engine = {
   process(input: RegistryEngineInput): Promise<EngineOutcome>;
 };
 
+/** Loader seam: resolves the engine through the worker or in-process path. */
+export type EngineLoader = () => Promise<AsyncV4Engine>;
+
 /**
  * Load the registry-composed engine on first use and adapt its synchronous
  * `process` to the async seam. The dynamic import is the ONLY production
