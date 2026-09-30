@@ -1,0 +1,137 @@
+{
+  "schema": "laboratorio.engine-bench.report/v1",
+  "engine": "js/modular-processor.js PrivacyProcessor",
+  "reps": 3,
+  "quick": false,
+  "scenarios": [
+    {
+      "scenario": "text-size",
+      "name": "10KB",
+      "targetSizeUnits": 10240,
+      "reps": 3,
+      "wallTimeMsMedian": 85.700817,
+      "wallTimeMsAll": [
+        83.998918,
+        85.700817,
+        85.728809
+      ],
+      "detectionCounts": {
+        "NOMBRE": 35,
+        "FECHA": 31,
+        "UBICACION": 32
+      },
+      "detectionTotal": 98
+    },
+    {
+      "scenario": "text-size",
+      "name": "100KB",
+      "targetSizeUnits": 102400,
+      "reps": 3,
+      "wallTimeMsMedian": 753.367268,
+      "wallTimeMsAll": [
+        753.367268,
+        753.77007,
+        738.455316
+      ],
+      "detectionCounts": {
+        "NOMBRE": 355,
+        "FECHA": 233,
+        "UBICACION": 374
+      },
+      "detectionTotal": 962
+    },
+    {
+      "scenario": "text-size",
+      "name": "500KB",
+      "targetSizeUnits": 512000,
+      "reps": 3,
+      "wallTimeMsMedian": 6594.966794,
+      "wallTimeMsAll": [
+        6536.809454,
+        6594.966794,
+        6712.498373
+      ],
+      "detectionCounts": {
+        "NOMBRE": 1736,
+        "FECHA": 1098,
+        "UBICACION": 1867
+      },
+      "detectionTotal": 4701
+    },
+    {
+      "scenario": "text-size",
+      "name": "1MB",
+      "targetSizeUnits": 1048576,
+      "reps": 3,
+      "wallTimeMsMedian": 23465.779825,
+      "wallTimeMsAll": [
+        23698.493335,
+        22583.205783,
+        23465.779825
+      ],
+      "detectionCounts": {
+        "NOMBRE": 3429,
+        "FECHA": 2190,
+        "UBICACION": 3617
+      },
+      "detectionTotal": 9236
+    },
+    {
+      "scenario": "document-job",
+      "name": "1-doc",
+      "documents": 1,
+      "docSizeUnits": 20480,
+      "reps": 3,
+      "wallTimeMsMedian": 162.572498,
+      "wallTimeMsAll": [
+        228.274261,
+        162.572498,
+        123.518208
+      ],
+      "detectionCounts": {
+        "NOMBRE": 72,
+        "UBICACION": 84,
+        "FECHA": 36
+      },
+      "detectionTotal": 192
+    },
+    {
+      "scenario": "document-job",
+      "name": "10-docs",
+      "documents": 10,
+      "docSizeUnits": 20480,
+      "reps": 3,
+      "wallTimeMsMedian": 1552.261857,
+      "wallTimeMsAll": [
+        1325.988397,
+        1937.948047,
+        1552.261857
+      ],
+      "detectionCounts": {
+        "NOMBRE": 715,
+        "UBICACION": 766,
+        "FECHA": 415
+      },
+      "detectionTotal": 1896
+    },
+    {
+      "scenario": "document-job",
+      "name": "50-docs",
+      "documents": 50,
+      "docSizeUnits": 20480,
+      "reps": 3,
+      "wallTimeMsMedian": 7336.915994,
+      "wallTimeMsAll": [
+        7336.915994,
+        7064.057926,
+        7740.032375
+      ],
+      "detectionCounts": {
+        "NOMBRE": 3549,
+        "UBICACION": 3688,
+        "FECHA": 2196
+      },
+      "detectionTotal": 9433
+    }
+  ]
+}
