@@ -79,6 +79,8 @@ async function fetchText(url) {
   const response = await fetch(url, {
     redirect: 'manual',
     headers: { 'user-agent': 'harden-02-remote-release-qa/1' },
+    // R4-001: a bounded timeout so a hanging remote cannot block the harness.
+    signal: AbortSignal.timeout(15_000),
   });
   const body = await response.text();
   return {
@@ -162,8 +164,10 @@ export function compareHeader(name, actual, expected) {
         if (!Number.isFinite(actualAge) || actualAge < expectedAge) {
           problems.push(`max-age ${String(actualDirectives.get('max-age'))} < ${String(value)}`);
         }
-      } else if (!actualDirectives.has(key)) {
-        problems.push(`missing ${key}`);
+      } else if (actualDirectives.get(key) !== value) {
+        // R3-001: a flag directive (value === true) must be present as a flag,
+        // and every value-bearing directive must match, not merely be present.
+        problems.push(`missing or invalid ${key}`);
       }
     }
     return {
@@ -386,6 +390,24 @@ async function runSelfTest() {
     }
   );
 
+  // Planted violation: a flag directive carrying a value is invalid.
+  await run(
+    {
+      headers: {
+        ...goodHeaders,
+        'strict-transport-security': 'max-age=315360000; includeSubdomains=foo',
+      },
+      indexHtml: GOOD_INDEX,
+    },
+    async (report) => {
+      cases.push({
+        name: 'self-test: an invalid HSTS flag directive is rejected',
+        pass: report.failures.some((failure) => failure.includes('strict-transport-security')),
+        detail: report.failures.join('; ') || 'no failure detected',
+      });
+    }
+  );
+
   // Planted violation: a deep route 404 despite a matching build is a behavior failure.
   await run({ headers: goodHeaders, indexHtml: GOOD_INDEX, deepRoute404: true }, async (report) => {
     cases.push({
@@ -480,13 +502,15 @@ async function main(options) {
   process.exit(exitCodeForVerdict(report.verdict));
 }
 
-const options = parseArgs(process.argv.slice(2));
-if (options['self-test']) {
-  await runSelfTest();
-}
-
+// R2-001: argument parsing and the self-test run ONLY on direct execution,
+// so importing this module (e.g. from a future deterministic test) can never
+// trigger a network probe or the self-test as an import side effect.
 const isDirectExecution =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isDirectExecution) {
+  const options = parseArgs(process.argv.slice(2));
+  if (options['self-test']) {
+    await runSelfTest();
+  }
   await main(options);
 }
