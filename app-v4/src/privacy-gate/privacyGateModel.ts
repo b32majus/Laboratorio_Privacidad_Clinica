@@ -31,6 +31,10 @@ import {
   getPendingDetections,
   getProgress,
 } from "../review/review-domain";
+import type { StructuredConfiguration, StructuredDateRole } from "../structured/configuration";
+import type { ColumnClass } from "../structured/classification";
+import type { StructuredTransformPlan } from "../structured/transform-plan";
+import type { StructuredOutputPreparation } from "../structured/transformed-dataset";
 
 /** One factual gate warning (kept-original entries and similar). */
 export type PrivacyGateWarning = {
@@ -62,6 +66,31 @@ export type PrivacyGateBatchFacts = {
   readonly pendingCount: number;
   readonly completedCount: number;
   readonly failedCount: number;
+};
+
+/** One factual structured column disposition for the gate. */
+export type PrivacyGateStructuredColumn = {
+  readonly columnIndex: number;
+  readonly header: string;
+  readonly effectiveClass: ColumnClass;
+  readonly dateRole: StructuredDateRole;
+  readonly disposition: "date-age" | "codify" | "keep" | "remove" | "unsupported";
+};
+
+/** Factual structured gate facts (HARDEN-01 WU-A); never a score. */
+export type PrivacyGateStructuredFacts = {
+  readonly columns: readonly PrivacyGateStructuredColumn[];
+  readonly columnsRequiringReview: number;
+  readonly blockingCount: number;
+  readonly ready: boolean;
+  readonly reasons: readonly string[];
+};
+
+/** Everything the structured gate needs, derived by the bridge. */
+export type PrivacyGateStructuredInput = {
+  readonly configuration: StructuredConfiguration;
+  readonly plan: StructuredTransformPlan;
+  readonly preparation: StructuredOutputPreparation;
 };
 
 /** The complete factual Privacy Gate view, derived in one pure pass. */
@@ -104,6 +133,11 @@ export type PrivacyGateView = {
    * existing fields keep their byte-unchanged semantics (T17 #21 SD-9).
    */
   readonly batch: PrivacyGateBatchFacts | null;
+  /**
+   * Structured facts (HARDEN-01 WU-A); `null` for text/document/batch jobs,
+   * whose existing fields keep their byte-unchanged semantics.
+   */
+  readonly structured: PrivacyGateStructuredFacts | null;
 };
 
 /**
@@ -207,8 +241,17 @@ export function deriveBatchFacts(job: Job): PrivacyGateBatchFacts {
 export function derivePrivacyGateView(
   job: Job,
   review: ReviewSession | null,
-  batchSessions: readonly ReviewSession[] = []
+  batchSessions: readonly ReviewSession[] = [],
+  structured: PrivacyGateStructuredInput | null = null
 ): PrivacyGateView {
+  if (job.kind === "structured") {
+    if (structured === null) {
+      throw new Error(
+        `derivePrivacyGateView requires the structured configuration for job "${job.id}".`
+      );
+    }
+    return deriveStructuredView(job, structured);
+  }
   if (job.kind === "document-batch") {
     return deriveBatchView(job, review, batchSessions);
   }
@@ -218,6 +261,49 @@ export function derivePrivacyGateView(
     );
   }
   return deriveSingleView(job, review);
+}
+
+/**
+ * Structured gate view (HARDEN-01 WU-A): exact dispositions and the fail-closed
+ * block reasons of the reviewed configuration, plus the output availability the
+ * bridge derived from the same preparation. No detection counts are fabricated.
+ */
+function deriveStructuredView(job: Job, input: PrivacyGateStructuredInput): PrivacyGateView {
+  const { configuration, plan, preparation } = input;
+  const columns: readonly PrivacyGateStructuredColumn[] = Object.freeze(
+    plan.columns.map((column) =>
+      Object.freeze({
+        columnIndex: column.columnIndex,
+        header: column.header,
+        effectiveClass: column.effectiveClass,
+        dateRole: column.dateRole,
+        disposition: column.disposition.kind,
+      })
+    )
+  );
+  return Object.freeze({
+    policyId: job.policyId,
+    complete: preparation.status === "ready",
+    pendingCount: configuration.columnsRequiringReview.length,
+    reviewedAccepted: 0,
+    reviewedModified: 0,
+    manualDetections: 0,
+    restoredCount: 0,
+    lowConfidenceCount: 0,
+    lowConfidencePendingCount: 0,
+    warnings: Object.freeze([]),
+    errors: job.errors,
+    safeOutputReady: job.outputs.safeOutputReady,
+    confidentialAuditReady: job.outputs.confidentialAuditReady,
+    batch: null,
+    structured: Object.freeze({
+      columns,
+      columnsRequiringReview: configuration.columnsRequiringReview.length,
+      blockingCount: plan.blockingColumns.length,
+      ready: preparation.status === "ready",
+      reasons: preparation.reasons,
+    }),
+  });
 }
 
 /** Single-document and text derivation; byte-unchanged semantics (SD-9). */
@@ -253,6 +339,7 @@ function deriveSingleView(job: Job, review: ReviewSession): PrivacyGateView {
     safeOutputReady: job.outputs.safeOutputReady,
     confidentialAuditReady: job.outputs.confidentialAuditReady,
     batch: null,
+    structured: null,
   });
 }
 
@@ -347,5 +434,6 @@ function deriveBatchView(
     safeOutputReady: job.outputs.safeOutputReady,
     confidentialAuditReady: job.outputs.confidentialAuditReady,
     batch,
+    structured: null,
   });
 }

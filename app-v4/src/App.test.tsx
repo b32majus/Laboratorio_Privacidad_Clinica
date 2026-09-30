@@ -1147,7 +1147,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
     ).toHaveTextContent("Structured export ready: No");
   });
 
-  it("resolves the unknown review gate only through an explicit override", async () => {
+  it("resolves the unknown review gate only through an explicit override and an explicit date role", async () => {
     createStructuredJob(CSV);
     await screen.findByRole("list", { name: /column classification list/i });
     // Unknown is not KEEP and keeps the gate closed until the human decides.
@@ -1157,9 +1157,42 @@ describe("App structured Configure workspace (T20 #24)", () => {
     fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
       target: { value: "insensitive" },
     });
+    // Resolving unknown alone is NOT enough: the date column still has no
+    // accepted disposition until a human assigns it an explicit date role.
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+      target: { value: "birth" },
+    });
     expect(
       screen.getByRole("status", { name: /structured configuration facts/i })
     ).toHaveTextContent("Structured export ready: Yes");
+  });
+
+  it("exposes the exact structured gate facts at the Privacy Gate", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("list", { name: /column classification list/i });
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "insensitive" },
+    });
+    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+      target: { value: "birth" },
+    });
+    // The structured job reaches the gate with no review session (it is not a
+    // ReviewSession job); the gate derives its facts from the configuration.
+    fireEvent.click(stepButton(3, "Review"));
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    const facts = screen.getByRole("status", { name: /structured export facts/i });
+    expect(facts).toHaveTextContent("Columns: 4");
+    expect(facts).toHaveTextContent("Columns requiring review: 0");
+    expect(facts).toHaveTextContent("Unsupported columns: 0");
+    expect(screen.getByRole("list", { name: /structured column dispositions/i })).toHaveTextContent(
+      "NHC: remove"
+    );
+    expect(screen.getByRole("list", { name: /structured column dispositions/i })).toHaveTextContent(
+      "Fecha_Nac: date-age (birth)"
+    );
   });
 
   it("refuses a multi-file structured selection fail-closed", async () => {
@@ -1174,17 +1207,21 @@ describe("App structured Configure workspace (T20 #24)", () => {
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
-  it("keeps structured classification state when navigating away and back", async () => {
+  it("keeps structured classification and date-role state when navigating away and back", async () => {
     createStructuredJob(CSV);
     await screen.findByRole("list", { name: /column classification list/i });
     fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
       target: { value: "sensitive" },
+    });
+    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+      target: { value: "visit" },
     });
     fireEvent.click(stepButton(1, "Input"));
     fireEvent.click(stepButton(2, "Configure"));
     expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
       "sensitive"
     );
+    expect(screen.getByLabelText("Date role for Fecha_Nac")).toHaveValue("visit");
     expect(
       screen.getByRole("status", { name: /structured configuration facts/i })
     ).toHaveTextContent("Structured export ready: Yes");

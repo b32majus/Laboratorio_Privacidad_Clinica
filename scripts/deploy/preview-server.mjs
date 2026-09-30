@@ -1,16 +1,24 @@
 #!/usr/bin/env node
 // Production-like static preview server with the EXACT deployed security
-// headers (Work Order T24 #28; SPEC_V4_QUALITY_SECURITY_DEPLOY §9).
+// headers and SPA fallback (Work Order T24 #28; SPEC_V4_QUALITY_SECURITY_
+// DEPLOY §9).
 //
-// Single source of truth: the headers are PARSED from render.yaml at startup
-// — the local preview can never drift from the deployed configuration. The
-// parser accepts the bounded `headers:` subset this repository actually uses
-// and FAILS CLOSED on anything it does not understand (unknown keys, missing
-// values, malformed paths) instead of serving unheadered bytes.
+// Single source of truth: the security headers AND the SPA fallback rewrite
+// are PARSED from render.yaml at startup — the local preview can never drift
+// from the deployed configuration. The parser accepts the bounded
+// `headers:`/`routes:` subset this repository actually uses and FAILS CLOSED
+// on anything it does not understand (unknown keys, missing values, malformed
+// paths, unsupported route types) instead of serving unheadered bytes or a
+// wrong fallback.
 //
-// SPA fallback: serves dist/_redirects (`/* /index.html 200`), the canonical
-// Render static-site SPA mechanism, copied verbatim from app-v4/public/ by
-// the Vite build.
+// SPA fallback: Render Static Sites apply redirect/rewrite rules from
+// render.yaml `routes:` (the accepted provider mechanism). The repository
+// uses a single `rewrite` rule `/* -> /index.html`, which is what makes an
+// unknown deep path serve the SPA entry with HTTP 200. The earlier
+// Netlify-style `dist/_redirects` file was never interpreted by Render (it
+// was only served as a static asset, so deep routes 404ed on the real
+// origin); it has been removed and the render.yaml route is now the one
+// authority, exercised by this server and by `check:headers`.
 //
 // Privacy: serves local build output only; no network egress; clinical
 // content never reaches a server (the user's browser IS the runtime, D-013).
@@ -21,7 +29,6 @@
 //   node scripts/deploy/preview-server.mjs --port=4181
 //   node scripts/deploy/preview-server.mjs --self-test
 
-import { deepStrictEqual } from 'node:assert';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -58,69 +65,88 @@ function parseArgs(argv) {
   return options;
 }
 
+/** Leading-space indentation of a YAML line. */
+function indentOf(line) {
+  return line.length - line.trimStart().length;
+}
+
+/** Strip matching surrounding double quotes from a scalar value. */
+function unquote(value) {
+  if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
 /**
- * Parse the bounded render.yaml subset used by this repository: the
- * `headers:` entries of the (single) static service. Returns
+ * Parse the bounded render.yaml `headers:` subset used by this repository:
+ * the header entries of the (single) static service. Returns
  * [{path, name, value}] with value quotes stripped.
  *
  * Fail-closed rules:
  *   - exactly one `headers:` block must exist;
  *   - each entry is exactly `- path: <p>` followed by `name:` and `value:`;
  *   - every value must be non-empty; quoted values are unquoted verbatim;
- *   - unknown top-level service keys are tolerated (buildCommand, etc.), but
- *     unknown keys INSIDE a header entry fail the parse.
+ *   - unknown top-level/sibling service keys are tolerated (buildCommand,
+ *     routes, etc.), but unknown keys INSIDE a header entry fail the parse.
+ *
+ * The block ends at the first line whose indentation is not deeper than the
+ * `headers:` key itself, so a sibling `routes:` block is never mistaken for
+ * header content.
  */
 export function parseRenderHeaders(renderYaml) {
   const lines = renderYaml.split(/\r?\n/);
   const headers = [];
   let inHeaders = false;
+  let blockIndent = 0;
   let current = null;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const trimmed = line.trim();
     if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const indent = indentOf(line);
+
+    if (inHeaders && indent <= blockIndent) {
+      if (current) configFail(`render.yaml: header entry missing name/value before line ${index + 1}`);
+      inHeaders = false;
+      current = null;
+    }
 
     if (trimmed === 'headers:') {
-      if (headers.length > 0 || current) configFail(`render.yaml: duplicate headers block at line ${index + 1}`);
+      if (headers.length > 0 || inHeaders) {
+        configFail(`render.yaml: duplicate headers block at line ${index + 1}`);
+      }
       inHeaders = true;
+      blockIndent = indent;
       continue;
     }
 
-    if (inHeaders) {
-      // A non-indented, non-list line ends the headers block.
-      if (!line.startsWith(' ') && !trimmed.startsWith('-')) {
-        inHeaders = false;
-        current = null;
-        continue;
-      }
-      if (trimmed.startsWith('- path:')) {
-        if (current) configFail(`render.yaml: header entry missing name/value before line ${index + 1}`);
-        current = { path: trimmed.slice('- path:'.length).trim() };
-        if (!current.path) configFail(`render.yaml: empty header path at line ${index + 1}`);
-        continue;
-      }
-      const nameMatch = trimmed.match(/^name:\s*(.*)$/);
-      if (nameMatch && current) {
-        if (current.name !== undefined) configFail(`render.yaml: duplicate header name at line ${index + 1}`);
-        current.name = nameMatch[1].trim();
-        continue;
-      }
-      const valueMatch = trimmed.match(/^value:\s*(.*)$/);
-      if (valueMatch && current) {
-        if (current.value !== undefined) configFail(`render.yaml: duplicate header value at line ${index + 1}`);
-        let value = valueMatch[1].trim();
-        if (value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
-          value = value.slice(1, -1);
-        }
-        if (!value) configFail(`render.yaml: empty header value at line ${index + 1}`);
-        current.value = value;
-        headers.push(current);
-        current = null;
-        continue;
-      }
-      configFail(`render.yaml: unrecognized line inside headers block at line ${index + 1}: ${trimmed}`);
+    if (!inHeaders) continue;
+
+    if (trimmed.startsWith('- path:')) {
+      if (current) configFail(`render.yaml: header entry missing name/value before line ${index + 1}`);
+      current = { path: trimmed.slice('- path:'.length).trim() };
+      if (!current.path) configFail(`render.yaml: empty header path at line ${index + 1}`);
+      continue;
     }
+    const nameMatch = trimmed.match(/^name:\s*(.*)$/);
+    if (nameMatch && current) {
+      if (current.name !== undefined) configFail(`render.yaml: duplicate header name at line ${index + 1}`);
+      current.name = nameMatch[1].trim();
+      continue;
+    }
+    const valueMatch = trimmed.match(/^value:\s*(.*)$/);
+    if (valueMatch && current) {
+      if (current.value !== undefined) configFail(`render.yaml: duplicate header value at line ${index + 1}`);
+      const value = unquote(valueMatch[1].trim());
+      if (!value) configFail(`render.yaml: empty header value at line ${index + 1}`);
+      current.value = value;
+      headers.push(current);
+      current = null;
+      continue;
+    }
+    configFail(`render.yaml: unrecognized line inside headers block at line ${index + 1}: ${trimmed}`);
   }
 
   if (current) configFail('render.yaml: header entry missing name/value at end of file');
@@ -134,22 +160,83 @@ export function parseRenderHeaders(renderYaml) {
 }
 
 /**
- * Parse dist/_redirects (canonical Render SPA fallback): returns
- * {source, destination, status} or null when the file is absent.
- * Fail-closed on malformed redirect lines.
+ * Parse the bounded render.yaml `routes:` subset: the accepted Render Static
+ * Site redirect/rewrite rules. Returns [{type, source, destination}].
+ *
+ * Fail-closed: exactly one entry shape `- type: <redirect|rewrite>` followed
+ * by `source:` and `destination:`; unknown types, missing values and
+ * unrecognized block lines all fail the parse. The block ends at the first
+ * line whose indentation is not deeper than the `routes:` key itself.
  */
-export function parseRedirects(redirectsText) {
-  if (redirectsText === null) return null;
-  for (const rawLine of redirectsText.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (line === '' || line.startsWith('#')) continue;
-    const parts = line.split(/\s+/);
-    if (parts.length !== 3 || parts[2] !== '200') {
-      configFail(`_redirects: unsupported redirect line: ${rawLine}`);
+export function parseRenderRoutes(renderYaml) {
+  const lines = renderYaml.split(/\r?\n/);
+  const routes = [];
+  let inRoutes = false;
+  let blockIndent = 0;
+  let current = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    const indent = indentOf(line);
+
+    if (inRoutes && indent <= blockIndent) {
+      if (current) configFail(`render.yaml: route entry missing fields before line ${index + 1}`);
+      inRoutes = false;
+      current = null;
     }
-    return { source: parts[0], destination: parts[1], status: Number(parts[2]) };
+
+    if (trimmed === 'routes:') {
+      if (routes.length > 0 || inRoutes) {
+        configFail(`render.yaml: duplicate routes block at line ${index + 1}`);
+      }
+      inRoutes = true;
+      blockIndent = indent;
+      continue;
+    }
+
+    if (!inRoutes) continue;
+
+    const typeMatch = trimmed.match(/^-\s*type:\s*(.*)$/);
+    if (typeMatch) {
+      if (current) configFail(`render.yaml: route entry missing fields before line ${index + 1}`);
+      current = { type: unquote(typeMatch[1].trim()) };
+      if (!current.type) configFail(`render.yaml: empty route type at line ${index + 1}`);
+      continue;
+    }
+    const sourceMatch = trimmed.match(/^source:\s*(.*)$/);
+    if (sourceMatch && current) {
+      if (current.source !== undefined) configFail(`render.yaml: duplicate route source at line ${index + 1}`);
+      current.source = unquote(sourceMatch[1].trim());
+      if (!current.source) configFail(`render.yaml: empty route source at line ${index + 1}`);
+      continue;
+    }
+    const destinationMatch = trimmed.match(/^destination:\s*(.*)$/);
+    if (destinationMatch && current) {
+      if (current.destination !== undefined) {
+        configFail(`render.yaml: duplicate route destination at line ${index + 1}`);
+      }
+      current.destination = unquote(destinationMatch[1].trim());
+      if (!current.destination) configFail(`render.yaml: empty route destination at line ${index + 1}`);
+      routes.push(current);
+      current = null;
+      continue;
+    }
+    configFail(`render.yaml: unrecognized line inside routes block at line ${index + 1}: ${trimmed}`);
   }
-  configFail('_redirects: no redirect rules found');
+
+  if (current) configFail('render.yaml: route entry missing fields at end of file');
+  if (routes.length === 0) configFail('render.yaml: no routes block found');
+  for (const route of routes) {
+    if (route.type !== 'rewrite' && route.type !== 'redirect') {
+      configFail(`render.yaml: unsupported route type "${String(route.type)}"`);
+    }
+    if (route.source === undefined || route.destination === undefined) {
+      configFail('render.yaml: incomplete route entry (source and destination are required)');
+    }
+  }
+  return routes;
 }
 
 const SECURITY_HEADER_VALUES = {
@@ -180,23 +267,62 @@ export function assertKnownHeaders(headers) {
   }
 }
 
+/** The single accepted SPA fallback: serve index.html for any unknown path. */
+const ACCEPTED_SPA_FALLBACK = { type: 'rewrite', source: '/*', destination: '/index.html' };
+
+/** Runtime validation: exactly the accepted SPA rewrite, nothing else. */
+export function assertAcceptedSpaFallback(routes) {
+  if (routes.length !== 1) {
+    configFail(
+      `render.yaml: expected exactly one route (the accepted SPA fallback ${ACCEPTED_SPA_FALLBACK.source} -> ${ACCEPTED_SPA_FALLBACK.destination}), found ${routes.length}`
+    );
+  }
+  const route = routes[0];
+  if (
+    route.type !== ACCEPTED_SPA_FALLBACK.type ||
+    route.source !== ACCEPTED_SPA_FALLBACK.source ||
+    route.destination !== ACCEPTED_SPA_FALLBACK.destination
+  ) {
+    configFail(
+      `render.yaml: route ${route.type} ${route.source} -> ${route.destination} is not the accepted SPA fallback ${ACCEPTED_SPA_FALLBACK.source} -> ${ACCEPTED_SPA_FALLBACK.destination}`
+    );
+  }
+  return route;
+}
+
 function selfTest() {
   const checks = [];
   const assert = (condition, message) => {
     if (!condition) fail(`self-test failed: ${message}`);
     checks.push(message);
   };
+  const expectFail = (fn, message) => {
+    let failed = false;
+    try {
+      fn();
+    } catch {
+      failed = true;
+    }
+    assert(failed, message);
+  };
 
-  // 1. Known-good: the REAL render.yaml parses and matches the accepted set.
-  const real = parseRenderHeaders(fs.readFileSync(path.join(repoRoot, 'render.yaml'), 'utf8'));
-  assertKnownHeaders(real);
-  assert(real.length >= 6, `real render.yaml parses with ${real.length} headers`);
+  const real = fs.readFileSync(path.join(repoRoot, 'render.yaml'), 'utf8');
+
+  // 1. Known-good: the REAL render.yaml headers parse and match the accepted set.
+  const realHeaders = parseRenderHeaders(real);
+  assertKnownHeaders(realHeaders);
+  assert(realHeaders.length >= 6, `real render.yaml parses with ${realHeaders.length} headers`);
   assert(
-    real.every((header) => header.path === '/*'),
+    realHeaders.every((header) => header.path === '/*'),
     'all headers apply to every path'
   );
 
-  // 2. Planted violation: a header with an unexpected value must fail the parse.
+  // 2. Known-good: the REAL render.yaml routes parse and are the accepted SPA rewrite.
+  const realRoutes = parseRenderRoutes(real);
+  assertAcceptedSpaFallback(realRoutes);
+  assert(realRoutes.length === 1, 'real render.yaml declares exactly one SPA fallback route');
+
+  // 3. Planted violation: a header with an unexpected value must fail the parse.
   const plantedValue =
     'services:\n' +
     '  - type: web\n' +
@@ -204,52 +330,50 @@ function selfTest() {
     '      - path: /*\n' +
     '        name: Referrer-Policy\n' +
     '        value: unsafe-url\n';
-  let failed = false;
-  try {
-    assertKnownHeaders(parseRenderHeaders(plantedValue));
-  } catch {
-    failed = true;
-  }
-  assert(failed, 'planted Referrer-Policy drift is rejected');
+  expectFail(() => assertKnownHeaders(parseRenderHeaders(plantedValue)), 'planted Referrer-Policy drift is rejected');
 
-  // 3. Planted violation: an unexpected extra header must fail the parse.
+  // 4. Planted violation: an unexpected extra header must fail the parse.
   const plantedExtra =
-    'headers:\n' +
-    '  - path: /*\n' +
-    '    name: X-Debug-All\n' +
-    '    value: "true"\n';
-  failed = false;
-  try {
-    assertKnownHeaders(parseRenderHeaders(plantedExtra));
-  } catch {
-    failed = true;
-  }
-  assert(failed, 'planted unknown header is rejected');
+    'headers:\n' + '  - path: /*\n' + '    name: X-Debug-All\n' + '    value: "true"\n';
+  expectFail(() => assertKnownHeaders(parseRenderHeaders(plantedExtra)), 'planted unknown header is rejected');
 
-  // 4. Planted violation: unrecognized line inside the headers block fails.
+  // 5. Planted violation: unrecognized line inside the headers block fails.
   const plantedGarbage = 'headers:\n  - path: /*\n    bogus: yes\n';
-  failed = false;
-  try {
-    parseRenderHeaders(plantedGarbage);
-  } catch {
-    failed = true;
-  }
-  assert(failed, 'planted malformed headers block is rejected');
+  expectFail(() => parseRenderHeaders(plantedGarbage), 'planted malformed headers block is rejected');
 
-  // 5. Known-good: SPA redirects parse.
-  deepStrictEqual(
-    parseRedirects('/*    /index.html   200\n'),
-    { source: '/*', destination: '/index.html', status: 200 }
+  // 6. Planted violation: a `redirect` (URL changes) is NOT the accepted fallback.
+  const plantedRedirect =
+    'routes:\n' +
+    '  - type: redirect\n' +
+    '    source: /*\n' +
+    '    destination: /index.html\n';
+  expectFail(
+    () => assertAcceptedSpaFallback(parseRenderRoutes(plantedRedirect)),
+    'planted redirect instead of rewrite is rejected'
   );
 
-  // 6. Planted violation: a non-200 redirect status fails closed.
-  failed = false;
-  try {
-    parseRedirects('/*  /index.html  302\n');
-  } catch {
-    failed = true;
-  }
-  assert(failed, 'planted non-200 SPA fallback is rejected');
+  // 7. Planted violation: a rewrite to the wrong destination fails.
+  const plantedDestination =
+    'routes:\n' +
+    '  - type: rewrite\n' +
+    '    source: /*\n' +
+    '    destination: /home.html\n';
+  expectFail(
+    () => assertAcceptedSpaFallback(parseRenderRoutes(plantedDestination)),
+    'planted wrong fallback destination is rejected'
+  );
+
+  // 8. Planted violation: a malformed route entry (missing destination) fails.
+  const plantedMissing = 'routes:\n  - type: rewrite\n    source: /*\n';
+  expectFail(() => parseRenderRoutes(plantedMissing), 'planted route missing destination is rejected');
+
+  // 9. Sibling blocks do not bleed into each other.
+  const sibling = 'headers:\n  - path: /*\n    name: X-Frame-Options\n    value: DENY\nroutes:\n  - type: rewrite\n    source: /*\n    destination: /index.html\n';
+  const siblingHeaders = parseRenderHeaders(sibling);
+  assert(siblingHeaders.length === 1, 'headers parser stops at the sibling routes block');
+  const siblingRoutes = parseRenderRoutes(sibling);
+  assertAcceptedSpaFallback(siblingRoutes);
+  assert(siblingRoutes.length === 1, 'routes parser ignores the preceding headers block');
 
   process.stdout.write(`preview-server self-test: ${checks.length} checks passed\n`);
 }
@@ -259,15 +383,12 @@ function serve(options) {
   if (!fs.existsSync(path.join(distDir, 'index.html'))) {
     fail(`dist/index.html not found under ${distDir}; run \`npm run build\` first`);
   }
-  const parsedHeaders = parseRenderHeaders(
-    fs.readFileSync(path.join(repoRoot, 'render.yaml'), 'utf8')
-  );
+  const renderYaml = fs.readFileSync(path.join(repoRoot, 'render.yaml'), 'utf8');
+  const parsedHeaders = parseRenderHeaders(renderYaml);
   assertKnownHeaders(parsedHeaders);
   const headers = parsedHeaders;
-  const redirectsPath = path.join(distDir, '_redirects');
-  const redirects = parseRedirects(
-    fs.existsSync(redirectsPath) ? fs.readFileSync(redirectsPath, 'utf8') : null
-  );
+  // SPA fallback from the accepted render.yaml rewrite (Render's mechanism).
+  const fallback = assertAcceptedSpaFallback(parseRenderRoutes(renderYaml));
 
   const server = http.createServer((req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -293,14 +414,8 @@ function serve(options) {
       return;
     }
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-      // SPA fallback per dist/_redirects.
-      if (redirects && redirects.source === '/*' && redirects.status === 200) {
-        filePath = path.join(distDir, redirects.destination.replace(/^\//, ''));
-      } else {
-        res.writeHead(404);
-        res.end();
-        return;
-      }
+      // SPA fallback per the render.yaml rewrite (`/* -> /index.html`).
+      filePath = path.join(distDir, fallback.destination.replace(/^\//, ''));
     }
     const extension = path.extname(filePath).toLowerCase();
     const types = {
@@ -328,7 +443,7 @@ function serve(options) {
   });
 
   server.listen(options.port, '127.0.0.1', () => {
-    process.stdout.write(`preview-server: serving ${distDir} on http://127.0.0.1:${options.port}/ with ${headers.length} security headers from render.yaml\n`);
+    process.stdout.write(`preview-server: serving ${distDir} on http://127.0.0.1:${options.port}/ with ${headers.length} security headers and the render.yaml SPA fallback ${fallback.source} -> ${fallback.destination}\n`);
   });
   server.on('error', (error) => fail(`cannot start preview server: ${error.message}`));
 

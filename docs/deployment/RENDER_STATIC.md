@@ -11,9 +11,15 @@ Authority: `SPEC_V4_QUALITY_SECURITY_DEPLOY.md` §9, `CURRENT_DECISIONS.md` D-01
   runs entirely in the user's browser (local-first, D-013/D-014).
 - **Build** is reproducible: `npm ci && npm run build` (lockfile-pinned
   dependencies; vendor manifest governed by `check:vendor`).
-- **SPA fallback**: `dist/_redirects` (`/* /index.html 200`), copied verbatim
-  from `app-v4/public/` by the Vite build — the canonical Render Static SPA
-  mechanism.
+- **SPA fallback**: the `render.yaml` `routes:` rewrite
+  (`type: rewrite`, `source: /*`, `destination: /index.html`). This is the
+  accepted Render Static Site mechanism: Render rewrites an unknown path to
+  the SPA entry with HTTP 200 while still serving a real resource when one
+  exists at the path. A Netlify-style `dist/_redirects` file is **not**
+  interpreted by Render (it is only served as a static asset), so it was
+  removed after live verification showed deep routes returning 404 on the
+  real origin while the local preview (which modelled `_redirects`) wrongly
+  passed.
 
 ## 2. Security headers (single authority)
 
@@ -31,10 +37,12 @@ Authority: `SPEC_V4_QUALITY_SECURITY_DEPLOY.md` §9, `CURRENT_DECISIONS.md` D-01
 
 The local preview harness (`scripts/deploy/preview-server.mjs`) PARSES
 `render.yaml` at runtime and validates it against the accepted policy set —
-the local preview can never drift from the deployed configuration. Any
-header change requires updating `render.yaml`, the preview validator and
-`scripts/deploy/header-assertions.mjs` together; the assertion suite fails
-closed on drift.
+both the security headers and the single accepted SPA rewrite
+(`/* -> /index.html`) — so the local preview can never drift from the
+deployed configuration. Any header or route change requires updating
+`render.yaml` and the preview validator together; the assertion suite fails
+closed on drift. `scripts/deploy/header-assertions.mjs` then makes real HTTP
+requests against that preview, including a deep-route fallback assertion.
 
 ## 3. Reproduce the deployment locally (no Render account needed)
 
@@ -60,7 +68,29 @@ npm run check:preview:selftest      # preview config parser self-test (planted v
   defense (monitor recorder or CSP block) — a request caught by neither
   fails the suite.
 
-## 5. Remote deployment (publication handoff)
+## 5. Live-origin reconciliation (HARDEN-01 WU-D)
+
+Read-only verification of the real origin
+`https://laboratorio-privacidad-clinica.onrender.com` on 2026-09-30 found:
+
+- the deployed security headers matched this document (CSP, Referrer-Policy,
+  X-Content-Type-Options, X-Frame-Options, COOP, Permissions-Policy) except
+  HSTS, where the platform emits `max-age=315360000; includeSubDomains;
+  preload` (stronger than the `max-age=31536000; includeSubDomains` declared
+  here);
+- `GET /` served the built SPA and `/assets/*` served the built bundles;
+- **deep routes 404ed** (`GET /review` and `/workspace` returned
+  `404 text/plain`): the `_redirects` file was only being served as a static
+  asset, never applied as a fallback.
+
+This made the SPA-fallback property required by SPEC §9 false on the real
+origin while the local preview passed — a T24 configuration defect, not a new
+deployment/security/product decision. The bounded correction is the
+`render.yaml` `routes:` rewrite above plus the preview/server/oracle update in
+this commit. No remote Render configuration was changed during the train; the
+correction reaches production only on the next authorized deployment.
+
+## 6. Remote deployment (publication handoff)
 
 Creating the actual Render Static service requires an authorized Render
 account/credentials. Under the LOCAL_ONLY execution boundary of the

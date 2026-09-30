@@ -1,0 +1,398 @@
+/**
+ * Structured transformed dataset + export readiness (HARDEN-01 WU-A, #47 §A).
+ *
+ * This is the SINGLE production module that activates the accepted structured
+ * transformations: it is the only caller of `applyStructuredDateAgePolicy`
+ * (T19) and `codifyColumnValues` (T18), and it only ever runs through a
+ * {@link StructuredTransformPlan} derived from the reviewed configuration.
+ *
+ * Separation (D-005 / PRIV-002, HARDEN-01 §6):
+ *  - `safe`: the Safe Structured dataset — transformed/kept cells only. A
+ *    `remove` column (Identifier, including the patient-ID column) is dropped
+ *    entirely and never appears; there is no correspondence field.
+ *  - `confidential`: the separate original↔transformed correspondence for the
+ *    date/age, codify and remove decisions. Never merged with `safe`.
+ *
+ * Fail-closed (D-009): while any column is unsupported, the patient-ID needed
+ * by a shift policy is missing, or any date/age cell requires review, the
+ * preparation is `blocked` and no Safe artifact exists. A cell is never
+ * silently kept, blanked or dropped.
+ *
+ * Memory-only (D-013): the dataset is plain frozen values; nothing here
+ * persists, logs or transmits.
+ */
+import { codifyColumnValues } from "./codify";
+import type { StructuredConfiguration } from "./configuration";
+import { applyStructuredDateAgePolicy, type StructuredDateAgeApplication } from "./date-age-policy";
+import type { StructuredDateCellOutcome } from "./date-age";
+import { isBlankCell, type StructuredCell } from "./grid";
+import type { StructuredTransformPlan, StructuredTransformPlanColumn } from "./transform-plan";
+
+/** The Safe structured dataset: flattened cells, no correspondence field. */
+export type StructuredSafeDataset = {
+  readonly kind: "structured-safe-dataset";
+  readonly headers: readonly string[];
+  readonly rows: readonly (readonly string[])[];
+};
+
+/** One original↔transformed entry (Confidential only). */
+export type StructuredCorrespondenceEntry = {
+  readonly original: string;
+  readonly transformed: string | null;
+};
+
+/** Per-column correspondence for a transformed/removed column. */
+export type StructuredCorrespondenceColumn = {
+  readonly columnIndex: number;
+  readonly header: string;
+  readonly disposition: "date-age" | "codify" | "remove";
+  readonly entries: readonly StructuredCorrespondenceEntry[];
+};
+
+/** Coarse correspondence totals for the Confidential artifact header. */
+export type StructuredCorrespondenceTotals = {
+  readonly dateAge: number;
+  readonly codify: number;
+  readonly remove: number;
+  readonly transformedCells: number;
+};
+
+/** The separate Confidential correspondence artifact. */
+export type StructuredConfidentialCorrespondence = {
+  readonly kind: "structured-confidential-correspondence";
+  readonly policyId: string;
+  readonly columns: readonly StructuredCorrespondenceColumn[];
+  readonly totals: StructuredCorrespondenceTotals;
+};
+
+/** A cell the accepted policy could not transform safely. */
+export type StructuredReviewRequiredCell = {
+  readonly columnIndex: number;
+  readonly rowIndex: number;
+  readonly reason: string;
+};
+
+/** The computed structured output of a ready plan. */
+export type StructuredOutput = {
+  readonly safe: StructuredSafeDataset;
+  readonly confidential: StructuredConfidentialCorrespondence;
+  readonly reviewRequiredCells: readonly StructuredReviewRequiredCell[];
+};
+
+/** Preparation outcome: a ready output, or the exact fail-closed block reasons. */
+export type StructuredOutputPreparation =
+  | {
+      readonly status: "ready";
+      readonly output: StructuredOutput;
+      readonly reasons: readonly string[];
+    }
+  | { readonly status: "blocked"; readonly output: null; readonly reasons: readonly string[] };
+
+function columnLabel(column: StructuredTransformPlanColumn): string {
+  return column.header === "" ? "(unnamed column)" : column.header;
+}
+
+function formatCell(cell: StructuredCell | undefined): string {
+  return isBlankCell(cell) ? "" : String(cell);
+}
+
+function dateRoleHeader(
+  plan: StructuredTransformPlan,
+  role: "visit-date" | "birth-date"
+): string | null {
+  const column = plan.columns.find(
+    (candidate) => candidate.disposition.kind === "date-age" && candidate.disposition.role === role
+  );
+  return column ? column.header : null;
+}
+
+/**
+ * Exact fail-closed block reasons of a plan (plus any per-cell date/age
+ * reviews). Text-first; never color-only. Empty means the plan is exportable.
+ */
+export function structuredBlockReasons(
+  plan: StructuredTransformPlan,
+  reviewRequiredCells: readonly StructuredReviewRequiredCell[] = []
+): readonly string[] {
+  const reasons: string[] = [];
+  const unsupported = plan.columns.filter((column) => column.disposition.kind === "unsupported");
+
+  const unknown = unsupported.filter(
+    (column) =>
+      column.disposition.kind === "unsupported" &&
+      column.disposition.reason === "unknown-review-required"
+  );
+  if (unknown.length === 1) {
+    reasons.push("Structured export is blocked while 1 column requires review.");
+  } else if (unknown.length > 1) {
+    reasons.push(`Structured export is blocked while ${unknown.length} columns require review.`);
+  }
+
+  for (const column of unsupported) {
+    if (column.disposition.kind !== "unsupported") continue;
+    if (column.disposition.reason === "generalize-without-operator") {
+      reasons.push(
+        `Structured export is blocked: column "${columnLabel(column)}" has no accepted structured transformation.`
+      );
+    } else if (column.disposition.reason === "unsupported-action") {
+      reasons.push(
+        `Structured export is blocked: column "${columnLabel(column)}" uses an action with no structured operator.`
+      );
+    }
+  }
+
+  if (plan.missingPatientId) {
+    reasons.push(
+      `Structured export is blocked: policy "${plan.policyId}" shifts visit dates per patient and no patient-ID column is selected.`
+    );
+  }
+
+  if (reviewRequiredCells.length === 1) {
+    reasons.push(
+      "Structured export is blocked: 1 date/age cell requires review (unparseable or without the required reference)."
+    );
+  } else if (reviewRequiredCells.length > 1) {
+    reasons.push(
+      `Structured export is blocked: ${reviewRequiredCells.length} date/age cells require review (unparseable or without the required reference).`
+    );
+  }
+
+  return Object.freeze(reasons);
+}
+
+/**
+ * Compute the Safe dataset and the separate Confidential correspondence of a
+ * structurally-ready plan. Throws when the plan is not structurally ready:
+ * callers must go through {@link prepareStructuredOutput}.
+ */
+export function computeStructuredOutput(
+  configuration: StructuredConfiguration,
+  plan: StructuredTransformPlan
+): StructuredOutput {
+  if (!plan.dispositionsReady) {
+    throw new Error(
+      "computeStructuredOutput requires a structurally-ready plan; failing closed instead of producing a partial Safe dataset."
+    );
+  }
+  const grid = configuration.grid;
+
+  const dateColumns = plan.columns.filter((column) => column.disposition.kind === "date-age");
+  let dateApplication: StructuredDateAgeApplication | null = null;
+  if (dateColumns.length > 0) {
+    dateApplication = applyStructuredDateAgePolicy({
+      grid,
+      policyId: plan.policyId,
+      jobSeed: plan.jobSeed,
+      visitDateColumn: dateRoleHeader(plan, "visit-date"),
+      birthDateColumn: dateRoleHeader(plan, "birth-date"),
+      patientIdColumn: plan.patientIdColumn,
+    });
+  }
+
+  const visitOutcomes: readonly StructuredDateCellOutcome[] =
+    dateApplication?.visitDate?.cells ?? [];
+  const birthOutcomes: readonly StructuredDateCellOutcome[] =
+    dateApplication?.birthDate?.cells ?? [];
+
+  const reviewRequiredCells: StructuredReviewRequiredCell[] = [];
+  const correspondenceColumns: StructuredCorrespondenceColumn[] = [];
+  const safeHeaders: string[] = [];
+  const safeColumnIndices: number[] = [];
+
+  const valuesFor = (columnIndex: number): readonly StructuredCell[] =>
+    grid.rows.map((row) => row[columnIndex]);
+
+  const dateOutcomesFor = (
+    column: StructuredTransformPlanColumn
+  ): readonly StructuredDateCellOutcome[] =>
+    column.disposition.kind === "date-age" && column.disposition.role === "birth-date"
+      ? birthOutcomes
+      : visitOutcomes;
+
+  for (const column of plan.columns) {
+    const disposition = column.disposition;
+    if (disposition.kind === "remove") {
+      correspondenceColumns.push(
+        Object.freeze({
+          columnIndex: column.columnIndex,
+          header: column.header,
+          disposition: "remove" as const,
+          entries: Object.freeze(
+            valuesFor(column.columnIndex)
+              .filter((cell) => !isBlankCell(cell))
+              .map((cell) => Object.freeze({ original: String(cell), transformed: null }))
+          ),
+        })
+      );
+      continue;
+    }
+
+    if (disposition.kind === "unsupported") {
+      // Unreachable for a ready plan; keep the guard explicit and fail closed.
+      throw new Error(
+        `computeStructuredOutput received an unsupported disposition for column ${column.columnIndex}; failing closed.`
+      );
+    }
+
+    safeHeaders.push(column.header);
+    safeColumnIndices.push(column.columnIndex);
+
+    if (disposition.kind === "date-age") {
+      const outcomes = dateOutcomesFor(column);
+      const entries: StructuredCorrespondenceEntry[] = [];
+      grid.rows.forEach((row, rowIndex) => {
+        const outcome = outcomes[rowIndex];
+        const raw = formatCell(row[column.columnIndex]);
+        if (outcome === undefined || outcome.kind === "absent") {
+          entries.push(Object.freeze({ original: raw, transformed: null }));
+          return;
+        }
+        if (outcome.kind === "transformed") {
+          entries.push(Object.freeze({ original: raw, transformed: outcome.value }));
+          return;
+        }
+        reviewRequiredCells.push(
+          Object.freeze({ columnIndex: column.columnIndex, rowIndex, reason: outcome.reason })
+        );
+        entries.push(Object.freeze({ original: raw, transformed: null }));
+      });
+      correspondenceColumns.push(
+        Object.freeze({
+          columnIndex: column.columnIndex,
+          header: column.header,
+          disposition: "date-age" as const,
+          entries: Object.freeze(entries),
+        })
+      );
+      continue;
+    }
+
+    if (disposition.kind === "codify") {
+      const result = codifyColumnValues(valuesFor(column.columnIndex));
+      const entries: StructuredCorrespondenceEntry[] = [];
+      grid.rows.forEach((row, rowIndex) => {
+        const code = result.coded[rowIndex];
+        if (code === null || code === undefined) return;
+        entries.push(
+          Object.freeze({
+            original: formatCell(row[column.columnIndex]),
+            transformed: String(code),
+          })
+        );
+      });
+      correspondenceColumns.push(
+        Object.freeze({
+          columnIndex: column.columnIndex,
+          header: column.header,
+          disposition: "codify" as const,
+          entries: Object.freeze(entries),
+        })
+      );
+      continue;
+    }
+
+    // keep: preserved verbatim in the Safe dataset, no correspondence.
+  }
+
+  // Materialize the Safe cells per column index (codify needs the whole
+  // column before per-row output).
+  const safeCellsByColumnIndex = new Map<number, readonly string[]>();
+  for (const column of plan.columns) {
+    const disposition = column.disposition;
+    if (disposition.kind === "remove" || disposition.kind === "unsupported") continue;
+    if (disposition.kind === "date-age") {
+      const outcomes = dateOutcomesFor(column);
+      safeCellsByColumnIndex.set(
+        column.columnIndex,
+        Object.freeze(
+          grid.rows.map((_row, rowIndex) => {
+            const outcome = outcomes[rowIndex];
+            return outcome !== undefined && outcome.kind === "transformed" ? outcome.value : "";
+          })
+        )
+      );
+    } else if (disposition.kind === "codify") {
+      const result = codifyColumnValues(valuesFor(column.columnIndex));
+      safeCellsByColumnIndex.set(
+        column.columnIndex,
+        Object.freeze(
+          result.coded.map((code) => (code === null || code === undefined ? "" : String(code)))
+        )
+      );
+    } else {
+      safeCellsByColumnIndex.set(
+        column.columnIndex,
+        Object.freeze(valuesFor(column.columnIndex).map((cell) => formatCell(cell)))
+      );
+    }
+  }
+
+  const safeRows = Object.freeze(
+    grid.rows.map((_row, rowIndex) =>
+      Object.freeze(
+        safeColumnIndices.map(
+          (columnIndex) => safeCellsByColumnIndex.get(columnIndex)?.[rowIndex] ?? ""
+        )
+      )
+    )
+  );
+
+  const totals: StructuredCorrespondenceTotals = Object.freeze({
+    dateAge: correspondenceColumns.filter((column) => column.disposition === "date-age").length,
+    codify: correspondenceColumns.filter((column) => column.disposition === "codify").length,
+    remove: correspondenceColumns.filter((column) => column.disposition === "remove").length,
+    transformedCells: correspondenceColumns.reduce(
+      (count, column) =>
+        count +
+        column.entries.reduce((sum, entry) => sum + (entry.transformed !== null ? 1 : 0), 0),
+      0
+    ),
+  });
+
+  return Object.freeze({
+    safe: Object.freeze({
+      kind: "structured-safe-dataset" as const,
+      headers: Object.freeze(safeHeaders),
+      rows: safeRows,
+    }),
+    confidential: Object.freeze({
+      kind: "structured-confidential-correspondence" as const,
+      policyId: plan.policyId,
+      columns: Object.freeze(correspondenceColumns),
+      totals,
+    }),
+    reviewRequiredCells: Object.freeze(reviewRequiredCells),
+  });
+}
+
+/**
+ * Prepare the structured output of a reviewed configuration: the exact Safe
+ * dataset + separate Confidential correspondence, or the fail-closed block
+ * reasons. This is the only gate the bridge and the export surface need.
+ */
+export function prepareStructuredOutput(
+  configuration: StructuredConfiguration,
+  plan: StructuredTransformPlan
+): StructuredOutputPreparation {
+  const structuralReasons = structuredBlockReasons(plan);
+  if (structuralReasons.length > 0) {
+    return Object.freeze({ status: "blocked" as const, output: null, reasons: structuralReasons });
+  }
+  const output = computeStructuredOutput(configuration, plan);
+  if (output.reviewRequiredCells.length > 0) {
+    return Object.freeze({
+      status: "blocked" as const,
+      output: null,
+      reasons: structuredBlockReasons(plan, output.reviewRequiredCells),
+    });
+  }
+  return Object.freeze({ status: "ready" as const, output, reasons: Object.freeze([]) });
+}
+
+/** Convenience predicate over {@link prepareStructuredOutput}. */
+export function isStructuredOutputReady(
+  configuration: StructuredConfiguration,
+  plan: StructuredTransformPlan
+): boolean {
+  return prepareStructuredOutput(configuration, plan).status === "ready";
+}
