@@ -47,7 +47,18 @@ export function isEngineWorkerResponse(value: unknown): value is EngineWorkerRes
   if (value === null || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
   if (typeof candidate.id !== "number") return false;
-  if (candidate.ok === true) return "outcome" in candidate;
+  if (candidate.ok === true) {
+    // Fail-closed: an "ok" response must carry a plain-object outcome, so a
+    // malformed null/scalar can never be resolved as a successful result.
+    const outcome = candidate.outcome;
+    return (
+      outcome !== null &&
+      typeof outcome === "object" &&
+      !Array.isArray(outcome) &&
+      typeof (outcome as Record<string, unknown>).result === "object" &&
+      (outcome as Record<string, unknown>).result !== null
+    );
+  }
   if (candidate.ok === false) {
     const error = candidate.error;
     return (

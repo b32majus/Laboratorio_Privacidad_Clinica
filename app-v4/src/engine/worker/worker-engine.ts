@@ -50,13 +50,38 @@ export function createWorkerEngineFrom(worker: Worker): {
   terminate: () => void;
 } {
   let nextId = 1;
+  /** Terminal failure state: once the worker errored, no new call may hang. */
+  let workerFailed = false;
   const pending = new Map<
     number,
     { resolve: (outcome: EngineOutcome) => void; reject: (error: unknown) => void }
   >();
 
+  const rejectAll = (message: string): void => {
+    for (const entry of pending.values()) {
+      entry.reject(new Error(message));
+    }
+    pending.clear();
+  };
+
   worker.onmessage = (event: MessageEvent<unknown>) => {
-    if (!isEngineWorkerResponse(event.data)) return;
+    if (!isEngineWorkerResponse(event.data)) {
+      // T22 #26 review hardening: a protocol-invalid response that claims a
+      // pending id must FAIL that call closed (never hang, never fabricate);
+      // unknown ids are ignored (fail-closed, no guessing).
+      const claimedId = (event.data as { id?: unknown } | null)?.id;
+      if (typeof claimedId === "number" && pending.has(claimedId)) {
+        const entry = pending.get(claimedId);
+        pending.delete(claimedId);
+        entry?.reject(
+          new EngineError(
+            "invalid-engine-result",
+            "The engine worker returned a protocol-invalid response."
+          )
+        );
+      }
+      return;
+    }
     const entry = pending.get(event.data.id);
     if (!entry) return;
     pending.delete(event.data.id);
@@ -64,15 +89,18 @@ export function createWorkerEngineFrom(worker: Worker): {
     else entry.reject(reconstructError(event.data.error));
   };
   worker.onerror = () => {
-    for (const entry of pending.values()) {
-      entry.reject(new Error("The engine worker failed unexpectedly."));
-    }
-    pending.clear();
+    // Terminal: reject every pending call AND fail every future call closed,
+    // so a failed worker can never leave a later request hanging.
+    workerFailed = true;
+    rejectAll("The engine worker failed unexpectedly.");
   };
 
   return {
     engine: {
       process(input) {
+        if (workerFailed) {
+          return Promise.reject(new Error("The engine worker failed unexpectedly."));
+        }
         const id = nextId;
         nextId += 1;
         const request: EngineWorkerRequest = {
@@ -87,10 +115,8 @@ export function createWorkerEngineFrom(worker: Worker): {
       },
     },
     terminate: () => {
-      for (const entry of pending.values()) {
-        entry.reject(new Error("The engine worker was terminated."));
-      }
-      pending.clear();
+      workerFailed = true;
+      rejectAll("The engine worker was terminated.");
       worker.terminate();
     },
   };

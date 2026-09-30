@@ -14,6 +14,8 @@ import { describe, expect, it } from "vitest";
 
 import { classifyProcessingFailure } from "../../processing-outcome";
 import { PolicyError } from "../policy";
+import { EngineError } from "../types";
+import { isEngineWorkerResponse } from "./protocol";
 import { createRegistryEngine } from "../registry-engine";
 import type { RegistryEngineInput } from "../registry-engine";
 import type { EngineWorkerRequest, EngineWorkerResponse } from "./protocol";
@@ -154,6 +156,52 @@ describe("engine Worker boundary (T22 #26 WU-E)", () => {
     } finally {
       terminate();
     }
+  });
+
+  it("worker onerror is TERMINAL: pending and future calls reject, never hang", async () => {
+    const fake = new FakeWorker();
+    fake.postMessage = () => undefined; // the double never answers
+    const { engine, terminate } = createWorkerEngineFrom(fake as unknown as Worker);
+    const pendingBefore = engine.process(INPUT);
+    fake.onerror?.({});
+    await expect(pendingBefore).rejects.toThrow(/failed unexpectedly/i);
+    // A LATER call also fails closed instead of posting into a dead worker.
+    await expect(engine.process(INPUT)).rejects.toThrow(/failed unexpectedly/i);
+    terminate();
+  });
+
+  it("a protocol-invalid response claiming a pending id rejects that call fail-closed", async () => {
+    const fake = new FakeWorker();
+    // Plant a malformed response with the id the facade is about to use.
+    fake.postMessage = () => {
+      void Promise.resolve().then(() => {
+        fake.onmessage?.({
+          data: { id: 1, ok: true, nonsense: true } as unknown as EngineWorkerResponse,
+        });
+      });
+    };
+    const { engine, terminate } = createWorkerEngineFrom(fake as unknown as Worker);
+    try {
+      let failure: unknown = null;
+      try {
+        await engine.process(INPUT);
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(EngineError);
+      expect((failure as EngineError).code).toBe("invalid-engine-result");
+    } finally {
+      terminate();
+    }
+  });
+
+  it("a malformed ok payload (null outcome) is protocol-invalid and can never resolve as success", async () => {
+    // Direct guard self-test: the planted violation must fail isEngineWorkerResponse.
+    expect(isEngineWorkerResponse({ id: 1, ok: true, outcome: null })).toBe(false);
+    expect(isEngineWorkerResponse({ id: 1, ok: true, outcome: 42 })).toBe(false);
+    expect(
+      isEngineWorkerResponse({ id: 1, ok: true, outcome: { result: { original: "x" } } })
+    ).toBe(true);
   });
 
   it("terminate rejects pending calls instead of leaving them hanging", async () => {
