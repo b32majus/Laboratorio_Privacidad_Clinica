@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-005-age-pediatric-weeks",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Pediatric week age after an explicit age cue -> the <1 año band.",
+  "text": "Niña de 3 semanas.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "3 semanas",
+      "expectedTransformed": "<1 año"
+    }
+  ]
+}

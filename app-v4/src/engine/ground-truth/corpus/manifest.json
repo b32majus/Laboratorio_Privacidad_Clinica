@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "description": "Synthetic annotated ground-truth corpus for the productive V4 privacy engine (FUNC-008 + QA-001, HARDEN-02 WU-A). Cases exercise the real registry-composed recognizer/operator pipeline (createRegistryEngine), including the AGE taxonomy. All content is synthetic; no real PHI. Core cases gate CI; adversarial cases document known gaps and never gate.",
+  "taxonomy": ["NOMBRE", "IDENTIFICADOR", "FECHA", "UBICACION", "SOSPECHOSO", "EDAD"],
+  "labels": ["MUST_REMOVE", "MUST_KEEP", "MUST_FLAG_FOR_REVIEW"]
+}

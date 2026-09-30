@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-902-age-implausible-known-gap",
+  "tier": "adversarial",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Known gap: an implausible magnitude (300 años) is rejected by the plausibility bound and produces no detection; the fail direction is fail-closed (never a wrong age). Reported, not gated.",
+  "text": "Paciente de 300 años.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "300 años",
+      "note": "Rejected by the 0–129 plausibility bound; no detection (documented known gap)."
+    }
+  ]
+}

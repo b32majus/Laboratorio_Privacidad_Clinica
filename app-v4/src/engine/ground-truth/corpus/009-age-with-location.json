@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-009-age-with-location",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Recognizer overlap: an age and a city in one sentence.",
+  "text": "La paciente, de 78 años, reside en Madrid.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "78 años",
+      "expectedTransformed": "70–79 años"
+    },
+    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Madrid" }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-011-age-zero",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Zero completed years is a valid lower-bound age and is banded, never kept exact.",
+  "text": "El paciente tiene 0 años.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "0 años",
+      "expectedTransformed": "0–9 años"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-903-age-literal-less-than-known-gap",
+  "tier": "adversarial",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Known gap: the literal '<1 año' is recognized through its '1 año' span and banded as '0–9 años', not as the pediatric '<1 año' label. The output is still a safe generalization. Reported, not gated.",
+  "text": "Paciente <1 año.",
+  "annotations": [
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "EDAD",
+      "value": "1 año",
+      "note": "Literal '<1 año' banded as 0–9 años (documented known gap)."
+    }
+  ]
+}

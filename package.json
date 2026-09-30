@@ -37,7 +37,8 @@
     "bench:engine:selftest": "node scripts/benchmarks/engine-bench.mjs --self-test",
     "bench:engine:check": "node scripts/benchmarks/engine-bench.mjs --check --baseline=benchmarks/baseline-wu0.json",
     "check:privacy-eval": "node scripts/privacy-eval/evaluate.mjs",
-    "test": "npm run check:links && npm run check:storage && npm run check:external && npm run check:vendor && npm run check:pdfjs && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run test:benchmarks && npm run test:perf-core && npm run bench:engine:selftest && npm run check:headers:selftest && npm run check:preview:selftest && npm run check:privacy-eval && npm run test:v4"
+    "check:privacy-eval:v4": "vitest run src/engine/ground-truth/v4-ground-truth.test.ts",
+    "test": "npm run check:links && npm run check:storage && npm run check:external && npm run check:vendor && npm run check:pdfjs && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run test:benchmarks && npm run test:perf-core && npm run bench:engine:selftest && npm run check:headers:selftest && npm run check:preview:selftest && npm run check:privacy-eval && npm run check:privacy-eval:v4 && npm run test:v4"
   },
   "keywords": [],
   "author": "",

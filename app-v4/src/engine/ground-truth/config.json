@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "rationale": "Thresholds pin the current deterministic baseline of the gated core V4 corpus (ordinary clinical prose + false-positive guards + the AGE taxonomy). The corpus is intentionally small: one missed detection, one spurious detection or one wrong AGE band must fail the gate. This mirrors the accepted legacy privacy-eval gate rationale (scripts/privacy-eval/config.json) and reuses the exact same metric definitions; it is a regression gate, not a quality grade. Adversarial cases are reported as known gaps and never gate. Any corpus addition must re-evaluate these thresholds explicitly in the corresponding ticket.",
+  "gate": {
+    "overall": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+    "per_type": {
+      "NOMBRE": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "IDENTIFICADOR": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "FECHA": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "UBICACION": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "SOSPECHOSO": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 },
+      "EDAD": { "min_precision": 1, "min_recall": 1, "max_fnr": 0 }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-003-age-top-code",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "The 90+ top code: 90 and 96 both collapse to the top band.",
+  "text": "Paciente de 96 años y de 90 años.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "96 años",
+      "expectedTransformed": "90+ años"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "90 años",
+      "expectedTransformed": "90+ años"
+    }
+  ]
+}
