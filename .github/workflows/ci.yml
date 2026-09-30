@@ -63,6 +63,7 @@ jobs:
         run: |
           npm run check:external:selftest
           npm run check:pdfjs:selftest
+          npm run check:storage:selftest
 
       - name: Check V4 formatting
         run: npm run format:check:v4
