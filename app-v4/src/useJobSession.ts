@@ -9,7 +9,7 @@ import {
   applyDecision,
   canFinalize,
   processBatchItem,
-  startReviewSession,
+  startReviewSessionAsync,
 } from "./review/review-domain";
 import {
   type BatchItemReadOutcome,
@@ -35,7 +35,7 @@ import {
   setPolicy,
   withReviewState,
 } from "./domain/job";
-import { createRegistryEngine } from "./engine/registry-engine";
+import { loadRegistryEngine, type AsyncV4Engine } from "./engine/engine-seam";
 import type { ProcessingContext } from "./engine/types";
 import { classifyProcessingFailure } from "./processing-outcome";
 import {
@@ -131,15 +131,19 @@ function withDerivedBatchReviewState(job: Job): Job {
   }) as Job;
 }
 
-/** Engine factory seam: the registry engine is the only production engine. */
-type BatchEngineFactory = () => ReturnType<typeof createRegistryEngine>;
+/**
+ * Engine loader seam (T22 #26 WU-D): production callers use the lazy async
+ * engine seam (`loadRegistryEngine`); deterministic oracles inject a stub
+ * loader. The loader runs ONCE per batch loop, not once per item.
+ */
+export type BatchEngineLoader = () => Promise<AsyncV4Engine>;
 
 /**
  * Per-item outcome callbacks for {@link runBatchReview}. Production callers
  * pass nothing; deterministic oracles may observe each item transition.
  */
 export type BatchReviewRunOptions = {
-  readonly engineFactory?: BatchEngineFactory;
+  readonly engineLoader?: BatchEngineLoader;
   readonly onItemStart?: (index: number) => void;
   readonly onItemSuccess?: (index: number, session: ReviewSession) => void;
   readonly onItemFailure?: (index: number, failure: ProcessingFailure) => void;
@@ -183,12 +187,15 @@ export type BatchReviewRun =
  * failure.
  *
  * The returned job has `completeProcessing` applied and the batch review state
- * derived in one place; `engineFactory` is an oracle-only seam and production
+ * derived in one place; `engineLoader` is an oracle-only seam and production
  * callers pass nothing. Any unexpected throw outside the per-item catch is
  * classified and recorded with `failProcessing`, mirroring the single path.
  */
-export function runBatchReview(job: Job, options: BatchReviewRunOptions = {}): BatchReviewRun {
-  const engine = (options.engineFactory ?? createRegistryEngine)();
+export async function runBatchReviewAsync(
+  job: Job,
+  options: BatchReviewRunOptions = {}
+): Promise<BatchReviewRun> {
+  const engine = await (options.engineLoader ?? loadRegistryEngine)();
   let working = job;
   const sessions: Record<number, ReviewSession> = {};
   let carriedContext: ProcessingContext = { mode: "fresh" };
@@ -200,7 +207,7 @@ export function runBatchReview(job: Job, options: BatchReviewRunOptions = {}): B
       if (batchItemStatus(working, index) !== "queued") continue;
       options.onItemStart?.(index);
       working = beginItemProcessing(working, index);
-      const outcome = processBatchItem(working, index, carriedContext, engine);
+      const outcome = await processBatchItem(working, index, carriedContext, engine);
       if (outcome.ok) {
         working = recordItemProcessed(working, index);
         sessions[index] = outcome.session;
@@ -329,7 +336,7 @@ export function useJobSession() {
    * call (or any re-fire from the shell's review-step effect) an exact no-op
    * while the sessions exist.
    */
-  const startReview = useCallback((): ProcessingFailure | null => {
+  const startReview = useCallback(async (): Promise<ProcessingFailure | null> => {
     const current = stateRef.current;
     if (!current.job || current.review || current.batch) return null;
     const job = current.job;
@@ -337,9 +344,15 @@ export function useJobSession() {
     if (job.kind === "document-batch") {
       const begun = beginProcessing(job);
       setState((state) => (state.job ? { ...state, job: begun } : state));
-      const run = runBatchReview(begun);
+      const run = await runBatchReviewAsync(begun);
+      // Async gap guard (T22 #26 WU-D): the session may have been cleared or
+      // replaced while the engine was loading/processing; a stale outcome is
+      // never installed onto a different job.
+      if (stateRef.current.job?.id !== job.id) return null;
       if (!run.ok) {
-        setState((state) => (state.job ? { ...state, job: run.job } : state));
+        setState((state) =>
+          state.job && state.job.id === job.id ? { ...state, job: run.job } : state
+        );
         return run.failure;
       }
       const sessions = Object.freeze({ ...run.sessions });
@@ -357,9 +370,13 @@ export function useJobSession() {
 
     setState((state) => (state.job ? { ...state, job: beginProcessing(state.job) } : state));
     try {
-      const review = startReviewSession(job);
+      const review = await startReviewSessionAsync(job);
+      // Async gap guard (T22 #26 WU-D): only install the review if the SAME
+      // job is still current; a cleared or replaced session drops the stale
+      // outcome instead of attaching a review to the wrong job.
+      if (stateRef.current.job?.id !== job.id) return null;
       setState((state) =>
-        state.job
+        state.job && state.job.id === job.id
           ? {
               job: completeProcessing(withDerivedReviewState(state.job, review)),
               review,
@@ -369,9 +386,12 @@ export function useJobSession() {
       );
       return null;
     } catch (error) {
+      if (stateRef.current.job?.id !== job.id) return null;
       const failure = classifyProcessingFailure(error);
       setState((state) =>
-        state.job ? { ...state, job: failProcessing(state.job, failure) } : state
+        state.job && state.job.id === job.id
+          ? { ...state, job: failProcessing(state.job, failure) }
+          : state
       );
       return failure;
     }

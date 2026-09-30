@@ -17,7 +17,7 @@ import {
 import { PolicyError } from "./engine/policy";
 import { createRegistryEngine } from "./engine/registry-engine";
 import { getPendingDetections, type ReviewSession } from "./review/review-domain";
-import { runBatchReview, useJobSession } from "./useJobSession";
+import { runBatchReviewAsync, useJobSession } from "./useJobSession";
 
 /**
  * Oracles for the state bridge's single processing-attempt entry point
@@ -66,7 +66,12 @@ function ProcessingProbe() {
       <button type="button" onClick={() => session.updatePolicy("external-ai")}>
         policy external-ai
       </button>
-      <button type="button" onClick={() => setReturned(session.startReview())}>
+      <button
+        type="button"
+        onClick={() => {
+          void session.startReview().then((failure) => setReturned(failure));
+        }}
+      >
         start review
       </button>
       <p role="status" aria-label="processing probe">
@@ -82,10 +87,13 @@ function ProcessingProbe() {
 afterEach(cleanup);
 
 describe("useJobSession.startReview (T15 #19)", () => {
-  it("success route: records succeeded, installs a session and returns null", () => {
+  it("success route: records succeeded, installs a session and returns null", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
-    fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    // T22 #26 WU-D: processing is async; flush the promise before asserting.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    });
 
     const probe = screen.getByRole("status", { name: "processing probe" });
     expect(probe).toHaveTextContent("processing: succeeded");
@@ -94,11 +102,13 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).toHaveTextContent("returned: null");
   });
 
-  it("typed-failure route: records failed, appends the typed error and installs no session", () => {
+  it("typed-failure route: records failed, appends the typed error and installs no session", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
     fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
-    fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    });
 
     const probe = screen.getByRole("status", { name: "processing probe" });
     expect(probe).toHaveTextContent("processing: failed");
@@ -110,18 +120,22 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).not.toHaveTextContent("processing: succeeded");
   });
 
-  it("retry route: a failed attempt can start again and reach a terminal success", () => {
+  it("retry route: a failed attempt can start again and reach a terminal success", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
     fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
-    fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    });
     expect(screen.getByRole("status", { name: "processing probe" })).toHaveTextContent(
       "processing: failed"
     );
 
     // Fix the policy back to a mapped one, then retry the same job.
     fireEvent.click(screen.getByRole("button", { name: "policy standard" }));
-    fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    });
 
     const probe = screen.getByRole("status", { name: "processing probe" });
     expect(probe).toHaveTextContent("processing: succeeded");
@@ -129,15 +143,17 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).toHaveTextContent("returned: null");
   });
 
-  it("never-success-never-thrown contract: a typed failure is returned, not thrown", () => {
+  it("never-success-never-thrown contract: a typed failure is returned, not thrown", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
     fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
 
     // The click handler calls the real startReview(); a throw would escape it.
-    expect(() =>
-      fireEvent.click(screen.getByRole("button", { name: "start review" }))
-    ).not.toThrow();
+    await act(async () => {
+      expect(() =>
+        fireEvent.click(screen.getByRole("button", { name: "start review" }))
+      ).not.toThrow();
+    });
 
     const probe = screen.getByRole("status", { name: "processing probe" });
     expect(probe).toHaveTextContent("processing: failed");
@@ -206,14 +222,45 @@ function reviewedBatch(result: { readonly current: SessionHook }) {
   act(() => result.current.recordBatchItemRead(1, { ok: true, extractedText: BATCH_DOC_B }));
 }
 
+describe("useJobSession async processing responsiveness (T22 #26 WU-D)", () => {
+  it("yields to the UI between marking the attempt running and installing the session", async () => {
+    // T22 #26 WU-D: the heavy engine path is asynchronous (lazy engine module
+    // load; later the Worker boundary). The main thread must get a chance to
+    // paint the `running` state BEFORE the engine call completes — the old
+    // synchronous path marked and completed in one blocking task.
+    const { result } = renderHook(() => useJobSession());
+    act(() => {
+      result.current.create({ type: "pasted-text", text: BATCH_DOC_A });
+    });
+
+    let sawRunningBeforeSettled = false;
+    const processing = result.current.startReview().then(() => {
+      // Evaluated when the attempt settles; the flag below was observed in
+      // the intermediate microtask/window between the two halves.
+      return sawRunningBeforeSettled;
+    });
+    // Give the React updater for beginProcessing a chance to run while the
+    // engine promise is still pending.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      sawRunningBeforeSettled = result.current.job?.processing === "running";
+    });
+    const yielded = await processing;
+    expect(yielded).toBe(true);
+    expect(result.current.job?.processing).toBe("succeeded");
+    expect(result.current.review).not.toBeNull();
+  });
+});
+
 describe("useJobSession batch review state (T17 #21 WU-B)", () => {
-  it("keeps per-document review state independent and navigation pure (FUNC-002)", () => {
+  it("keeps per-document review state independent and navigation pure (FUNC-002)", async () => {
     const { result } = renderHook(() => useJobSession());
     reviewedBatch(result);
 
     let failure: ProcessingFailure | null = null;
-    act(() => {
-      failure = result.current.startReview();
+    await act(async () => {
+      failure = await result.current.startReview();
     });
     expect(failure).toBeNull();
 
@@ -272,7 +319,7 @@ describe("useJobSession batch review state (T17 #21 WU-B)", () => {
 });
 
 describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
-  it("keeps later documents consistent and records the attempt after a mid-batch engine failure", () => {
+  it("keeps later documents consistent and records the attempt after a mid-batch engine failure", async () => {
     const real = createRegistryEngine();
     const stub: ReturnType<typeof createRegistryEngine> = {
       process(input) {
@@ -291,7 +338,9 @@ describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
       { name: "doc-c.txt", read: { ok: true, extractedText: BATCH_DOC_B } },
     ]);
 
-    const run = runBatchReview(beginProcessing(job), { engineFactory: () => stub });
+    const run = await runBatchReviewAsync(beginProcessing(job), {
+      engineLoader: async () => ({ process: async (input) => stub.process(input) }),
+    });
     if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
 
     // The attempt is recorded through the completeProcessing path and the
@@ -349,7 +398,7 @@ describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
  * All content is synthetic; no real clinical data anywhere.
  */
 describe("useJobSession batch read vs policy change race (T17 #21 CORR-A)", () => {
-  it("commits an in-flight batch read after a mid-read policy change", () => {
+  it("commits an in-flight batch read after a mid-read policy change", async () => {
     const { result } = renderHook(() => useJobSession());
     act(() =>
       result.current.create({
@@ -382,7 +431,7 @@ describe("useJobSession batch read vs policy change race (T17 #21 CORR-A)", () =
     expect(batchItemStatus(job, 1)).toBe("queued");
   });
 
-  it("commits a failed read outcome after a mid-read policy change", () => {
+  it("commits a failed read outcome after a mid-read policy change", async () => {
     const { result } = renderHook(() => useJobSession());
     act(() =>
       result.current.create({
@@ -428,7 +477,7 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
     };
   }
 
-  it("completes an item whose session already has zero pending mandatory detections", () => {
+  it("completes an item whose session already has zero pending mandatory detections", async () => {
     const stub: ReturnType<typeof createRegistryEngine> = {
       process(input) {
         return { result: zeroPendingResult(input.text), context: input.context };
@@ -439,7 +488,9 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
       { name: "doc-b.txt", read: { ok: true, extractedText: BATCH_DOC_B } },
     ]);
 
-    const run = runBatchReview(beginProcessing(job), { engineFactory: () => stub });
+    const run = await runBatchReviewAsync(beginProcessing(job), {
+      engineLoader: async () => ({ process: async (input) => stub.process(input) }),
+    });
     if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
 
     // Both sessions have zero pending detections: both items complete
@@ -458,7 +509,7 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
     expect(run.activeIndex).toBe(0);
   });
 
-  it("keeps a session with pending detections review-required in the same mixed run", () => {
+  it("keeps a session with pending detections review-required in the same mixed run", async () => {
     // The stub returns a zero-pending session for doc A only; doc B goes
     // through the REAL engine (its detections stay pending). The real engine
     // still RUNS for doc A so its fresh-mode reset keeps the shared legacy
@@ -479,7 +530,9 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
       { name: "doc-b.txt", read: { ok: true, extractedText: BATCH_DOC_B } },
     ]);
 
-    const run = runBatchReview(beginProcessing(job), { engineFactory: () => stub });
+    const run = await runBatchReviewAsync(beginProcessing(job), {
+      engineLoader: async () => ({ process: async (input) => stub.process(input) }),
+    });
     if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
 
     expect(batchItemStatus(run.job, 0)).toBe("completed");
@@ -498,11 +551,11 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
  * to a batch-wide audit.
  */
 describe("useJobSession batch output authority (T17 #21 CORR-B)", () => {
-  it("keeps review.complete true while both batch output surfaces stay unavailable", () => {
+  it("keeps review.complete true while both batch output surfaces stay unavailable", async () => {
     const { result } = renderHook(() => useJobSession());
     reviewedBatch(result);
-    act(() => {
-      result.current.startReview();
+    await act(async () => {
+      await result.current.startReview();
     });
     completeItem(result, 0);
     completeItem(result, 1);
@@ -514,11 +567,11 @@ describe("useJobSession batch output authority (T17 #21 CORR-B)", () => {
 });
 
 describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
-  it("makes a second batch startReview an exact no-op while sessions exist", () => {
+  it("makes a second batch startReview an exact no-op while sessions exist", async () => {
     const { result } = renderHook(() => useJobSession());
     reviewedBatch(result);
-    act(() => {
-      result.current.startReview();
+    await act(async () => {
+      await result.current.startReview();
     });
 
     const jobAfterFirst = result.current.job;
@@ -526,19 +579,19 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
     expect(sessionsAfterFirst).not.toBeNull();
 
     let second: ProcessingFailure | null = null;
-    act(() => {
-      second = result.current.startReview();
+    await act(async () => {
+      second = await result.current.startReview();
     });
     expect(second).toBeNull();
     expect(result.current.job).toBe(jobAfterFirst);
     expect(result.current.batchSessions).toBe(sessionsAfterFirst);
   });
 
-  it("drops every batch session and requeues items on a real policy change (SD-8)", () => {
+  it("drops every batch session and requeues items on a real policy change (SD-8)", async () => {
     const { result } = renderHook(() => useJobSession());
     reviewedBatch(result);
-    act(() => {
-      result.current.startReview();
+    await act(async () => {
+      await result.current.startReview();
     });
     expect(result.current.batchSessions).not.toBeNull();
     expect(batchItemStatus(result.current.job!, 0)).toBe("review-required");
@@ -551,7 +604,7 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
     expect(batchItemStatus(result.current.job!, 1)).toBe("queued");
   });
 
-  it("no-ops decide/addManual/selectDocument without a batch or an active session", () => {
+  it("no-ops decide/addManual/selectDocument without a batch or an active session", async () => {
     const { result } = renderHook(() => useJobSession());
     act(() => result.current.decide("missing", "restored"));
     act(() => result.current.addManual({ start: 0, end: 1, type: "manual" }));
@@ -570,8 +623,8 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
         ],
       })
     );
-    act(() => {
-      result.current.startReview();
+    await act(async () => {
+      await result.current.startReview();
     });
     expect(result.current.batchSessions).toEqual({});
     expect(result.current.batchActiveIndex).toBeNull();
@@ -581,7 +634,7 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
     expect(result.current.job).toBe(jobBefore);
   });
 
-  it("blocks safeOutputReady while a failed item remains even if every evaluable item is completed", () => {
+  it("blocks safeOutputReady while a failed item remains even if every evaluable item is completed", async () => {
     const { result } = renderHook(() => useJobSession());
     act(() =>
       result.current.create({
@@ -604,8 +657,8 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
     );
     act(() => result.current.beginBatchItemRead(2));
     act(() => result.current.recordBatchItemRead(2, { ok: true, extractedText: BATCH_DOC_B }));
-    act(() => {
-      result.current.startReview();
+    await act(async () => {
+      await result.current.startReview();
     });
 
     expect(batchItemStatus(result.current.job!, 1)).toBe("error");
@@ -618,13 +671,13 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
     expect(result.current.job!.outputs.safeOutputReady).toBe(false);
   });
 
-  it("keeps the single-document path free of batch state", () => {
+  it("keeps the single-document path free of batch state", async () => {
     const { result } = renderHook(() => useJobSession());
     act(() => result.current.create({ type: "pasted-text", text: SYNTHETIC_NOTE }));
     expect(result.current.batchSessions).toBeNull();
     expect(result.current.batchActiveIndex).toBeNull();
-    act(() => {
-      result.current.startReview();
+    await act(async () => {
+      await result.current.startReview();
     });
     expect(result.current.review).not.toBeNull();
     expect(result.current.batchSessions).toBeNull();

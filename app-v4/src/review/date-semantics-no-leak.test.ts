@@ -10,7 +10,7 @@ import type { PrivacyPolicyId } from "../domain/job";
 import {
   applyDecision,
   createReviewSession,
-  createSessionFromEngineText,
+  createSessionFromEngineTextAsync,
   type ReviewSession,
 } from "./review-domain";
 
@@ -95,8 +95,8 @@ function fechaTransforms(policyId: PrivacyPolicyId): Map<string, string> {
 }
 
 /** Source date → ReviewSession `proposed` for every FECHA of the fixture. */
-function fechaProposals(policyId: PrivacyPolicyId): Map<string, string> {
-  const session = createSessionFromEngineText(FIXTURE, policyId);
+async function fechaProposals(policyId: PrivacyPolicyId): Promise<Map<string, string>> {
+  const session = await createSessionFromEngineTextAsync(FIXTURE, policyId);
   return new Map(
     session.detections
       .filter((detection) => detection.type === "FECHA")
@@ -124,10 +124,10 @@ afterEach(() => {
 });
 
 describe("T13 WU-C — composed no-leak: explicit non-visit dates are never relabelled as visits", () => {
-  it("redacts the four cued dates, keeps the two unlabelled dates as visits, and is policy-invariant (ORACLE 1 / ACCEPTANCE 1)", () => {
+  it("redacts the four cued dates, keeps the two unlabelled dates as visits, and is policy-invariant (ORACLE 1 / ACCEPTANCE 1)", async () => {
     for (const policyId of POLICIES) {
       const transformed = fechaTransforms(policyId);
-      const proposed = fechaProposals(policyId);
+      const proposed = await fechaProposals(policyId);
 
       expect(transformed.size, `${policyId}: exactly six FECHA entities`).toBe(6);
       for (const date of NON_VISIT_DATES) {
@@ -141,10 +141,10 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
 
     // Policy invariance of the date transformation.
     expect(fechaTransforms("strict")).toEqual(fechaTransforms("standard"));
-    expect(fechaProposals("strict")).toEqual(fechaProposals("standard"));
+    expect(await fechaProposals("strict")).toEqual(await fechaProposals("standard"));
   });
 
-  it("keeps the Visit-N chronology to the two unlabelled dates only (ORACLE 2)", () => {
+  it("keeps the Visit-N chronology to the two unlabelled dates only (ORACLE 2)", async () => {
     FechasManager.reset();
     createRegistryEngine().process({
       text: FIXTURE,
@@ -158,8 +158,8 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(FechasManager.visitasMap.get("03/11/2024") ?? "").toMatch(/^Visita 2/);
   });
 
-  it("separates Safe Output from Confidential Audit (D-005): visits labelled, non-visit dates absent from Safe Output but traceable in the audit (ORACLE 3)", () => {
-    const session = acceptAll(createSessionFromEngineText(FIXTURE, "standard"));
+  it("separates Safe Output from Confidential Audit (D-005): visits labelled, non-visit dates absent from Safe Output but traceable in the audit (ORACLE 3)", async () => {
+    const session = acceptAll(await createSessionFromEngineTextAsync(FIXTURE, "standard"));
     const safeText = serializeSafeOutput(buildSafeOutput(session));
 
     expect(safeText).toContain("Visita 1");
@@ -183,7 +183,7 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     }
   });
 
-  it("false-positive control: 'talla alta' and 'alta tensión' cues never claim the date (ORACLE 4)", () => {
+  it("false-positive control: 'talla alta' and 'alta tensión' cues never claim the date (ORACLE 4)", async () => {
     const talla = fechaEntities("Talla alta 172 cm. Fecha de control: 05/03/2024.");
     expect(talla).toHaveLength(1);
     expect(talla[0].transformed).not.toBe("");
@@ -195,7 +195,7 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(tension[0].transformed).toMatch(/^Visita 1/);
   });
 
-  it("false-positive control: same-line sibling dates are scoped independently (ORACLE 4)", () => {
+  it("false-positive control: same-line sibling dates are scoped independently (ORACLE 4)", async () => {
     const fechas = fechaEntities("Fecha de nacimiento: 12/03/1984. Fecha de visita: 02/06/2024.");
     expect(fechas).toHaveLength(2);
     expect(fechas[0].text).toBe("12/03/1984");
@@ -204,7 +204,7 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(fechas[1].transformed).toMatch(/^Visita 1/);
   });
 
-  it("false-positive control: a cue in a different clause or line does not claim the date (ORACLE 4)", () => {
+  it("false-positive control: a cue in a different clause or line does not claim the date (ORACLE 4)", async () => {
     const clauseSeparated = fechaEntities("Nacimiento registrado. Fecha de control: 05/03/2024.");
     expect(clauseSeparated).toHaveLength(1);
     expect(clauseSeparated[0].transformed).not.toBe("");
@@ -216,7 +216,7 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(lineSeparated[0].transformed).toMatch(/^Visita 1/);
   });
 
-  it("false-positive control: a cue beyond the 64-character window in the same clause does not claim the date (ORACLE 4)", () => {
+  it("false-positive control: a cue beyond the 64-character window in the same clause does not claim the date (ORACLE 4)", async () => {
     const text = `Ingreso ${"x".repeat(70)} Fecha de control: 05/03/2024.`;
     const fechas = fechaEntities(text);
     expect(fechas).toHaveLength(1);
@@ -224,7 +224,7 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(fechas[0].transformed).toMatch(/^Visita 1/);
   });
 
-  it("DOCUMENTED LIMITATION — the symmetric clause+cap window lets a same-clause cue AFTER the date claim it (ORACLE 5)", () => {
+  it("DOCUMENTED LIMITATION — the symmetric clause+cap window lets a same-clause cue AFTER the date claim it (ORACLE 5)", async () => {
     // (a) This is the DELIBERATE clause + 64-character window behavior:
     //     `dateRoleContextWindow` inspects the containing clause on BOTH sides
     //     of the date, so a cue after the date can still claim it.
@@ -244,7 +244,7 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(fechas[0].transformed).toBe("");
   });
 
-  it("oracle self-test: the no-leak assertion is sensitive to a planted original-date KEEP (ORACLE 6)", () => {
+  it("oracle self-test: the no-leak assertion is sensitive to a planted original-date KEEP (ORACLE 6)", async () => {
     // Planted violation: a session whose FECHA proposal keeps the exact source
     // date (a KEEP / relabelling leak). This is precisely what ORACLE 3
     // forbids, so if the accepted Safe Output still carries the source date the
@@ -273,10 +273,10 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(leakedText).toContain(plantedDate);
   });
 
-  it("keeps external-ai and longitudinal-research fail-closed with the typed PolicyError and no session (ORACLE 7)", () => {
+  it("keeps external-ai and longitudinal-research fail-closed with the typed PolicyError and no session (ORACLE 7)", async () => {
     for (const policyId of ["external-ai", "longitudinal-research"] as const) {
       try {
-        const session = createSessionFromEngineText(FIXTURE, policyId);
+        const session = await createSessionFromEngineTextAsync(FIXTURE, policyId);
         throw new Error(
           `expected ${policyId} to fail closed, got session ${String(session.sessionId)}`
         );

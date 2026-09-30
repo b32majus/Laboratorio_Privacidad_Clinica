@@ -6,7 +6,7 @@ import {
   applyDecision,
   canFinalize,
   createReviewSession,
-  createSessionFromEngineText,
+  createSessionFromEngineTextAsync,
   getDecision,
   getFinalText,
   getProgress,
@@ -62,8 +62,8 @@ function findCandidate(session: ReviewSession) {
 }
 
 describe("T14 WU-B — composed domain path carries the candidate queue", () => {
-  it("surfaces the genuine below-threshold professional candidate as a pending lowConfidence detection", () => {
-    const session = createSessionFromEngineText(BELOW_THRESHOLD_TEXT, "standard");
+  it("surfaces the genuine below-threshold professional candidate as a pending lowConfidence detection", async () => {
+    const session = await createSessionFromEngineTextAsync(BELOW_THRESHOLD_TEXT, "standard");
     const candidate = findCandidate(session);
 
     expect(candidate.type).toBe("NOMBRE");
@@ -89,8 +89,8 @@ describe("T14 WU-B — composed domain path carries the candidate queue", () => 
     expect(getProgress(session).lowConfidence).toBe(1);
   });
 
-  it("offset-integrity oracle: every span is the source slice, restore-all is the source, treat is exact", () => {
-    const session = createSessionFromEngineText(BELOW_THRESHOLD_TEXT, "standard");
+  it("offset-integrity oracle: every span is the source slice, restore-all is the source, treat is exact", async () => {
+    const session = await createSessionFromEngineTextAsync(BELOW_THRESHOLD_TEXT, "standard");
     const candidate = findCandidate(session);
 
     // No detection can carry a span that disagrees with the source.
@@ -116,7 +116,7 @@ describe("T14 WU-B — composed domain path carries the candidate queue", () => 
     );
   });
 
-  it("entity detections keep their exact offsets and IDs when candidates are appended", () => {
+  it("entity detections keep their exact offsets and IDs when candidates are appended", async () => {
     const engine = createRegistryEngine();
     const outcome = engine.process({
       text: ENTITY_AND_CANDIDATE_TEXT,
@@ -148,7 +148,7 @@ describe("T14 WU-B — composed domain path carries the candidate queue", () => 
     expect(getProgress(withCandidates).lowConfidence).toBe(candidates.length);
 
     // Independently composed, the same text surfaces the candidate too.
-    const composed = createSessionFromEngineText(ENTITY_AND_CANDIDATE_TEXT, "standard");
+    const composed = await createSessionFromEngineTextAsync(ENTITY_AND_CANDIDATE_TEXT, "standard");
     const candidate = findCandidate(composed);
     const marked = composed.detections.filter((d) => d.lowConfidence === true);
     expect(marked).toHaveLength(1);
@@ -156,7 +156,7 @@ describe("T14 WU-B — composed domain path carries the candidate queue", () => 
     expect(composed.detections.length).toBe(entities.length + candidates.length);
   });
 
-  it("adversarial oracle: stale metadata (including a candidate) cannot define a span", () => {
+  it("adversarial oracle: stale metadata (including a candidate) cannot define a span", async () => {
     const source = "ABC DEF GHI";
     const staleDetections = [
       {
@@ -199,8 +199,8 @@ describe("T14 WU-B — composed domain path carries the candidate queue", () => 
     );
   });
 
-  it("deciding the candidate leaves every other detection's span untouched", () => {
-    const session = createSessionFromEngineText(ENTITY_AND_CANDIDATE_TEXT, "standard");
+  it("deciding the candidate leaves every other detection's span untouched", async () => {
+    const session = await createSessionFromEngineTextAsync(ENTITY_AND_CANDIDATE_TEXT, "standard");
     const candidate = findCandidate(session);
     const entities = session.detections.filter((detection) => detection.lowConfidence !== true);
     expect(entities.length).toBeGreaterThan(0);

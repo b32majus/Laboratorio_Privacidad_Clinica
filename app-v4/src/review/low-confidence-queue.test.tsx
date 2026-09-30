@@ -9,7 +9,7 @@ import {
   addManualDetection,
   applyDecision,
   createReviewSession,
-  createSessionFromEngineText,
+  createSessionFromEngineTextAsync,
   getFinalText,
   getProgress,
   type ManualDetectionInput,
@@ -78,8 +78,8 @@ function Harness(props: { initial: ReviewSession }) {
 afterEach(cleanup);
 
 describe("T14 WU-C — the low-confidence candidate queue is visible and composed", () => {
-  it("the queue selects exactly the marked candidate, which also stays visible under All", () => {
-    const session = createSessionFromEngineText(BELOW_THRESHOLD_TEXT, "standard");
+  it("the queue selects exactly the marked candidate, which also stays visible under All", async () => {
+    const session = await createSessionFromEngineTextAsync(BELOW_THRESHOLD_TEXT, "standard");
     const candidate = findCandidate(session);
 
     // The engine/domain contract facts the workflow depends on.
@@ -95,8 +95,8 @@ describe("T14 WU-C — the low-confidence candidate queue is visible and compose
     expect(all.map((detection) => detection.id)).toContain(candidate.id);
   });
 
-  it("workflow gate facts: pending blocks the gate, decline restores source, treat applies the proposal", () => {
-    const session = createSessionFromEngineText(BELOW_THRESHOLD_TEXT, "standard");
+  it("workflow gate facts: pending blocks the gate, decline restores source, treat applies the proposal", async () => {
+    const session = await createSessionFromEngineTextAsync(BELOW_THRESHOLD_TEXT, "standard");
     const candidate = findCandidate(session);
     const job = createJob({ type: "pasted-text", text: BELOW_THRESHOLD_TEXT });
 
@@ -134,9 +134,11 @@ describe("T14 WU-C — the low-confidence candidate queue is visible and compose
     expect(treatedText).not.toBe(BELOW_THRESHOLD_TEXT);
   });
 
-  it("component: the filter narrows the list, progress reports the count, inspector shows the reason", () => {
+  it("component: the filter narrows the list, progress reports the count, inspector shows the reason", async () => {
     render(
-      <Harness initial={createSessionFromEngineText(ENTITY_AND_CANDIDATE_TEXT, "standard")} />
+      <Harness
+        initial={await createSessionFromEngineTextAsync(ENTITY_AND_CANDIDATE_TEXT, "standard")}
+      />
     );
 
     // (b) Progress readout reports the factual low-confidence count.
@@ -176,7 +178,7 @@ describe("T14 WU-C — the low-confidence candidate queue is visible and compose
     expect(inspector).toHaveTextContent(/below-threshold candidate/i);
   });
 
-  it("oracle can disagree: the queue keys off the explicit marker, never the confidence number", () => {
+  it("oracle can disagree: the queue keys off the explicit marker, never the confidence number", async () => {
     const source = "Nombre: Ana. Teléfono 600000000.";
     const session = createReviewSession({
       originalText: source,

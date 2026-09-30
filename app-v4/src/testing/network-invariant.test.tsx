@@ -73,7 +73,7 @@ describe("network invariant monitor", () => {
     expect(window.fetch).toBe(originalFetch);
   });
 
-  it("keeps the whole canonical flow free of outbound network attempts", () => {
+  it("keeps the whole canonical flow free of outbound network attempts", async () => {
     const monitor: NetworkMonitor = install(window);
     try {
       render(<App />);
@@ -92,7 +92,9 @@ describe("network invariant monitor", () => {
       ] as const;
       for (const [stepNumber, label] of forwardSteps) {
         fireEvent.click(stepButton(stepNumber, label));
-        expect(screen.getByRole("heading", { level: 2, name: label })).toBeInTheDocument();
+        // T22 #26 WU-D: the Review transition runs the engine asynchronously;
+        // wait for the step heading instead of racing the async seam.
+        await screen.findByRole("heading", { level: 2, name: label }, { timeout: 5_000 });
         expect(monitor.attempts()).toHaveLength(0);
       }
 
@@ -181,7 +183,7 @@ describe("network invariant monitor", () => {
     }
   });
 
-  it("keeps the review flow (engine run, decisions, manual detection) free of network attempts and storage writes", () => {
+  it("keeps the review flow (engine run, decisions, manual detection) free of network attempts and storage writes", async () => {
     const REVIEW_NOTE =
       "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
@@ -205,10 +207,11 @@ describe("network invariant monitor", () => {
       fireEvent.click(screen.getByRole("button", { name: "Create job" }));
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Entering Review runs the local legacy engine and builds the session.
+      // Entering Review runs the local legacy engine and builds the session
+      // (T22 #26 WU-D: asynchronously through the lazy engine seam).
       fireEvent.click(stepButton(2, "Configure"));
       fireEvent.click(stepButton(3, "Review"));
-      const progress = screen.getByRole("status", { name: /review progress/i });
+      const progress = await screen.findByRole("status", { name: /review progress/i });
       expect(progress).toHaveTextContent(/Pending: [1-9]/);
       expect(monitor.attempts()).toHaveLength(0);
 
@@ -225,8 +228,10 @@ describe("network invariant monitor", () => {
       // Navigating away and back never resets or re-runs review.
       fireEvent.click(stepButton(1, "Input"));
       fireEvent.click(stepButton(3, "Review"));
-      expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-        "Accepted: 1"
+      await waitFor(() =>
+        expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+          "Accepted: 1"
+        )
       );
       expect(monitor.attempts()).toHaveLength(0);
 
