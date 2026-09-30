@@ -43,10 +43,20 @@ import {
   createStructuredConfiguration,
   overrideColumnClass,
   selectPatientIdColumn,
+  setStructuredDateRole as setStructuredDateRoleConfig,
   type StructuredConfiguration,
+  type StructuredDateRole,
 } from "./structured/configuration";
 import type { ColumnClass } from "./structured/classification";
 import type { StructuredGrid } from "./structured/grid";
+import {
+  buildStructuredTransformPlan,
+  type StructuredTransformPlan,
+} from "./structured/transform-plan";
+import {
+  prepareStructuredOutput,
+  type StructuredOutputPreparation,
+} from "./structured/transformed-dataset";
 
 /** Production engine loader: heavy processing runs in the engine Worker. */
 const DEFAULT_ENGINE_LOADER = createDefaultEngineLoader();
@@ -131,6 +141,23 @@ function withDerivedBatchReviewState(job: Job): Job {
     outputs: Object.freeze({
       safeOutputReady: false,
       confidentialAuditReady: false,
+    }),
+  }) as Job;
+}
+
+/**
+ * HARDEN-01 WU-A: derive a structured job's export-gated state from the exact
+ * structured preparation (the only authority that activates T19/codify). Safe
+ * and Confidential become available together, because both are produced from
+ * the same reviewed configuration; any fail-closed block keeps both false.
+ */
+function withDerivedStructuredState(job: Job, preparation: StructuredOutputPreparation): Job {
+  const ready = preparation.status === "ready";
+  return Object.freeze({
+    ...withReviewState(job, { complete: ready }),
+    outputs: Object.freeze({
+      safeOutputReady: ready,
+      confidentialAuditReady: ready,
     }),
   }) as Job;
 }
@@ -262,7 +289,11 @@ export function useJobSession() {
   const [structured, setStructured] = useState<{
     readonly jobId: string;
     readonly configuration: StructuredConfiguration;
+    readonly plan: StructuredTransformPlan;
+    readonly preparation: StructuredOutputPreparation;
   } | null>(null);
+  const structuredRef = useRef(structured);
+  structuredRef.current = structured;
 
   const create = useCallback((input: JobInput) => {
     setStructured(null);
@@ -284,19 +315,64 @@ export function useJobSession() {
     setState((current) => (current.job ? { ...current, job: advanceStep(current.job) } : current));
   }, []);
 
+  /**
+   * Recompute the canonical structured plan + exact preparation from a
+   * reviewed configuration and derive the job's export-gated state in ONE
+   * write (HARDEN-01 WU-A). This is the only path that installs structured
+   * authority; it is the exact bridge between Configure and the export gate.
+   */
+  const applyStructuredConfiguration = useCallback(
+    (configuration: StructuredConfiguration): void => {
+      const job = stateRef.current.job;
+      if (!job || job.kind !== "structured") return;
+      const plan = buildStructuredTransformPlan(configuration, {
+        policyId: job.policyId,
+        jobSeed: job.id,
+      });
+      const preparation = prepareStructuredOutput(configuration, plan);
+      setStructured({ jobId: job.id, configuration, plan, preparation });
+      setState((current) =>
+        current.job
+          ? { ...current, job: withDerivedStructuredState(current.job, preparation) }
+          : current
+      );
+    },
+    []
+  );
+
   const updatePolicy = useCallback((policyId: PrivacyPolicyId) => {
-    setState((current) => {
-      if (!current.job) return current;
-      if (current.job.policyId === policyId) return current;
-      // PR #40 corrective C2: a REAL policy change invalidates any existing
-      // ReviewSession in the same atomic write — the domain transition
-      // resets the derived review/output state and the bridge drops the
-      // stale session, which is recreated under the new policy the next
-      // time the Review step is entered.
-      // T17 #21 SD-8: for a batch the domain also returns non-error items to
-      // `queued`, so every per-item session is dropped in the same write.
-      return { job: setPolicy(current.job, policyId), review: null, batch: null };
-    });
+    const current = stateRef.current;
+    if (!current.job) return;
+    if (current.job.policyId === policyId) return;
+    // PR #40 corrective C2: a REAL policy change invalidates any existing
+    // ReviewSession in the same atomic write — the domain transition resets
+    // the derived review/output state and the bridge drops the stale session.
+    // T17 #21 SD-8: for a batch the domain returns non-error items to
+    // `queued`, so every per-item session is dropped in the same write.
+    const next = setPolicy(current.job, policyId);
+    let job: Job = next;
+    const structuredState = structuredRef.current;
+    if (
+      next.kind === "structured" &&
+      structuredState !== null &&
+      structuredState.jobId === next.id
+    ) {
+      // The structured plan depends on the policy: recompute it and re-derive
+      // the gate in the same transition.
+      const plan = buildStructuredTransformPlan(structuredState.configuration, {
+        policyId: next.policyId,
+        jobSeed: next.id,
+      });
+      const preparation = prepareStructuredOutput(structuredState.configuration, plan);
+      setStructured({
+        jobId: next.id,
+        configuration: structuredState.configuration,
+        plan,
+        preparation,
+      });
+      job = withDerivedStructuredState(next, preparation);
+    }
+    setState({ job, review: null, batch: null });
   }, []);
 
   /**
@@ -495,38 +571,51 @@ export function useJobSession() {
    * (T20 #24). Refuses to install onto a non-structured job, so the bridge can
    * never attach structured authority to another job family.
    */
-  const installStructuredGrid = useCallback((grid: StructuredGrid) => {
-    const current = stateRef.current;
-    if (!current.job || current.job.kind !== "structured") return;
-    setStructured({
-      jobId: current.job.id,
-      configuration: createStructuredConfiguration(grid),
-    });
-  }, []);
+  const installStructuredGrid = useCallback(
+    (grid: StructuredGrid) => {
+      const current = stateRef.current;
+      if (!current.job || current.job.kind !== "structured") return;
+      applyStructuredConfiguration(createStructuredConfiguration(grid));
+    },
+    [applyStructuredConfiguration]
+  );
 
   /** Explicit reviewer override of one structured column's class (domain transition). */
-  const overrideStructuredColumn = useCallback((columnIndex: number, columnClass: ColumnClass) => {
-    setStructured((current) =>
-      current === null
-        ? current
-        : {
-            jobId: current.jobId,
-            configuration: overrideColumnClass(current.configuration, columnIndex, columnClass),
-          }
-    );
-  }, []);
+  const overrideStructuredColumn = useCallback(
+    (columnIndex: number, columnClass: ColumnClass) => {
+      const current = structuredRef.current;
+      if (current === null) return;
+      applyStructuredConfiguration(
+        overrideColumnClass(current.configuration, columnIndex, columnClass)
+      );
+    },
+    [applyStructuredConfiguration]
+  );
 
   /** Set (or clear) the single structured patient-ID column authority. */
-  const selectStructuredPatientId = useCallback((header: string | null) => {
-    setStructured((current) =>
-      current === null
-        ? current
-        : {
-            jobId: current.jobId,
-            configuration: selectPatientIdColumn(current.configuration, header),
-          }
-    );
-  }, []);
+  const selectStructuredPatientId = useCallback(
+    (header: string | null) => {
+      const current = structuredRef.current;
+      if (current === null) return;
+      applyStructuredConfiguration(selectPatientIdColumn(current.configuration, header));
+    },
+    [applyStructuredConfiguration]
+  );
+
+  /**
+   * Set (or clear) one column's explicit date role (HARDEN-01 WU-A). Orthogonal
+   * to the classification; it is the only thing that can activate T19.
+   */
+  const setStructuredColumnDateRole = useCallback(
+    (columnIndex: number, role: StructuredDateRole) => {
+      const current = structuredRef.current;
+      if (current === null) return;
+      applyStructuredConfiguration(
+        setStructuredDateRoleConfig(current.configuration, columnIndex, role)
+      );
+    },
+    [applyStructuredConfiguration]
+  );
 
   return {
     job: state.job,
@@ -548,5 +637,6 @@ export function useJobSession() {
     installStructuredGrid,
     overrideStructuredColumn,
     selectStructuredPatientId,
+    setStructuredColumnDateRole,
   };
 }

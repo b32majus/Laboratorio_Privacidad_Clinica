@@ -22,6 +22,8 @@ import { useMemo, type ReactElement } from "react";
 import type { BatchItemStatus, Job, PrivacyPolicyId } from "../domain/job";
 import type { ReviewSession } from "../review/review-domain";
 import {
+  type PrivacyGateStructuredFacts,
+  type PrivacyGateStructuredInput,
   type PrivacyGateView,
   batchConfidentialAuditUnavailableMessage,
   batchFailedItemsMessage,
@@ -66,12 +68,23 @@ export type PrivacyGateProps = {
    * Absent/empty for single-document and text jobs.
    */
   readonly batchSessions?: readonly ReviewSession[];
+  /**
+   * The reviewed structured configuration + exact preparation for a structured
+   * job (HARDEN-01 WU-A). Required for `kind === "structured"`; ignored else.
+   */
+  readonly structured?: PrivacyGateStructuredInput | null;
 };
 
 export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   const view = useMemo(
-    () => derivePrivacyGateView(props.job, props.review, props.batchSessions ?? []),
-    [props.job, props.review, props.batchSessions]
+    () =>
+      derivePrivacyGateView(
+        props.job,
+        props.review,
+        props.batchSessions ?? [],
+        props.structured ?? null
+      ),
+    [props.job, props.review, props.batchSessions, props.structured]
   );
 
   return (
@@ -109,7 +122,11 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
 
       <AvailabilityFacts view={view} />
 
-      {view.batch === null && view.complete && <ReviewSummary view={view} />}
+      {view.structured !== null && <StructuredSummary facts={view.structured} />}
+
+      {view.batch === null && view.structured === null && view.complete && (
+        <ReviewSummary view={view} />
+      )}
 
       {view.errors.length > 0 && <JobErrors view={view} />}
 
@@ -149,6 +166,58 @@ function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
           <li key={item.index}>
             <span className="font-semibold">{item.name}</span>: {BATCH_STATUS_LABELS[item.status]}
             {item.errorMessage !== undefined && <> — {item.errorMessage}</>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * Factual structured gate facts (HARDEN-01 WU-A): the exact per-column
+ * disposition and the fail-closed block reasons (if any). Never a score.
+ */
+function StructuredSummary({ facts }: { facts: PrivacyGateStructuredFacts }): ReactElement {
+  return (
+    <section
+      aria-label="Structured export facts"
+      className="mt-4 rounded border border-primary bg-surface-light p-3"
+    >
+      <h3 className="font-display text-base font-bold text-primary-dark">Structured export</h3>
+      <dl
+        role="status"
+        aria-label="Structured export facts"
+        className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
+      >
+        <dt className="font-semibold">Columns:</dt>
+        <dd> {facts.columns.length}</dd>
+        <dt className="font-semibold">Columns requiring review:</dt>
+        <dd> {facts.columnsRequiringReview}</dd>
+        <dt className="font-semibold">Unsupported columns:</dt>
+        <dd> {facts.blockingCount}</dd>
+      </dl>
+      {facts.reasons.length > 0 && (
+        <ul
+          role="alert"
+          aria-label="Structured export block reasons"
+          className="mt-3 list-disc space-y-0.5 pl-6 text-sm font-semibold text-primary-dark"
+        >
+          {facts.reasons.map((reason, index) => (
+            <li key={index}>{reason}</li>
+          ))}
+        </ul>
+      )}
+      <ul
+        aria-label="Structured column dispositions"
+        className="mt-3 space-y-1 text-sm text-neutral-800"
+      >
+        {facts.columns.map((column) => (
+          <li key={column.columnIndex}>
+            <span className="font-semibold">
+              {column.header === "" ? "(unnamed column)" : column.header}
+            </span>
+            : {column.disposition}
+            {column.disposition === "date-age" ? ` (${column.dateRole})` : ""}
           </li>
         ))}
       </ul>

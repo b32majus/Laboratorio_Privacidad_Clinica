@@ -28,9 +28,11 @@ import { useState, type ReactElement } from "react";
 
 import {
   STRUCTURED_COLUMN_CLASSES,
+  STRUCTURED_DATE_ROLES,
   type ColumnClass,
   type StructuredColumnState,
   type StructuredConfiguration,
+  type StructuredDateRole,
 } from "./configuration";
 import type { ColumnSampleType } from "./column-profile";
 import type { ProposedAction } from "./classification";
@@ -65,6 +67,13 @@ const TYPE_LABELS: Record<ColumnSampleType, string> = {
   empty: "Empty",
 };
 
+/** Visible date-role labels: ordinal meaning is never conveyed by color alone. */
+const DATE_ROLE_LABELS: Record<StructuredDateRole, string> = {
+  none: "None",
+  visit: "Visit date",
+  birth: "Birth date",
+};
+
 export type StructuredConfigureWorkspaceProps = {
   /**
    * The frozen canonical configuration, or `null` while the structured source
@@ -81,6 +90,20 @@ export type StructuredConfigureWorkspaceProps = {
   readonly onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
   /** Set the single patient-ID authority to a header (or clear with `null`). */
   readonly onSelectPatientId: (header: string | null) => void;
+  /**
+   * Set (or clear) one column's explicit date role (HARDEN-01 WU-A). When
+   * absent the role control is not rendered (backward-compatible controlled
+   * surface).
+   */
+  readonly onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
+  /**
+   * Exact plan-based export readiness (block reasons included). When absent,
+   * the summary falls back to the structural unknown-column gate.
+   */
+  readonly exportReadiness?: {
+    readonly ready: boolean;
+    readonly reasons: readonly string[];
+  } | null;
 };
 
 export function StructuredConfigureWorkspace(
@@ -93,6 +116,8 @@ export function StructuredConfigureWorkspace(
     onSelectSheet,
     onOverrideClass,
     onSelectPatientId,
+    onSetDateRole,
+    exportReadiness = null,
   } = props;
 
   return (
@@ -135,6 +160,8 @@ export function StructuredConfigureWorkspace(
           configuration={configuration}
           onOverrideClass={onOverrideClass}
           onSelectPatientId={onSelectPatientId}
+          onSetDateRole={onSetDateRole}
+          exportReadiness={exportReadiness}
         />
       )}
     </section>
@@ -200,14 +227,17 @@ function ConfigurationView(props: {
   configuration: StructuredConfiguration;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
   onSelectPatientId: (header: string | null) => void;
+  onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
+  exportReadiness: { readonly ready: boolean; readonly reasons: readonly string[] } | null;
 }): ReactElement {
-  const { configuration, onOverrideClass, onSelectPatientId } = props;
+  const { configuration, onOverrideClass, onSelectPatientId, onSetDateRole, exportReadiness } =
+    props;
   const patientIdIndex =
     configuration.patientId.status === "resolved" ? configuration.patientId.columnIndex : null;
 
   return (
     <div className="mt-4 space-y-4">
-      <ConfigurationSummary configuration={configuration} />
+      <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
       <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
       <section
         aria-label="Column classifications"
@@ -221,6 +251,7 @@ function ConfigurationView(props: {
               column={column}
               isPatientId={patientIdIndex === column.columnIndex}
               onOverrideClass={onOverrideClass}
+              onSetDateRole={onSetDateRole}
             />
           ))}
         </ul>
@@ -230,9 +261,14 @@ function ConfigurationView(props: {
 }
 
 /** Factual summary: counts and the structured export gate (never a score). */
-function ConfigurationSummary(props: { configuration: StructuredConfiguration }): ReactElement {
-  const { configuration } = props;
+function ConfigurationSummary(props: {
+  configuration: StructuredConfiguration;
+  exportReadiness: { readonly ready: boolean; readonly reasons: readonly string[] } | null;
+}): ReactElement {
+  const { configuration, exportReadiness } = props;
   const pending = configuration.columnsRequiringReview.length;
+  const ready = exportReadiness === null ? configuration.exportReady : exportReadiness.ready;
+  const reasons = exportReadiness === null ? [] : exportReadiness.reasons;
   return (
     <section
       aria-label="Structured configuration summary"
@@ -249,18 +285,30 @@ function ConfigurationSummary(props: { configuration: StructuredConfiguration })
         <dt className="font-semibold">Columns requiring review:</dt>
         <dd> {pending}</dd>
         <dt className="font-semibold">Structured export ready:</dt>
-        <dd> {configuration.exportReady ? "Yes" : "No"}</dd>
+        <dd> {ready ? "Yes" : "No"}</dd>
       </dl>
-      {pending > 0 && (
-        <p
+      {reasons.length > 0 ? (
+        <ul
           role="alert"
-          className="mt-3 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
+          aria-label="Structured export block reasons"
+          className="mt-3 list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
         >
-          {pending === 1
-            ? "Structured export is blocked while 1 column requires review."
-            : `Structured export is blocked while ${pending} columns require review.`}{" "}
-          Unknown columns are never kept or exported as-is; choose an explicit class for each.
-        </p>
+          {reasons.map((reason, index) => (
+            <li key={index}>{reason}</li>
+          ))}
+        </ul>
+      ) : (
+        pending > 0 && (
+          <p
+            role="alert"
+            className="mt-3 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
+          >
+            {pending === 1
+              ? "Structured export is blocked while 1 column requires review."
+              : `Structured export is blocked while ${pending} columns require review.`}{" "}
+            Unknown columns are never kept or exported as-is; choose an explicit class for each.
+          </p>
+        )
       )}
     </section>
   );
@@ -330,9 +378,11 @@ function ColumnCard(props: {
   column: StructuredColumnState;
   isPatientId: boolean;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
+  onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
 }): ReactElement {
-  const { column, isPatientId, onOverrideClass } = props;
+  const { column, isPatientId, onOverrideClass, onSetDateRole } = props;
   const selectId = `structured-class-${column.columnIndex}`;
+  const dateRoleSelectId = `structured-date-role-${column.columnIndex}`;
   const columnName = column.header === "" ? "(unnamed column)" : column.header;
   return (
     <li className="rounded border border-primary bg-white p-3">
@@ -379,6 +429,10 @@ function ColumnCard(props: {
             <dd>This column is the single patient-ID authority.</dd>
           </div>
         )}
+        <div className="flex flex-wrap gap-2">
+          <dt className="font-semibold">Date role:</dt>
+          <dd>{DATE_ROLE_LABELS[column.dateRole]}</dd>
+        </div>
       </dl>
 
       <div className="mt-2">
@@ -408,6 +462,34 @@ function ColumnCard(props: {
           </option>
         ))}
       </select>
+
+      {onSetDateRole !== undefined && (
+        <>
+          <label
+            htmlFor={dateRoleSelectId}
+            className="mt-3 block text-sm font-semibold text-neutral-800"
+          >
+            Date role for {columnName}
+          </label>
+          <select
+            id={dateRoleSelectId}
+            value={column.dateRole}
+            onChange={(event) =>
+              onSetDateRole(column.columnIndex, event.target.value as StructuredDateRole)
+            }
+            className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+          >
+            {STRUCTURED_DATE_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {DATE_ROLE_LABELS[role]}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-neutral-700">
+            Temporal meaning only; it never changes the classification and is never inferred.
+          </p>
+        </>
+      )}
     </li>
   );
 }

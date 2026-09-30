@@ -385,6 +385,19 @@ export function App() {
     session.structured !== null && job !== null && session.structured.jobId === job.id
       ? session.structured.configuration
       : null;
+  /** Exact structured plan + preparation for the CURRENT structured job. */
+  const structuredPreparation =
+    session.structured !== null && job !== null && session.structured.jobId === job.id
+      ? session.structured.preparation
+      : null;
+  const structuredGateInput =
+    session.structured !== null && job !== null && session.structured.jobId === job.id
+      ? {
+          configuration: session.structured.configuration,
+          plan: session.structured.plan,
+          preparation: session.structured.preparation,
+        }
+      : null;
 
   /**
    * Structured intake (T20 #24): parse the single selected CSV/XLS/XLSX file
@@ -553,6 +566,15 @@ export function App() {
             onSelectSheet={handleSelectStructuredSheet}
             onOverrideClass={session.overrideStructuredColumn}
             onSelectPatientId={session.selectStructuredPatientId}
+            onSetDateRole={session.setStructuredColumnDateRole}
+            exportReadiness={
+              structuredPreparation === null
+                ? null
+                : {
+                    ready: structuredPreparation.status === "ready",
+                    reasons: structuredPreparation.reasons,
+                  }
+            }
           />
         ) : currentStep === "review" && isBatch && job ? (
           <BatchReviewView
@@ -570,11 +592,14 @@ export function App() {
             onDecide={session.decide}
             onAddManual={session.addManual}
           />
-        ) : currentStep === "privacy-gate" && job && (activeReview !== null || isBatch) ? (
+        ) : currentStep === "privacy-gate" &&
+          job &&
+          (activeReview !== null || isBatch || structuredGateInput !== null) ? (
           <PrivacyGate
             job={job}
             review={activeReview}
             batchSessions={batchSessions === null ? [] : Object.values(batchSessions)}
+            structured={structuredGateInput}
           />
         ) : currentStep === "export" && job && (activeReview !== null || isBatch) ? (
           <ExportStep job={job} review={activeReview} />
