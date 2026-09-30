@@ -106,7 +106,8 @@ async function runAssertions() {
     note('vendored same-origin library served with headers');
   }
 
-  // 4. SPA fallback for a deep route (canonical _redirects behavior).
+  // 4. SPA fallback for a deep route (the render.yaml `/* -> /index.html`
+  //    rewrite Render applies to unknown static-site paths).
   const deep = await get('/review/deep/route');
   if (deep.status !== 200) fail(`deep SPA route expected 200 fallback, received ${deep.status}`);
   assertSecurityHeaders(deep, '/review/deep/route');

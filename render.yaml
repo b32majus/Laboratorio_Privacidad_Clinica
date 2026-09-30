@@ -5,8 +5,12 @@
 #   - ONLY static build output is served (`./dist`): no Render server/worker/
 #     function ever processes clinical content — the clinical origin is pure
 #     static bytes plus the user's own browser (D-014, local-first).
-#   - SPA fallback via dist/_redirects (`/* /index.html 200`, copied verbatim
-#     from app-v4/public/ by the Vite build).
+#   - SPA fallback via render.yaml `routes:` (`type: rewrite`, `source: /*`,
+#     `destination: /index.html`), the accepted Render Static Site mechanism.
+#     A Netlify-style dist/_redirects file is NOT interpreted by Render (it is
+#     only served as a static asset), so deep paths 404ed on the real origin;
+#     the render.yaml rewrite is now the single authority and is exercised by
+#     scripts/deploy/preview-server.mjs and `check:headers`.
 #   - Security headers below are the AUTHORITATIVE runtime configuration; the
 #     local preview harness (scripts/deploy/preview-server.mjs) parses THIS
 #     file at runtime and serves dist/ with these exact headers, so the
@@ -28,6 +32,13 @@ services:
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     pullRequestPreviewsEnabled: false
+    # SPA fallback: an unknown path (deep link) is rewritten to the SPA entry
+    # with HTTP 200. Render applies `routes:` rules and, per its documented
+    # order, still serves a real resource when one exists at the path.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     headers:
       # Clinical origin CSP (SPEC §2): application assets from self; no
       # arbitrary connect-src; no third-party scripts/frames. The engine
