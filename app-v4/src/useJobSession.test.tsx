@@ -20,11 +20,9 @@ import { getPendingDetections, type ReviewSession } from "./review/review-domain
 import { runBatchReviewAsync, useJobSession } from "./useJobSession";
 
 /**
- * T22 #26 WU-D review corrections: the production path loads the engine
- * through the async seam, so the seam is mocked here with a controllable
- * loader — by default it resolves with the REAL composed engine; a test can
- * hold the load open to make the async gap observable (policy change / clear
- * DURING a pending attempt) or reject it to prove the fail-closed recording.
+ * T22 #26 WU-D review corrections: the seam is mocked with a controllable
+ * loader — default resolve with the REAL composed engine; hold open to make
+ * the async gap observable, or reject to prove fail-closed recording.
  */
 const engineControl = vi.hoisted(() => ({
   hold: false,
