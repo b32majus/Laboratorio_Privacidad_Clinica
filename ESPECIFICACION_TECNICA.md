@@ -1,9 +1,18 @@
 # Laboratorio de Privacidad Clínica by Sophilux
 ## Especificación Técnica Completa para Implementación
 
-**Versión:** 1.0  
+> **SUPERSEDED (T25 #29, DOC-001):** este documento es un artefacto
+> histórico (v1.0, diciembre 2024) que describe una arquitectura anterior a
+> la V4 y contiene muestras de código obsoletas (p. ej. inferencia de género
+> para pseudónimos, prohibida por `docs/specs/SPEC_V4_PRIVACY_ENGINE.md`
+> §12). NO es autoridad vigente. La autoridad actual es: `CONTEXT.md`,
+> `docs/shaping/CURRENT_DECISIONS.md`, `docs/specs/SPEC_V4_*.md` y
+> `docs/governance/CANONICAL_AUTHORITY.md`. Se conserva sin editar como
+> evidencia histórica.
+
+**Versión:** 1.0 (histórica)  
 **Fecha:** Diciembre 2024  
-**Estado:** Listo para desarrollo
+**Estado:** SUPERSEDED — no usar como autoridad
 
 ---
 

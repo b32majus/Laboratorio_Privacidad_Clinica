@@ -1,10 +1,10 @@
-# 🛡️ Laboratorio de Privacidad Clínica v3.0
+# 🛡️ Laboratorio de Privacidad Clínica v4.0
 
 **Herramienta educativa local-first para preparar información sanitaria antes de usar IA.**
 
 [![Estado](https://img.shields.io/badge/Estado-Estable-success)](https://github.com/)
 [![Privacidad](https://img.shields.io/badge/Privacidad-100%25_Local-blue)](https://github.com/)
-[![Versión](https://img.shields.io/badge/Versi%C3%B3n-3.0-purple)](https://github.com/)
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-4.0-purple)](https://github.com/)
 [![Licencia](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
 
 ---
@@ -24,7 +24,20 @@ El **Laboratorio de Privacidad Clínica** es una aplicación web diseñada para 
 
 ---
 
-## ✨ Novedades en v3.0
+## 🧭 v4.0 — Aplicación V4 (SPA) y superficie canónica
+
+**Entrada canónica de la aplicación clínica:** `app-v4/index.html`
+(build de producción: `npm run build` → `dist/index.html`; despliegue estático:
+`render.yaml`, ver `docs/deployment/RENDER_STATIC.md`).
+
+* Una única SPA (`Input → Configure → Review → Privacy Gate → Export`), estado de dominio canónico (`ReviewSession`), motor off-main-thread (Web Worker) y despliegue solo-estático con headers de seguridad clínicos.
+* Motor de privacidad: `js/core/*` compuesto por el motor V4 (`app-v4/src/engine/`), preservado detrás de adaptadores con regresión determinista.
+* Las páginas legacy multipágina (`app.html`, `input.html`, `batch*.html`, `review.html`) fueron retiradas (T25 #29) — ver `docs/legacy-retirement/RETIRED_SURFACES.md`.
+* Gobernanza canónica (rama, checks requeridos, versionado): `docs/governance/CANONICAL_AUTHORITY.md`.
+
+---
+
+## ✨ Novedades en v3.0 (histórico)
 
 ### 🔄 Pseudónimos Legibles
 El sistema ahora genera **texto coherente y legible** en lugar de marcadores con corchetes:
@@ -159,19 +172,14 @@ npm run build
 
 ---
 
-## 🧭 Arquitectura Actual (Refactor)
+## 🏛️ Arquitectura histórica v3 (retirada en v4)
 
-*   **Entrada principal:** `app.html`
-*   **Texto clínico:** `input.html` -> `review.html`
-*   **Batch unificado:** `batch.html`
-    *   Modo documentos (nativo en `batch.html`)
-    *   Modo estructurado embebido (`batch-structured-legacy.html`)
-    *   Revisión batch embebida (`batch-review-legacy.html`)
-*   **Compatibilidad de rutas:**
-    *   `batch-structured.html` redirige a `batch.html?mode=structured`
-    *   `batch-review.html` redirige a `batch.html?mode=review`
-*   **Motor oficial:** `js/core/*` a través de `js/modular-processor.js`
-*   **Módulo batch oficial:** `js/batch-module.js`
+La arquitectura multipágina v3 (`app.html`, `input.html`, `batch.html`,
+`review.html`, `js/batch-module.js`) fue retirada en v4 (T25 #29); este
+apartado se conserva como referencia histórica. La arquitectura actual es la
+SPA V4 descrita arriba; el núcleo de detección (`js/core/*` vía
+`js/modular-processor.js`) sigue siendo el motor compartido, ahora consumido
+por el motor compuesto V4 con Worker.
 
 ---
 

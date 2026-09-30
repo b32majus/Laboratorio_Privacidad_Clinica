@@ -1,6 +1,6 @@
 {
   "name": "laboratorio-privacidad-clinica",
-  "version": "1.0.0",
+  "version": "4.0.0",
   "description": "Herramienta educativa local-first para preparar información sanitaria antes de usar IA.",
   "scripts": {
     "build:tailwind": "tailwindcss -c tailwind.config.cjs -i ./css/tailwind-input.css -o ./css/tailwind.generated.css --minify",

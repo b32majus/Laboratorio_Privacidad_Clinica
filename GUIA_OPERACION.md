@@ -1,7 +1,7 @@
 # Guía de Operación
 
 ## 1. Flujo operativo recomendado
-1. Abrir `app.html`.
+1. Abrir la aplicación V4: `app-v4/index.html` (o `dist/index.html` tras `npm run build`; despliegue estático en producción).
 2. Elegir `Texto clínico` o `Datos estructurados`.
 3. Si el caso es sensible (enfermedad rara/cargo público), activar `Modo estricto`.
 4. Procesar y revisar resultados manualmente.
@@ -30,19 +30,18 @@
 1. Ejecutar validaciones de CI.
 2. Verificar rutas públicas:
    - `index.html`
-   - `app.html`
-   - `input.html`
-   - `review.html`
-   - `batch.html`
+   - `app-v4/index.html` (entrada canónica V4; las páginas legacy
+     `app.html`/`input.html`/`review.html`/`batch.html` fueron retiradas en
+     T25 #29 — ver `docs/legacy-retirement/RETIRED_SURFACES.md`)
 3. Verificar puentes de compatibilidad:
-   - `batch-structured.html`
-   - `batch-review.html`
+   - flujo estructurado integrado en la SPA V4
+   - revisión batch integrada en la SPA V4
 4. Probar botón `Borrar sesion` en flujos de texto y batch.
 5. Confirmar exportación PDF/CSV/XLSX.
 6. Verificar carga local de `pdf.min.js`, `pdf.worker.min.js`, `mammoth.browser.min.js` y `jszip.min.js`.
 7. Verificar carga local de `css/tailwind.generated.css`, `css/local-fonts.css` y tipografías en `fonts/`.
 
 ## 6. Incidencias y recuperación
-- Si una vista queda sin datos de sesión, volver al flujo desde `app.html`.
+- Si una vista queda sin datos de sesión, volver al flujo desde la entrada canónica V4 (`app-v4/index.html`).
 - Si falla lectura de archivo, validar extensión y tamaño.
 - Si una exportación falla, refrescar y reprocesar el documento.
