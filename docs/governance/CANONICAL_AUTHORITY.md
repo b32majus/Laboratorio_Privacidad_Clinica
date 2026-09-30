@@ -28,8 +28,9 @@ history, clearly separated from the current v4.0 section.
 Enforced in-repo (`.github/workflows/ci.yml`) and locally via `npm test`:
 
 1. `check:links` — no broken local HTML references;
-2. `check:storage` (+ self-test) — no sessionStorage/localStorage in
-   production sources;
+2. `check:storage` — no sessionStorage/localStorage in production sources
+   (its planted-violation self-test script exists but is deliberately NOT
+   wired into CI/npm test yet — tracked as CI-003/A4, preserved open);
 3. `check:external` (+ self-test) — zero unexpected external runtime
    resources on the clinical origin;
 4. `check:vendor` — vendored lib/fonts byte integrity (sha256 manifest);
