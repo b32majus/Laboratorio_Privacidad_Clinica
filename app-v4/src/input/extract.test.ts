@@ -29,6 +29,26 @@ import {
   oversizeInputFor,
 } from "../engine/input-limits";
 
+/**
+ * Controllable mammoth double (QA-004). The DEFAULT delegates to the REAL
+ * mammoth so the fixture/empty/corrupt DOCX tests keep exercising the real
+ * adapter; a test points `impl` at a synthetic extractor to return text far
+ * above the supported size without constructing a >1M-character DOCX fixture.
+ */
+const mammothDouble = vi.hoisted(() => ({
+  impl: null as
+    null | ((input: unknown) => Promise<{ value: string; messages: readonly unknown[] }>),
+}));
+
+vi.mock("mammoth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("mammoth")>();
+  return {
+    ...actual,
+    extractRawText: (input: unknown) =>
+      mammothDouble.impl ? mammothDouble.impl(input) : actual.extractRawText(input as never),
+  };
+});
+
 const EXPECTED_TXT = [
   "Nota clinica sintetica de prueba para el laboratorio.",
   "Paciente: sintetico, sin datos reales.",
@@ -471,6 +491,66 @@ describe("supported input size (T15 #19)", () => {
     if (result.status === "failed") {
       expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
       expect(result.error.message).toBe(oversizeInputFor(pageText)!.message);
+    }
+  });
+});
+
+describe("supported input size — DOCX adapter oracle (QA-004)", () => {
+  afterEach(() => {
+    mammothDouble.impl = null;
+  });
+
+  it("reaches the shared size guard through the real DOCX adapter and refuses payload-free", async () => {
+    const token = "SYNTH-PHI-DOCX";
+    const text = token + " " + "x".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1 - token.length - 1);
+    expect(text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    const expected = oversizeInputFor(text)!;
+
+    mammothDouble.impl = async () => ({ value: text, messages: [] });
+    const result = await extractDocx(new File([new Uint8Array([1, 2, 3])], "oversize.docx"));
+
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") {
+      expect(result.error.code).toBe(OVERSIZE_INPUT_CODE);
+      expect(result.error.message).toBe(expected.message);
+    }
+    // SD-3/SD-7: the failure diagnostics never carry the extracted payload.
+    expect(JSON.stringify(result)).not.toContain(token);
+  });
+
+  it("accepts DOCX text at exactly the supported boundary without truncation", async () => {
+    const text = "y".repeat(MAX_SUPPORTED_TEXT_LENGTH);
+    mammothDouble.impl = async () => ({ value: text, messages: [] });
+    const result = await extractDocx(new File([new Uint8Array([1])], "boundary.docx"));
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH);
+      expect(result.text).toBe(text);
+    }
+  });
+
+  it("FALSATION — bypassing the shared guard in the same adapter accepts oversize text", async () => {
+    // Literal bypass: mock the size authority so its guard is a no-op, then
+    // import a FRESH adapter instance. If the adapter really consulted the
+    // guard (as the oracle above asserts), removing it makes the oversize
+    // extraction succeed — proving the positive test is discriminating.
+    vi.resetModules();
+    vi.doMock("../engine/input-limits", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../engine/input-limits")>();
+      return { ...actual, isTextWithinSupportedSize: () => true, oversizeInputFor: () => null };
+    });
+    const text = "w".repeat(MAX_SUPPORTED_TEXT_LENGTH + 1);
+    mammothDouble.impl = async () => ({ value: text, messages: [] });
+    const freshExtract = await import("./extract");
+    const bypassed = await freshExtract.extractDocx(
+      new File([new Uint8Array([1])], "oversize.docx")
+    );
+    vi.doUnmock("../engine/input-limits");
+    vi.resetModules();
+
+    expect(bypassed.status).toBe("success");
+    if (bypassed.status === "success") {
+      expect(bypassed.text.length).toBe(MAX_SUPPORTED_TEXT_LENGTH + 1);
     }
   });
 });
