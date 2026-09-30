@@ -601,8 +601,10 @@ export function App() {
             batchSessions={batchSessions === null ? [] : Object.values(batchSessions)}
             structured={structuredGateInput}
           />
-        ) : currentStep === "export" && job && (activeReview !== null || isBatch) ? (
-          <ExportStep job={job} review={activeReview} />
+        ) : currentStep === "export" &&
+          job &&
+          (activeReview !== null || isBatch || structuredGateInput !== null) ? (
+          <ExportStep job={job} review={activeReview} structured={structuredGateInput} />
         ) : (
           <StepPlaceholder step={currentStep} reviewError={reviewError} />
         )}
