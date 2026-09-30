@@ -30,9 +30,10 @@
 
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 
 import { DOC_JOB_TIERS, ENGINE_REVISION_HINT, REPORT_SCHEMA, SIZE_TIERS, generateSyntheticDocument } from './lib/corpus.mjs';
@@ -259,7 +260,11 @@ function selfTest() {
   const c = generateSyntheticDocument(43, 2048);
   assert(a !== c, 'different seed produces different synthetic text');
 
-  // 2. Known-good: engine detects privacy-relevant synthetic entities.
+  // 2. Known-good: the generated CORPUS contains recognisable name patterns.
+  // This check validates corpus content only — it never runs the engine. The
+  // engine itself is exercised by the real benchmark scenarios (which fail
+  // closed on an unloadable engine or an unexpected result shape) and by the
+  // CI smoke/ground-truth gates in the npm test chain.
   const clinical = generateSyntheticDocument(470_000, 10 * 1024);
   const withEntities = [...NOMBRES_SAMPLE].some((name) => clinical.includes(name));
   assert(withEntities, 'synthetic corpus contains recognisable name patterns');

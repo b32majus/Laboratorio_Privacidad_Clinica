@@ -1,5 +1,7 @@
 // Detector de Ubicaciones - Hospitales, ciudades, centros de salud y barrios
 
+import { getCachedNormalizedEntries } from '../utils/DictionaryIndex.js';
+
 /**
  * Detecta ubicaciones en texto clínico.
  * @param {string} text
@@ -107,6 +109,12 @@ export function detectUbicaciones(text, locationData, normalizeText) {
     }
 
     // === CIUDADES POR DICCIONARIO ===
+    // T22 #26 (PERF-003): la forma normalizada de cada ciudad se precomputa
+    // UNA vez (índice reutilizable mientras la identidad del array no cambie)
+    // en lugar de normalizar el diccionario completo en cada texto.
+    const normalizedCiudades = normalizeText
+        ? getCachedNormalizedEntries(ciudadesList, normalizeText)
+        : null;
     for (const ciudad of ciudadesList) {
         if (!ciudad) continue;
         const ciudadRegex = new RegExp(`\\b${escapeRegex(ciudad)}\\b`, 'gi');
@@ -114,8 +122,8 @@ export function detectUbicaciones(text, locationData, normalizeText) {
             addEntity('ciudad', match[0], match.index, 0.9);
         }
 
-        if (!normalizeText) continue;
-        const normalizedCiudad = normalizeText(ciudad);
+        const normalizedCiudad = normalizedCiudades ? normalizedCiudades.get(ciudad) : undefined;
+        if (normalizedCiudad === undefined) continue;
         if (normalizedCiudad === ciudad.toLowerCase()) continue;
 
         const normalizedRegex = new RegExp(`\\b${escapeRegex(normalizedCiudad)}\\b`, 'gi');

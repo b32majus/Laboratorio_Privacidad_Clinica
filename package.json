@@ -27,11 +27,12 @@
     "test:domain": "node --test scripts/ci/review-session.contract.test.mjs",
     "test:privacy-eval": "node --test scripts/privacy-eval/lib/matching.test.mjs scripts/privacy-eval/lib/metrics.test.mjs",
     "test:benchmarks": "node --test scripts/benchmarks/lib/corpus.test.mjs",
+    "test:perf-core": "node --test scripts/ci/dictionary-index.test.mjs",
     "bench:engine": "node scripts/benchmarks/engine-bench.mjs",
     "bench:engine:selftest": "node scripts/benchmarks/engine-bench.mjs --self-test",
     "bench:engine:check": "node scripts/benchmarks/engine-bench.mjs --check --baseline=benchmarks/baseline-wu0.json",
     "check:privacy-eval": "node scripts/privacy-eval/evaluate.mjs",
-    "test": "npm run check:links && npm run check:storage && npm run check:external && npm run check:vendor && npm run check:pdfjs && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run test:benchmarks && npm run bench:engine:selftest && npm run check:privacy-eval && npm run test:v4"
+    "test": "npm run check:links && npm run check:storage && npm run check:external && npm run check:vendor && npm run check:pdfjs && npm run check:smoke && npm run check:positioning && npm run test:domain && npm run test:privacy-eval && npm run test:benchmarks && npm run test:perf-core && npm run bench:engine:selftest && npm run check:privacy-eval && npm run test:v4"
   },
   "keywords": [],
   "author": "",
