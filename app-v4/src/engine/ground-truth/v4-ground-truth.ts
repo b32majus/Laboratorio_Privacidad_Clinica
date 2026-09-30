@@ -463,7 +463,10 @@ export function evaluateV4GroundTruth(
     for (const { detection } of assignment.false_positives) bump(detection.type, "fp");
 
     const goldenFailures = collectGoldenFailures(caseData, entities, assignment.matched);
-    allGoldenFailures.push(...goldenFailures);
+    // Adversarial cases are REPORT-ONLY (documented tier contract, identical
+    // to the accepted legacy harness): their golden failures are surfaced in
+    // the case result but never gate. Only core-case goldens feed `pass`.
+    if (caseData.tier === "core") allGoldenFailures.push(...goldenFailures);
 
     const entries = [...perTypeCounts.entries()]
       .sort(([a], [b]) => a.localeCompare(b))

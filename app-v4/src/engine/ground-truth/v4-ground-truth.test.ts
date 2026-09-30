@@ -174,6 +174,34 @@ describe("V4 ground-truth gate (FUNC-008 + QA-001)", () => {
     }
   });
 
+  it("REPORT-ONLY tier — an adversarial golden failure is reported but never gates", () => {
+    const planted: GroundTruthCase = {
+      schema_version: 1,
+      corpus_version: corpus.manifest.corpus_version,
+      case_id: "v4-planted-adversarial-golden",
+      tier: "adversarial",
+      text: "Paciente de 96 años.",
+      annotations: [
+        {
+          label: "MUST_REMOVE",
+          entity_type: "EDAD",
+          value: "96 años",
+          expectedTransformed: "80–89 años", // wrong: 96 is 90+
+        },
+      ],
+    };
+    const report = evaluate([...corpus.cases, planted]);
+    // The wrong band IS surfaced on the case result...
+    expect(
+      report.cases
+        .find((result) => result.case_id === "v4-planted-adversarial-golden")
+        ?.golden_failures.join(" ")
+    ).toMatch(/transformed mismatch/);
+    // ...but it must not gate, matching the documented report-only tier.
+    expect(report.golden_failures).toEqual([]);
+    expect(report.pass).toBe(true);
+  });
+
   it("fail-closed: a gated entity type without thresholds is rejected, not silently skipped", () => {
     const incomplete: V4GateConfig = {
       ...config,
