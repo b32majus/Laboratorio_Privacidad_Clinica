@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { useState } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
 import {
@@ -18,6 +18,45 @@ import { PolicyError } from "./engine/policy";
 import { createRegistryEngine } from "./engine/registry-engine";
 import { getPendingDetections, type ReviewSession } from "./review/review-domain";
 import { runBatchReviewAsync, useJobSession } from "./useJobSession";
+
+/**
+ * T22 #26 WU-D review corrections: the production path loads the engine
+ * through the async seam, so the seam is mocked here with a controllable
+ * loader — by default it resolves with the REAL composed engine; a test can
+ * hold the load open to make the async gap observable (policy change / clear
+ * DURING a pending attempt) or reject it to prove the fail-closed recording.
+ */
+const engineControl = vi.hoisted(() => ({
+  hold: false,
+  pending: [] as Array<{ resolve: () => void; reject: (error: unknown) => void }>,
+}));
+
+vi.mock("./engine/engine-seam", () => ({
+  loadRegistryEngine: async () => {
+    const { createRegistryEngine } = await import("./engine/registry-engine");
+    const engine = createRegistryEngine();
+    const adapted = {
+      process: (input: Parameters<typeof engine.process>[0]) =>
+        Promise.resolve(engine.process(input)),
+    };
+    if (engineControl.hold) {
+      await new Promise<void>((resolve, reject) => {
+        engineControl.pending.push({ resolve, reject });
+      });
+    }
+    return adapted;
+  },
+}));
+
+function releasePendingEngine(): void {
+  for (const entry of engineControl.pending) entry.resolve();
+  engineControl.pending = [];
+}
+
+function rejectPendingEngine(error: unknown): void {
+  for (const entry of engineControl.pending) entry.reject(error);
+  engineControl.pending = [];
+}
 
 /**
  * Oracles for the state bridge's single processing-attempt entry point
@@ -84,7 +123,11 @@ function ProcessingProbe() {
   );
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  engineControl.hold = false;
+  engineControl.pending = [];
+  cleanup();
+});
 
 describe("useJobSession.startReview (T15 #19)", () => {
   it("success route: records succeeded, installs a session and returns null", async () => {
@@ -221,6 +264,92 @@ function reviewedBatch(result: { readonly current: SessionHook }) {
   act(() => result.current.beginBatchItemRead(1));
   act(() => result.current.recordBatchItemRead(1, { ok: true, extractedText: BATCH_DOC_B }));
 }
+
+describe("useJobSession async gap guards (T22 #26 WU-D review corrections)", () => {
+  it("POLICY CHANGE during a pending attempt: the stale review is dropped, never installed under the previous policy", async () => {
+    const { result } = renderHook(() => useJobSession());
+    act(() => {
+      result.current.create({ type: "pasted-text", text: BATCH_DOC_A });
+    });
+    engineControl.hold = true;
+
+    let settled: ProcessingFailure | null | "pending" = "pending";
+    const attempt = result.current.startReview().then((failure) => {
+      settled = failure;
+      return failure;
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.job?.processing).toBe("running");
+
+    // A REAL policy change while the engine is still pending (same job id).
+    act(() => {
+      result.current.updatePolicy("external-ai");
+    });
+    engineControl.hold = false;
+    releasePendingEngine();
+    await act(async () => {
+      await attempt;
+    });
+
+    // The stale outcome is dropped (null, not a failure) and the review is
+    // NEVER installed under the previous policy: the policy-changed job keeps
+    // its honest idle processing state and no session exists.
+    expect(settled).toBeNull();
+    expect(result.current.job?.policyId).toBe("external-ai");
+    expect(result.current.job?.processing).toBe("idle");
+    expect(result.current.review).toBeNull();
+  });
+
+  it("REJECTED engine load in the single path: classified failure recorded, never an unhandled rejection", async () => {
+    const { result } = renderHook(() => useJobSession());
+    act(() => {
+      result.current.create({ type: "pasted-text", text: BATCH_DOC_A });
+    });
+    engineControl.hold = true;
+
+    const attempt = result.current.startReview();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    engineControl.hold = false;
+    rejectPendingEngine(new Error("module load failed"));
+    const holder: { failure: ProcessingFailure | null } = { failure: null };
+    await act(async () => {
+      holder.failure = await attempt;
+    });
+
+    // An unrecognized module-load error classifies fail-closed as
+    // `processing-unknown`, and the T15 domain contract maps that failure to
+    // the `unknown` processing state (an attempt happened; its outcome could
+    // not be established) — never "succeeded" and never silent.
+    expect(holder.failure?.code).toBe("processing-unknown");
+    expect(result.current.job?.processing).toBe("unknown");
+    expect(result.current.review).toBeNull();
+  });
+
+  it("REJECTED engine load in the batch path: classified failure recorded and the loop aborts safely", async () => {
+    const { result } = renderHook(() => useJobSession());
+    reviewedBatch(result);
+    engineControl.hold = true;
+
+    const attempt = result.current.startReview();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    engineControl.hold = false;
+    rejectPendingEngine(new Error("module load failed"));
+    const holder: { failure: ProcessingFailure | null } = { failure: null };
+    await act(async () => {
+      holder.failure = await attempt;
+    });
+
+    expect(holder.failure?.code).toBe("processing-unknown");
+    expect(result.current.job?.processing).toBe("unknown");
+    expect(result.current.batchSessions).toBeNull();
+  });
+});
 
 describe("useJobSession async processing responsiveness (T22 #26 WU-D)", () => {
   it("yields to the UI between marking the attempt running and installing the session", async () => {

@@ -195,13 +195,16 @@ export async function runBatchReviewAsync(
   job: Job,
   options: BatchReviewRunOptions = {}
 ): Promise<BatchReviewRun> {
-  const engine = await (options.engineLoader ?? loadRegistryEngine)();
   let working = job;
   const sessions: Record<number, ReviewSession> = {};
   let carriedContext: ProcessingContext = { mode: "fresh" };
   let activeIndex: number | null = null;
 
   try {
+    // Inside the try (T22 #26 review correction): a rejected engine load is a
+    // classified processing failure recorded on the job, never an unhandled
+    // rejection or a permanently `running` attempt.
+    const engine = await (options.engineLoader ?? loadRegistryEngine)();
     const totalItems = job.source.type === "files" ? job.source.files.length : 0;
     for (let index = 0; index < totalItems; index += 1) {
       if (batchItemStatus(working, index) !== "queued") continue;
@@ -341,23 +344,34 @@ export function useJobSession() {
     if (!current.job || current.review || current.batch) return null;
     const job = current.job;
 
+    /**
+     * Async gap guard (T22 #26 WU-D, review correction): while the engine
+     * promise is pending the session may have been cleared, replaced, or the
+     * JOB'S POLICY may have changed (a real policy change resets the derived
+     * review state and returns batch items to `queued`, PR #40 corrective
+     * C2/SD-8). A stale outcome is only installed when the current job is
+     * still the SAME job with the SAME policy the attempt started under —
+     * installing a review built under the previous policy onto a
+     * policy-changed job would let decisions proceed under the wrong policy.
+     */
+    const jobStillCurrent = (): boolean => {
+      const latest = stateRef.current.job;
+      if (latest === null) return false;
+      return latest.id === job.id && latest.policyId === job.policyId;
+    };
+
     if (job.kind === "document-batch") {
       const begun = beginProcessing(job);
       setState((state) => (state.job ? { ...state, job: begun } : state));
       const run = await runBatchReviewAsync(begun);
-      // Async gap guard (T22 #26 WU-D): the session may have been cleared or
-      // replaced while the engine was loading/processing; a stale outcome is
-      // never installed onto a different job.
-      if (stateRef.current.job?.id !== job.id) return null;
+      if (!jobStillCurrent()) return null;
       if (!run.ok) {
-        setState((state) =>
-          state.job && state.job.id === job.id ? { ...state, job: run.job } : state
-        );
+        setState((state) => (jobStillCurrent() ? { ...state, job: run.job } : state));
         return run.failure;
       }
       const sessions = Object.freeze({ ...run.sessions });
       setState((state) =>
-        state.job
+        jobStillCurrent()
           ? {
               job: run.job,
               review: null,
@@ -371,28 +385,26 @@ export function useJobSession() {
     setState((state) => (state.job ? { ...state, job: beginProcessing(state.job) } : state));
     try {
       const review = await startReviewSessionAsync(job);
-      // Async gap guard (T22 #26 WU-D): only install the review if the SAME
-      // job is still current; a cleared or replaced session drops the stale
-      // outcome instead of attaching a review to the wrong job.
-      if (stateRef.current.job?.id !== job.id) return null;
-      setState((state) =>
-        state.job && state.job.id === job.id
-          ? {
-              job: completeProcessing(withDerivedReviewState(state.job, review)),
-              review,
-              batch: null,
-            }
-          : state
-      );
+      // Async gap guard: a cleared, replaced or policy-changed session drops
+      // the stale outcome instead of attaching a review to the wrong job or
+      // to a job under a different policy.
+      if (!jobStillCurrent()) return null;
+      setState((state) => {
+        if (state.job === null || !jobStillCurrent()) return state;
+        return {
+          job: completeProcessing(withDerivedReviewState(state.job, review)),
+          review,
+          batch: null,
+        };
+      });
       return null;
     } catch (error) {
-      if (stateRef.current.job?.id !== job.id) return null;
+      if (!jobStillCurrent()) return null;
       const failure = classifyProcessingFailure(error);
-      setState((state) =>
-        state.job && state.job.id === job.id
-          ? { ...state, job: failProcessing(state.job, failure) }
-          : state
-      );
+      setState((state) => {
+        if (state.job === null || !jobStillCurrent()) return state;
+        return { ...state, job: failProcessing(state.job, failure) };
+      });
       return failure;
     }
   }, []);
