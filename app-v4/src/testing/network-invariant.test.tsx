@@ -211,7 +211,11 @@ describe("network invariant monitor", () => {
       // (T22 #26 WU-D: asynchronously through the lazy engine seam).
       fireEvent.click(stepButton(2, "Configure"));
       fireEvent.click(stepButton(3, "Review"));
-      const progress = await screen.findByRole("status", { name: /review progress/i }, { timeout: 10_000 });
+      const progress = await screen.findByRole(
+        "status",
+        { name: /review progress/i },
+        { timeout: 10_000 }
+      );
       expect(progress).toHaveTextContent(/Pending: [1-9]/);
       expect(monitor.attempts()).toHaveLength(0);
 
