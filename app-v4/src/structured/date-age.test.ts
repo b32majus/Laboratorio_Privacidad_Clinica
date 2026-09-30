@@ -176,6 +176,57 @@ describe("shiftStructuredDateCell", () => {
   });
 });
 
+describe("STRUCT-010 advisories: mixed separators and years 0001-0099", () => {
+  it("rejects malformed mixed numeric separators instead of parsing them silently", () => {
+    expect(parseStructuredDateCell("12/03-1954").kind).toBe("unparsed");
+    expect(parseStructuredDateCell("12-03/1954").kind).toBe("unparsed");
+    // Consistent separators (either one) still parse.
+    expect(parseStructuredDateCell("12/03/1954").kind).toBe("parsed");
+    expect(parseStructuredDateCell("12-03-1954").kind).toBe("parsed");
+  });
+
+  it("parses supported 4-digit years 0001-0099 without Date.UTC remapping", () => {
+    expect(parseStructuredDateCell("0012-03-04")).toEqual({
+      kind: "parsed",
+      date: { year: 12, month: 3, day: 4, sourceFormat: "iso" },
+    });
+    const numeric = parseStructuredDateCell("04/03/0012");
+    expect(numeric.kind).toBe("parsed");
+    if (numeric.kind === "parsed") {
+      expect(numeric.date).toMatchObject({ year: 12, month: 3, day: 4, numericSeparator: "/" });
+    }
+    // Proleptic leap day below 100 is valid; 1900 is NOT a leap year.
+    expect(parseStructuredDateCell("0004-02-29").kind).toBe("parsed");
+    expect(parseStructuredDateCell("1900-02-29").kind).toBe("unparsed");
+  });
+
+  it("derives the age for a low 4-digit year instead of misclassifying it", () => {
+    expect(deriveAgeAtEvent("0012-03-04", "2023-03-04")).toEqual({
+      kind: "derived",
+      years: 2011,
+    });
+    expect(deriveAgeAtEvent("0012-03-04", "2023-03-03")).toEqual({
+      kind: "derived",
+      years: 2010,
+    });
+  });
+
+  it("shifts/generalizes an ISO year below 100 literally, never as a remapped 19xx year", () => {
+    expect(shiftStructuredDateCell("0012-03-04", 1)).toEqual({
+      kind: "transformed",
+      value: "0012-03-05",
+    });
+    expect(generalizeMonthStructuredDate("0012-03-04")).toEqual({
+      kind: "transformed",
+      value: "0012-03",
+    });
+  });
+
+  it("fails closed when a shift would fall before year 0", () => {
+    expect(shiftStructuredDateCell("0001-01-01", -3650).kind).toBe("review-required");
+  });
+});
+
 describe("generalizeMonthStructuredDate (legacy date-transform mirror)", () => {
   it("mirrors the accepted legacy fecha_completa output for numeric day-first cells", () => {
     // Direct parity with the accepted T13 generalization operator output.
