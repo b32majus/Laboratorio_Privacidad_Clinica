@@ -261,24 +261,48 @@ export const Processor = {
             return (b.position.end - b.position.start) - (a.position.end - a.position.start);
         });
 
+        // T22 #26 (PERF-004, SPEC_V4_QUALITY_SECURITY_DEPLOY §7): resolución
+        // de solapamientos por INTERVALOS medio-abiertos [start, end) en lugar
+        // del marcado carácter a carácter (un Set con CADA índice de cada
+        // span aceptado). Mismo resultado exacto: una entidad colisiona si y
+        // solo si su intervalo comparte al menos un índice con un intervalo
+        // ya aceptado; intervalos adyacentes (end == start del siguiente) NO
+        // colisionan, igual que en la versión por carácter.
         const resolved = [];
-        const occupied = new Set();
+        // Intervalos aceptados, ordenados por start; nunca se solapan entre sí.
+        const accepted = [];
+
+        const collides = (start, end) => {
+            // Punto de inserción por búsqueda binaria sobre start.
+            let lo = 0;
+            let hi = accepted.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (accepted[mid].start < start) lo = mid + 1;
+                else hi = mid;
+            }
+            // Vecino anterior: colisiona si termina después de start.
+            if (lo > 0 && accepted[lo - 1].end > start) return true;
+            // Vecino en/tras el punto de inserción: colisiona si empieza antes de end.
+            if (lo < accepted.length && accepted[lo].start < end) return true;
+            return false;
+        };
 
         for (const entity of validEntities) {
-            let collision = false;
-            for (let i = entity.position.start; i < entity.position.end; i++) {
-                if (occupied.has(i)) {
-                    collision = true;
-                    break;
-                }
-            }
+            const start = entity.position.start;
+            const end = entity.position.end;
+            if (collides(start, end)) continue;
 
-            if (!collision) {
-                resolved.push(entity);
-                for (let i = entity.position.start; i < entity.position.end; i++) {
-                    occupied.add(i);
-                }
+            resolved.push(entity);
+            // Inserción manteniendo el orden por start.
+            let lo = 0;
+            let hi = accepted.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (accepted[mid].start < start) lo = mid + 1;
+                else hi = mid;
             }
+            accepted.splice(lo, 0, { start, end });
         }
 
         return resolved.sort((a, b) => a.position.start - b.position.start);

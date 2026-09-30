@@ -27,7 +27,7 @@
     "test:domain": "node --test scripts/ci/review-session.contract.test.mjs",
     "test:privacy-eval": "node --test scripts/privacy-eval/lib/matching.test.mjs scripts/privacy-eval/lib/metrics.test.mjs",
     "test:benchmarks": "node --test scripts/benchmarks/lib/corpus.test.mjs",
-    "test:perf-core": "node --test scripts/ci/dictionary-index.test.mjs",
+    "test:perf-core": "node --test scripts/ci/dictionary-index.test.mjs scripts/ci/conflict-resolution.test.mjs",
     "bench:engine": "node scripts/benchmarks/engine-bench.mjs",
     "bench:engine:selftest": "node scripts/benchmarks/engine-bench.mjs --self-test",
     "bench:engine:check": "node scripts/benchmarks/engine-bench.mjs --check --baseline=benchmarks/baseline-wu0.json",
