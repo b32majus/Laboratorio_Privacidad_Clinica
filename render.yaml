@@ -1,0 +1,62 @@
+# Render Static deployment — Work Order T24 #28 (SPEC_V4_QUALITY_SECURITY_
+# DEPLOY §9; CURRENT_DECISIONS.md D-015).
+#
+# Deployment properties (SPEC §9):
+#   - ONLY static build output is served (`./dist`): no Render server/worker/
+#     function ever processes clinical content — the clinical origin is pure
+#     static bytes plus the user's own browser (D-014, local-first).
+#   - SPA fallback via dist/_redirects (`/* /index.html 200`, copied verbatim
+#     from app-v4/public/ by the Vite build).
+#   - Security headers below are the AUTHORITATIVE runtime configuration; the
+#     local preview harness (scripts/deploy/preview-server.mjs) parses THIS
+#     file at runtime and serves dist/ with these exact headers, so the
+#     header assertions and the Playwright/no-network smoke exercise the real
+#     deployed behavior, not a parallel copy of it.
+#   - Zero analytics: there is nothing to opt into — no third-party script,
+#     no tag manager, no error SaaS (D-014). `check:external` in CI enforces
+#     zero external runtime resources.
+#
+# Reproduce locally (no Render account needed):
+#   npm run build && npm run preview:deploy && npm run check:headers
+# Remote deployment is a publication decision owned by the human
+# (LOCAL_ONLY execution boundary; see docs/deployment/RENDER_STATIC.md).
+
+services:
+  - type: web
+    name: laboratorio-privacidad-clinica
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    headers:
+      # Clinical origin CSP (SPEC §2): application assets from self; no
+      # arbitrary connect-src; no third-party scripts/frames. The engine
+      # Worker and the vendored pdf.js worker are same-origin modules
+      # (worker-src 'self').
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+      # Never leak clinical-context referrers.
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      # Content-type protections: never sniff executed content.
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      # Frame protections: the clinical origin is never framed.
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      # Frame protections for modern agents (redundant with frame-ancestors).
+      - path: /*
+        name: Cross-Origin-Opener-Policy
+        value: same-origin
+      # Permissions: no powerful capability is granted to any origin.
+      - path: /*
+        name: Permissions-Policy
+        value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=()"
+      # No referer leak on downgrade; TLS is enforced by the platform.
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains

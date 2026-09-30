@@ -23,7 +23,20 @@ A GitHub issue is the executable Work Order. Implement only its bounded scope.
 
 If the issue says `EXECUTION_READY=NO`, do not implement it.
 
-If `Blocked by:` references any open blocker, do not implement it.
+If `Blocked by:` references any open blocker, do not implement it — unless the blocker is an **intra-train dependency** explicitly authorized for the current prepared train (see next subsection).
+
+### External vs intra-train dependency (prepared-train rule, human-approved 2026-09-30)
+
+- **External dependency** (outside a single prepared train): `Blocked by:` requires the predecessor integrated/closed per normal authority.
+- **Intra-train dependency** (inside ONE explicitly authorized prepared train): an open predecessor issue listed in `Blocked by:` may be treated as satisfied when ALL of the following hold:
+  1. the predecessor is itself an authorized Work Order in that train;
+  2. its implementation is complete at an exact local checkpoint on the same train branch;
+  3. required deterministic verification/closeout for that predecessor is green;
+  4. native Gentle lifecycle for every required candidate is complete (`review_due=false` checkpoint, or APPROVED + acknowledge/burn when review was due);
+  5. no unresolved HUMAN STOP, no product/scope/acceptance change, and no publication-dependent acceptance requirement;
+  6. the successor consumes only the predecessor capability already present in that local checkpoint.
+
+This does NOT close the predecessor issue and does NOT authorize push/PR/merge. GitHub issues remain open until accepted publication/integration. External ticket concurrency remains 1.
 
 If required authority is contradictory or materially incomplete, STOP rather than infer a product/clinical/privacy decision.
 

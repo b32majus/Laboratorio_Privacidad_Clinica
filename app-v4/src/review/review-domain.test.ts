@@ -8,7 +8,7 @@ import {
   addManualDetection,
   applyDecision,
   canFinalize,
-  createSessionFromEngineText,
+  createSessionFromEngineTextAsync,
   createReviewSession,
   getDecision,
   getFinalText,
@@ -16,7 +16,7 @@ import {
   jobSourceText,
   jobSupportsReview,
   processBatchItem,
-  startReviewSession,
+  startReviewSessionAsync,
   type ReviewSession,
 } from "./review-domain";
 
@@ -56,8 +56,8 @@ function handcraftedSession(): ReviewSession {
 }
 
 describe("full-path integration: engine → session → decisions → final text", () => {
-  it("builds a pending review session from a real engine run", () => {
-    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
+  it("builds a pending review session from a real engine run", async () => {
+    const session = await createSessionFromEngineTextAsync(ENGINE_TEXT, "standard");
     expect(session.originalText).toBe(ENGINE_TEXT);
     expect(session.detections.length).toBeGreaterThan(0);
     // Offsets stay canonical: `original` is re-derived from the source text.
@@ -69,8 +69,8 @@ describe("full-path integration: engine → session → decisions → final text
     expect(progress.canFinalize).toBe(false);
   });
 
-  it("keeps getFinalText fail-closed while mandatory review is pending", () => {
-    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
+  it("keeps getFinalText fail-closed while mandatory review is pending", async () => {
+    const session = await createSessionFromEngineTextAsync(ENGINE_TEXT, "standard");
     expect(canFinalize(session)).toBe(false);
     try {
       getFinalText(session);
@@ -81,8 +81,8 @@ describe("full-path integration: engine → session → decisions → final text
     }
   });
 
-  it("composes exact final text after every detection is explicitly decided", () => {
-    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
+  it("composes exact final text after every detection is explicitly decided", async () => {
+    const session = await createSessionFromEngineTextAsync(ENGINE_TEXT, "standard");
     let decided = session;
     for (const detection of session.detections) {
       decided = applyDecision(decided, detection.id, "accepted");
@@ -100,7 +100,7 @@ describe("full-path integration: engine → session → decisions → final text
 });
 
 describe("decision semantics over a deterministic session", () => {
-  it("modify changes the exact final-domain replacement, not only markup", () => {
+  it("modify changes the exact final-domain replacement, not only markup", async () => {
     const session = handcraftedSession();
     // Restore every other span so the modified detection is the only edit.
     let next = session;
@@ -114,7 +114,7 @@ describe("decision semantics over a deterministic session", () => {
     expect(getFinalText(next)).toBe(expected);
   });
 
-  it("restored is an explicit completed decision that stays visible", () => {
+  it("restored is an explicit completed decision that stays visible", async () => {
     const session = handcraftedSession();
     const next = applyDecision(session, session.detections[0].id, "restored");
     const progress = getProgress(next);
@@ -126,7 +126,7 @@ describe("decision semantics over a deterministic session", () => {
     expect(progress.canFinalize).toBe(false);
   });
 
-  it("manual detection affects the same session without corrupting existing decisions or offsets", () => {
+  it("manual detection affects the same session without corrupting existing decisions or offsets", async () => {
     const session = handcraftedSession();
     const accepted = applyDecision(session, session.detections[0].id, "accepted");
     const restored = applyDecision(accepted, session.detections[1].id, "restored");
@@ -170,7 +170,7 @@ describe("decision semantics over a deterministic session", () => {
 });
 
 describe("job → review-source mapping", () => {
-  it("supports text, single-document and document-batch jobs", () => {
+  it("supports text, single-document and document-batch jobs", async () => {
     expect(
       jobSupportsReview(createJob({ type: "pasted-text", text: "Síntesis: 612345678." }))
     ).toBe(true);
@@ -211,7 +211,7 @@ describe("job → review-source mapping", () => {
     ).toBe(false);
   });
 
-  it("maps pasted text and single extracted documents to review source text", () => {
+  it("maps pasted text and single extracted documents to review source text", async () => {
     const textJob = createJob({ type: "pasted-text", text: "Texto sintético." });
     expect(jobSourceText(textJob)).toBe("Texto sintético.");
 
@@ -239,14 +239,14 @@ describe("job → review-source mapping", () => {
     expect(jobSourceText(batchJob)).toBeNull();
   });
 
-  it("starts a real review session from a job's source text", () => {
+  it("starts a real review session from a job's source text", async () => {
     const job = createJob({ type: "pasted-text", text: ENGINE_TEXT });
-    const session = startReviewSession(job);
+    const session = await startReviewSessionAsync(job);
     expect(session.originalText).toBe(ENGINE_TEXT);
     expect(session.detections.length).toBeGreaterThan(0);
   });
 
-  it("fails closed when a job family has no single reviewable source text", () => {
+  it("fails closed when a job family has no single reviewable source text", async () => {
     const batchJob = createJob({
       type: "files",
       // T17 #21 SD-2: metadata-only batch (see the review-source mapping above).
@@ -255,16 +255,16 @@ describe("job → review-source mapping", () => {
         { name: "b.txt", extension: "txt" },
       ],
     });
-    expect(() => startReviewSession(batchJob)).toThrowError(ReviewSessionError);
+    await expect(startReviewSessionAsync(batchJob)).rejects.toThrowError(ReviewSessionError);
     // The single-text entry points the caller at the batch primitive instead of
     // the obsolete "arrives with a later ticket" claim.
-    expect(() => startReviewSession(batchJob)).toThrowError(/processBatchItem/);
+    await expect(startReviewSessionAsync(batchJob)).rejects.toThrowError(/processBatchItem/);
   });
 
-  it("the engine behind startReviewSession is the registry-composed V4 engine", () => {
+  it("the engine behind startReviewSession is the registry-composed V4 engine", async () => {
     const engine = createRegistryEngine();
     const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
-    const session = createSessionFromEngineText(ENGINE_TEXT, "standard");
+    const session = await createSessionFromEngineTextAsync(ENGINE_TEXT, "standard");
     // T14 #18 WU-B: the session carries the entity detections PLUS the engine's
     // below-threshold candidates (one detection each).
     const candidates = outcome.result.candidates ?? [];
@@ -307,9 +307,9 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     ]);
   }
 
-  it("a strict job's proposals differ materially from a standard job's (hospital → 'Centro Sanitario')", () => {
-    const strictSession = createSessionFromEngineText(HOSPITAL_TEXT, "strict");
-    const standardSession = createSessionFromEngineText(HOSPITAL_TEXT, "standard");
+  it("a strict job's proposals differ materially from a standard job's (hospital → 'Centro Sanitario')", async () => {
+    const strictSession = await createSessionFromEngineTextAsync(HOSPITAL_TEXT, "strict");
+    const standardSession = await createSessionFromEngineTextAsync(HOSPITAL_TEXT, "standard");
 
     // Accepted legacy strict semantics for the hospital mention.
     const strictHospital = strictSession.detections.find(
@@ -334,9 +334,9 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     expect(proposalsOf(standardSession)).not.toEqual(proposalsOf(strictSession));
   });
 
-  it("startReviewSession consumes the job's policyId, not an implicit default", () => {
+  it("startReviewSession consumes the job's policyId, not an implicit default", async () => {
     const strictJob = setPolicy(createJob({ type: "pasted-text", text: HOSPITAL_TEXT }), "strict");
-    const session = startReviewSession(strictJob);
+    const session = await startReviewSessionAsync(strictJob);
     const hospital = session.detections.find(
       (detection) =>
         detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
@@ -346,10 +346,10 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
 
   it.each(["external-ai", "longitudinal-research"] as const)(
     "a known-but-unmapped %s job fails closed with the typed PolicyError",
-    (policyId) => {
+    async (policyId) => {
       const job = setPolicy(createJob({ type: "pasted-text", text: HOSPITAL_TEXT }), policyId);
       try {
-        startReviewSession(job);
+        await startReviewSessionAsync(job);
         throw new Error("expected startReviewSession to fail closed");
       } catch (error) {
         expect(error).toBeInstanceOf(PolicyError);
@@ -359,10 +359,10 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     }
   );
 
-  it("default/standard behavior stays identical to the pre-correction standard output", () => {
+  it("default/standard behavior stays identical to the pre-correction standard output", async () => {
     const engine = createRegistryEngine();
     const outcome = engine.process({ text: ENGINE_TEXT, context: { mode: "fresh" } });
-    const standardSession = createSessionFromEngineText(ENGINE_TEXT, "standard");
+    const standardSession = await createSessionFromEngineTextAsync(ENGINE_TEXT, "standard");
     expect(
       standardSession.detections.map((detection) => [
         detection.start,
@@ -380,7 +380,7 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     );
     // And the job-level default path (no explicit policy) is the same output.
     const job = createJob({ type: "pasted-text", text: ENGINE_TEXT });
-    const viaJob = startReviewSession(job);
+    const viaJob = await startReviewSessionAsync(job);
     expect(proposalsOf(viaJob)).toEqual(proposalsOf(standardSession));
   });
 });
@@ -422,9 +422,9 @@ function engineProposal(session: ReviewSession, original: string): string | unde
 }
 
 describe("batch per-item processing (T17 #21 WU-B)", () => {
-  it("maps a held item to a per-document session and returns the updated context", () => {
+  it("maps a held item to a per-document session and returns the updated context", async () => {
     const job = readHeldTexts(batchJob(["a.txt", "b.txt"]), [BATCH_DOC_A]);
-    const result = processBatchItem(job, 0, { mode: "fresh" });
+    const result = await processBatchItem(job, 0, { mode: "fresh" }, createRegistryEngine());
     if (!result.ok) {
       throw new Error(`expected ok: true, received failure ${result.failure.code}`);
     }
@@ -438,31 +438,31 @@ describe("batch per-item processing (T17 #21 WU-B)", () => {
     ]);
   });
 
-  it("refuses an item without held text as invalid-source and never throws", () => {
+  it("refuses an item without held text as invalid-source and never throws", async () => {
     const job = batchJob(["a.txt", "b.txt"]);
-    const missing = processBatchItem(job, 0, { mode: "fresh" });
+    const missing = await processBatchItem(job, 0, { mode: "fresh" }, createRegistryEngine());
     expect(missing.ok).toBe(false);
     if (missing.ok) throw new Error("unreachable: expected a classified refusal");
     expect(missing.failure.code).toBe("invalid-source");
     expect(missing.failure.message).toContain("no held extracted text");
 
     // An out-of-range index is fail-closed through the same classified refusal.
-    const outOfRange = processBatchItem(job, 9, { mode: "fresh" });
+    const outOfRange = await processBatchItem(job, 9, { mode: "fresh" }, createRegistryEngine());
     expect(outOfRange.ok).toBe(false);
     if (outOfRange.ok) throw new Error("unreachable: expected a classified refusal");
     expect(outOfRange.failure.code).toBe("invalid-source");
   });
 
-  it("threads the shared context so a returning identity keeps its pseudonym and a new identity takes the next index", () => {
+  it("threads the shared context so a returning identity keeps its pseudonym and a new identity takes the next index", async () => {
     const job = readHeldTexts(batchJob(["a.txt", "b.txt"]), [BATCH_DOC_A, BATCH_DOC_B]);
-    const first = processBatchItem(job, 0, { mode: "fresh" });
+    const first = await processBatchItem(job, 0, { mode: "fresh" }, createRegistryEngine());
     if (!first.ok) throw new Error(`expected ok: true, received failure ${first.failure.code}`);
     // The bridge promotes the first fresh outcome to shared mode for item 1.
     const sharedContext = {
       mode: "shared" as const,
       pseudonymState: first.context.pseudonymState,
     };
-    const second = processBatchItem(job, 1, sharedContext);
+    const second = await processBatchItem(job, 1, sharedContext, createRegistryEngine());
     if (!second.ok) throw new Error(`expected ok: true, received failure ${second.failure.code}`);
 
     // Same identity → the SAME pseudonym in both documents.
@@ -478,7 +478,7 @@ describe("batch per-item processing (T17 #21 WU-B)", () => {
     ]);
   });
 
-  it("classifies an injected typed engine failure and still processes a healthy item through the real adapter", () => {
+  it("classifies an injected typed engine failure and still processes a healthy item through the real adapter", async () => {
     const real = createRegistryEngine();
     const stub: ReturnType<typeof createRegistryEngine> = {
       process(input) {
@@ -493,7 +493,7 @@ describe("batch per-item processing (T17 #21 WU-B)", () => {
     };
     const job = readHeldTexts(batchJob(["a.txt", "b.txt"]), [BATCH_MARKER, BATCH_DOC_A]);
 
-    const failed = processBatchItem(job, 0, { mode: "fresh" }, stub);
+    const failed = await processBatchItem(job, 0, { mode: "fresh" }, stub);
     expect(failed).toEqual({
       ok: false,
       failure: {
@@ -502,7 +502,7 @@ describe("batch per-item processing (T17 #21 WU-B)", () => {
       },
     });
 
-    const healthy = processBatchItem(job, 1, { mode: "fresh" }, stub);
+    const healthy = await processBatchItem(job, 1, { mode: "fresh" }, stub);
     if (!healthy.ok) throw new Error(`expected ok: true, received failure ${healthy.failure.code}`);
     expect(engineProposal(healthy.session, "Carmen Sánchez")).toBe("Paciente 1");
   });

@@ -41,15 +41,11 @@ jobs:
       - name: Privacy regression harness (ground-truth corpus)
         run: npm run check:privacy-eval
 
-      - name: Smoke check entrypoints
+      - name: Smoke check entrypoints (T25 #29: canonical V4 entry; legacy pages retired)
         run: |
           test -f index.html
-          test -f app.html
-          test -f input.html
-          test -f review.html
-          test -f batch.html
-          test -f batch-structured.html
-          test -f batch-review.html
+          test -f app-v4/index.html
+          test -f render.yaml
 
       - name: Build V4 app (legacy Tailwind + Vite)
         run: npm run build

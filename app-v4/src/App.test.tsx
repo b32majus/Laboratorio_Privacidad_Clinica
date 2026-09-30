@@ -9,7 +9,7 @@ import { App } from "./App";
 import type { PdfJsLib } from "./input/pdfjs-loader";
 import {
   applyDecision,
-  createSessionFromEngineText,
+  createSessionFromEngineTextAsync,
   getFinalText,
   type ReviewSession,
 } from "./review/review-domain";
@@ -32,6 +32,17 @@ function createTextJob() {
     target: { value: SYNTHETIC_NOTE },
   });
   fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+}
+
+/**
+ * T22 #26 WU-D: the Configure→Review transition runs the engine asynchronously
+ * (lazy engine module load; later the Worker boundary). This helper clicks the
+ * Review step and waits until the review workspace is actually installed, so
+ * assertions observe the settled state instead of racing the async seam.
+ */
+async function goToReviewStep() {
+  fireEvent.click(stepButton(3, "Review"));
+  await screen.findByRole("heading", { level: 2, name: "Review" }, { timeout: 5_000 });
 }
 
 afterEach(cleanup);
@@ -61,7 +72,7 @@ async function seedRealPdfJs(): Promise<void> {
 }
 
 describe("App shell", () => {
-  it("renders the application heading", () => {
+  it("renders the application heading", async () => {
     render(<App />);
     const heading = screen.getByRole("heading", {
       level: 1,
@@ -70,7 +81,7 @@ describe("App shell", () => {
     expect(heading).toBeInTheDocument();
   });
 
-  it("starts on the Input step with later steps locked", () => {
+  it("starts on the Input step with later steps locked", async () => {
     render(<App />);
     expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
     expect(stepButton(2, "Configure")).toBeDisabled();
@@ -79,7 +90,7 @@ describe("App shell", () => {
     expect(stepButton(5, "Export")).toBeDisabled();
   });
 
-  it("keeps the export step locked with an explicit fail-closed explanation", () => {
+  it("keeps the export step locked with an explicit fail-closed explanation", async () => {
     render(<App />);
     const exportButton = stepButton(5, "Export");
     expect(exportButton).toBeDisabled();
@@ -89,7 +100,7 @@ describe("App shell", () => {
     );
   });
 
-  it("shows the persistent top-bar facts: job, type, policy, local-only processing", () => {
+  it("shows the persistent top-bar facts: job, type, policy, local-only processing", async () => {
     render(<App />);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();
@@ -100,7 +111,7 @@ describe("App shell", () => {
     );
   });
 
-  it("creates a text job and shows its name and type in the top bar", () => {
+  it("creates a text job and shows its name and type in the top bar", async () => {
     render(<App />);
     createTextJob();
     expect(screen.getByText("Pasted text")).toBeInTheDocument();
@@ -138,7 +149,7 @@ describe("App shell", () => {
     expect(facts).toHaveTextContent("Structured export ready: No");
   });
 
-  it("surfaces the typed domain error instead of guessing a job kind", () => {
+  it("surfaces the typed domain error instead of guessing a job kind", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -147,7 +158,7 @@ describe("App shell", () => {
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
-  it("clear session discards all in-memory job state and returns to fresh Input", () => {
+  it("clear session discards all in-memory job state and returns to fresh Input", async () => {
     render(<App />);
     createTextJob();
     expect(screen.getByText("Text job")).toBeInTheDocument();
@@ -159,7 +170,7 @@ describe("App shell", () => {
     expect(stepButton(2, "Configure")).toBeDisabled();
   });
 
-  it("New Job returns to a fresh Input state", () => {
+  it("New Job returns to a fresh Input state", async () => {
     render(<App />);
     createTextJob();
     fireEvent.click(stepButton(2, "Configure"));
@@ -170,7 +181,7 @@ describe("App shell", () => {
     expect(stepButton(2, "Configure")).toBeDisabled();
   });
 
-  it("navigates forward and backward through the canonical steps without URL changes", () => {
+  it("navigates forward and backward through the canonical steps without URL changes", async () => {
     render(<App />);
     const urlBefore = window.location.href;
 
@@ -180,7 +191,7 @@ describe("App shell", () => {
     expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
     expect(stepButton(1, "Input")).toBeEnabled();
 
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     expect(screen.getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
 
     fireEvent.click(stepButton(1, "Input"));
@@ -192,13 +203,13 @@ describe("App shell", () => {
     expect(window.location.hash).toBe("");
   });
 
-  it("never places job content in the URL across job creation and navigation", () => {
+  it("never places job content in the URL across job creation and navigation", async () => {
     render(<App />);
     const urlBefore = window.location.href;
 
     createTextJob();
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     fireEvent.click(stepButton(2, "Configure"));
     fireEvent.click(screen.getByRole("button", { name: "New Job" }));
     createTextJob();
@@ -208,14 +219,14 @@ describe("App shell", () => {
     expect(window.location.hash).toBe("");
   });
 
-  it("renders honest placeholders for later-ticket steps", () => {
+  it("renders honest placeholders for later-ticket steps", async () => {
     render(<App />);
     createTextJob();
     fireEvent.click(stepButton(2, "Configure"));
     expect(screen.getByText(/this step is not implemented yet/i)).toBeInTheDocument();
   });
 
-  it("keeps step navigation keyboard operable with visible focus targets", () => {
+  it("keeps step navigation keyboard operable with visible focus targets", async () => {
     render(<App />);
     createTextJob();
 
@@ -245,16 +256,16 @@ describe("App review workspace (T07)", () => {
   const REVIEW_NOTE =
     "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
-  function createReviewJob() {
+  async function createReviewJob() {
     fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
   }
 
-  it("runs the engine once at the Configure→Review transition and renders the workspace", () => {
+  it("runs the engine once at the Configure→Review transition and renders the workspace", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
     const progress = screen.getByRole("status", { name: /review progress/i });
     expect(progress).toHaveTextContent(/Pending: [1-9]/);
@@ -263,9 +274,9 @@ describe("App review workspace (T07)", () => {
     );
   });
 
-  it("navigating away and back preserves review decisions and never re-runs the engine", () => {
+  it("navigating away and back preserves review decisions and never re-runs the engine", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     const pendingBefore = screen
       .getByRole("status", { name: /review progress/i })
       .textContent?.match(/Pending: (\d+)/)?.[1];
@@ -280,13 +291,13 @@ describe("App review workspace (T07)", () => {
     );
 
     fireEvent.click(stepButton(1, "Input"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     const progress = screen.getByRole("status", { name: /review progress/i });
     expect(progress).toHaveTextContent("Accepted: 1");
     expect(progress).not.toHaveTextContent(`Pending: ${pendingBefore}`);
   });
 
-  it("keeps an honest placeholder for job families without single-document review", () => {
+  it("keeps an honest placeholder for job families without single-document review", async () => {
     render(<App />);
     const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText(/select files/i), {
@@ -294,14 +305,14 @@ describe("App review workspace (T07)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     expect(screen.getByText(/this step is not implemented yet/i)).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
   });
 
-  it("keeps export fail-closed while mandatory review decisions are pending", () => {
+  it("keeps export fail-closed while mandatory review decisions are pending", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     expect(stepButton(5, "Export")).toBeDisabled();
   });
 });
@@ -310,11 +321,11 @@ describe("App privacy gate (T08 U3)", () => {
   const REVIEW_NOTE =
     "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
-  function createReviewJob() {
+  async function createReviewJob() {
     fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
   }
 
   function pendingCount(): number {
@@ -342,9 +353,9 @@ describe("App privacy gate (T08 U3)", () => {
       : `Safe export is blocked while ${count} mandatory review decisions are pending.`;
   }
 
-  it("renders the gate with safeOutputReady true after every decision is resolved", () => {
+  it("renders the gate with safeOutputReady true after every decision is resolved", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     acceptAllDetections();
     expect(pendingCount()).toBe(0);
 
@@ -362,9 +373,9 @@ describe("App privacy gate (T08 U3)", () => {
     expect(stepButton(5, "Export")).toBeEnabled();
   });
 
-  it("stays fail-closed: the gate shows the pending state while a decision is pending", () => {
+  it("stays fail-closed: the gate shows the pending state while a decision is pending", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     const list = screen.getAllByRole("list", { name: /detections/i })[0];
     fireEvent.click(within(list).queryAllByRole("button")[0] as HTMLElement);
     fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
@@ -386,11 +397,11 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
   const REVIEW_NOTE =
     "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
-  function createReviewJob() {
+  async function createReviewJob() {
     fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
   }
 
   function pendingCount(): number {
@@ -410,9 +421,9 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     }
   }
 
-  it("a completed review cannot be relabelled: a real policy change blocks the gates again and the review restarts under the new policy", () => {
+  it("a completed review cannot be relabelled: a real policy change blocks the gates again and the review restarts under the new policy", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     acceptAllDetections();
     expect(pendingCount()).toBe(0);
     // From the Privacy Gate step, Export is the immediate next step, so its
@@ -432,7 +443,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
 
     // The stale session is gone: re-entering Review creates a fresh session
     // under the new policy, with every decision pending again.
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
     expect(pendingCount()).toBeGreaterThan(0);
 
@@ -446,9 +457,9 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(facts).toHaveTextContent("Safe output: Ready");
   });
 
-  it("an unchanged policy selection is an exact no-op: the completed review survives", () => {
+  it("an unchanged policy selection is an exact no-op: the completed review survives", async () => {
     render(<App />);
-    createReviewJob();
+    await createReviewJob();
     acceptAllDetections();
     fireEvent.click(stepButton(4, "Privacy Gate"));
     expect(stepButton(5, "Export")).toBeEnabled();
@@ -464,7 +475,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(facts).toHaveTextContent("Safe output: Ready");
   });
 
-  it("starting review under a known-but-unmapped policy fails closed with the typed PolicyError (C1)", () => {
+  it("starting review under a known-but-unmapped policy fails closed with the typed PolicyError (C1)", async () => {
     render(<App />);
     createTextJob();
     fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
@@ -474,8 +485,8 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     fireEvent.click(stepButton(3, "Review"));
 
     // The typed PolicyError message is surfaced, not swallowed into the
-    // generic fallback message.
-    const alert = screen.getByRole("alert");
+    // generic fallback message (async processing: wait for the failure).
+    const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
     expect(alert).toHaveTextContent("external-ai");
     expect(alert).not.toHaveTextContent(/not available right now/i);
@@ -483,7 +494,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
   });
 
-  it("a failed processing attempt stays on the current step and never exposes a review workspace (T15 #19)", () => {
+  it("a failed processing attempt stays on the current step and never exposes a review workspace (T15 #19)", async () => {
     render(<App />);
     createTextJob();
     fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
@@ -495,8 +506,9 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     fireEvent.click(stepButton(3, "Review"));
 
     // The typed failure is surfaced and the app does NOT navigate: the Review
-    // workspace never appears and the export gate stays fail-closed.
-    const alert = screen.getByRole("alert");
+    // workspace never appears and the export gate stays fail-closed (async
+    // processing: wait for the failure before asserting absence).
+    const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
     expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
@@ -510,7 +522,7 @@ describe("App document intake (T06)", () => {
     delete (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker;
   });
 
-  it("never advertises legacy .doc in the file input accept attribute", () => {
+  it("never advertises legacy .doc in the file input accept attribute", async () => {
     render(<App />);
     const input = screen.getByLabelText(/select files/i) as HTMLInputElement;
     expect(input).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
@@ -660,11 +672,11 @@ describe("App export step (T08 U4)", () => {
   }
 
   /** Full flow: create a text job, complete its review, reach Export. */
-  function completeReviewToExport(note: string) {
+  async function completeReviewToExport(note: string) {
     fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: note } });
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     acceptAllDetections();
     fireEvent.click(stepButton(4, "Privacy Gate"));
     fireEvent.click(stepButton(5, "Export"));
@@ -672,8 +684,8 @@ describe("App export step (T08 U4)", () => {
   }
 
   /** Pure-domain replica: the same engine, text and decisions as the App flow. */
-  function replicaSession(note: string): ReviewSession {
-    const session = createSessionFromEngineText(note, "standard");
+  async function replicaSession(note: string): Promise<ReviewSession> {
+    const session = await createSessionFromEngineTextAsync(note, "standard");
     let next = session;
     for (const detection of next.detections) {
       next = applyDecision(next, detection.id, "accepted");
@@ -686,9 +698,9 @@ describe("App export step (T08 U4)", () => {
     return text.replace(/^Session: .*$/m, "Session: <session>");
   }
 
-  it("renders two separate download actions with the confidential warning on Export", () => {
+  it("renders two separate download actions with the confidential warning on Export", async () => {
     render(<App />);
-    completeReviewToExport(JOB1_NOTE);
+    await completeReviewToExport(JOB1_NOTE);
 
     const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
     const auditButton = screen.getByRole("button", { name: AUDIT_BUTTON });
@@ -709,7 +721,7 @@ describe("App export step (T08 U4)", () => {
       render(<App />);
 
       // Job 1: complete review and download its confidential audit.
-      completeReviewToExport(JOB1_NOTE);
+      await completeReviewToExport(JOB1_NOTE);
       fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
       const audit1 = await textOf(captured.downloads[0]);
       expect(captured.downloads[0].fileName).toBe("confidential-audit.txt");
@@ -720,7 +732,7 @@ describe("App export step (T08 U4)", () => {
       // Clear session and run a second, different job end-to-end.
       fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
       expect(screen.getByText("No job yet")).toBeInTheDocument();
-      completeReviewToExport(JOB2_NOTE);
+      await completeReviewToExport(JOB2_NOTE);
       fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
 
@@ -737,7 +749,7 @@ describe("App export step (T08 U4)", () => {
 
       // Structural proof: job 2's audit matches an audit built from a
       // session 2 replica ONLY (same engine, same text, same decisions).
-      const replica2 = replicaSession(JOB2_NOTE);
+      const replica2 = await replicaSession(JOB2_NOTE);
       expect(normalizeAudit(audit2)).toBe(
         normalizeAudit(serializeConfidentialAudit(buildConfidentialAudit(replica2)))
       );
@@ -753,7 +765,7 @@ describe("App export step (T08 U4)", () => {
     const captured = captureDownloads();
     try {
       render(<App />);
-      completeReviewToExport(JOB1_NOTE);
+      await completeReviewToExport(JOB1_NOTE);
 
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
       const before = await textOf(captured.downloads[0]);
@@ -835,7 +847,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // Enter review: the good item is reviewable; the failed item is listed but
     // not selectable and keeps its message.
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     await waitFor(
       () => {
         expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
@@ -878,6 +890,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       new File([BATCH_NOTE_B], "doc-b.txt"),
     ]);
     fireEvent.click(stepButton(2, "Configure"));
+    // Batch review navigation is synchronous: processing is driven by the
+    // reads-settle effect, so there is nothing async to await here.
     fireEvent.click(stepButton(3, "Review"));
     await waitFor(() =>
       expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
@@ -899,6 +913,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
 
     // Navigate away and back: nothing was auto-accepted or flipped.
+    // Batch review navigation is synchronous (reads-settle effect).
     fireEvent.click(stepButton(1, "Input"));
     fireEvent.click(stepButton(3, "Review"));
     await waitFor(() =>
@@ -930,7 +945,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/reading documents… 0 of 2 read/i);
 
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     // Reads have NOT settled: no processing and a factual reading state.
     expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Reading/);
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
@@ -980,6 +995,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       new File([BATCH_NOTE_B], "doc-b.txt"),
     ]);
     fireEvent.click(stepButton(2, "Configure"));
+    // Batch review navigation is synchronous: processing is driven by the
+    // reads-settle effect, so there is nothing async to await here.
     fireEvent.click(stepButton(3, "Review"));
     await waitFor(() =>
       expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
@@ -1003,7 +1020,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // Entering review runs the attempt: every item fails closed with the
     // classified policy-unsupported failure, surfaced on the documents list.
     fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     await waitFor(() => {
       expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Error/);
     });
@@ -1019,7 +1036,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
       target: { value: "standard" },
     });
-    fireEvent.click(stepButton(3, "Review"));
+    await goToReviewStep();
     await waitFor(() => {
       expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
     });
@@ -1034,6 +1051,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       new File([BATCH_NOTE_B], "doc-b.txt"),
     ]);
     fireEvent.click(stepButton(2, "Configure"));
+    // Batch review navigation is synchronous: processing is driven by the
+    // reads-settle effect, so there is nothing async to await here.
     fireEvent.click(stepButton(3, "Review"));
     await waitFor(() =>
       expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
@@ -1064,6 +1083,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       new File([BATCH_NOTE_B], "doc-b.txt"),
     ]);
     fireEvent.click(stepButton(2, "Configure"));
+    // Batch review navigation is synchronous: processing is driven by the
+    // reads-settle effect, so there is nothing async to await here.
     fireEvent.click(stepButton(3, "Review"));
     await waitFor(() =>
       expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()

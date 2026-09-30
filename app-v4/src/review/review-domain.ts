@@ -40,10 +40,11 @@ import {
   ReviewSessionError,
   type ReviewSession,
 } from "../../../js/domain/review-session.js";
-import { createRegistryEngine } from "../engine/registry-engine";
+import { loadRegistryEngine, type EngineLoader } from "../engine/engine-seam";
 import { classifyProcessingFailure } from "../processing-outcome";
 import type { Job, PrivacyPolicyId, ProcessingFailure } from "../domain/job";
-import type { ProcessingContext } from "../engine/types";
+import type { RegistryEngineInput } from "../engine/registry-engine";
+import type { EngineOutcome, ProcessingContext } from "../engine/types";
 
 export {
   addManualDetection,
@@ -88,20 +89,23 @@ export type DecisionExtras = {
  * Run the registry-composed V4 engine (Work Order T11 #15, WU3) over `text`
  * under the EXPLICIT `policyId` and map the result through the T01 adapter
  * into a ReviewSession. PR #40 corrective C1: the policy is never guessed —
- * the caller (the Job, via {@link startReviewSession}) decides it, so the
- * session's proposals are always produced under the job's actual policy;
+ * the caller (the Job, via {@link startReviewSessionAsync}) decides it, so
+ * the session's proposals are always produced under the job's actual policy;
  * known-but-unmapped policies fail typed through the engine instead of
  * silently falling back to `standard`. T14 #18 WU-B: the returned session
  * also carries the engine's below-threshold candidates as pending
- * `lowConfidence` detections (see the module header). Main-thread processing
- * is fine at this stage; the Web Worker boundary is a later ticket (T22).
+ * `lowConfidence` detections (see the module header).
+ *
+ * T22 #26 WU-D (PERF-002): the heavy engine module graph loads lazily via
+ * the async engine seam — the app's initial chunk never includes it.
  */
-export function createSessionFromEngineText(
+export async function createSessionFromEngineTextAsync(
   text: string,
-  policyId: PrivacyPolicyId
-): ReviewSession {
-  const engine = createRegistryEngine();
-  const outcome = engine.process({ text, context: { mode: "fresh" }, policyId });
+  policyId: PrivacyPolicyId,
+  load: EngineLoader = loadRegistryEngine
+): Promise<ReviewSession> {
+  const engine = await load();
+  const outcome = await engine.process({ text, context: { mode: "fresh" }, policyId });
   // The T01 adapter validates the result shape fail-closed and returns a
   // frozen session; the ambient declaration keeps the structural type.
   return createReviewSessionFromProcessor(outcome.result) as ReviewSession;
@@ -140,7 +144,10 @@ export function jobSourceText(job: Job): string | null {
  * {@link processBatchItem} instead. Fails closed (typed ReviewSessionError)
  * when the job has no single reviewable source text instead of guessing.
  */
-export function startReviewSession(job: Job): ReviewSession {
+export async function startReviewSessionAsync(
+  job: Job,
+  load: EngineLoader = loadRegistryEngine
+): Promise<ReviewSession> {
   const text = jobSourceText(job);
   if (text === null || text.trim().length === 0) {
     throw new ReviewSessionError(
@@ -152,16 +159,18 @@ export function startReviewSession(job: Job): ReviewSession {
   // consumes. A known-but-unmapped job policy (external-ai,
   // longitudinal-research) fails closed with the typed PolicyError — never
   // a session silently produced under `standard`.
-  return createSessionFromEngineText(text, job.policyId);
+  return createSessionFromEngineTextAsync(text, job.policyId, load);
 }
 
 /**
- * The concrete process seam of the registry-composed engine
- * (`../engine/registry-engine`), typed structurally from the factory's return
- * type so a deterministic oracle can inject a stub without a new engine
- * contract.
+ * The engine process seam consumed by review orchestration, typed
+ * structurally (T22 #26 WU-D): `process` may be synchronous (in-process
+ * engine) or asynchronous (Worker-backed engine), so a deterministic oracle
+ * can inject either stub without importing the heavy engine module.
  */
-type RegistryEngine = ReturnType<typeof createRegistryEngine>;
+type RegistryEngine = {
+  process(input: RegistryEngineInput): EngineOutcome | Promise<EngineOutcome>;
+};
 
 /**
  * Result of processing ONE batch item (T17 #21 WU-B): either the per-document
@@ -191,15 +200,16 @@ export type BatchItemProcessing =
  * (typed policy/engine/session failures) is mapped through
  * {@link classifyProcessingFailure} to `{ ok: false, failure }`, so a batch
  * loop can record the item outcome and keep processing the remaining items
- * (SD-4). `engine` is an injection seam for deterministic oracles ONLY;
- * production callers pass nothing.
+ * (SD-4). T22 #26 WU-D: the engine is a REQUIRED argument — production
+ * callers obtain it from the async engine seam (module loaded once per batch
+ * loop); deterministic oracles inject stubs.
  */
-export function processBatchItem(
+export async function processBatchItem(
   job: Job,
   index: number,
   context: ProcessingContext,
-  engine: RegistryEngine = createRegistryEngine()
-): BatchItemProcessing {
+  engine: RegistryEngine
+): Promise<BatchItemProcessing> {
   try {
     if (job.kind !== "document-batch" || job.source.type !== "files") {
       throw new ReviewSessionError(
@@ -214,7 +224,7 @@ export function processBatchItem(
         `Batch item ${index} of job "${job.name}" has no held extracted text; read the item before processing it.`
       );
     }
-    const outcome = engine.process({
+    const outcome = await engine.process({
       text: extraction.extractedText,
       context,
       policyId: job.policyId,

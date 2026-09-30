@@ -1,6 +1,8 @@
 // Detector de Nombres - Profesionales, pacientes, familiares
 // Incluye sistema de scoring para mejor precisión
 
+import { getCachedDictionaryIndex } from '../utils/DictionaryIndex.js';
+
 /**
  * Configuración de palabras a excluir
  */
@@ -402,18 +404,22 @@ function limpiarNombrePaciente(nombre) {
 
 /**
  * Verifica si alguna palabra está en los diccionarios
+ *
+ * T22 #26 (PERF-003): el Set normalizado de los diccionarios de nombres se
+ * PRECOMPUTA una vez (js/core/utils/DictionaryIndex.js) y se reutiliza entre
+ * llamadas, en lugar de reconstruirse (concatenar + normalizar cientos de
+ * entradas) en cada candidato. La pertenencia es idéntica: mismas formas
+ * normalizadas, misma función de normalización del llamador.
  */
 function verificarNombreEnDiccionarios(palabras, dictionaries, normalizeText) {
     if (!dictionaries || !normalizeText) return false;
 
-    const { nombresMujer, nombresHombre, apellidos } = dictionaries;
-    const allDicts = [
-        ...(nombresMujer || []),
-        ...(nombresHombre || []),
-        ...(apellidos || [])
-    ];
-
-    const normalizedDicts = new Set(allDicts.map(n => normalizeText(n)));
+    const normalizedDicts = getCachedDictionaryIndex(
+        dictionaries,
+        normalizeText,
+        ['nombresMujer', 'nombresHombre', 'apellidos']
+    );
+    if (!normalizedDicts) return false;
 
     return palabras.some(p => normalizedDicts.has(normalizeText(p)));
 }

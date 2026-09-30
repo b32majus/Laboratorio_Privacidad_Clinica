@@ -1,6 +1,12 @@
 # Instrucciones de Inicio para Claude Code
 ## Laboratorio de Privacidad Clínica by Sophilux
 
+> **SUPERSEDED (T25 #29):** estas instrucciones describen el arranque sobre
+> las páginas legacy multipágina retiradas en v4 (T25 #29). NO es autoridad
+> vigente. Las instrucciones de agente actuales son `AGENTS.md` (raíz) y
+> `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md`. Se conserva sin editar
+> como evidencia histórica.
+
 ---
 
 ## CONTEXTO DEL PROYECTO

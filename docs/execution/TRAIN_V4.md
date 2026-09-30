@@ -27,20 +27,36 @@ A ticket is executable only when:
 
 When more than one ticket is unblocked, map order below is the deterministic preference.
 
+### Intra-train dependency exception (human-approved 2026-09-30)
 
-## Current accepted checkpoint and next frontier — 2026-09-29
+The frontier rule above ("every `Blocked by:` issue is closed") applies to **external** dependencies. Within a single explicitly authorized prepared train, an open predecessor listed in `Blocked by:` may be treated as satisfied when all of the following hold:
+
+1. the predecessor is itself an authorized Work Order in that same train;
+2. its implementation is complete at an exact local checkpoint on the same train branch;
+3. required deterministic verification/closeout for that predecessor is green;
+4. native Gentle lifecycle for every required candidate is complete (`review_due=false`, or APPROVED + acknowledge/burn when review was due);
+5. no unresolved HUMAN STOP, no product/scope/acceptance change, no publication-dependent acceptance requirement;
+6. the successor consumes only the predecessor capability already present in that local checkpoint.
+
+This exception does not mark the predecessor issue completed, does not bypass unrelated/external blockers, and does not authorize push/PR/merge. Issues remain open until accepted publication/integration. External ticket concurrency remains 1.
+
+Authority: map issue #5 comment "Prepared-train dependency rule — 2026-09-30".
+
+
+## Current accepted checkpoint and next frontier — 2026-09-30
 
 ```text
 CURRENT_BASE_BRANCH=3.0-main
-CURRENT_BASE_SHA=5625f9b01cc1bac78eda27169c41ae96a669eed5
-LAST_MERGED_PR=#42
-COMPLETED=T01–T20,T23
-NEXT_PREPARED_TRAIN=T21 #25
+CURRENT_BASE_SHA=758acf6546b6c579e1882c743477a04d1cb96f90
+LAST_MERGED_PR=#45
+T21 #25 = integrated via PR #45
+COMPLETED=T01–T20,T23,T21
+NEXT_PREPARED_TRAIN=T22 #26 → T24 #28 → T25 #29
 ```
 
-PR #42 (merge de `work/opencode/v4-overnight-t17-t18-20260928`) integró y cerró el checkpoint T12–T20: T12 AGE, T13 fechas/shift, T14 low-confidence, T15 fail-closed input, T16 pseudónimos, T17 batch, T18 parsers estructurados, T19 política fecha/edad estructurada y T20 workspace de clasificación. T23 #27 (supply-chain/CI) había cerrado antes. La rama/worktree histórica `work/opencode/v4-overnight-t17-t18-20260928` ya no es superficie de trabajo vigente.
+PR #45 (merge de `work/t21-playwright-20260929`) integró y cerró T21 #25: suite Playwright crítica determinista contra build estático production-like, monitor de red E2E fail-closed con violación plantada, y cierre de deuda QA-002/QA-003. T23 #27 (supply-chain/CI) había cerrado antes.
 
-**Next prepared frontier: T21 #25 — Critical Playwright E2E + browser privacy contract** (`EXECUTION_READY=YES`, deudas QA-002/QA-003, spec `SPEC_V4_QUALITY_SECURITY_DEPLOY.md`; bloqueos #12, #13, #14, #18, #21, #24 todos cerrados).
+**Next prepared frontier (train unattended autorizado, publicación LOCAL_ONLY):** `T22 #26 → T24 #28 → T25 #29 → composed closeout → STOP`. T22 #26 (`EXECUTION_READY=YES`, deudas PERF-001..004, spec `SPEC_V4_QUALITY_SECURITY_DEPLOY.md`) tiene sus bloqueos externos #9 y #25 cerrados. T24 #28 (bloqueos #13, #25, #27 cerrados) y T25 #29 (bloqueos #25, #26, #28) consumen los checkpoints locales aceptados del mismo train bajo la excepción intra-train de arriba. La rama/worktree histórica `work/opencode/v4-overnight-t17-t18-20260928` ya no es superficie de trabajo vigente.
 
 **Deuda post-PR#42 (auditoría de promoción READ-ONLY):** registrada como duradero en issue #43 y en `docs/DEBT_REGISTER.md` (STRUCT-012/A1 alta, BATCH-003 actualización A2, CI-003/A4, DOC-002/A5 factual). No son bloqueantes retroactivos (la auditoría concluyó PASS) y NO se pliegan en T21 #25: A1 recibe una corrección propia y acotada (fail-closed de tamaño soportado en la entrada estructurada, misma autoridad `oversizeInputFor` aceptada por T15); A2 corrige propiedad de BATCH-003 (pipeline estructurado de app, no T20/T21); A4 es CI de proceso; A5 es factual only. El plan de lanzamiento histórico del tren T06–T08 (`TRAIN_T06_T08_20260924.md`) se conserva como evidencia cerrada, no como frontier vigente.
 

@@ -8,7 +8,7 @@ import { buildSafeOutput, serializeSafeOutput } from "../output/safe-output";
 import {
   applyDecision,
   createReviewSession,
-  createSessionFromEngineText,
+  createSessionFromEngineTextAsync,
   type ReviewSession,
 } from "./review-domain";
 
@@ -103,8 +103,8 @@ afterEach(() => {
 });
 
 describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized", () => {
-  it("bands every planted age and never leaks an exact source age value into Safe Output (ORACLE 1)", () => {
-    const session = acceptAll(createSessionFromEngineText(FIXTURE, "standard"));
+  it("bands every planted age and never leaks an exact source age value into Safe Output (ORACLE 1)", async () => {
+    const session = acceptAll(await createSessionFromEngineTextAsync(FIXTURE, "standard"));
     const safeText = serializeSafeOutput(buildSafeOutput(session));
 
     expect(safeText).toContain(ADULT_LABEL);
@@ -116,8 +116,8 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     expect(safeText).not.toContain(PEDIATRIC_SOURCE);
   });
 
-  it("keeps the original↔replacement correspondence, exact source ages included, in Confidential Audit only (ORACLE 2)", () => {
-    const session = acceptAll(createSessionFromEngineText(FIXTURE, "standard"));
+  it("keeps the original↔replacement correspondence, exact source ages included, in Confidential Audit only (ORACLE 2)", async () => {
+    const session = acceptAll(await createSessionFromEngineTextAsync(FIXTURE, "standard"));
     const audit = buildConfidentialAudit(session);
 
     const edadEntries = audit.mapping.filter((entry) => entry.type === "EDAD");
@@ -126,7 +126,7 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     );
   });
 
-  it("recognizes exactly one EDAD per planted age at exact offsets and counts them (ORACLE 3)", () => {
+  it("recognizes exactly one EDAD per planted age at exact offsets and counts them (ORACLE 3)", async () => {
     const outcome = createRegistryEngine().process({
       text: FIXTURE,
       context: { mode: "fresh" },
@@ -140,7 +140,7 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     expect(outcome.result.stats.byType.edades).toBe(PLANTED.length);
   });
 
-  it("produces zero EDAD entities for the treatment-duration and dose bait (ORACLE 3, negative)", () => {
+  it("produces zero EDAD entities for the treatment-duration and dose bait (ORACLE 3, negative)", async () => {
     const outcome = createRegistryEngine().process({
       text: `${DURATION_BAIT}. ${DOSE_BAIT}.`,
       context: { mode: "fresh" },
@@ -150,7 +150,7 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     expect(outcome.result.stats.byType.edades).toBe(0);
   });
 
-  it("is policy-invariant: standard and strict share identical AGE labels (ORACLE 4)", () => {
+  it("is policy-invariant: standard and strict share identical AGE labels (ORACLE 4)", async () => {
     const standard = edadProjection("standard");
     const strict = edadProjection("strict");
 
@@ -158,7 +158,7 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     expect(standard).toEqual(EXPECTED_LABELS.map(([original, label]) => [original, label]));
   });
 
-  it("oracle self-test: the no-leak assertion is sensitive to a planted KEEP leak", () => {
+  it("oracle self-test: the no-leak assertion is sensitive to a planted KEEP leak", async () => {
     // Planted violation: a session whose EDAD proposal keeps the exact source
     // value (a KEEP/leak instead of generalization). This is precisely the
     // output ORACLE 1 forbids, so if the accepted Safe Output still carries the
@@ -188,9 +188,9 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     expect(leakedText).not.toContain(ADULT_LABEL);
   });
 
-  it("keeps external-ai fail-closed with the typed PolicyError and no Safe Output (ORACLE 5)", () => {
+  it("keeps external-ai fail-closed with the typed PolicyError and no Safe Output (ORACLE 5)", async () => {
     try {
-      const session = createSessionFromEngineText(FIXTURE, "external-ai");
+      const session = await createSessionFromEngineTextAsync(FIXTURE, "external-ai");
       throw new Error(
         `expected external-ai to fail closed, got session ${String(session.sessionId)}`
       );

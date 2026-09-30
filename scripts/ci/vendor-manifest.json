@@ -8,14 +8,6 @@
     "notes": "Version detected from embedded bundle string 'Version 2.5.1' (jsPDF release banner)."
   },
   {
-    "path": "lib/jszip.min.js",
-    "description": "JSZip browser bundle used by legacy export flows (ZIP packaging).",
-    "upstream": "JSZip (Stuk/jszip) - https://github.com/Stuk/jszip",
-    "version": "3.10.1",
-    "sha256": "acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e",
-    "notes": "Version detected from embedded bundle string 'version=\"3.10.1\"'."
-  },
-  {
     "path": "lib/mammoth.browser.min.js",
     "description": "Mammoth browser bundle used by legacy flows (DOCX to HTML conversion).",
     "upstream": "mammoth.js (mwilliamson/mammoth.js) - https://github.com/mwilliamson/mammoth.js",

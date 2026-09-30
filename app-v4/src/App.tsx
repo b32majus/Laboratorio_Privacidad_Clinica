@@ -330,7 +330,7 @@ export function App() {
    * read phase can never start processing mid-read. Structured jobs keep an
    * honest placeholder until their own tickets arrive.
    */
-  const handleGoToStep = (step: FlowStep) => {
+  const handleGoToStep = async (step: FlowStep) => {
     try {
       if (
         step === "review" &&
@@ -339,7 +339,11 @@ export function App() {
         job.kind !== "document-batch" &&
         jobSupportsReview(job)
       ) {
-        const failure = session.startReview();
+        // T22 #26 WU-D: processing is async (lazy engine load, later the
+        // Worker boundary). The typed failure still keeps the app on the
+        // current step; the UI simply waits for the outcome before
+        // navigating.
+        const failure = await session.startReview();
         if (failure) {
           setReviewError(failure.message);
           return;
@@ -451,8 +455,12 @@ export function App() {
     if (batchSessions !== null) return;
     if (job.processing !== "idle") return;
     if (hasReadingBatchItems(job)) return;
-    const failure = startReview();
-    if (failure) setReviewError(failure.message);
+    // T22 #26 WU-D: processing is async (lazy engine load, later the Worker
+    // boundary). startReview() itself drops stale outcomes (async gap guard),
+    // so a non-null failure always belongs to the still-current job.
+    void startReview().then((failure) => {
+      if (failure) setReviewError(failure.message);
+    });
   }, [currentStep, job, batchSessions, isExtracting, startReview]);
 
   return (
