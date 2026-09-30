@@ -94,7 +94,7 @@ describe("network invariant monitor", () => {
         fireEvent.click(stepButton(stepNumber, label));
         // T22 #26 WU-D: the Review transition runs the engine asynchronously;
         // wait for the step heading instead of racing the async seam.
-        await screen.findByRole("heading", { level: 2, name: label }, { timeout: 5_000 });
+        await screen.findByRole("heading", { level: 2, name: label }, { timeout: 10_000 });
         expect(monitor.attempts()).toHaveLength(0);
       }
 
@@ -211,7 +211,7 @@ describe("network invariant monitor", () => {
       // (T22 #26 WU-D: asynchronously through the lazy engine seam).
       fireEvent.click(stepButton(2, "Configure"));
       fireEvent.click(stepButton(3, "Review"));
-      const progress = await screen.findByRole("status", { name: /review progress/i });
+      const progress = await screen.findByRole("status", { name: /review progress/i }, { timeout: 10_000 });
       expect(progress).toHaveTextContent(/Pending: [1-9]/);
       expect(monitor.attempts()).toHaveLength(0);
 

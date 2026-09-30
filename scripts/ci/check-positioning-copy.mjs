@@ -3,29 +3,25 @@ import path from 'node:path';
 
 const root = process.cwd();
 
-// User-visible legacy HTML surfaces.
+// User-visible HTML surfaces (T25 #29: the legacy application pages —
+// app/input/batch/review/batch-* and their iframe/legacy variants — were
+// retired; the canonical clinical surface is the V4 SPA (app-v4/, built to
+// dist/). The remaining pages are the informational/marketing content, whose
+// links now point to the V4 entry (app-v4/index.html).
 const htmlFiles = [
   'index.html',
-  'app.html',
   'funcionamiento.html',
   'terminos.html',
-  'review.html',
-  'input.html',
-  'batch.html',
-  'batch-review.html',
-  'batch-structured.html',
-  'batch-structured-legacy.html',
-  'batch-review-legacy.html',
   'guia.html',
 ];
 
 // Modules that generate user-facing outputs (PDF/XLSX/ZIP): they must use
 // preparación/seudonimización vocabulary and never claim anonymization.
-const exportModules = [
-  'js/export/pdf-report.js',
-  'js/batch-exporter.js',
-  'js/batch-structured/xlsx-exporter.js',
-];
+// T25 #29: the legacy export modules were retired with their pages; the V4
+// export surfaces are the pure safe-output/confidential-audit services, which
+// are scanned below via appV4Files (PDF/XLSX/ZIP generation no longer exists
+// in the clinical origin).
+const exportModules = [];
 
 const docFiles = ['README.md', 'GUIA_OPERACION.md'];
 
@@ -67,12 +63,11 @@ const required = [
   { file: 'index.html', text: 'Texto o documento clínico' },
   { file: 'index.html', text: 'Datos estructurados' },
   { file: 'index.html', text: 'CSV/Excel' },
-  { file: 'app.html', text: '¿Qué tipo de información quieres preparar?' },
   { file: 'README.md', text: 'textos, documentos y datos estructurados' },
   { file: 'guia.html', text: 'CSV/Excel' },
   // V4 terminology: preparation, not anonymization.
-  { file: 'review.html', text: 'Metodología de Preparación' },
   { file: 'terminos.html', text: 'seudonimización' },
+  { file: 'index.html', text: 'app-v4/index.html' },
 ];
 
 const forbidden = [
