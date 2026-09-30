@@ -39,7 +39,8 @@ import { isBlankCell, type StructuredGrid } from "./grid";
 import { resolvePatientIdColumn, type PatientIdResolution } from "./patient-id";
 
 /** Machine-readable codes carried by {@link StructuredConfigurationError}. */
-export type StructuredConfigurationErrorCode = "unknown-column" | "invalid-class" | "invalid-grid";
+export type StructuredConfigurationErrorCode =
+  "unknown-column" | "invalid-class" | "invalid-grid" | "invalid-date-role" | "duplicate-date-role";
 
 /** Typed configuration failure (D-009 fail-closed). */
 export class StructuredConfigurationError extends Error {
@@ -59,6 +60,24 @@ export const STRUCTURED_COLUMN_CLASSES: readonly ColumnClass[] = Object.freeze([
   "sensitive",
   "insensitive",
   "unknown",
+]);
+
+/**
+ * Explicit temporal meaning of a structured column (HARDEN-01 WU-A).
+ *
+ * ORTHOGONAL to {@link ColumnClass}: the class answers what privacy nature the
+ * column has; the date role answers what temporal meaning it carries. It is a
+ * human selection only — `none` is the default and nothing is ever inferred
+ * (no header/content heuristic activates it; the T19 text-clause classifier is
+ * deliberately not reused here).
+ */
+export type StructuredDateRole = "visit" | "birth" | "none";
+
+/** The accepted date-role vocabulary, in display order. */
+export const STRUCTURED_DATE_ROLES: readonly StructuredDateRole[] = Object.freeze([
+  "none",
+  "visit",
+  "birth",
 ]);
 
 /** One column's resolved, review-facing classification state. */
@@ -84,6 +103,8 @@ export type StructuredColumnState = {
   /** Value-free structural evidence for human review (SPEC §7). */
   readonly evidence: readonly string[];
   readonly matchedBy: ColumnClassification["matchedBy"];
+  /** Explicit temporal role; `"none"` unless a human selected `visit`/`birth`. */
+  readonly dateRole: StructuredDateRole;
 };
 
 /**
@@ -100,6 +121,8 @@ export type StructuredConfiguration = {
   readonly patientId: PatientIdResolution;
   /** Explicit human overrides, keyed by column index. */
   readonly overrides: Readonly<Record<number, ColumnClass>>;
+  /** Explicit date roles, keyed by column index (only non-`none` entries). */
+  readonly dateRoles: Readonly<Record<number, StructuredDateRole>>;
   /** Column indices whose effective class is `unknown` (review required). */
   readonly columnsRequiringReview: readonly number[];
   /** Structured export gate (false while any column requires review). */
@@ -145,7 +168,8 @@ function freezePatientId(patientId: PatientIdResolution): PatientIdResolution {
 
 function resolveColumnState(
   classification: ColumnClassification,
-  override: ColumnClass | undefined
+  override: ColumnClass | undefined,
+  dateRole: StructuredDateRole | undefined
 ): StructuredColumnState {
   const detectedClass = classification.columnClass;
   const effectiveClass = override ?? detectedClass;
@@ -164,14 +188,58 @@ function resolveColumnState(
     confidence: classification.confidence,
     evidence: Object.freeze([...classification.evidence]),
     matchedBy: classification.matchedBy,
+    dateRole: dateRole ?? "none",
   });
+}
+
+function assertDateRole(role: unknown): asserts role is StructuredDateRole {
+  if (role !== "visit" && role !== "birth" && role !== "none") {
+    throw new StructuredConfigurationError(
+      "invalid-date-role",
+      `"${String(role)}" is not an accepted date role; the accepted roles are visit, birth, none.`
+    );
+  }
+}
+
+/**
+ * Normalize explicit date roles: drop `none` entries, validate vocabulary,
+ * reject out-of-range columns, and reject two columns claiming the same
+ * `visit`/`birth` role (ambiguous role selection is never resolved silently).
+ */
+function normalizeDateRoles(
+  raw: Readonly<Record<number, StructuredDateRole>>,
+  columnCount: number
+): Record<number, StructuredDateRole> {
+  const normalized: Record<number, StructuredDateRole> = {};
+  const seenRoles = new Set<StructuredDateRole>();
+  for (const [rawKey, role] of Object.entries(raw)) {
+    const columnIndex = Number(rawKey);
+    if (!Number.isInteger(columnIndex) || columnIndex < 0 || columnIndex >= columnCount) {
+      throw new StructuredConfigurationError(
+        "unknown-column",
+        `Date role references column index ${String(rawKey)}, which does not exist in this structured job (${columnCount} column(s)).`
+      );
+    }
+    assertDateRole(role);
+    if (role === "none") continue;
+    if (seenRoles.has(role)) {
+      throw new StructuredConfigurationError(
+        "duplicate-date-role",
+        `Two columns were assigned the date role "${role}"; exactly one ${role} column may be selected.`
+      );
+    }
+    seenRoles.add(role);
+    normalized[columnIndex] = role;
+  }
+  return normalized;
 }
 
 /** Build the frozen configuration from a grid, a selection and overrides. */
 function buildConfiguration(
   grid: StructuredGrid,
   selectedPatientIdColumn: string | null,
-  overrides: Readonly<Record<number, ColumnClass>>
+  overrides: Readonly<Record<number, ColumnClass>>,
+  dateRoles: Readonly<Record<number, StructuredDateRole>> = {}
 ): StructuredConfiguration {
   assertGrid(grid);
   const classifications = classifyGridColumns(grid);
@@ -193,8 +261,14 @@ function buildConfiguration(
     normalizedOverrides[columnIndex] = columnClass;
   }
 
+  const normalizedDateRoles = normalizeDateRoles(dateRoles, classifications.length);
+
   const columns = classifications.map((classification) =>
-    resolveColumnState(classification, normalizedOverrides[classification.column.columnIndex])
+    resolveColumnState(
+      classification,
+      normalizedOverrides[classification.column.columnIndex],
+      normalizedDateRoles[classification.column.columnIndex]
+    )
   );
   const columnsRequiringReview = columns
     .filter((column) => column.requiresReview)
@@ -211,6 +285,7 @@ function buildConfiguration(
       })
     ),
     overrides: Object.freeze({ ...normalizedOverrides }),
+    dateRoles: Object.freeze({ ...normalizedDateRoles }),
     columnsRequiringReview: Object.freeze(columnsRequiringReview),
     exportReady: columnsRequiringReview.length === 0,
   });
@@ -226,9 +301,15 @@ export function createStructuredConfiguration(
   options: {
     readonly selectedPatientIdColumn?: string | null;
     readonly overrides?: Readonly<Record<number, ColumnClass>>;
+    readonly dateRoles?: Readonly<Record<number, StructuredDateRole>>;
   } = {}
 ): StructuredConfiguration {
-  return buildConfiguration(grid, options.selectedPatientIdColumn ?? null, options.overrides ?? {});
+  return buildConfiguration(
+    grid,
+    options.selectedPatientIdColumn ?? null,
+    options.overrides ?? {},
+    options.dateRoles ?? {}
+  );
 }
 
 /**
@@ -253,10 +334,51 @@ export function overrideColumnClass(
       `Cannot override column index ${String(columnIndex)}: this structured job has ${configuration.columns.length} column(s).`
     );
   }
-  return buildConfiguration(configuration.grid, configuration.selectedPatientIdColumn, {
-    ...configuration.overrides,
-    [columnIndex]: columnClass,
-  });
+  return buildConfiguration(
+    configuration.grid,
+    configuration.selectedPatientIdColumn,
+    {
+      ...configuration.overrides,
+      [columnIndex]: columnClass,
+    },
+    configuration.dateRoles
+  );
+}
+
+/**
+ * Set (or clear with `"none"`) one column's explicit date role. Rebuilds the
+ * frozen configuration through the same single authority; a duplicate
+ * `visit`/`birth` selection or an out-of-range column fails closed. This is an
+ * ORTHOGONAL field: it never changes a column's classification.
+ */
+export function setStructuredDateRole(
+  configuration: StructuredConfiguration,
+  columnIndex: number,
+  role: StructuredDateRole
+): StructuredConfiguration {
+  assertDateRole(role);
+  if (
+    !Number.isInteger(columnIndex) ||
+    columnIndex < 0 ||
+    columnIndex >= configuration.columns.length
+  ) {
+    throw new StructuredConfigurationError(
+      "unknown-column",
+      `Cannot set the date role of column index ${String(columnIndex)}: this structured job has ${configuration.columns.length} column(s).`
+    );
+  }
+  const nextDateRoles: Record<number, StructuredDateRole> = { ...configuration.dateRoles };
+  if (role === "none") {
+    delete nextDateRoles[columnIndex];
+  } else {
+    nextDateRoles[columnIndex] = role;
+  }
+  return buildConfiguration(
+    configuration.grid,
+    configuration.selectedPatientIdColumn,
+    configuration.overrides,
+    nextDateRoles
+  );
 }
 
 /**
@@ -268,7 +390,12 @@ export function selectPatientIdColumn(
   configuration: StructuredConfiguration,
   header: string | null
 ): StructuredConfiguration {
-  return buildConfiguration(configuration.grid, header, configuration.overrides);
+  return buildConfiguration(
+    configuration.grid,
+    header,
+    configuration.overrides,
+    configuration.dateRoles
+  );
 }
 
 /**
