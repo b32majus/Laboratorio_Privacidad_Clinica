@@ -93,6 +93,7 @@ export type StructuredDateAgePolicyErrorCode =
   | "unknown-policy"
   | "invalid-grid"
   | "unknown-column"
+  | "ambiguous-column"
   | "missing-patient-id-column";
 
 /** Typed structured date/age policy failure; carries a machine-readable code. */
@@ -230,6 +231,17 @@ function assertGrid(grid: unknown): asserts grid is StructuredGrid {
       "applyStructuredDateAgePolicy requires a normalized structured grid (headers + rows); failing closed instead of guessing."
     );
   }
+  // Each row must itself be an array: a malformed row such as `null` must
+  // fail with the typed invalid-grid error instead of an ordinary TypeError
+  // raised later while indexing the row (STRUCT-011).
+  for (let index = 0; index < candidate.rows.length; index += 1) {
+    if (!Array.isArray(candidate.rows[index])) {
+      throw new StructuredDateAgePolicyError(
+        "invalid-grid",
+        `the structured grid row ${index} is not an array; failing closed instead of throwing an ordinary TypeError while reading it.`
+      );
+    }
+  }
 }
 
 /** Resolves one explicit column selection to its index (fail-closed). */
@@ -238,13 +250,26 @@ function resolveColumnIndex(
   selection: string | null | undefined
 ): number | null {
   if (selection === undefined || selection === null) return null;
-  const index = grid.headers.indexOf(selection);
-  if (index === -1) {
+  let index = -1;
+  let occurrences = 0;
+  for (let i = 0; i < grid.headers.length; i += 1) {
+    if (grid.headers[i] === selection) {
+      occurrences += 1;
+      if (index === -1) index = i;
+    }
+  }
+  if (occurrences === 0) {
     throw new StructuredDateAgePolicyError(
       "unknown-column",
       `The selected column "${selection}" does not exist in this structured job (headers: ${grid.headers.join(
         ", "
       )}); failing closed instead of guessing.`
+    );
+  }
+  if (occurrences > 1) {
+    throw new StructuredDateAgePolicyError(
+      "ambiguous-column",
+      `The selected column "${selection}" appears ${occurrences} times in this structured job, so its identity is ambiguous; failing closed instead of silently selecting the first occurrence.`
     );
   }
   return index;

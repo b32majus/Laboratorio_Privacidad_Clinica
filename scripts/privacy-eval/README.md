@@ -12,8 +12,22 @@ is used anywhere.
 
 ```bash
 npm run test:privacy-eval   # unit tests for the matching/metrics logic
-npm run check:privacy-eval  # evaluate the engine against the corpus (CI gate)
+npm run check:privacy-eval  # evaluate the legacy engine against the corpus (CI gate)
+npm run check:privacy-eval:v4  # evaluate the productive V4 engine + AGE (CI gate)
 ```
+
+## V4 ground-truth gate (HARDEN-02 WU-A; FUNC-008/QA-001)
+
+The legacy evaluator above runs `js/modular-processor.js`, whose taxonomy has
+no AGE category, so it cannot supply deterministic ground-truth evidence for
+the V4 age generalization. The companion gate
+`app-v4/src/engine/ground-truth/` evaluates the REAL productive V4 engine
+(`createRegistryEngine`) over a versioned synthetic annotated V4 corpus,
+**reusing this directory's matching and metrics logic verbatim** (no metric
+fork). It covers the full `RECOGNIZER_CATEGORIES` taxonomy plus AGE, asserts
+exact AGE spans and accepted banded output, and carries planted falsation
+that proves the gate can fail. The legacy corpus and evaluator remain in
+place (useful regression coverage); the V4 gate is an additive CI step.
 
 The evaluator prints a deterministic JSON report (no timestamps, session ids or
 random values) plus a one-line summary. Exit code `0` = gate pass; `1` = gate
@@ -27,15 +41,15 @@ Options: `--corpus-dir=<dir>` (default `scripts/privacy-eval/corpus`),
 
 Each case file (JSON, UTF-8):
 
-| Field | Meaning |
-| --- | --- |
-| `schema_version` | Corpus schema version (currently `1`). |
-| `corpus_version` | Must match `manifest.json`. |
-| `case_id` | Unique identifier. |
-| `tier` | `core` (gates CI) or `adversarial` (reported as known gaps, never gates). |
-| `source` | Provenance (mapped example or original synthetic text). |
-| `text` | Synthetic clinical text. |
-| `annotations` | Ground-truth expectations, independent of recognizer code. |
+| Field            | Meaning                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| `schema_version` | Corpus schema version (currently `1`).                                    |
+| `corpus_version` | Must match `manifest.json`.                                               |
+| `case_id`        | Unique identifier.                                                        |
+| `tier`           | `core` (gates CI) or `adversarial` (reported as known gaps, never gates). |
+| `source`         | Provenance (mapped example or original synthetic text).                   |
+| `text`           | Synthetic clinical text.                                                  |
+| `annotations`    | Ground-truth expectations, independent of recognizer code.                |
 
 Annotation fields: `label`, `entity_type`, `value`, optional `note`.
 
@@ -65,7 +79,7 @@ Entity types follow the privacy-engine detection categories: `NOMBRE`,
    exactly equal and whose entity type matches.
 3. Phase 2 (containment): unmatched annotations may claim a detection by
    normalized containment. This tolerates honorifics (`Dr. Juan Martínez
-   Sánchez` covers `Juan Martínez Sánchez`) and partial spans (`654 321 987`
+Sánchez` covers `Juan Martínez Sánchez`) and partial spans (`654 321 987`
    inside `+34 654 321 987`).
 4. Undetected positive annotations → false negatives. If a `MUST_REMOVE` value
    only appears in the flagged surface → false negative plus `flagged_only`

@@ -451,3 +451,57 @@ describe("fail-closed application branches execute deterministically", () => {
     }
   });
 });
+
+describe("STRUCT-011 advisories: malformed rows and ambiguous columns", () => {
+  it("fails typed (never an ordinary TypeError) on a malformed null row", () => {
+    const grid = {
+      headers: ["Paciente", "Fecha_Visita"],
+      rows: [["P-001", "2023-01-10"], null],
+    } as unknown as StructuredGrid;
+    try {
+      applyStructuredDateAgePolicy({
+        grid,
+        policyId: "standard",
+        jobSeed: JOB_SEED,
+        visitDateColumn: "Fecha_Visita",
+      });
+      throw new Error("must not reach");
+    } catch (error) {
+      expect(error).toBeInstanceOf(StructuredDateAgePolicyError);
+      expect((error as StructuredDateAgePolicyError).code).toBe("invalid-grid");
+    }
+  });
+
+  it("fails typed on duplicate headers that make the selected column ambiguous", () => {
+    const grid: StructuredGrid = {
+      headers: ["Paciente", "Fecha_Visita", "Fecha_Visita"],
+      rows: [["P-001", "2023-01-10", "2023-01-11"]],
+    };
+    try {
+      applyStructuredDateAgePolicy({
+        grid,
+        policyId: "standard",
+        jobSeed: JOB_SEED,
+        visitDateColumn: "Fecha_Visita",
+      });
+      throw new Error("must not reach");
+    } catch (error) {
+      expect(error).toBeInstanceOf(StructuredDateAgePolicyError);
+      expect((error as StructuredDateAgePolicyError).code).toBe("ambiguous-column");
+    }
+  });
+
+  it("still resolves a unique header (falsation: the ambiguity rule is not a blanket rejection)", () => {
+    const grid: StructuredGrid = {
+      headers: ["Paciente", "Fecha_Visita"],
+      rows: [["P-001", "2023-01-10"]],
+    };
+    const application = applyStructuredDateAgePolicy({
+      grid,
+      policyId: "standard",
+      jobSeed: JOB_SEED,
+      visitDateColumn: "Fecha_Visita",
+    });
+    expect(application.visitDate?.columnIndex).toBe(1);
+  });
+});

@@ -106,8 +106,11 @@ export type AgeAtEvent =
 /** Strict ISO `YYYY-MM-DD` (the T18 parser authority format). */
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/** Numeric day-first with a 4-digit year (`dd/mm/yyyy` / `dd-mm-yyyy`). */
-const NUMERIC_DAY_FIRST_PATTERN = /^(\d{1,2})([/-])(\d{1,2})([/-])(\d{4})$/;
+/** Numeric day-first with a 4-digit year (`dd/mm/yyyy` / `dd-mm-yyyy`).
+ *  The `\2` backreference requires BOTH separators to be identical: a mixed
+ *  separator cell (`12/03-1954`) is malformed and must go to review rather
+ *  than be parsed silently (STRUCT-010). */
+const NUMERIC_DAY_FIRST_PATTERN = /^(\d{1,2})([/-])(\d{1,2})\2(\d{4})$/;
 
 /** Pads a value to `width` digits. */
 function pad(value: number, width: number): string {
@@ -115,8 +118,22 @@ function pad(value: number, width: number): string {
 }
 
 /**
+ * Builds the UTC calendar day without the `Date.UTC` / constructor year
+ * remapping of 0–99 to 1900–1999. `setUTCFullYear` keeps the literal year, so
+ * supported 4-digit years `0001`–`0099` are validated and shifted correctly
+ * (STRUCT-010) instead of being misclassified as unparsed or remapped.
+ */
+function utcCalendarDay(year: number, month: number, day: number): Date {
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  return date;
+}
+
+/**
  * Validates a real calendar date (rejecting roll-over dates such as
- * `2023-02-30`) with UTC arithmetic only — never the local clock.
+ * `2023-02-30`) with UTC arithmetic only — never the local clock, and never
+ * the year remapping of `Date.UTC` for years below 100.
  */
 function validateCalendarPoint(
   year: number,
@@ -125,7 +142,7 @@ function validateCalendarPoint(
 ): { year: number; month: number; day: number } | null {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const date = new Date(Date.UTC(year, month - 1, day));
+  const date = utcCalendarDay(year, month, day);
   if (
     date.getUTCFullYear() !== year ||
     date.getUTCMonth() !== month - 1 ||
@@ -189,7 +206,7 @@ export function parseStructuredDateCell(cell: StructuredDateCellInput): Structur
   const numericMatch = NUMERIC_DAY_FIRST_PATTERN.exec(cell.trim());
   if (numericMatch !== null) {
     const point = validateCalendarPoint(
-      Number(numericMatch[5]),
+      Number(numericMatch[4]),
       Number(numericMatch[3]),
       Number(numericMatch[1])
     );
@@ -297,8 +314,16 @@ export function shiftStructuredDateCell(
 
   if (parse.date.sourceFormat === "iso") {
     const shifted = new Date(
-      Date.UTC(parse.date.year, parse.date.month - 1, parse.date.day) + offsetDays * 86_400_000
+      utcCalendarDay(parse.date.year, parse.date.month, parse.date.day).getTime() +
+        offsetDays * 86_400_000
     );
+    if (shifted.getUTCFullYear() < 0) {
+      return {
+        kind: "review-required",
+        reason:
+          "the shifted ISO date would fall before year 0; failing closed instead of emitting a non-calendar year",
+      };
+    }
     return {
       kind: "transformed",
       value: `${pad(shifted.getUTCFullYear(), 4)}-${pad(shifted.getUTCMonth() + 1, 2)}-${pad(

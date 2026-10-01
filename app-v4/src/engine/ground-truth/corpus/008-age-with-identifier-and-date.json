@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-008-age-with-identifier-and-date",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Recognizer overlap: an identifier and a date coexist with an age; each keeps its own taxonomy.",
+  "text": "Contacto 654 321 987, nacido el 12/03/1980, tiene 45 años.",
+  "annotations": [
+    { "label": "MUST_REMOVE", "entity_type": "IDENTIFICADOR", "value": "654 321 987" },
+    { "label": "MUST_REMOVE", "entity_type": "FECHA", "value": "12/03/1980" },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "45 años",
+      "expectedTransformed": "40–49 años"
+    }
+  ]
+}

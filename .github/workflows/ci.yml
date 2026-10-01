@@ -41,6 +41,9 @@ jobs:
       - name: Privacy regression harness (ground-truth corpus)
         run: npm run check:privacy-eval
 
+      - name: "Ground-truth V4 gate (FUNC-008 + QA-001, real V4 engine + AGE)"
+        run: npm run check:privacy-eval:v4
+
       - name: Smoke check entrypoints (T25 #29: canonical V4 entry; legacy pages retired)
         run: |
           test -f index.html
@@ -64,6 +67,7 @@ jobs:
           npm run check:external:selftest
           npm run check:pdfjs:selftest
           npm run check:storage:selftest
+          npm run check:release-qa:selftest
 
       - name: Check V4 formatting
         run: npm run format:check:v4

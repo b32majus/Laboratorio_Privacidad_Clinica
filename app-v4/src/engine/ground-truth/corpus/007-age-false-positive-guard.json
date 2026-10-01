@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-007-age-false-positive-guard",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Adversarial numeric clinical context: vitals and measurements must never be flagged as an age.",
+  "text": "Tensión 130/85 mmHg. Peso 82 kg. Temperatura 38,5 grados.",
+  "annotations": [
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "IDENTIFICADOR",
+      "value": "130/85 mmHg",
+      "note": "Blood-pressure reading."
+    },
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "IDENTIFICADOR",
+      "value": "82 kg",
+      "note": "Body weight."
+    },
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "IDENTIFICADOR",
+      "value": "38,5 grados",
+      "note": "Body temperature."
+    }
+  ]
+}

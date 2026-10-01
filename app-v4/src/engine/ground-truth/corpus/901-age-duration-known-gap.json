@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-901-age-duration-known-gap",
+  "tier": "adversarial",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Known gap: a clinical duration ('2 años' of evolution) is recognized as an EDAD and banded; the fail direction is additional generalization, never less privacy. Reported, not gated.",
+  "text": "Evolución de 2 años.",
+  "annotations": [
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "EDAD",
+      "value": "2 años",
+      "note": "Duration of evolution, not a patient age; treated as EDAD (documented known gap)."
+    }
+  ]
+}

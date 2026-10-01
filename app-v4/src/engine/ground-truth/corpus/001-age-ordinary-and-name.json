@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-001-age-ordinary-and-name",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Ordinary clinical prose: a patient name and a completed-year age in one sentence.",
+  "text": "Paciente: Juan Pérez, de 52 años.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "NOMBRE",
+      "value": "Juan Pérez",
+      "note": "Patient identity must be pseudonymized."
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "52 años",
+      "expectedTransformed": "50–59 años",
+      "note": "Completed-year age must be banded, never kept exact."
+    }
+  ]
+}

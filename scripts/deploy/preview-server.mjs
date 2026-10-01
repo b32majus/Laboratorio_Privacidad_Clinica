@@ -32,7 +32,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
@@ -239,7 +239,7 @@ export function parseRenderRoutes(renderYaml) {
   return routes;
 }
 
-const SECURITY_HEADER_VALUES = {
+export const SECURITY_HEADER_VALUES = {
   'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
   'referrer-policy': 'no-referrer',
   'x-content-type-options': 'nosniff',
@@ -455,9 +455,17 @@ function serve(options) {
   process.on('SIGTERM', shutdown);
 }
 
-const options = parseArgs(process.argv.slice(2));
-if (options['self-test']) {
-  selfTest();
-  process.exit(0);
+// Run the CLI only when this file is executed directly. The render.yaml
+// parsers and the accepted header policy are imported by the read-only remote
+// release-QA harness (HARDEN-02 WU-F); importing must never start a server as
+// a side effect.
+const isDirectExecution =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isDirectExecution) {
+  const options = parseArgs(process.argv.slice(2));
+  if (options['self-test']) {
+    selfTest();
+    process.exit(0);
+  }
+  serve(options);
 }
-serve(options);
