@@ -1,144 +1,102 @@
 # Agent instructions — Laboratorio de Privacidad Clínica
 
-This repository is a brownfield privacy application being migrated to V4.
+Status: **CURRENT — Atenea C-083 local policy**
+
+This repository is the V4 brownfield privacy application. Product/domain authority is local to this repo; execution uses Atenea C-083 through project-local OpenCode agents and upstream Matt Pocock skills.
 
 ## Read first
 
-For any implementation ticket, read in this order:
+For engineering work, read only what the task needs, in this order:
 
-1. `CONTEXT.md`
-2. the GitHub Work Order being executed, including comments and blockers;
-3. the spec(s) explicitly cited by that Work Order;
-4. `docs/shaping/CURRENT_DECISIONS.md`
-5. `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md`;
-6. `docs/execution/TRAIN_V4.md` only for train/frontier context;
-7. relevant existing code/tests;
-8. audit/debt documents only when the ticket cites them or evidence is needed.
+1. `CONTEXT.md`;
+2. the accepted GitHub issue/spec/ticket, including comments and blockers;
+3. the cited `docs/specs/` contract(s) and relevant `docs/shaping/CURRENT_DECISIONS.md` decisions;
+4. `CODING_STANDARDS.md`;
+5. `docs/ATENEA_EXECUTION_ROUTING_V0.md` when executing through Atenea;
+6. relevant code/tests/oracles and deployment/governance docs.
 
-Do not reconstruct product decisions from historical files when current V4 authority exists.
+`docs/execution/`, `odd/tasks/`, historical handoffs and Gentle/Pi/RDD/4R/lineage/burn material are provenance unless a current ticket cites them as evidence. They are not current execution instructions.
 
-## Work Order discipline
+## Repository / Git authority
 
-A GitHub issue is the executable Work Order. Implement only its bounded scope.
+- Canonical V4 integration and Render deployment branch: `3.0-main`.
+- Do **not** infer the V4 base from GitHub's repository default branch; as of the C-083 reconciliation the remote default is still `main`.
+- Start implementation from a clean branch/worktree rooted at the exact accepted V4 base.
+- Do not force-push, rewrite history, auto-merge, delete remote branches, or mutate repository settings without explicit human authority.
+- A PR/review approval never grants merge or deploy authority.
 
-If the issue says `EXECUTION_READY=NO`, do not implement it.
+## C-083 execution boundary
 
-If `Blocked by:` references any open blocker, do not implement it — unless the blocker is an **intra-train dependency** explicitly authorized for the current prepared train (see next subsection).
+Launch OpenCode with `--pure` so historical global Gentle/OpenCode V1 plugins cannot re-enter execution.
 
-### External vs intra-train dependency (prepared-train rule, human-approved 2026-09-30)
+- default: `opencode --pure --agent atenea-volume`;
+- risk-triggered: `opencode --pure --agent atenea-complex`;
+- Herdr may keep/observe the process; it is not correctness or product authority;
+- Matt skills own implementation/TDD/task-graph/worktree/review methodology;
+- this repo supplies product authority, coding standards, deterministic evidence and publication boundaries;
+- one autonomous correction pass maximum; remaining/new material blocker => HUMAN STOP;
+- no quota-driven or silent model fallback inside a work unit;
+- never mutate global OpenCode configuration as per-project routing state.
 
-- **External dependency** (outside a single prepared train): `Blocked by:` requires the predecessor integrated/closed per normal authority.
-- **Intra-train dependency** (inside ONE explicitly authorized prepared train): an open predecessor issue listed in `Blocked by:` may be treated as satisfied when ALL of the following hold:
-  1. the predecessor is itself an authorized Work Order in that train;
-  2. its implementation is complete at an exact local checkpoint on the same train branch;
-  3. required deterministic verification/closeout for that predecessor is green;
-  4. native Gentle lifecycle for every required candidate is complete (`review_due=false` checkpoint, or APPROVED + acknowledge/burn when review was due);
-  5. no unresolved HUMAN STOP, no product/scope/acceptance change, and no publication-dependent acceptance requirement;
-  6. the successor consumes only the predecessor capability already present in that local checkpoint.
+Use `complex` for material privacy/security/trust-boundary risk, difficult state/concurrency/temporal semantics, cross-cutting architecture, delicate migration/back-compat invariants, or repeated semantic failure. Ordinary UI/file-count/business importance alone are not complex triggers.
 
-This does NOT close the predecessor issue and does NOT authorize push/PR/merge. GitHub issues remain open until accepted publication/integration. External ticket concurrency remains 1.
+## Product architecture invariants
 
-If required authority is contradictory or materially incomplete, STOP rather than infer a product/clinical/privacy decision.
+- One V4 SPA/app shell: `Input → Configure → Review → Privacy Gate → Export`.
+- Vite + TypeScript + React + compiled Tailwind; no backend/SSR/remote PHI-processing API.
+- Domain state is independent of the DOM; `ReviewSession` is review/final-text authority.
+- Existing privacy behavior is migrated behind explicit adapters/contracts; no big-bang rewrite.
+- Heavy processing stays behind the accepted Web Worker boundary where applicable.
+- Keep one durable source of truth for policy/state/identity; ambiguous classification fails explicitly.
 
-Do not expand the ticket to unrelated cleanup. Record newly discovered debt separately.
-
-### Mandatory pre-implementation composition gate
-
-A GitHub Work Order is a product/delivery scope boundary, **not automatically one implementation/review unit**.
-
-Before any writer starts a substantial Work Order, forecast the likely authored-change shape using current Atenea `WORK_UNIT_COMPOSITION_POLICY_V1` and the ticket's real surfaces (domain, parser, UI, tests, CI/security, fixtures, dependency/debt work).
-
-If the forecast indicates material over-budget risk or several independently coherent surfaces, define the intended chain of semantic work units **before writing code**. Each work unit must keep behavior with the tests/oracle that prove it and must be independently verifiable/reviewable.
-
-Do not wait for `lens_context_budget_exceeded` after implementation to discover that composition was too coarse. Do not split mechanically by files or line count, and do not create tiny GitHub issues merely to satisfy review size. The Work Order may remain capability-sized while its implementation is composed into smaller reviewable units.
-
-If one honest composition pass still leaves an indivisible unit beyond current Atenea policy, STOP before writing that unit and obtain the required size-exception/human decision.
-
-## V4 architecture invariants
-
-- One SPA/app shell.
-- Domain state is independent of the DOM.
-- `ReviewSession` is the authority for review output.
-- Detect/transform concerns become recognizer/operator/policy boundaries progressively.
-- Heavy processing moves behind a Web Worker boundary.
-- Existing privacy core is preserved behind adapters until regression evidence supports migration.
-- No big-bang rewrite.
-- No backend/SSR/remote PHI API.
-
-## Privacy invariants
+## Privacy and data invariants
 
 Never:
-- log PHI/PII to console or remote services;
-- add analytics/tag managers/error SaaS to the clinical origin;
-- put sensitive data in URLs;
-- add a runtime third-party network dependency without explicit spec authority;
-- call an output "anonymous" merely because direct identifiers were replaced;
-- silently truncate content;
-- hide failed batch items;
-- default unknown structured privacy classification to KEEP.
 
-Use only synthetic test fixtures committed to the repository.
+- log PHI/PII to console or remote services;
+- add analytics/tag managers/error SaaS/remote runtime resources to the clinical origin;
+- place sensitive content in URL/query/hash;
+- add remote PHI processing or unexpected runtime network calls without accepted authority;
+- call output anonymous/compliant/certified without implemented evidence;
+- silently truncate input or hide failed batch items;
+- treat `UNKNOWN` structured classification as success/KEEP.
+
+Sensitive Job data defaults to memory only. Use only synthetic committed fixtures/tests.
 
 ## Safe vs confidential outputs
 
-Safe Output and Confidential Audit are separate products.
+Safe Output and Confidential Audit are separate artifacts and authorities.
 
-Safe Output must never include:
-- original↔transformed correspondence;
-- original sensitive values solely for traceability;
-- internal notes;
-- confidential mapping tables.
+Safe Output must not contain correspondence mappings, originals retained solely for traceability, reviewer notes or confidential audit tables. Confidential Audit remains a separate explicit action/file.
 
-Confidential Audit must be visibly and technically separate.
+## Deterministic evidence
 
-## Testing
+Existing repo-native checks are first-line authority: tests, typecheck, lint, build, Playwright, privacy-eval, storage/external/PDF/vendor/positioning/header/release-QA oracles and CI/CodeQL as applicable.
 
-Each behavioral ticket must add or update a deterministic oracle capable of disagreeing with the implementation.
+For material privacy/state/parser/security/checker changes, prefer a falsifiable oracle: known-good + representative planted violation/negative case, including built-artifact validation when the invariant applies to shipped output.
 
-High-risk privacy/state/parser changes require negative/adversarial cases. A new or materially changed checker/scanner/gate must prove it rejects a representative planted violation, not merely that the current repository passes.
+Do not add prose for a rule that an existing checker already enforces. Newly discovered debt stays separate from the requested change unless current authority explicitly includes it.
 
-If an implementation documents exceptional parser/state/failure branches, representative branches must execute in deterministic tests when mechanically testable.
+## Frontend and accessibility
 
-Existing smoke tests are not sufficient evidence for new behavior when the spec calls for stronger regression coverage.
-
-## Frontend
-
-Target stack is Vite + TypeScript + React + compiled Tailwind.
-
-Do not introduce Next.js, SSR, a backend, or a large global state framework unless a later accepted spec changes this decision.
-
-Preserve accessible semantics:
-- keyboard operability;
-- visible focus;
-- WCAG AA contrast for normal operational text;
-- no color-only state;
-- responsive desktop/tablet/mobile behavior.
+Preserve semantic controls, keyboard operability, visible focus, readable status/error communication, AA contrast for normal operational text, responsive behavior and non-color-only state. Do not introduce a large global state framework or new application architecture without accepted authority.
 
 ## Deployment
 
-Production target for the current phase is Render Static.
+Current clinical target is Render Static. The clinical origin serves static application bytes; clinical content remains in the browser. `render.yaml` is deployment/header authority. Cloudflare remains an availability experiment, not the canonical target.
 
-Do not add Cloudflare as the canonical production target. Cloudflare remains an explicit availability experiment gated by Spain/LaLiga testing.
+Before publication, validate changed artifact types using repo-native validators and the current Atenea pre-publication policy. Workflow changes require workflow parsing plus credential capability; deployment/config changes require the owning parser/oracle where available.
 
-The clinical origin must be able to enforce a strict CSP and zero unexpected outbound network requests.
+## Agent skills
 
-## Atenea execution boundary
+### Issue tracker
 
-Use the current Atenea native production protocol, not historical GP2.7/GP3.x orchestration recipes.
+Work is tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
 
-For a new train/session:
-- reconcile current Git/GitHub/product authority first;
-- start from a clean isolated worktree and a fresh `pi` session; do not resume stale Pi state;
-- consume the current Atenea authority (CURRENT) after conformance preflight; do not pin reviewer routing in this repo; implementation uses the `production-volume` profile by default and `complex` only with a material trigger; review is independent of the implementation profile and uses the single assurance profile; a technical reviewer failure is a typed failure that means HUMAN STOP (no automatic recovery, no permits, no alternate-model fallback, no second attempt); review routing is per-process only — never mutate global OpenCode configuration;
-- let native Gentle own ODD/exploration, decomposition, workers, verification, work-unit commits, RDD/risk/review timing, correction lifecycle and acknowledgement/burn;
-- keep `max_concurrency=1` at the external ticket/frontier level for this project;
-- after each accepted work unit/ticket, rediscover blockers/frontier from durable GitHub authority;
-- per-work-unit APPROVED + burn does not replace deterministic composed-state integration closeout for a multi-ticket train;
-- use `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md` before publication;
-- publication/PR/issue mutation requires explicit human authority; merge is always human-owned.
+### Triage labels
 
-Do not auto-merge, force-push, rewrite history, invent review transitions, recreate Atenea controllers, or treat a whole branch as a synthetic Gentle candidate merely to close a train.
+Matt triage roles are configured in `docs/agents/triage-labels.md`; missing remote labels are not authority to create them silently.
 
-## Legacy retirement
+### Domain docs
 
-Legacy HTML/JS remains compatibility evidence until replacement flow has deterministic/E2E parity. Remove legacy only under an explicit retirement Work Order.
+This repo keeps canonical vocabulary/boundaries in `CONTEXT.md` plus accepted decisions/specs. See `docs/agents/domain.md`.

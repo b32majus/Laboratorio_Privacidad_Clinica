@@ -130,10 +130,9 @@ Dedicated IP/VPS remains future resilience fallback.
 ## D-016 — Execution model
 
 **Decision**
-Work is packaged as accepted specs + GitHub Work Orders and executed through current Atenea unattended train mechanics.
+Work is packaged as accepted specs + GitHub Issues/Work Orders and executed through current Atenea C-083: OpenCode V2 `--pure`, project-local role/model bindings and upstream Matt skills for implementation/task-graph/code-review methodology.
 
-Normal concurrency: 1.
-Human merge boundary remains mandatory.
+Deterministic repo evidence remains first-line assurance. Herdr may host persistent sessions but is not correctness authority. Human merge/publication boundary remains mandatory.
 
 ## D-017 — Authority separation
 

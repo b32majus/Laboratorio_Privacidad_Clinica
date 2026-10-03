@@ -1,7 +1,7 @@
 # Laboratorio de Privacidad Clínica — Contexto canónico
 
 Status: **CURRENT**
-Product generation: **V4 shaping / brownfield migration**
+Product generation: **V4 current / post-migration product iteration**
 
 ## 1. Purpose
 
@@ -120,15 +120,15 @@ Audits identify debt and evidence; they do not override an accepted spec.
 
 ## 9. Execution ownership
 
-- Human + Cora/planning surface: shaping and acceptance before EXECUTION_READY.
-- GitHub Issues: bounded Work Orders.
-- Atenea: unattended execution from EXECUTION_READY.
-- Fresh implementation child: ticket implementation.
-- Persistent Atenea parent: frontier/train orchestration, exact diff reconciliation, deterministic verification, Gentle RDD, checkpoints.
-- Gentle RDD: final exact-candidate review lifecycle.
-- Human: final merge boundary.
+- Human + Cora/planning surface: shaping, acceptance and material integrated audit.
+- GitHub Issues/specs: bounded scope and acceptance authority.
+- Atenea C-083: project-local role/model policy over OpenCode V2 `--pure`.
+- Upstream Matt skills: implementation, task graph, TDD where applicable, worktree/merger flow and two-axis code review methodology.
+- Repository tests/oracles/CI: deterministic correctness and delivery evidence.
+- Herdr: optional persistent process/session surface; never correctness authority.
+- Human: final publication/merge/deployment boundary.
 
-Normal train concurrency is **1**.
+C-077–C-082 Gentle/Pi/RDD/4R/lineage/burn/OpenCode V1 mechanics are historical provenance only. Current local bindings live in `opencode.json`, `.opencode/agents/` and `docs/ATENEA_EXECUTION_ROUTING_V0.md`.
 
 No auto-merge and no force-push.
 
