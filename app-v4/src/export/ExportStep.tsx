@@ -15,6 +15,12 @@
  *     single/text job stays available while review is pending (U2 contract)
  *     because it is the internal record, never a deliverable.
  *
+ * UX-PILOT-02 (#55) presentation reframe ONLY: the two artifacts are shown as
+ * unmistakably different zones — Safe Output as the primary deliverable and
+ * Confidential Audit as an internal/sensitive record with its own dark header
+ * band. Readiness rules, reasons, filenames, serializers and availability
+ * semantics are byte-unchanged.
+ *
  * Both downloads are client-side only (Blob + object URL + anchor click;
  * the object URL is revoked afterwards): no network, no persistence
  * (D-013). Status is always conveyed as text, never by color alone; all
@@ -64,6 +70,15 @@ const SAFE_OUTPUT_FILE_NAME = "safe-output.txt";
 const CONFIDENTIAL_AUDIT_FILE_NAME = "confidential-audit.txt";
 const SAFE_STRUCTURED_FILE_NAME = "safe-structured-output.csv";
 const CONFIDENTIAL_STRUCTURED_FILE_NAME = "structured-confidential-audit.txt";
+
+/** Shared presentation atoms for the two unmistakably separate artifact zones. */
+const zoneCard = "mt-6 rounded-xl border border-primary/40 bg-white shadow-sm";
+const zoneBadge =
+  "rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-white";
+const zoneHeading = "font-display text-lg font-bold text-neutral-800";
+const zoneBody = "max-w-2xl text-sm leading-relaxed text-neutral-700";
+const blockedNote =
+  "mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800";
 
 /**
  * Client-side, network-free download of a UTF-8 text artifact. Extracted
@@ -150,87 +165,97 @@ function StructuredExport({
 
   return (
     <section aria-labelledby="export-step-heading">
-      <h2 id="export-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Export
-      </h2>
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Two independent artifacts are produced from this structured configuration, downloaded
-        separately. Download only the one your destination is authorized to receive.
-      </p>
-
-      <section
-        aria-labelledby="safe-structured-heading"
-        className="mt-6 rounded border border-primary bg-surface-light p-4"
-      >
-        <h3
-          id="safe-structured-heading"
-          className="font-display text-lg font-bold text-primary-dark"
+      <header className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Export</p>
+        <h2
+          id="export-step-heading"
+          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
         >
-          Safe Structured Output
-        </h3>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-800">
-          The reviewed structured table with date/age and codified columns transformed and
-          identifier columns removed. It contains no original↔transformed mapping and no original
-          identifier or sensitive values.
+          Export
+        </h2>
+        <p className="mt-2 text-base leading-relaxed text-neutral-700">
+          Two independent artifacts are produced from this structured configuration, downloaded
+          separately. Download only the one your destination is authorized to receive.
         </p>
-        {blocked && reasons.length > 0 && (
-          <ul
-            role="alert"
-            id="safe-structured-blocked-reason"
-            className="mt-3 list-disc space-y-0.5 pl-6 text-sm font-semibold text-primary-dark"
+      </header>
+
+      <section aria-labelledby="safe-structured-heading" className={zoneCard}>
+        <div className="border-b border-primary/30 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className={`${zoneBadge} bg-primary-dark`}>Deliverable</span>
+            <h3 id="safe-structured-heading" className={zoneHeading}>
+              Safe Structured Output
+            </h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className={zoneBody}>
+            The reviewed structured table with date/age and codified columns transformed and
+            identifier columns removed. It contains no original↔transformed mapping and no original
+            identifier or sensitive values.
+          </p>
+          {blocked && reasons.length > 0 && (
+            <ul
+              role="alert"
+              id="safe-structured-blocked-reason"
+              className={`${blockedNote} list-disc space-y-0.5 pl-6`}
+            >
+              {reasons.map((reason, index) => (
+                <li key={index}>{reason}</li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={handleDownloadSafe}
+            disabled={blocked}
+            aria-describedby={blocked ? "safe-structured-blocked-reason" : undefined}
+            className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            {reasons.map((reason, index) => (
-              <li key={index}>{reason}</li>
-            ))}
-          </ul>
-        )}
-        <button
-          type="button"
-          onClick={handleDownloadSafe}
-          disabled={blocked}
-          aria-describedby={blocked ? "safe-structured-blocked-reason" : undefined}
-          className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
-        >
-          Download Safe Structured Output (.csv)
-        </button>
+            Download Safe Structured Output (.csv)
+          </button>
+        </div>
       </section>
 
       <section
         aria-labelledby="structured-confidential-heading"
-        className="mt-6 rounded border border-primary-dark border-2 bg-surface-light p-4"
+        className="mt-6 overflow-hidden rounded-xl border-2 border-surface-dark bg-white shadow-sm"
       >
-        <h3
-          id="structured-confidential-heading"
-          className="font-display text-lg font-bold text-primary-dark"
-        >
-          Structured Confidential Audit
-        </h3>
-        <p className="mt-2 text-sm font-semibold text-primary-dark">
-          {CONFIDENTIAL_AUDIT_WARNING_LINE}
-        </p>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-800">
-          The original↔transformed correspondence behind the Safe CSV (date/age, codify and removed
-          columns). It is an internal traceability record and must never be shared or delivered
-          outside the authorized audit trail.
-        </p>
-        {confidentialReasonVisible && (
-          <p
-            role="status"
-            id="structured-confidential-blocked-reason"
-            className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
-          >
-            Confidential Audit is not available for this job yet.
+        <div className="bg-surface-dark px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className={`${zoneBadge} border border-white/70`}>Internal</span>
+            <h3
+              id="structured-confidential-heading"
+              className="font-display text-lg font-bold text-white"
+            >
+              Structured Confidential Audit
+            </h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-sm font-semibold text-neutral-800">
+            {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
-        )}
-        <button
-          type="button"
-          onClick={handleDownloadConfidential}
-          disabled={confidentialBlocked}
-          aria-describedby={confidentialDescribedBy}
-          className={`mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
-        >
-          Download Structured Confidential Audit (.txt)
-        </button>
+          <p className={`mt-2 ${zoneBody}`}>
+            The original↔transformed correspondence behind the Safe CSV (date/age, codify and
+            removed columns). It is an internal traceability record and must never be shared or
+            delivered outside the authorized audit trail.
+          </p>
+          {confidentialReasonVisible && (
+            <p role="status" id="structured-confidential-blocked-reason" className={blockedNote}>
+              Confidential Audit is not available for this job yet.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleDownloadConfidential}
+            disabled={confidentialBlocked}
+            aria-describedby={confidentialDescribedBy}
+            className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+          >
+            Download Structured Confidential Audit (.txt)
+          </button>
+        </div>
       </section>
     </section>
   );
@@ -299,83 +324,92 @@ export function ExportStep(props: ExportStepProps): ReactElement {
 
   return (
     <section aria-labelledby="export-step-heading">
-      <h2 id="export-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Export
-      </h2>
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Two independent artifacts are produced from this review session, downloaded separately.
-        Download only the one your destination is authorized to receive.
-      </p>
-
-      <section
-        aria-labelledby="safe-output-heading"
-        className="mt-6 rounded border border-primary bg-surface-light p-4"
-      >
-        <h3 id="safe-output-heading" className="font-display text-lg font-bold text-primary-dark">
-          Safe Output
-        </h3>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-800">
-          The final reviewed text of this session. It contains no original↔replacement mapping, no
-          reviewer notes and no original values kept for traceability.
-        </p>
-        {safeOutputBlocked && safeOutputReason !== null && (
-          <p
-            role="alert"
-            id="safe-output-blocked-reason"
-            className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
-          >
-            {safeOutputReason}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={handleDownloadSafeOutput}
-          disabled={safeOutputBlocked}
-          aria-describedby={safeOutputBlocked ? "safe-output-blocked-reason" : undefined}
-          className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+      <header className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Export</p>
+        <h2
+          id="export-step-heading"
+          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
         >
-          Download Safe Output (.txt)
-        </button>
+          Export
+        </h2>
+        <p className="mt-2 text-base leading-relaxed text-neutral-700">
+          Two independent artifacts are produced from this review session, downloaded separately.
+          Download only the one your destination is authorized to receive.
+        </p>
+      </header>
+
+      <section aria-labelledby="safe-output-heading" className={zoneCard}>
+        <div className="border-b border-primary/30 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className={`${zoneBadge} bg-primary-dark`}>Deliverable</span>
+            <h3 id="safe-output-heading" className={zoneHeading}>
+              Safe Output
+            </h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className={zoneBody}>
+            The final reviewed text of this session. It contains no original↔replacement mapping, no
+            reviewer notes and no original values kept for traceability.
+          </p>
+          {safeOutputBlocked && safeOutputReason !== null && (
+            <p role="alert" id="safe-output-blocked-reason" className={blockedNote}>
+              {safeOutputReason}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleDownloadSafeOutput}
+            disabled={safeOutputBlocked}
+            aria-describedby={safeOutputBlocked ? "safe-output-blocked-reason" : undefined}
+            className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+          >
+            Download Safe Output (.txt)
+          </button>
+        </div>
       </section>
 
       <section
         aria-labelledby="confidential-audit-heading"
-        className="mt-6 rounded border border-primary-dark border-2 bg-surface-light p-4"
+        className="mt-6 overflow-hidden rounded-xl border-2 border-surface-dark bg-white shadow-sm"
       >
-        <h3
-          id="confidential-audit-heading"
-          className="font-display text-lg font-bold text-primary-dark"
-        >
-          Confidential Audit
-        </h3>
-        <p className="mt-2 text-sm font-semibold text-primary-dark">
-          {CONFIDENTIAL_AUDIT_WARNING_LINE}
-        </p>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-800">
-          This artifact contains original sensitive values, their replacements and reviewer notes.
-          It is an internal traceability record and must never be shared or delivered outside the
-          authorized audit trail.
-        </p>
-        {confidentialAuditBlocked && confidentialAuditReason !== null && (
-          <p
-            role="status"
-            id="confidential-audit-blocked-reason"
-            className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
-          >
-            {confidentialAuditReason}
+        <div className="bg-surface-dark px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className={`${zoneBadge} border border-white/70`}>Internal</span>
+            <h3
+              id="confidential-audit-heading"
+              className="font-display text-lg font-bold text-white"
+            >
+              Confidential Audit
+            </h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-sm font-semibold text-neutral-800">
+            {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
-        )}
-        <button
-          type="button"
-          onClick={handleDownloadConfidentialAudit}
-          disabled={confidentialAuditBlocked}
-          aria-describedby={
-            confidentialAuditBlocked ? "confidential-audit-blocked-reason" : undefined
-          }
-          className={`mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
-        >
-          Download Confidential Audit (.txt)
-        </button>
+          <p className={`mt-2 ${zoneBody}`}>
+            This artifact contains original sensitive values, their replacements and reviewer notes.
+            It is an internal traceability record and must never be shared or delivered outside the
+            authorized audit trail.
+          </p>
+          {confidentialAuditBlocked && confidentialAuditReason !== null && (
+            <p role="status" id="confidential-audit-blocked-reason" className={blockedNote}>
+              {confidentialAuditReason}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleDownloadConfidentialAudit}
+            disabled={confidentialAuditBlocked}
+            aria-describedby={
+              confidentialAuditBlocked ? "confidential-audit-blocked-reason" : undefined
+            }
+            className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+          >
+            Download Confidential Audit (.txt)
+          </button>
+        </div>
       </section>
     </section>
   );

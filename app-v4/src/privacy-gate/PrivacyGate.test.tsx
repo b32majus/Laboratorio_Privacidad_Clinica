@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -20,6 +20,10 @@ import {
   getProgress,
   type ReviewSession,
 } from "../review/review-domain";
+import { createStructuredConfiguration } from "../structured/configuration";
+import type { StructuredGrid } from "../structured/grid";
+import { buildStructuredTransformPlan } from "../structured/transform-plan";
+import { prepareStructuredOutput } from "../structured/transformed-dataset";
 import { PrivacyGate } from "./PrivacyGate";
 
 /**
@@ -488,5 +492,91 @@ describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", ()
     expect(screen.queryByRole("list", { name: /kept-original warnings/i })).not.toBeInTheDocument();
     // Sanity: A genuinely carries a restored decision.
     expect(getProgress(sessionA).restored).toBe(1);
+  });
+});
+
+/**
+ * UX-PILOT-02 (#55) presentation checkpoint: the three visual states are
+ * driven by the SAME facts as before. These oracles assert the presentation
+ * contract without introducing a second authority.
+ */
+describe("PrivacyGate — decision checkpoint (UX-PILOT-02 #55)", () => {
+  it("shows the action-required checkpoint while mandatory decisions are pending", () => {
+    renderGate(buildJob(), buildSession());
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Action required");
+    expect(checkpoint).not.toHaveTextContent("Review complete");
+  });
+
+  it("shows the review-complete checkpoint once Safe Output is ready", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "accepted");
+    review = applyDecision(review, review.detections[1].id, "accepted");
+    renderGate(withBridgeOutputs(buildJob(), review), review);
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Review complete");
+    expect(checkpoint).toHaveTextContent("Safe Output is ready to download");
+    expect(checkpoint).not.toHaveTextContent("Action required");
+  });
+
+  it("keeps factual attention facts visible in a labelled group", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "restored");
+    review = applyDecision(review, review.detections[1].id, "accepted");
+    renderGate(withBridgeOutputs(buildJob(), review), review);
+
+    const attention = screen.getByRole("region", { name: "Attention facts" });
+    expect(attention).toHaveTextContent(/warnings and errors/i);
+    expect(
+      within(attention).getByRole("list", { name: /kept-original warnings/i })
+    ).toBeInTheDocument();
+  });
+});
+
+/**
+ * UX-PILOT-02 (#55) spec conformance: the checkpoint must never say
+ * "Review complete" while the current authority blocks the applicable output.
+ * A structured job can have zero columns requiring review yet still be blocked
+ * (e.g. a quasi-identifier date column with no explicit date role).
+ */
+describe("PrivacyGate — structured checkpoint state (UX-PILOT-02 #55)", () => {
+  const GRID: StructuredGrid = {
+    headers: ["Paciente", "Fecha_Visita", "Diagnostico"],
+    rows: [
+      ["P-001", "2023-01-10", "Gripe A"],
+      ["P-002", "2023-03-15", "Fractura"],
+    ],
+  };
+
+  it("shows Action required when the structured output is blocked with no column requiring review", () => {
+    const configuration = createStructuredConfiguration(GRID, {
+      selectedPatientIdColumn: "Paciente",
+    });
+    // No date role: the quasi-identifier date column is unsupported, so the
+    // preparation blocks while columnsRequiringReview stays 0.
+    expect(configuration.columnsRequiringReview).toHaveLength(0);
+    const plan = buildStructuredTransformPlan(configuration, {
+      policyId: "standard",
+      jobSeed: "privacy-gate-structured-checkpoint",
+    });
+    const preparation = prepareStructuredOutput(configuration, plan);
+    expect(preparation.status).toBe("blocked");
+
+    const job = {
+      kind: "structured",
+      id: "structured-checkpoint-job",
+      policyId: "standard",
+      outputs: { safeOutputReady: false, confidentialAuditReady: false },
+      errors: [],
+    } as unknown as Job;
+
+    render(
+      <PrivacyGate job={job} review={null} structured={{ configuration, plan, preparation }} />
+    );
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Action required");
+    expect(checkpoint).not.toHaveTextContent("Review complete");
   });
 });
