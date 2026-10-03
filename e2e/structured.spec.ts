@@ -23,7 +23,7 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Or select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles(CSV);
   await page.getByRole("button", { name: "Create job" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
