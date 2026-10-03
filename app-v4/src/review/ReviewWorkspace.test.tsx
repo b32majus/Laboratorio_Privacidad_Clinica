@@ -435,3 +435,79 @@ describe("ReviewWorkspace — keyboard operability and responsive surfaces", () 
     expect(inspector).toHaveTextContent("95%");
   });
 });
+
+describe("ReviewWorkspace — mobile route from selection to decision controls (outcome D)", () => {
+  /** Left-pane detection list button for one detection. */
+  function leftListDetection(original: string): HTMLElement {
+    return within(screen.getByRole("list", { name: /detections/i })).getByRole("button", {
+      name: new RegExp(original),
+    });
+  }
+
+  /** Document-surface span button for one detection. */
+  function documentSpan(original: string): HTMLElement {
+    return within(screen.getByRole("region", { name: /document/i })).getByRole("button", {
+      name: new RegExp(original),
+    });
+  }
+
+  function inspector(): HTMLElement {
+    return screen.getByRole("complementary", { name: /entity inspector/i });
+  }
+
+  function route(): HTMLElement {
+    return screen.getByRole("button", { name: /go to decision controls/i });
+  }
+
+  it("offers no route to the inspector until a detection is selected", () => {
+    render(<Harness initial={buildSession()} />);
+    expect(
+      screen.queryByRole("button", { name: /go to decision controls/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("provides a keyboard-operable, mobile-only route to the inspector without recording a decision", () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(leftListDetection("Carmen Sánchez"));
+
+    // Selection alone never moves focus: the route is an explicit control.
+    expect(inspector()).not.toHaveFocus();
+
+    const jump = route();
+    expect(jump.tagName).toBe("BUTTON");
+    expect(jump).toHaveClass("focus-visible:ring-2");
+    // Mobile-only affordance: the inspector is adjacent at the desktop breakpoint.
+    expect(jump).toHaveClass("lg:hidden");
+
+    jump.focus();
+    expect(jump).toHaveFocus();
+    fireEvent.click(jump);
+    expect(inspector()).toHaveFocus();
+
+    // Moving focus is wayfinding, never a decision on the ReviewSession.
+    expect(Object.keys(sessionRef.current.decisions)).toHaveLength(0);
+    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+      "Pending: 3"
+    );
+    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
+      "Decided: 0"
+    );
+  });
+
+  it("also routes to the inspector after selecting a detection on the document surface", () => {
+    render(<Harness initial={buildSession()} />);
+    fireEvent.click(documentSpan("Carmen Sánchez"));
+    const jump = route();
+    fireEvent.click(jump);
+    expect(inspector()).toHaveFocus();
+  });
+
+  it("selection alone never moves focus to the inspector", () => {
+    render(<Harness initial={buildSession()} />);
+    fireEvent.click(leftListDetection("Carmen Sánchez"));
+    expect(inspector()).not.toHaveFocus();
+    fireEvent.click(leftListDetection("612345678"));
+    expect(inspector()).not.toHaveFocus();
+  });
+});

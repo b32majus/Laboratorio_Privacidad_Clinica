@@ -253,3 +253,68 @@ describe("StructuredConfigureWorkspace — keyboard, responsive and sheet select
     expect(screen.getByRole("alert")).toHaveTextContent("The CSV input is empty.");
   });
 });
+
+describe("StructuredConfigureWorkspace — progressive disclosure keeps authority visible (outcome F)", () => {
+  /** The `<dd>` value paired with a `<dt>` label in the same definition list. */
+  function dlValue(card: HTMLElement, label: string): HTMLElement {
+    const dt = within(card).getByText(label, { selector: "dt" });
+    const dd = dt.nextElementSibling;
+    if (!dd || dd.tagName !== "DD") throw new Error(`No <dd> for ${label}`);
+    return dd as HTMLElement;
+  }
+
+  it("keeps effective classification, current date role and UNKNOWN review-required facts outside the disclosure", () => {
+    renderHarness();
+    const card = columnCard("CampoLibre");
+
+    const classification = dlValue(card, "Classification:");
+    expect(classification).toHaveTextContent("Unknown");
+    expect(classification.closest("details")).toBeNull();
+
+    const dateRole = dlValue(card, "Date role:");
+    expect(dateRole.closest("details")).toBeNull();
+
+    // UNKNOWN / "Review required" stays immediately visible, not hidden behind disclosure.
+    const reviewRequiredFacts = within(card).getAllByText("Review required");
+    expect(reviewRequiredFacts.some((element) => element.closest("details") === null)).toBe(true);
+
+    // The classification override control stays immediately reachable.
+    expect(overrideSelect("CampoLibre").closest("details")).toBeNull();
+  });
+
+  it("keeps the reviewer-override marker on the effective classification outside the disclosure", () => {
+    renderHarness();
+    fireEvent.change(overrideSelect("CampoLibre"), { target: { value: "sensitive" } });
+    const classification = dlValue(columnCard("CampoLibre"), "Classification:");
+    expect(classification).toHaveTextContent("Sensitive (reviewer override)");
+    expect(classification.closest("details")).toBeNull();
+  });
+
+  it("groups secondary per-column evidence inside a keyboard-operable native disclosure", () => {
+    renderHarness();
+    const card = columnCard("CampoLibre");
+    const details = card.querySelector("details");
+    expect(details).not.toBeNull();
+    const disclosure = details as HTMLElement;
+    expect(disclosure.tagName).toBe("DETAILS");
+
+    // Detected class, proposed action, inferred type, confidence and counts are
+    // secondary facts: reduced all-at-once density, still in the DOM.
+    for (const label of [
+      "Detected class:",
+      "Proposed action:",
+      "Inferred type:",
+      "Confidence:",
+      "Non-empty values:",
+    ]) {
+      const dt = within(disclosure).getByText(label, { selector: "dt" });
+      expect(dt.closest("details")).toBe(disclosure);
+    }
+
+    const summary = within(disclosure).getByText(/evidence and detected details/i);
+    expect(summary.tagName).toBe("SUMMARY");
+    summary.focus();
+    expect(summary).toHaveFocus();
+    expect(summary).toHaveClass("focus-visible:ring-2");
+  });
+});

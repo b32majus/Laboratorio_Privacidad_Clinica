@@ -19,7 +19,7 @@
  * (never color alone), and there is no hover-only essential information.
  * No floating action bar (SPEC §5). No export surface (T08 owns it).
  */
-import { useMemo, useState, type ChangeEvent, type ReactElement } from "react";
+import { useMemo, useRef, useState, type ChangeEvent, type ReactElement, type Ref } from "react";
 
 import type { ReviewDetection, ReviewSession } from "../../../js/domain/review-session.js";
 import { getPreview, getProgress } from "../../../js/domain/review-session.js";
@@ -78,6 +78,16 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const [manualEnd, setManualEnd] = useState("");
   const [manualType, setManualType] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Programmatic focus target for the small-viewport wayfinding route. The
+   * inspector is focusable (`tabIndex={-1}`) so the route can hand focus to the
+   * decision controls; this only ever runs on an explicit user activation.
+   */
+  const inspectorRef = useRef<HTMLElement>(null);
+  const focusInspector = () => {
+    inspectorRef.current?.focus();
+  };
 
   const segments = useMemo(() => buildDocumentSegments(session), [session]);
   const detections = useMemo(() => visibleDetections(session, filters), [session, filters]);
@@ -158,6 +168,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           onFilterStatus={(status) => setFilters((current) => ({ ...current, status }))}
           onFilterType={(type) => setFilters((current) => ({ ...current, type }))}
           onSelect={selectDetection}
+          onJumpToInspector={focusInspector}
         />
         <DocumentPane
           session={session}
@@ -176,6 +187,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           }}
         />
         <InspectorPane
+          inspectorRef={inspectorRef}
           session={session}
           selected={selected}
           replacementDraft={replacementDraft}
@@ -228,9 +240,19 @@ function FilterProgressPane(props: {
   onFilterStatus: (status: StatusFilter) => void;
   onFilterType: (type: string | null) => void;
   onSelect: (id: string) => void;
+  /** Small-viewport wayfinding route to the Entity inspector (outcome D). */
+  onJumpToInspector: () => void;
 }): ReactElement {
-  const { session, filters, detections, selectedId, onFilterStatus, onFilterType, onSelect } =
-    props;
+  const {
+    session,
+    filters,
+    detections,
+    selectedId,
+    onFilterStatus,
+    onFilterType,
+    onSelect,
+    onJumpToInspector,
+  } = props;
   // Factual progress is domain-derived (getProgress): counts, never a score.
   const progress = getProgress(session);
 
@@ -352,6 +374,23 @@ function FilterProgressPane(props: {
             })}
           </ul>
         )}
+        {selectedId !== null && (
+          /*
+            Outcome D: on small viewports the inspector/decision controls stack
+            below the document and preview, so a reviewer would have to traverse
+            the whole workspace. This is a deliberate, native-button, keyboard
+            route that hands focus to the inspector. It is hidden from `lg` up,
+            where the inspector is already adjacent (no desktop focus jump), and
+            it never itself records a decision.
+          */
+          <button
+            type="button"
+            onClick={onJumpToInspector}
+            className={`mt-3 w-full rounded border border-primary-dark bg-primary-dark px-3 py-2 text-sm font-semibold text-white hover:bg-primary lg:hidden ${focusRing}`}
+          >
+            Go to decision controls for the selected detection
+          </button>
+        )}
       </section>
     </div>
   );
@@ -454,6 +493,8 @@ function truncate(text: string): string {
 }
 
 function InspectorPane(props: {
+  /** Focus target handed to the small-viewport wayfinding route (outcome D). */
+  inspectorRef: Ref<HTMLElement>;
   session: ReviewSession;
   selected: ReviewDetection | null;
   replacementDraft: string;
@@ -474,6 +515,8 @@ function InspectorPane(props: {
   const { session, selected } = props;
   return (
     <aside
+      ref={props.inspectorRef}
+      tabIndex={-1}
       aria-label="Entity inspector"
       className="rounded border border-primary bg-surface-light p-3 self-start"
     >

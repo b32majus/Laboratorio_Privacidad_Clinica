@@ -395,6 +395,12 @@ function ColumnCard(props: {
         )}
       </div>
 
+      {/*
+        Outcome F: authority facts stay immediately visible. Effective
+        classification (with its reviewer-override marker), current date role
+        and the patient-ID note are never behind a disclosure, so a safety fact
+        can never be hidden as a false-ready state.
+      */}
       <dl className="mt-2 space-y-1 text-sm text-neutral-800">
         <div className="flex flex-wrap gap-2">
           <dt className="font-semibold">Classification:</dt>
@@ -404,24 +410,8 @@ function ColumnCard(props: {
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Detected class:</dt>
-          <dd>{CLASS_LABELS[column.detectedClass]}</dd>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Proposed action:</dt>
-          <dd>{ACTION_LABELS[column.proposedAction]}</dd>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Inferred type:</dt>
-          <dd>{TYPE_LABELS[column.inferredType]}</dd>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Confidence:</dt>
-          <dd>{Math.round(column.confidence * 100)}%</dd>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Non-empty values:</dt>
-          <dd>{column.nonEmptyCount}</dd>
+          <dt className="font-semibold">Date role:</dt>
+          <dd>{DATE_ROLE_LABELS[column.dateRole]}</dd>
         </div>
         {isPatientId && (
           <div className="flex flex-wrap gap-2">
@@ -429,23 +419,60 @@ function ColumnCard(props: {
             <dd>This column is the single patient-ID authority.</dd>
           </div>
         )}
-        <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Date role:</dt>
-          <dd>{DATE_ROLE_LABELS[column.dateRole]}</dd>
-        </div>
       </dl>
 
-      <div className="mt-2">
-        <h5 className="text-xs font-bold text-primary-dark">Evidence</h5>
-        <ul
-          aria-label={`Evidence for column ${columnName}`}
-          className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-700"
+      {/*
+        Secondary evidence is grouped behind a native <details> disclosure to
+        cut all-at-once density. `<summary>` is a real keyboard control with a
+        visible focus ring; nothing safety-relevant is only here.
+      */}
+      <details className="mt-2 rounded border border-neutral-300 bg-surface-light p-2">
+        <summary
+          className={`cursor-pointer rounded text-sm font-semibold text-primary-dark ${focusRing}`}
         >
-          {column.evidence.map((item, index) => (
-            <li key={index}>{item}</li>
-          ))}
-        </ul>
-      </div>
+          Evidence and detected details for {columnName}
+        </summary>
+        <dl className="mt-2 space-y-1 text-sm text-neutral-800">
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Detected class:</dt>
+            <dd>{CLASS_LABELS[column.detectedClass]}</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Proposed action:</dt>
+            <dd>{ACTION_LABELS[column.proposedAction]}</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Inferred type:</dt>
+            <dd>{TYPE_LABELS[column.inferredType]}</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Confidence:</dt>
+            <dd>{Math.round(column.confidence * 100)}%</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Non-empty values:</dt>
+            <dd>{column.nonEmptyCount}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-2">
+          <h5 className="text-xs font-bold text-primary-dark">Evidence</h5>
+          <ul
+            aria-label={`Evidence for column ${columnName}`}
+            className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-700"
+          >
+            {column.evidence.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        {onSetDateRole !== undefined && (
+          <p className="mt-2 text-xs text-neutral-700">
+            Temporal meaning only; it never changes the classification and is never inferred.
+          </p>
+        )}
+      </details>
 
       <label htmlFor={selectId} className="mt-3 block text-sm font-semibold text-neutral-800">
         Reviewer classification for {columnName}
@@ -485,9 +512,6 @@ function ColumnCard(props: {
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-neutral-700">
-            Temporal meaning only; it never changes the classification and is never inferred.
-          </p>
         </>
       )}
     </li>
