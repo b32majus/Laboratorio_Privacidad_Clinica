@@ -41,6 +41,10 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
     .filter({ hasText: "CampoLibre1" });
   await expect(freeColumn).toContainText("Review required");
   await expect(freeColumn).toContainText("Classification:Unknown");
+  // Secondary facts are grouped behind the column's disclosure. Expand it
+  // explicitly so this asserts a reviewer can reveal the fact, not merely that
+  // it exists in collapsed DOM content.
+  await freeColumn.locator("summary").click();
   await expect(freeColumn).toContainText("Proposed action:Review required");
 
   // Fail-closed gate message: unknown is never kept or exported as-is.
