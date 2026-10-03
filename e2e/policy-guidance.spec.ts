@@ -21,6 +21,7 @@ import path from "node:path";
 
 import { expect, test } from "./harness/fixtures";
 import { expectContrast, type ContrastResult } from "./harness/contrast";
+import { assertNoHorizontalOverflow } from "./harness/viewport";
 
 const STRUCTURED_CSV = path.resolve(__dirname, "fixtures/policy-structured.csv");
 
@@ -124,37 +125,6 @@ test("changed policy guidance normal text meets WCAG AA against the rendered com
   // The oracle is not vacuous: every changed surface was actually measured.
   expect(measured.length).toBeGreaterThanOrEqual(6);
 });
-
-async function assertNoHorizontalOverflow(page: Page, label: string): Promise<void> {
-  const metrics = await page.evaluate(() => {
-    const root = document.documentElement;
-    const clientWidth = root.clientWidth;
-    const offenders: string[] = [];
-    for (const element of Array.from(root.querySelectorAll("body *"))) {
-      const rect = element.getBoundingClientRect();
-      if (rect.width > 0 && rect.right > clientWidth + 1) {
-        const tag = element.tagName.toLowerCase();
-        const classes = typeof element.className === "string" ? element.className.slice(0, 60) : "";
-        offenders.push(`${tag}.${classes} right=${Math.round(rect.right)}`);
-        if (offenders.length >= 8) break;
-      }
-    }
-    return {
-      clientWidth,
-      scrollWidth: root.scrollWidth,
-      bodyScrollWidth: document.body.scrollWidth,
-      offenders,
-    };
-  });
-  expect(
-    metrics.scrollWidth,
-    `${label}: document scrollWidth ${metrics.scrollWidth} exceeds clientWidth ${metrics.clientWidth}; offenders: ${metrics.offenders.join("; ") || "none detected"}`
-  ).toBeLessThanOrEqual(metrics.clientWidth);
-  expect(
-    metrics.bodyScrollWidth,
-    `${label}: body scrollWidth ${metrics.bodyScrollWidth} exceeds clientWidth ${metrics.clientWidth}; offenders: ${metrics.offenders.join("; ") || "none detected"}`
-  ).toBeLessThanOrEqual(metrics.clientWidth);
-}
 
 for (const width of [375, 768, 1280]) {
   test(`policy guidance workspace fits the viewport without horizontal overflow at ${width}px`, async ({
