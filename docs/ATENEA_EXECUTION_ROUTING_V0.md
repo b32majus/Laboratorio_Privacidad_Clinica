@@ -1,9 +1,9 @@
 # Atenea Execution Routing v0
 
-Status: **CURRENT C-083 ROUTING AUTHORITY**
+Status: **CURRENT C-084 ROUTING AUTHORITY**
 Date: 2026-10-03
 
-This file maps engineering roles to project-local OpenCode agents. It does not duplicate Matt skill procedures. C-083 runs OpenCode with `--pure`; legacy global agents/plugins may remain installed but are outside the active route.
+This file maps engineering roles to project-local native OpenCode V2 agents. It does not duplicate Matt skill procedures. C-084 keeps role/model policy project-local; the active global OpenCode config contains provider/MCP capability plus the Herdr observability integration, and no Gentle execution agents/plugins.
 
 ## Profiles
 
