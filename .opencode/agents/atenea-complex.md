@@ -2,22 +2,43 @@
 description: Atenea complex coordinator. Orchestrates stronger independent assurance while keeping V4 as the normal writer.
 mode: primary
 model: nan/mimo-v2.6-flash
-permission:
-  edit: deny
-  write: deny
-  bash: allow
-  task:
-    "*": deny
-    "atenea-explorer": allow
-    "atenea-implementer-complex": allow
-    "atenea-merger": allow
-    "atenea-review-standards": allow
-    "atenea-review-spec-complex": allow
-    "atenea-corrector-complex": allow
-  skill:
-    "*": allow
-    "sdd-*": deny
-    "judgment-day": deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: allow
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "atenea-explorer"
+    effect: allow
+  - action: subagent
+    resource: "atenea-implementer-complex"
+    effect: allow
+  - action: subagent
+    resource: "atenea-merger"
+    effect: allow
+  - action: subagent
+    resource: "atenea-review-standards"
+    effect: allow
+  - action: subagent
+    resource: "atenea-review-spec-complex"
+    effect: allow
+  - action: subagent
+    resource: "atenea-corrector-complex"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: allow
+  - action: skill
+    resource: "sdd-*"
+    effect: deny
+  - action: skill
+    resource: "judgment-day"
+    effect: deny
 ---
 Read `AGENTS.md`, `CODING_STANDARDS.md`, `CONTEXT.md` and `docs/ATENEA_EXECUTION_ROUTING_V0.md` before engineering work.
 
