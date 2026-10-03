@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -488,5 +488,44 @@ describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", ()
     expect(screen.queryByRole("list", { name: /kept-original warnings/i })).not.toBeInTheDocument();
     // Sanity: A genuinely carries a restored decision.
     expect(getProgress(sessionA).restored).toBe(1);
+  });
+});
+
+/**
+ * UX-PILOT-02 (#55) presentation checkpoint: the three visual states are
+ * driven by the SAME facts as before. These oracles assert the presentation
+ * contract without introducing a second authority.
+ */
+describe("PrivacyGate — decision checkpoint (UX-PILOT-02 #55)", () => {
+  it("shows the action-required checkpoint while mandatory decisions are pending", () => {
+    renderGate(buildJob(), buildSession());
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Action required");
+    expect(checkpoint).not.toHaveTextContent("Review complete");
+  });
+
+  it("shows the review-complete checkpoint once Safe Output is ready", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "accepted");
+    review = applyDecision(review, review.detections[1].id, "accepted");
+    renderGate(withBridgeOutputs(buildJob(), review), review);
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Review complete");
+    expect(checkpoint).toHaveTextContent("Safe Output is ready to download");
+    expect(checkpoint).not.toHaveTextContent("Action required");
+  });
+
+  it("keeps factual attention facts visible in a labelled group", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "restored");
+    review = applyDecision(review, review.detections[1].id, "accepted");
+    renderGate(withBridgeOutputs(buildJob(), review), review);
+
+    const attention = screen.getByRole("region", { name: "Attention facts" });
+    expect(attention).toHaveTextContent(/warnings and errors/i);
+    expect(
+      within(attention).getByRole("list", { name: /kept-original warnings/i })
+    ).toBeInTheDocument();
   });
 });

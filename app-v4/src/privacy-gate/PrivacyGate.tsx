@@ -9,6 +9,12 @@
  *   - kept-original (restored) entries appear as factual warnings, phrased
  *     as completed reviewer decisions, never as leakage.
  *
+ * UX-PILOT-02 (#55) presentation reframe ONLY: the same facts/readiness are
+ * grouped as a compact decision checkpoint (action required / review complete)
+ * with the factual counts, availability and attention facts below. The model,
+ * counts, messages, readiness rules and batch/structured semantics are
+ * untouched.
+ *
  * For a document batch (T17 #21 SD-9) the gate additionally renders the
  * factual per-item list (name + visible status text + failure message) read
  * from the Job, and the explicit fail-closed batch copy. The active review
@@ -31,9 +37,6 @@ import {
   derivePrivacyGateView,
   pendingDecisionMessage,
 } from "./privacyGateModel";
-
-const focusRing =
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
 const POLICY_LABELS: Record<PrivacyPolicyId, string> = {
   standard: "Standard",
@@ -87,23 +90,37 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
     [props.job, props.review, props.batchSessions, props.structured]
   );
 
+  // Presentation-only derivation of the checkpoint state from the SAME facts
+  // the model already supplies: no new authority, no reinterpretation.
+  const batchFailed = view.batch !== null && view.batch.failedCount > 0;
+  const actionRequired = view.pendingCount > 0 || batchFailed;
+  const safeOutputReady = view.safeOutputReady;
+  const hasAttentionFacts = view.errors.length > 0 || view.warnings.length > 0;
+
   return (
     <section aria-labelledby="privacy-gate-step-heading">
-      <h2
-        id="privacy-gate-step-heading"
-        className="font-display text-xl font-bold text-primary-dark"
-      >
-        Privacy Gate
-      </h2>
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Factual state of the review before export: reviewed detections, pending decisions, manual
-        detections, kept originals, job errors and the policy in effect.
-      </p>
+      <header className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
+          Privacy Gate
+        </p>
+        <h2
+          id="privacy-gate-step-heading"
+          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
+        >
+          Privacy Gate
+        </h2>
+        <p className="mt-2 text-base leading-relaxed text-neutral-700">
+          Final readiness checkpoint before export: what was treated, what still blocks Safe Output,
+          and which factual warnings remain to consider.
+        </p>
+      </header>
+
+      <GateCheckpoint actionRequired={actionRequired} safeOutputReady={safeOutputReady} />
 
       {view.pendingCount > 0 && (
         <p
           role="alert"
-          className={`mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+          className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
         >
           {pendingDecisionMessage(view.pendingCount)}
         </p>
@@ -112,7 +129,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
       {view.batch !== null && view.batch.failedCount > 0 && (
         <p
           role="alert"
-          className={`mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+          className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
         >
           {batchFailedItemsMessage(view.batch.items)}
         </p>
@@ -128,9 +145,71 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         <ReviewSummary view={view} />
       )}
 
-      {view.errors.length > 0 && <JobErrors view={view} />}
+      {hasAttentionFacts && (
+        <section
+          aria-labelledby="attention-facts-heading"
+          className="mt-5 rounded-xl border border-primary/30 bg-surface-light p-4"
+        >
+          <h3
+            id="attention-facts-heading"
+            className="font-display text-base font-bold text-neutral-800"
+          >
+            Attention facts
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+            Factual warnings and errors that stay visible with the review. They do not change the
+            recorded review decisions.
+          </p>
+          {view.errors.length > 0 && <JobErrors view={view} />}
+          {view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
+        </section>
+      )}
+    </section>
+  );
+}
 
-      {view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
+/**
+ * Compact decision checkpoint (UX-PILOT-02). Two textual states driven ONLY by
+ * the existing facts: "Action required" while output is blocked by pending
+ * decisions / failed batch items, and "Review complete" when it is not. The
+ * detailed readiness remains in the Output availability facts below.
+ */
+function GateCheckpoint({
+  actionRequired,
+  safeOutputReady,
+}: {
+  actionRequired: boolean;
+  safeOutputReady: boolean;
+}): ReactElement {
+  return (
+    <section
+      aria-labelledby="gate-checkpoint-heading"
+      className={`mt-5 rounded-xl border-2 p-4 ${
+        actionRequired ? "border-primary-dark bg-surface-light" : "border-primary/40 bg-white"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-white ${
+            actionRequired ? "bg-primary-dark" : "bg-surface-dark"
+          }`}
+        >
+          {actionRequired ? "Action required" : "Review complete"}
+        </span>
+        <h3
+          id="gate-checkpoint-heading"
+          className="font-display text-lg font-bold text-neutral-800"
+        >
+          Decision checkpoint
+        </h3>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-neutral-800">
+        {actionRequired
+          ? "Safe Output is not available yet: the factual items below still require attention."
+          : safeOutputReady
+            ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
+            : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available."}
+      </p>
     </section>
   );
 }
@@ -146,9 +225,9 @@ function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
   return (
     <section
       aria-label="Batch items"
-      className="mt-4 rounded border border-primary bg-surface-light p-3"
+      className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Batch items</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Batch items</h3>
       <dl
         role="group"
         aria-label="Batch item counts"
@@ -181,9 +260,9 @@ function StructuredSummary({ facts }: { facts: PrivacyGateStructuredFacts }): Re
   return (
     <section
       aria-label="Structured export facts"
-      className="mt-4 rounded border border-primary bg-surface-light p-3"
+      className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Structured export</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Structured export</h3>
       <dl
         role="status"
         aria-label="Structured export facts"
@@ -200,7 +279,7 @@ function StructuredSummary({ facts }: { facts: PrivacyGateStructuredFacts }): Re
         <ul
           role="alert"
           aria-label="Structured export block reasons"
-          className="mt-3 list-disc space-y-0.5 pl-6 text-sm font-semibold text-primary-dark"
+          className="mt-3 list-disc space-y-0.5 pl-6 text-sm font-semibold text-neutral-800"
         >
           {facts.reasons.map((reason, index) => (
             <li key={index}>{reason}</li>
@@ -230,9 +309,9 @@ function AvailabilityFacts({ view }: { view: PrivacyGateView }): ReactElement {
   return (
     <section
       aria-label="Output availability"
-      className="mt-4 rounded border border-primary bg-surface-light p-3"
+      className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Output availability</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Output availability</h3>
       <dl
         role="status"
         aria-label="Output availability facts"
@@ -260,9 +339,9 @@ function ReviewSummary({ view }: { view: PrivacyGateView }): ReactElement {
   return (
     <section
       aria-label="Review summary"
-      className="mt-4 rounded border border-primary bg-surface-light p-3"
+      className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Review summary</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Review summary</h3>
       <dl
         role="group"
         aria-label="Review summary facts"
@@ -297,14 +376,11 @@ function ReviewSummary({ view }: { view: PrivacyGateView }): ReactElement {
 /** Job errors surfaced factually, exactly as the job carries them. */
 function JobErrors({ view }: { view: PrivacyGateView }): ReactElement {
   return (
-    <section
-      aria-label="Job errors"
-      className="mt-4 rounded border border-primary bg-surface-light p-3"
-    >
-      <h3 className="font-display text-base font-bold text-primary-dark">Errors</h3>
+    <section aria-label="Job errors" className="mt-3">
+      <h4 className="font-display text-sm font-bold text-neutral-800">Errors</h4>
       <ul
         aria-label="Job errors"
-        className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-800"
+        className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
       >
         {view.errors.map((error, index) => (
           <li key={index}>
@@ -323,14 +399,11 @@ function JobErrors({ view }: { view: PrivacyGateView }): ReactElement {
  */
 function KeptOriginalWarnings({ view }: { view: PrivacyGateView }): ReactElement {
   return (
-    <section
-      aria-label="Privacy gate warnings"
-      className="mt-4 rounded border border-primary bg-surface-light p-3"
-    >
-      <h3 className="font-display text-base font-bold text-primary-dark">Warnings</h3>
+    <section aria-label="Privacy gate warnings" className="mt-3">
+      <h4 className="font-display text-sm font-bold text-neutral-800">Warnings</h4>
       <ul
         aria-label="Kept-original warnings"
-        className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-800"
+        className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
       >
         {view.warnings.map((warning, index) => (
           <li key={index}>

@@ -523,3 +523,36 @@ describe("document batch export (T17 #21 CORR-B): batch output authority", () =>
     expect(reason).not.toHaveTextContent(/supported Privacy Policy/i);
   });
 });
+
+/**
+ * UX-PILOT-02 (#55) presentation: Safe Output and Confidential Audit are two
+ * unmistakably separate artifact zones. This asserts the semantic separation
+ * (named regions + the confidential warning), not a visual snapshot.
+ */
+describe("ExportStep — artifact zones (UX-PILOT-02 #55)", () => {
+  it("presents Safe Output and Confidential Audit as distinct labelled zones", () => {
+    const session = completedSession();
+    render(<ExportStep job={bridgeJob(session)} review={session} />);
+
+    const safeZone = screen.getByRole("region", { name: "Safe Output" });
+    const auditZone = screen.getByRole("region", { name: "Confidential Audit" });
+    expect(safeZone).toBeInTheDocument();
+    expect(auditZone).toBeInTheDocument();
+    // The confidential zone carries its own warning and never reads as safe.
+    expect(auditZone).toHaveTextContent(CONFIDENTIAL_AUDIT_WARNING_LINE);
+    expect(auditZone).toHaveTextContent(/must never be shared/i);
+    expect(auditZone).not.toHaveTextContent(/Safe Output/i);
+    expect(safeZone).not.toHaveTextContent(CONFIDENTIAL_AUDIT_WARNING_LINE);
+  });
+
+  it("keeps the audit zone independently available while Safe Output is blocked for a single job", () => {
+    const session = adversarialSession(); // nothing decided yet
+    render(<ExportStep job={bridgeJob(session)} review={session} />);
+
+    expect(screen.getByRole("button", { name: SAFE_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: AUDIT_BUTTON })).toBeEnabled();
+    expect(screen.getByRole("region", { name: "Confidential Audit" })).toHaveTextContent(
+      CONFIDENTIAL_AUDIT_WARNING_LINE
+    );
+  });
+});
