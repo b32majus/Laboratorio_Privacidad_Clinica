@@ -39,6 +39,12 @@ import { ReviewWorkspace } from "./review/ReviewWorkspace";
 import { ReviewSessionError, jobSupportsReview } from "./review/review-domain";
 import { StructuredConfigureWorkspace } from "./structured/StructuredConfigureWorkspace";
 import { readStructuredFile, readStructuredSheet } from "./structured/intake";
+import {
+  buildPolicyGuidance,
+  isPolicySelectableForJobKind,
+  NO_JOB_AVAILABILITY_NOTE,
+  POLICY_AVAILABILITY_LABELS,
+} from "./policy-guidance";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
@@ -525,12 +531,24 @@ export function App() {
               <select
                 value={job ? job.policyId : "standard"}
                 disabled={!job}
-                onChange={(event) => session.updatePolicy(event.target.value as PrivacyPolicyId)}
+                onChange={(event) => {
+                  // POLICY-01 (#56): the option is disabled AND this handler
+                  // guards the same derived availability, so a change event for
+                  // an unavailable policy is a no-op and the controlled select
+                  // keeps showing the job's policy.
+                  const next = event.target.value as PrivacyPolicyId;
+                  if (job === null || !isPolicySelectableForJobKind(next, job.kind)) return;
+                  session.updatePolicy(next);
+                }}
                 title={job ? undefined : "Create a job first"}
                 className={`rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
               >
                 {(Object.keys(POLICY_LABELS) as PrivacyPolicyId[]).map((policyId) => (
-                  <option key={policyId} value={policyId}>
+                  <option
+                    key={policyId}
+                    value={policyId}
+                    disabled={job !== null && !isPolicySelectableForJobKind(policyId, job.kind)}
+                  >
                     {POLICY_LABELS[policyId]}
                   </option>
                 ))}
@@ -542,6 +560,8 @@ export function App() {
           </div>
         </div>
       </header>
+
+      <PolicyGuidance job={job} />
 
       <StepNavigation job={job} currentStep={currentStep} onGoToStep={handleGoToStep} />
 
@@ -610,6 +630,81 @@ export function App() {
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * Job-aware Privacy Policy guidance (issue #56, POLICY-01).
+ *
+ * The workspace is discoverable BEFORE Review, in the existing shell. It shows
+ * the current policy, whether it is available for the current job kind, and
+ * concise guidance for all four accepted policies. Availability and the
+ * patient-ID requirement are DERIVED through `buildPolicyGuidance` from the
+ * same pure authorities the engine uses; this component never hard-codes a
+ * second operator mapping or availability table.
+ *
+ * The region is keyboard-focusable with the shared visible focus ring, and the
+ * availability state is always conveyed as text (never by color alone).
+ */
+function PolicyGuidance({ job }: { job: Job | null }) {
+  const entries = buildPolicyGuidance(job ? job.kind : null);
+  const currentEntry =
+    job !== null ? entries.find((entry) => entry.policyId === job.policyId) : undefined;
+  return (
+    <section
+      aria-labelledby="privacy-policy-guidance-heading"
+      tabIndex={0}
+      className={`border-b border-primary/30 bg-surface-light ${focusRing}`}
+    >
+      <div className="mx-auto max-w-5xl px-4 py-4">
+        <h2
+          id="privacy-policy-guidance-heading"
+          className="font-display text-lg font-bold text-primary-dark"
+        >
+          Privacy Policy
+        </h2>
+        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+          Each policy maps detected information categories to privacy transformations. Availability
+          depends on the job type.
+        </p>
+        {job !== null && currentEntry ? (
+          <p className="mt-2 text-sm text-neutral-800">
+            <span className="font-semibold">Current policy:</span> {POLICY_LABELS[job.policyId]} —{" "}
+            <span>
+              {currentEntry.availability === "available"
+                ? POLICY_AVAILABILITY_LABELS.available
+                : POLICY_AVAILABILITY_LABELS.unavailable}
+            </span>
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-neutral-700">{NO_JOB_AVAILABILITY_NOTE}</p>
+        )}
+        <ul aria-label="Privacy Policy guidance" className="mt-3 grid gap-3 sm:grid-cols-2">
+          {entries.map((entry) => (
+            <li key={entry.policyId} className="rounded-lg border border-primary/30 bg-white p-3">
+              <p className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-neutral-800">
+                  {POLICY_LABELS[entry.policyId]}
+                </span>
+                {entry.availability !== "unknown" && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
+                    {entry.availability === "available"
+                      ? POLICY_AVAILABILITY_LABELS.available
+                      : POLICY_AVAILABILITY_LABELS.unavailable}
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-700">{entry.guidance}</p>
+              {entry.requiresPatientIdColumn && (
+                <p className="mt-1 text-sm font-semibold text-neutral-800">
+                  Requires an explicit patient-ID column.
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 
