@@ -43,7 +43,11 @@ opencode .
 - `opencode run` is reserved for explicit bounded automation/smokes, not the ordinary visible train path;
 - Matt skills own implementation/TDD/task-graph/worktree/review methodology;
 - this repo supplies product authority, coding standards, deterministic evidence and publication boundaries;
-- one autonomous correction pass maximum; remaining/new material blocker => HUMAN STOP;
+- the selected primary coordinator owns `/implement`/`/implement-spec`, the single canonical Standards+Spec review, review aggregation and correction dispatch;
+- implementation workers own only implementation/TDD + candidate/evidence and must not invoke `/implement`, `/implement-spec`, `/code-review`, Standards/Spec reviewers or correctors;
+- review start closes the originating implementer write phase for that candidate; review findings go only to a fresh bound corrector session;
+- allow at most two fresh finding-scoped correction attempts for the same authorized finding envelope; persistence after attempt #2, a new material finding or scope expansion => HUMAN STOP;
+- correctors remain single-pass per session; the coordinator, not the corrector, owns whether a second fresh correction session is authorized;
 - no quota-driven or silent model fallback inside a work unit;
 - never mutate global OpenCode configuration as per-project routing state.
 

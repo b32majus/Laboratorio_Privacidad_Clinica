@@ -49,9 +49,9 @@ Matt remains upstream-owned. Atenea does not rewrite its skills.
 
 When a selected Matt skill asks for an exploration, implementer, merger, Standards reviewer or Spec reviewer, dispatch the exact named Atenea agent from the selected profile above.
 
-For a single `/implement`, the primary coordinator delegates the implementation to the selected V4 implementer rather than writing product code itself. For `/implement-spec`, the primary coordinator runs Matt's task graph and uses the bound role agents.
+For a single `/implement`, the primary coordinator owns the Matt lifecycle. It delegates only the implementation/TDD phase to the implementer bound by the selected profile; the implementer returns a committed/fixed candidate and does not invoke `/implement`, `/implement-spec` or `/code-review`. The coordinator then runs exactly one canonical Matt `/code-review` for that candidate, pinned to the intended pre-implementation fixed point and supplied with the complete Cora-shaped authority envelope. For `/implement-spec`, the primary coordinator owns the task graph and the single final integration-branch review; implementation workers implement/TDD their assigned units but do not own review.
 
-If Matt review returns actionable findings, use exactly one fresh correction agent from the selected profile. Run focused regression evidence afterward. Do not start a second autonomous correction/review cycle.
+Do not review the same candidate/fixed-point pair twice merely because both a worker and coordinator reach a review stage. A review may be repeated only if the previous one failed technically, was incomplete, or used the wrong fixed point/authority envelope. Once the canonical Matt review starts, the originating implementer's write phase is closed. Actionable findings must be handled by a fresh correction agent from the selected profile, dispatched by the coordinator; the implementer does not apply review-driven edits itself. Run focused deterministic/regression evidence after each correction. If the same authorized finding(s) remain after correction #1, one second **fresh** correction session using the same bound correction role is allowed. After correction #2, or on a new material finding/scope change, HUMAN STOP. Do not start repeated broad review/fix cycles.
 
 ## Assurance triggers
 
