@@ -393,6 +393,28 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
   });
 
+  it("never claims a factual error item for a pending, failure-free batch checkpoint", () => {
+    // The exact defect (audit #62 F3): pending review decisions with no failed
+    // item make `actionRequired` true while batch `outputBlocked` stays false,
+    // so the checkpoint must not select the error-specific sentence.
+    renderGate(pendingBatchJob(), null);
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Action required");
+    expect(checkpoint).not.toHaveTextContent("Review complete");
+    // No factual error is present, so none may be claimed.
+    expect(checkpoint).not.toHaveTextContent(/error/i);
+    expect(checkpoint).not.toHaveTextContent(/factual error item/i);
+    // The real cause — pending review decisions — is what the body reports.
+    expect(checkpoint).toHaveTextContent(/mandatory review decisions are still pending/i);
+
+    // The separate factual pending-review alert is unchanged and still shown.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(
+      "Safe export is blocked while 2 mandatory review decisions are pending."
+    );
+  });
+
   it("reports both batch output surfaces unavailable for a fully reviewed error-free batch", () => {
     renderGate(withBatchOutputs(completedBatchJob()), null);
 
