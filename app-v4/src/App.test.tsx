@@ -439,7 +439,10 @@ describe("App privacy gate (T08 U3)", () => {
     expect(screen.getByText("Safe output:")).toBeInTheDocument();
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.getByText("Confidential audit:")).toBeInTheDocument();
-    expect(screen.getByText("Available")).toBeInTheDocument();
+    // Scoped to the gate's availability facts: the Policy workspace above also
+    // renders the exact textual state "Available" per policy (POLICY-01 #56).
+    const availabilityFacts = screen.getByRole("status", { name: /output availability facts/i });
+    expect(within(availabilityFacts).getByText("Available")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     // The export gate agrees with review completeness (D-004).
@@ -548,26 +551,35 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(facts).toHaveTextContent("Safe output: Ready");
   });
 
-  it("starting review under a known-but-unmapped policy fails closed with the typed PolicyError (C1)", async () => {
+  it("an unavailable policy cannot be selected through the UI on a text job (C1)", async () => {
     render(<App />);
     createTextJob();
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
-      target: { value: "external-ai" },
-    });
-    fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.click(stepButton(3, "Review"));
 
-    // The typed PolicyError message is surfaced, not swallowed into the
-    // generic fallback message (async processing: wait for the failure).
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
-    expect(alert).toHaveTextContent("external-ai");
-    expect(alert).not.toHaveTextContent(/not available right now/i);
-    // No stale session was installed.
-    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    // External AI and Longitudinal Research are visible but non-selectable on a
+    // text job: the option is disabled and a change event for it is a no-op.
+    expect(screen.getByRole("option", { name: "External AI" })).toBeDisabled();
+    expect(screen.getByRole("option", { name: "Longitudinal Research" })).toBeDisabled();
+
+    const policySelect = screen.getByLabelText("Privacy Policy:") as HTMLSelectElement;
+    fireEvent.change(policySelect, { target: { value: "external-ai" } });
+    fireEvent.change(policySelect, { target: { value: "longitudinal-research" } });
+    // The controlled select keeps showing the job's Standard policy, so review
+    // can never start under a known-but-unmapped policy through the UI.
+    expect(policySelect.value).toBe("standard");
+    expect((screen.getByRole("option", { name: "Standard" }) as HTMLOptionElement).selected).toBe(
+      true
+    );
+
+    // A supported policy still reaches review and never surfaces the typed
+    // external-ai failure. The engine's typed fail-closed backstop is covered
+    // non-UI in useJobSession.test.tsx (typed-failure/retry routes).
+    fireEvent.click(stepButton(2, "Configure"));
+    await goToReviewStep();
+    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("a failed processing attempt stays on the current step and never exposes a review workspace (T15 #19)", async () => {
+  it("a blocked unavailable-policy selection keeps the app on the current step with no review workspace (T15 #19)", async () => {
     render(<App />);
     createTextJob();
     fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
@@ -576,13 +588,10 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     fireEvent.click(stepButton(2, "Configure"));
     expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
 
-    fireEvent.click(stepButton(3, "Review"));
-
-    // The typed failure is surfaced and the app does NOT navigate: the Review
-    // workspace never appears and the export gate stays fail-closed (async
-    // processing: wait for the failure before asserting absence).
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/no accepted per-category operator mapping/i);
+    // The unavailable policy was never selected, so there is no failed attempt:
+    // the app stays on Configure, no Review workspace exists and the export
+    // gate stays fail-closed. (The typed PolicyError backstop itself remains
+    // covered at the hook level in useJobSession.test.tsx.)
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
     expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
     expect(stepButton(5, "Export")).toBeDisabled();
@@ -1077,43 +1086,38 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(document.body.textContent ?? "").not.toMatch(/premium|activar/i);
   });
 
-  it("keeps the batch read text across a real policy change so a failed attempt can be remedied (T17 #21 WU-C3)", async () => {
+  it("keeps the batch read text across a real supported policy change so the items reprocess (T17 #21 WU-C3)", async () => {
     render(<App />);
     await createBatchAndSettle([
       new File([BATCH_NOTE_A], "doc-a.txt"),
       new File([BATCH_NOTE_B], "doc-b.txt"),
     ]);
 
-    // Remedy loop, step 1: switch to a known-but-unmapped policy. The read
-    // text is policy-INDEPENDENT, so the items stay queued WITH their text.
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
-      target: { value: "external-ai" },
-    });
-
-    // Entering review runs the attempt: every item fails closed with the
-    // classified policy-unsupported failure, surfaced on the documents list.
+    // First pass under the default Standard policy: both items process from
+    // their held read text and become review-required.
     fireEvent.click(stepButton(2, "Configure"));
-    await goToReviewStep();
-    await waitFor(() => {
-      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Error/);
-    });
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Error/);
-    expect(documentSelector()).toHaveTextContent(/no accepted per-category operator mapping/i);
-    // No item is reviewable while every read item is a policy failure.
-    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
-
-    // Remedy loop, step 2: return to a supported policy. The reset items stay
-    // queued WITH their held text, so re-entering review processes them
-    // successfully instead of dead-ending on invalid-source.
-    fireEvent.click(stepButton(2, "Configure"));
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
-      target: { value: "standard" },
-    });
     await goToReviewStep();
     await waitFor(() => {
       expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
     });
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+
+    // Remedy loop: a REAL supported policy change (standard → strict) resets the
+    // processing-derived item state. The read text is policy-INDEPENDENT, so the
+    // items return to queued WITH their held text.
+    fireEvent.click(stepButton(2, "Configure"));
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "strict" },
+    });
+
+    // Re-entering review reprocesses both items successfully from the SAME held
+    // read text instead of dead-ending on a missing source.
+    await goToReviewStep();
+    await waitFor(() => {
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+    });
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(documentSelector()).not.toHaveTextContent(/doc-a\.txt — Error/);
     expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
   });
 
