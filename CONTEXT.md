@@ -122,13 +122,14 @@ Audits identify debt and evidence; they do not override an accepted spec.
 
 - Human + Cora/planning surface: shaping, acceptance and material integrated audit.
 - GitHub Issues/specs: bounded scope and acceptance authority.
-- Atenea C-083: project-local role/model policy over OpenCode V2 `--pure`.
+- Atenea C-084: project-local native OpenCode V2 role/model policy and proportional assurance.
 - Upstream Matt skills: implementation, task graph, TDD where applicable, worktree/merger flow and two-axis code review methodology.
 - Repository tests/oracles/CI: deterministic correctness and delivery evidence.
-- Herdr: optional persistent process/session surface; never correctness authority.
+- Herdr: user-owned already-running persistent operator/observation surface; never correctness authority.
+- Normal visible execution: enter the project/worktree pane in Herdr and run `opencode .`; `atenea-volume` is the project default, while accepted complex work selects `atenea-complex` in the TUI before the prompt.
 - Human: final publication/merge/deployment boundary.
 
-C-077–C-082 Gentle/Pi/RDD/4R/lineage/burn/OpenCode V1 mechanics are historical provenance only. Current local bindings live in `opencode.json`, `.opencode/agents/` and `docs/ATENEA_EXECUTION_ROUTING_V0.md`.
+C-077–C-083 Gentle/Pi/RDD/4R/lineage/burn/OpenCode V1 mechanics, including `--pure`, are historical provenance only. Current local bindings live in `opencode.json`, `.opencode/agents/` and `docs/ATENEA_EXECUTION_ROUTING_V0.md`.
 
 No auto-merge and no force-push.
 

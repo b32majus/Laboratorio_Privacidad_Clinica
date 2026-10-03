@@ -1,6 +1,6 @@
 # Coding standards — Laboratorio de Privacidad Clínica
 
-Status: **CURRENT — C-083 repository engineering standards**
+Status: **CURRENT — C-084 repository engineering standards**
 
 These are stable repository guardrails, not a second implementation/review workflow. Matt skills own their methodology when invoked. Machine-decidable rules belong in tests, linters, schemas, validators and CI rather than duplicated prose.
 
@@ -50,7 +50,7 @@ Do not remove defense-in-depth guards merely because an upstream version changed
 
 Behavior-affecting configuration must be versioned, inspectable and reproducible. Project routing lives in `opencode.json` + `.opencode/agents/`; secrets/provider credentials stay outside Git.
 
-Run Atenea C-083 via OpenCode `--pure`. Required config/provider/model mismatches fail visibly; do not silently fall back to another execution mode or model.
+Run Atenea C-084 through native OpenCode V2. The ordinary path is the visible TUI started with `opencode .` from the existing Herdr project/worktree pane. `--pure` and V1 `permission`/`bash`/`task` configuration are historical. Required config/provider/model mismatches fail visibly; do not silently fall back to another execution mode or model.
 
 ## 8. Frontend quality
 
