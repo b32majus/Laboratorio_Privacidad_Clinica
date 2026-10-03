@@ -5,7 +5,7 @@ Status: **CURRENT**
 ## 1. Canonical branch
 
 - The canonical V4 integration and Render deployment branch is **`3.0-main`**.
-- Current accepted V4 checkpoint at the C-083 reconciliation: `3.0-main@0a7faa40da61d4bae80efe81ca0043d3627be669` (PR #50).
+- Current accepted V4 checkpoint before the C-084 reconciliation PR: `3.0-main@6645100f3f804f60562d687c780bba58ccf8f7aa` (PR #51, C-083 local reconciliation merge). C-084 supersedes C-083 as execution-runtime authority without changing product/runtime application code.
 - GitHub's repository **default branch is still `main`** as of 2026-10-03. Do not infer the V4 execution base from the GitHub default; `main` is not the canonical V4 integration/deploy authority.
 - Changing the GitHub default branch, renaming branches or deleting remote branches is a REMOTE, human-owned action (see §4). The `3.0-main` name is historical; the product generation is V4.
 
@@ -58,5 +58,4 @@ handoff and remain open until the human performs or authorizes them:
 - decide whether/when to change the GitHub default branch from `main` to the canonical V4 branch;
 - any ruleset/reviewer-settings mutation.
 
-No remote mutation was performed during the train (no branch deletion, no
-force-push, no settings change), per the LOCAL_ONLY execution boundary.
+No remote mutation was performed during the completed V4 implementation train (no branch deletion, no force-push, no settings change). Subsequent repository-maintenance PRs remain subject to the same explicit human publication/merge boundary.
