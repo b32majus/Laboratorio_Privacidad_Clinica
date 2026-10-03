@@ -656,6 +656,20 @@ function StepNavigation(props: {
   );
 }
 
+/**
+ * Display-only family chip for one selected file (UX-PILOT-01 #52). It reuses
+ * the SAME extension authorities as intake so the label cannot drift from the
+ * routing rules, but it is purely informational: `handleCreateFromDraft` and
+ * the domain remain the only intake authority. An unrecognized extension is
+ * shown as "Unsupported" and still fails closed on create.
+ */
+function selectedFileFamilyLabel(fileName: string): string {
+  const extension = extensionOf(fileName);
+  if (isDocumentExtension(extension)) return "Document";
+  if (isStructuredExtension(extension)) return "Structured";
+  return "Unsupported";
+}
+
 function InputStep(props: {
   draftText: string;
   draftFiles: File[];
@@ -673,31 +687,61 @@ function InputStep(props: {
     props.batchJob && props.batchJob.kind === "document-batch"
       ? batchFailedItems(props.batchJob)
       : [];
+  const selectedCount = props.draftFiles.length;
   return (
     <section aria-labelledby="input-step-heading">
-      <h2 id="input-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Input
-      </h2>
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Paste text or select document or structured files to start a job. The job type is inferred
-        from your input; mixed or unsupported input is rejected.
-      </p>
-      <div className="mt-4 max-w-2xl space-y-4">
-        <div>
-          <label htmlFor="paste-text" className="block text-sm font-semibold text-neutral-800">
+      <header className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Input</p>
+        <h2
+          id="input-step-heading"
+          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
+        >
+          New Privacy Job
+        </h2>
+        <p className="mt-2 text-base leading-relaxed text-neutral-700">
+          Start a privacy job by pasting clinical text or selecting files. One job type is inferred
+          from your input.
+        </p>
+      </header>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <section
+          aria-labelledby="paste-text-heading"
+          className="flex flex-col rounded-xl border border-primary/40 bg-white p-5 shadow-sm"
+        >
+          <h3 id="paste-text-heading" className="font-display text-lg font-bold text-neutral-800">
+            Paste clinical text
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+            Free text such as notes, reports or correspondence.
+          </p>
+          <label htmlFor="paste-text" className="mt-4 block text-sm font-semibold text-neutral-800">
             Paste text
           </label>
           <textarea
             id="paste-text"
             value={props.draftText}
             onChange={(event) => props.onDraftTextChange(event.target.value)}
-            rows={6}
-            className={`mt-1 w-full rounded border border-primary bg-white px-3 py-2 text-sm ${focusRing}`}
+            rows={7}
+            className={`mt-1 w-full rounded-lg border border-primary bg-surface-light px-3 py-2 text-sm ${focusRing}`}
           />
-        </div>
-        <div>
-          <label htmlFor="select-files" className="block text-sm font-semibold text-neutral-800">
-            Or select files (TXT, PDF, DOCX, CSV, XLS, XLSX)
+        </section>
+
+        <section
+          aria-labelledby="select-files-heading"
+          className="flex flex-col rounded-xl border border-primary/40 bg-white p-5 shadow-sm"
+        >
+          <h3 id="select-files-heading" className="font-display text-lg font-bold text-neutral-800">
+            Choose files
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+            Documents (TXT, PDF, DOCX) or structured tables (CSV, XLS, XLSX).
+          </p>
+          <label
+            htmlFor="select-files"
+            className="mt-4 block text-sm font-semibold text-neutral-800"
+          >
+            Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)
           </label>
           <input
             id="select-files"
@@ -707,14 +751,62 @@ function InputStep(props: {
             onChange={props.onFileSelection}
             className={`mt-1 block w-full text-sm ${focusRing}`}
           />
-          {props.draftFiles.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-sm text-neutral-700">
-              {props.draftFiles.map((file) => (
-                <li key={file.name}>{file.name}</li>
-              ))}
-            </ul>
+          {selectedCount > 0 && (
+            <div className="mt-3 rounded-lg border border-primary/40 bg-surface-light p-3">
+              <p className="text-sm font-semibold text-neutral-800">
+                {selectedCount === 1 ? "1 file selected" : `${selectedCount} files selected`}
+              </p>
+              <ul aria-label="Selected files" className="mt-2 space-y-1.5">
+                {props.draftFiles.map((file, index) => (
+                  <li
+                    key={`${file.name}-${index}`}
+                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="break-all font-medium text-neutral-800">{file.name}</span>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-dark">
+                      {selectedFileFamilyLabel(file.name)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-        </div>
+        </section>
+      </div>
+
+      <section
+        aria-labelledby="job-type-inference-heading"
+        className="mt-5 rounded-xl border border-primary/30 bg-surface-light p-4"
+      >
+        <h3
+          id="job-type-inference-heading"
+          className="text-sm font-bold uppercase tracking-wide text-primary-dark"
+        >
+          How the job type is chosen
+        </h3>
+        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+          Each supported input maps to one job type. Mixed or unsupported combinations are rejected.
+        </p>
+        <ul className="mt-3 grid gap-2 text-sm text-neutral-700 sm:grid-cols-2">
+          <li>
+            <span className="font-semibold text-neutral-800">Pasted clinical text</span> → Text job
+          </li>
+          <li>
+            <span className="font-semibold text-neutral-800">One TXT, PDF or DOCX</span> → Document
+            job
+          </li>
+          <li>
+            <span className="font-semibold text-neutral-800">Two or more documents</span> → Document
+            batch
+          </li>
+          <li>
+            <span className="font-semibold text-neutral-800">One CSV, XLS or XLSX</span> →
+            Structured job
+          </li>
+        </ul>
+      </section>
+
+      <div className="mt-5 max-w-3xl space-y-4">
         {props.batchRead && (
           <p
             role="status"
@@ -756,7 +848,7 @@ function InputStep(props: {
           onClick={props.onCreate}
           disabled={props.isExtracting}
           aria-busy={props.isExtracting}
-          className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
+          className={`rounded-lg bg-primary-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
         >
           Create job
         </button>

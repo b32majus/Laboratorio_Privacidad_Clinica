@@ -177,7 +177,7 @@ describe("App shell", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Configure" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "New Job" }));
     expect(screen.getByText("No job yet")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "Input" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "New Privacy Job" })).toBeInTheDocument();
     expect(stepButton(2, "Configure")).toBeDisabled();
   });
 
@@ -195,7 +195,7 @@ describe("App shell", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
 
     fireEvent.click(stepButton(1, "Input"));
-    expect(screen.getByRole("heading", { level: 2, name: "Input" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "New Privacy Job" })).toBeInTheDocument();
     expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
 
     expect(window.location.href).toBe(urlBefore);
@@ -249,6 +249,70 @@ describe("App shell", () => {
     expect(review).toBeEnabled();
     review.focus();
     expect(review).toHaveFocus();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UX-PILOT-01 (#52): the Input surface is framed as one "New Privacy Job"
+// workspace. These oracles only observe presentation/accessibility; every
+// intake semantic stays frozen (the domain tests remain the authority).
+// ---------------------------------------------------------------------------
+describe("App input workspace (UX-PILOT-01 #52)", () => {
+  it("frames the empty Input as a single New Privacy Job task", () => {
+    render(<App />);
+    expect(screen.getByRole("heading", { level: 2, name: "New Privacy Job" })).toBeInTheDocument();
+    expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
+    expect(screen.getByText(/start a privacy job by pasting clinical text/i)).toBeInTheDocument();
+  });
+
+  it("explains which input produces each job type", () => {
+    render(<App />);
+    const guide = screen.getByRole("region", { name: "How the job type is chosen" });
+    expect(guide).toHaveTextContent("Text job");
+    expect(guide).toHaveTextContent("Document job");
+    expect(guide).toHaveTextContent("Document batch");
+    expect(guide).toHaveTextContent("Structured job");
+    expect(guide).toHaveTextContent("TXT, PDF or DOCX");
+    expect(guide).toHaveTextContent("CSV, XLS or XLSX");
+  });
+
+  it("summarizes selected files with their intake family", () => {
+    render(<App />);
+    selectFiles([new File(["nota"], "historia.txt"), new File(["a,b"], "labs.csv")]);
+    const files = screen.getByRole("list", { name: "Selected files" });
+    expect(within(files).getByText("historia.txt")).toBeInTheDocument();
+    expect(within(files).getByText("labs.csv")).toBeInTheDocument();
+    expect(within(files).getByText("Document")).toBeInTheDocument();
+    expect(within(files).getByText("Structured")).toBeInTheDocument();
+    expect(screen.getByText("2 files selected")).toBeInTheDocument();
+  });
+
+  it("exposes labelled, keyboard-focusable paste and file entry surfaces", () => {
+    render(<App />);
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Paste clinical text" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Choose files" })).toBeInTheDocument();
+
+    const textarea = screen.getByLabelText("Paste text");
+    textarea.focus();
+    expect(textarea).toHaveFocus();
+
+    const fileInput = screen.getByLabelText(/select files/i) as HTMLInputElement;
+    fileInput.focus();
+    expect(fileInput).toHaveFocus();
+    expect(fileInput).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
+  });
+
+  it("keeps pasted text and files mutually exclusive with the typed message", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: "nota" } });
+    selectFiles([new File(["nota"], "historia.txt")]);
+    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Use either pasted text or files for one job, not both."
+    );
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 });
 
