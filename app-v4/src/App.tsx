@@ -4,8 +4,8 @@
  * One SPA owning a Job across the canonical flow
  * Input → Configure → Review → Privacy Gate → Export.
  * There is no router and no URL state: job content never reaches the URL.
- * Step content beyond Input is an honest placeholder; its tickets arrive
- * later and must never be faked here.
+ * Each step renders an honest, job-aware state (configure / review / gate /
+ * export); the shell never fakes review or output readiness (SPEC §8).
  *
  * Sensitive job data stays memory-only (D-013); "Clear session" discards it.
  */
@@ -38,6 +38,8 @@ import { BatchReviewView } from "./review/BatchReviewView";
 import { ReviewWorkspace } from "./review/ReviewWorkspace";
 import { ReviewSessionError, jobSupportsReview } from "./review/review-domain";
 import { StructuredConfigureWorkspace } from "./structured/StructuredConfigureWorkspace";
+import type { StructuredConfiguration } from "./structured/configuration";
+import type { StructuredOutputPreparation } from "./structured/transformed-dataset";
 import { readStructuredFile, readStructuredSheet } from "./structured/intake";
 import {
   buildPolicyGuidance,
@@ -333,8 +335,9 @@ export function App() {
    *
    * A document batch is deliberately excluded here: its review attempt is
    * started by the reads-settle effect below, so entering Review during the
-   * read phase can never start processing mid-read. Structured jobs keep an
-   * honest placeholder until their own tickets arrive.
+   * read phase can never start processing mid-read. Structured jobs keep their
+   * review in the Configure workspace, so entering Review never starts a text
+   * review session for them.
    */
   const handleGoToStep = async (step: FlowStep) => {
     try {
@@ -504,19 +507,27 @@ export function App() {
                   session.clear();
                   resetDraft();
                 }}
-                className={`rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+                title="Start a new job. Replaces the current job and clears its drafts."
+                aria-describedby="session-actions-help"
+                className={`rounded border border-primary-dark bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
               >
                 New Job
               </button>
               <button
                 type="button"
                 onClick={handleClearSession}
+                title="Discard all in-memory job data, review state and drafts from this browser session."
+                aria-describedby="session-actions-help"
                 className={`rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
               >
                 Clear session
               </button>
             </div>
           </div>
+          <p id="session-actions-help" className="mt-2 text-xs leading-relaxed text-neutral-600">
+            New Job starts a new job and replaces the current one. Clear session deliberately
+            discards all in-memory job data, review state and drafts from this browser session.
+          </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-700">
             <p>
               <span className="font-semibold text-neutral-800">Job:</span>{" "}
@@ -561,8 +572,6 @@ export function App() {
         </div>
       </header>
 
-      <PolicyGuidance job={job} />
-
       <StepNavigation job={job} currentStep={currentStep} onGoToStep={handleGoToStep} />
 
       <main id="main-content" className="mx-auto max-w-5xl px-4 py-8">
@@ -596,6 +605,8 @@ export function App() {
                   }
             }
           />
+        ) : currentStep === "configure" && job ? (
+          <UnstructuredConfigureState job={job} reviewError={reviewError} />
         ) : currentStep === "review" && isBatch && job ? (
           <BatchReviewView
             job={job}
@@ -612,6 +623,13 @@ export function App() {
             onDecide={session.decide}
             onAddManual={session.addManual}
           />
+        ) : currentStep === "review" && job && job.kind === "structured" ? (
+          <StructuredReviewNotice
+            job={job}
+            configuration={structuredConfiguration}
+            preparation={structuredPreparation}
+            onGoToStep={handleGoToStep}
+          />
         ) : currentStep === "privacy-gate" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
@@ -626,9 +644,18 @@ export function App() {
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
           <ExportStep job={job} review={activeReview} structured={structuredGateInput} />
         ) : (
-          <StepPlaceholder step={currentStep} reviewError={reviewError} />
+          <StepUnavailableState step={currentStep} reviewError={reviewError} />
         )}
       </main>
+
+      {/*
+       * Task-first hierarchy (UX-CLOSEOUT-01 outcome A): the active workspace
+       * renders before the persistent policy guidance, so four full policy
+       * cards never precede the user's task. All four POLICY-01 entries, the
+       * current-policy line and the patient-ID requirement stay discoverable
+       * here, derived from the same `buildPolicyGuidance` authorities.
+       */}
+      <PolicyGuidance job={job} />
     </div>
   );
 }
@@ -956,7 +983,158 @@ function InputStep(props: {
   );
 }
 
-function StepPlaceholder({
+/**
+ * Honest "no additional configuration" Configure state for the job kinds whose
+ * accepted pipeline has no configuration phase (text, document, document
+ * batch). It replaces the former migration placeholder (UX-CLOSEOUT-01 outcome
+ * B) and is phrased only from existing Job/policy facts, pointing at the next
+ * canonical Review action without changing any step-access rule.
+ */
+function UnstructuredConfigureState({
+  job,
+  reviewError = null,
+}: {
+  job: Job;
+  reviewError?: string | null;
+}): ReactElement {
+  return (
+    <section aria-labelledby="configure-step-heading">
+      <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
+        Configure
+      </h2>
+      {reviewError && (
+        <p
+          role="alert"
+          className={`mt-3 max-w-2xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+        >
+          {reviewError}
+        </p>
+      )}
+      <p className="mt-2 max-w-2xl text-base leading-relaxed">
+        No additional configuration is required for a {KIND_LABELS[job.kind].toLowerCase()}. The
+        selected policy ({POLICY_LABELS[job.policyId]}) is applied when Review runs; this job type
+        has no per-column or per-field configuration step.
+      </p>
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-700">
+        Continue to Review with the step navigation above. Review shows every detected identifier
+        and requires an explicit decision before the Privacy Gate and Export become available.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Honest structured Review state (UX-CLOSEOUT-01 outcome B). Structured human
+ * review already happens in Configure (column classification, the single
+ * patient-ID authority and explicit date roles); this step never creates a
+ * ReviewSession, detection review or any new structured semantics. Readiness
+ * and blockers are summarized from the existing structured
+ * configuration/preparation facts only, and the operator is directed back to
+ * Configure when action is required or onward to the Privacy Gate when the
+ * existing readiness permits.
+ */
+function StructuredReviewNotice({
+  job,
+  configuration,
+  preparation,
+  onGoToStep,
+}: {
+  job: Job;
+  configuration: StructuredConfiguration | null;
+  preparation: StructuredOutputPreparation | null;
+  onGoToStep: (step: FlowStep) => void;
+}): ReactElement {
+  const blockedReasons =
+    configuration !== null && preparation !== null && preparation.status === "blocked"
+      ? preparation.reasons
+      : [];
+  const ready =
+    configuration !== null &&
+    (preparation === null ? configuration.exportReady : preparation.status === "ready");
+  return (
+    <section aria-labelledby="review-step-heading">
+      <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
+        Review
+      </h2>
+      <p className="mt-2 max-w-2xl text-base leading-relaxed">
+        Structured review happens in Configure. For a {KIND_LABELS[job.kind].toLowerCase()}, column
+        classification, the single patient-ID authority and explicit date roles are reviewed there;
+        this step does not create a text review session.
+      </p>
+      {configuration === null ? (
+        <p
+          role="status"
+          className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          The structured source has not been configured yet. Return to Configure to read it and
+          review its columns before continuing.
+        </p>
+      ) : (
+        <>
+          <dl
+            role="status"
+            aria-label="Structured review readiness"
+            className="mt-3 grid max-w-2xl grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
+          >
+            <dt className="font-semibold">Columns:</dt>
+            <dd> {configuration.columns.length}</dd>
+            <dt className="font-semibold">Columns requiring review:</dt>
+            <dd> {configuration.columnsRequiringReview.length}</dd>
+            <dt className="font-semibold">Structured export ready:</dt>
+            <dd> {ready ? "Yes" : "No"}</dd>
+            <dt className="font-semibold">Patient-ID column:</dt>
+            <dd> {patientIdSummary(configuration)}</dd>
+          </dl>
+          {blockedReasons.length > 0 && (
+            <ul
+              role="alert"
+              aria-label="Structured review blockers"
+              className="mt-3 max-w-2xl list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
+            >
+              {blockedReasons.map((reason, index) => (
+                <li key={index}>{reason}</li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onGoToStep("configure")}
+          className={`rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+        >
+          Back to Configure
+        </button>
+        {ready && (
+          <button
+            type="button"
+            onClick={() => onGoToStep("privacy-gate")}
+            className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+          >
+            Continue to Privacy Gate
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Factual patient-ID selection summary from the canonical configuration only. */
+function patientIdSummary(configuration: StructuredConfiguration): string {
+  const { patientId } = configuration;
+  if (patientId.status === "resolved") return patientId.column;
+  if (patientId.status === "selection-error") return "Selection error";
+  return "Not selected";
+}
+
+/**
+ * Defensive fallback for a step that has no renderable job state (for example
+ * Privacy Gate or Export reached before an active review exists). It states
+ * the runtime fact only: no migration-placeholder copy (UX-CLOSEOUT-01
+ * outcome B).
+ */
+function StepUnavailableState({
   step,
   reviewError = null,
 }: {
@@ -971,14 +1149,14 @@ function StepPlaceholder({
       {reviewError && (
         <p
           role="alert"
-          className={`mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
+          className={`mt-3 max-w-2xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
         >
           {reviewError}
         </p>
       )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        This step is not implemented yet. Its functionality arrives with a later V4 migration
-        ticket; use the step navigation above to move between steps.
+        This step is not available for the current job state. Use the step navigation above to
+        continue from an available step.
       </p>
     </section>
   );

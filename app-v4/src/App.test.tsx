@@ -181,6 +181,39 @@ describe("App shell", () => {
     expect(stepButton(2, "Configure")).toBeDisabled();
   });
 
+  it("keeps New Job and Clear session with distinct, legible purposes (UX-CLOSEOUT-01 E)", async () => {
+    render(<App />);
+    createTextJob();
+    const newJob = screen.getByRole("button", { name: "New Job" });
+    const clearSession = screen.getByRole("button", { name: "Clear session" });
+    // Both accepted capabilities stay present and operable.
+    expect(newJob).toBeEnabled();
+    expect(clearSession).toBeEnabled();
+    // Distinct explicit copy: the privacy-clearing action is not presented as a
+    // duplicate of New Job.
+    expect(newJob).toHaveAttribute("title");
+    expect(clearSession).toHaveAttribute("title");
+    expect(newJob.getAttribute("title")).not.toBe(clearSession.getAttribute("title"));
+    expect(clearSession.getAttribute("title")).toMatch(/discard|in-memory/i);
+    const helper = document.getElementById("session-actions-help");
+    expect(helper).not.toBeNull();
+    expect(helper).toHaveTextContent(/new job starts a new job/i);
+    expect(helper).toHaveTextContent(/clear session deliberately discards/i);
+  });
+
+  it("renders the active workspace before the persistent policy guidance (UX-CLOSEOUT-01 A)", async () => {
+    render(<App />);
+    createTextJob();
+    const main = document.getElementById("main-content");
+    const guidance = screen.getByRole("region", { name: "Privacy Policy" });
+    expect(main).not.toBeNull();
+    // `main` precedes the policy guidance in document order, so four full policy
+    // cards never render ahead of the user's active task.
+    expect(
+      (main as HTMLElement).compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeGreaterThan(0);
+  });
+
   it("navigates forward and backward through the canonical steps without URL changes", async () => {
     render(<App />);
     const urlBefore = window.location.href;
@@ -219,11 +252,19 @@ describe("App shell", () => {
     expect(window.location.hash).toBe("");
   });
 
-  it("renders honest placeholders for later-ticket steps", async () => {
+  it("renders an honest no-additional-configuration state for text Configure", async () => {
     render(<App />);
     createTextJob();
     fireEvent.click(stepButton(2, "Configure"));
-    expect(screen.getByText(/this step is not implemented yet/i)).toBeInTheDocument();
+    const region = screen.getByRole("region", { name: "Configure" });
+    expect(
+      within(region).getByRole("heading", { level: 2, name: "Configure" })
+    ).toBeInTheDocument();
+    expect(region).toHaveTextContent(/no additional configuration is required/i);
+    expect(region).toHaveTextContent(/text job/i);
+    expect(region).toHaveTextContent(/standard/i);
+    expect(region).toHaveTextContent(/continue to review/i);
+    expect(region).not.toHaveTextContent(/not implemented|later V4 migration/i);
   });
 
   it("keeps step navigation keyboard operable with visible focus targets", async () => {
@@ -370,7 +411,7 @@ describe("App review workspace (T07)", () => {
     expect(progress).not.toHaveTextContent(`Pending: ${pendingBefore}`);
   });
 
-  it("keeps an honest placeholder for job families without single-document review", async () => {
+  it("explains that structured review happens in Configure without faking a review workspace", async () => {
     render(<App />);
     const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText(/select files/i), {
@@ -379,7 +420,10 @@ describe("App review workspace (T07)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
-    expect(screen.getByText(/this step is not implemented yet/i)).toBeInTheDocument();
+    const region = screen.getByRole("region", { name: "Review" });
+    expect(within(region).getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
+    expect(region).toHaveTextContent(/structured review happens in configure/i);
+    expect(region).not.toHaveTextContent(/not implemented|later V4 migration/i);
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
   });
 
