@@ -600,5 +600,69 @@ describe("PrivacyGate — structured checkpoint state (UX-PILOT-02 #55)", () => 
     const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
     expect(checkpoint).toHaveTextContent("Action required");
     expect(checkpoint).not.toHaveTextContent("Review complete");
+    // UX-CLOSEOUT-01 (#63) outcome C: nothing is pending and no error is
+    // present, so the body names the applicable output readiness cause.
+    const body = checkpoint.querySelector("p");
+    expect(body?.textContent ?? "").toMatch(/output readiness/i);
+    expect(body?.textContent ?? "").not.toMatch(/error/i);
+  });
+});
+
+/**
+ * UX-CLOSEOUT-01 (#63) outcome C: when output readiness is blocked the
+ * checkpoint body must name the operative factual cause instead of collapsing
+ * every blocked output into one generic sentence. The presentation copy must
+ * discriminate all four causes — pending mandatory review decisions, failed
+ * batch items, job errors and applicable output readiness — and must never
+ * assert a factual error item the job does not carry (the audit #62 F3 defect
+ * must not regress). The checkpoint region keeps exactly one badge and exactly
+ * one body paragraph (e2e/gate-export-ux.spec.ts locates `span`/`p` first and
+ * measures contrast against them).
+ */
+describe("PrivacyGate — checkpoint cause discrimination (UX-CLOSEOUT-01 #63)", () => {
+  it("names pending review decisions for a non-batch job whose output is blocked by pending decisions", () => {
+    // buildJob() defaults to safeOutputReady false, so a non-batch output is
+    // blocked; the only real cause is the two pending mandatory decisions.
+    const { container } = renderGate(buildJob(), buildSession());
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Action required");
+    // The real cause — pending review decisions — is what the body reports.
+    expect(checkpoint).toHaveTextContent(/mandatory review decisions are still pending/i);
+    // No factual error is present, so none may be claimed.
+    expect(checkpoint).not.toHaveTextContent(/error/i);
+    expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
+
+    // Exactly one badge + one body paragraph in the Decision checkpoint region.
+    expect(checkpoint.querySelectorAll("span")).toHaveLength(1);
+    expect(checkpoint.querySelectorAll("p")).toHaveLength(1);
+  });
+
+  it("distinguishes the failed-item cause for a document batch and never claims a job errors item", () => {
+    // failedBatchJob: item 0 failed, item 1 completed, review complete, so the
+    // only real cause is the failed batch item (view.errors is empty).
+    renderGate(failedBatchJob(), null);
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent("Action required");
+    // The body distinguishes the failed-item cause...
+    expect(checkpoint).toHaveTextContent(/batch item failed/i);
+    // ...and never asserts a job `errors` item, since view.errors is empty.
+    expect(checkpoint).not.toHaveTextContent(/factual error item/i);
+    expect(checkpoint).not.toHaveTextContent(/error/i);
+
+    expect(checkpoint.querySelectorAll("span")).toHaveLength(1);
+    expect(checkpoint.querySelectorAll("p")).toHaveLength(1);
+  });
+
+  it("keeps the pending, failure-free batch body free of any error claim (single paragraph)", () => {
+    // The original audit #62 F3 case, restated as a shape assertion.
+    renderGate(pendingBatchJob(), null);
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    expect(checkpoint).toHaveTextContent(/mandatory review decisions are still pending/i);
+    expect(checkpoint).not.toHaveTextContent(/error/i);
+    expect(checkpoint.querySelectorAll("span")).toHaveLength(1);
+    expect(checkpoint.querySelectorAll("p")).toHaveLength(1);
   });
 });

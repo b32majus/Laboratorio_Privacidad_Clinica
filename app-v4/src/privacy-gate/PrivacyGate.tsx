@@ -126,6 +126,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         safeOutputReady={safeOutputReady}
         pendingCount={view.pendingCount}
         hasJobErrors={hasJobErrors}
+        batchFailed={batchFailed}
       />
 
       {view.pendingCount > 0 && (
@@ -186,9 +187,10 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
  * not. The detailed readiness remains in the Output availability facts below.
  *
  * The body copy discriminates the SAME factual causes (UX-CLOSEOUT-01 outcome
- * C): a blocked output, a genuine job error, or pending review decisions. It
- * never asserts a factual error item when the only cause is pending review
- * (the audit #62 F3 defect for a failure-free document batch).
+ * C): failed batch items, a genuine job error, pending review decisions, and
+ * the residual applicable output readiness cause. It never asserts a factual
+ * error item when the only cause is pending review (the audit #62 F3 defect)
+ * or a failed batch item (a batch fact, not a job `errors` item either).
  */
 function GateCheckpoint({
   actionRequired,
@@ -196,16 +198,32 @@ function GateCheckpoint({
   safeOutputReady,
   pendingCount,
   hasJobErrors,
+  batchFailed,
 }: {
   actionRequired: boolean;
   outputBlocked: boolean;
   safeOutputReady: boolean;
   pendingCount: number;
   hasJobErrors: boolean;
+  /** The batch has one or more failed items; only meaningful for a batch. */
+  batchFailed: boolean;
 }): ReactElement {
+  // The body names the operative factual cause when output readiness is blocked
+  // (UX-CLOSEOUT-01 outcome C). Fail-closed ordering: a failed batch item is
+  // named first, then a genuine job error, then pending review decisions, and
+  // only then the residual output readiness cause. A factual error item is
+  // never asserted unless the job actually carries one.
   const body = actionRequired
     ? outputBlocked
-      ? "Safe Output is not available yet: the factual items below still require attention."
+      ? batchFailed
+        ? "Safe Output is blocked because a batch item failed; the failure details and remedy are shown below."
+        : hasJobErrors
+          ? "A factual error item below requires attention before you rely on this review."
+          : pendingCount === 1
+            ? "1 mandatory review decision is still pending below before you rely on this review."
+            : pendingCount > 1
+              ? `${pendingCount} mandatory review decisions are still pending below before you rely on this review.`
+              : "Safe Output is not available yet: the applicable output readiness rules below are not satisfied."
       : hasJobErrors
         ? "A factual error item below requires attention before you rely on this review."
         : pendingCount === 1
