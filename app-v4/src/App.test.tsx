@@ -314,6 +314,15 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
     );
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
+
+  it("states the one-input-per-job constraint on the surface before submission", () => {
+    render(<App />);
+    const helper = screen.getByText(/use one input per job: pasted text or files, not both\./i);
+    expect(helper).toBeInTheDocument();
+    // The helper is always-on guidance, never the typed input error alert.
+    expect(helper).not.toHaveAttribute("role", "alert");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
 
 describe("App review workspace (T07)", () => {

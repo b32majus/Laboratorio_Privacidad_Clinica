@@ -691,7 +691,7 @@ function InputStep(props: {
   return (
     <section aria-labelledby="input-step-heading">
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Input</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-dark">Input</p>
         <h2
           id="input-step-heading"
           className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
@@ -703,6 +703,10 @@ function InputStep(props: {
           from your input.
         </p>
       </header>
+
+      <p className="mt-4 max-w-3xl text-sm leading-relaxed text-neutral-600">
+        Use one input per job: pasted text or files, not both.
+      </p>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <section
