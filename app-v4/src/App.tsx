@@ -691,7 +691,7 @@ function InputStep(props: {
   return (
     <section aria-labelledby="input-step-heading">
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-dark">Input</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Input</p>
         <h2
           id="input-step-heading"
           className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
@@ -767,7 +767,7 @@ function InputStep(props: {
                     className="flex flex-wrap items-center justify-between gap-2 text-sm"
                   >
                     <span className="break-all font-medium text-neutral-800">{file.name}</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-dark">
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-neutral-700">
                       {selectedFileFamilyLabel(file.name)}
                     </span>
                   </li>
@@ -784,7 +784,7 @@ function InputStep(props: {
       >
         <h3
           id="job-type-inference-heading"
-          className="text-sm font-bold uppercase tracking-wide text-primary-dark"
+          className="text-sm font-bold uppercase tracking-wide text-neutral-800"
         >
           How the job type is chosen
         </h3>
