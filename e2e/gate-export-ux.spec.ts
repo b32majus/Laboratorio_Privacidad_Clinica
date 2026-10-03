@@ -22,7 +22,19 @@
 import { expect, test } from "./harness/fixtures";
 import { contrastOf, expectContrast, type ContrastResult } from "./harness/contrast";
 import { assertNoHorizontalOverflow } from "./harness/viewport";
+import {
+  completeReview,
+  createBatchJob,
+  gotoExportComplete,
+  gotoReviewWithDetections,
+} from "./harness/flows";
 import type { Locator, Page } from "@playwright/test";
+import path from "node:path";
+
+const BATCH_DOCS = [
+  path.resolve(__dirname, "fixtures/batch-doc-1.txt"),
+  path.resolve(__dirname, "fixtures/batch-doc-2.txt"),
+];
 
 const CONFIDENTIAL_WARNING_LINE = "CONFIDENTIAL — INTERNAL AUDIT ARTIFACT";
 
@@ -87,51 +99,6 @@ async function exportPairs(page: Page): Promise<MeasuredPair[]> {
       locator: page.getByRole("button", { name: "Download Confidential Audit (.txt)" }),
     },
   ];
-}
-
-const FIXTURE_TEXT =
-  "Informe de consulta externa. Documento del paciente: DNI 12345678A. " +
-  "Telefono de contacto 600-123-456. Correo paciente1@example.com. " +
-  "Historia numero NHC 00442315. Diagnostico: hipertension arterial controlada.";
-const DNI = "12345678A";
-const TELEFONO = "600-123-456";
-const EMAIL = "paciente1@example.com";
-const NHC = "NHC 00442315";
-
-async function gotoReviewWithDetections(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByLabel("Paste text").fill(FIXTURE_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
-  await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
-}
-
-async function completeReview(page: Page): Promise<void> {
-  const detections = page.getByRole("list", { name: "Detections" });
-  const select = async (label: RegExp) => {
-    await detections.getByRole("button", { name: label }).click();
-  };
-  await select(new RegExp(DNI));
-  await page.getByLabel("Replacement").fill("[DNI-REVISADO]");
-  await page.getByRole("button", { name: "Apply modification" }).click();
-  await select(new RegExp(EMAIL.replace(".", "\\.")));
-  await page.getByRole("button", { name: "Keep original" }).click();
-  await select(new RegExp(TELEFONO));
-  await page.getByRole("button", { name: "Accept detection" }).click();
-  await select(new RegExp(NHC));
-  await page.getByRole("button", { name: "Accept detection" }).click();
-  await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending: 0");
-}
-
-async function gotoExportComplete(page: Page): Promise<void> {
-  await gotoReviewWithDetections(page);
-  await completeReview(page);
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  const exportButton = page.getByRole("button", { name: "5. Export" });
-  await expect(exportButton).toBeEnabled();
-  await exportButton.click();
-  await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
 }
 
 for (const width of [375, 768, 1280]) {
@@ -292,4 +259,34 @@ test("the contrast helper is falsifiable: planted violation, large text, alpha c
   expect(alpha.ratio).toBeGreaterThan(5);
   expect(alpha.ratio).toBeLessThan(6);
   expect(alpha.pass).toBe(true);
+});
+
+test("a pending, failure-free batch Gate never asserts a factual error item", async ({ page }) => {
+  // UX-CLOSEOUT-01 outcome C (audit #62 F3): two items pending, zero failed.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await createBatchJob(page, BATCH_DOCS);
+  await page.getByRole("button", { name: "2. Configure" }).click();
+  await page.getByRole("button", { name: "3. Review" }).click();
+  // Wait for the batch review to install its sessions: the async start writes
+  // the job back to the Review step, so navigating to the Gate before it
+  // settles would be undone.
+  await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending:");
+  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+
+  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 0");
+
+  const checkpoint = page.getByRole("region", { name: "Decision checkpoint" });
+  await expect(checkpoint).toContainText("Action required");
+  await expect(checkpoint).not.toContainText(/factual error item/i);
+  // The single body paragraph reports the real cause, never an error.
+  await expect(checkpoint.locator("p").first()).not.toContainText(/error/i);
+  await expect(checkpoint.locator("p").first()).toContainText(
+    /mandatory review decisions are still pending/i
+  );
+
+  // The separate pending-review alert stays factual and is still shown.
+  await expect(page.getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("alert")).toContainText(
+    "Safe export is blocked while 2 mandatory review decisions are pending."
+  );
 });
