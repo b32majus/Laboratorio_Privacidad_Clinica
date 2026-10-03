@@ -1,8 +1,8 @@
 # Agent instructions — Laboratorio de Privacidad Clínica
 
-Status: **CURRENT — Atenea C-083 local policy**
+Status: **CURRENT — Atenea C-084 local policy**
 
-This repository is the V4 brownfield privacy application. Product/domain authority is local to this repo; execution uses Atenea C-083 through project-local OpenCode agents and upstream Matt Pocock skills.
+This repository is the V4 brownfield privacy application. Product/domain authority is local to this repo; execution uses Atenea C-084 through project-local native OpenCode V2 agents and upstream Matt Pocock skills.
 
 ## Read first
 
@@ -15,23 +15,32 @@ For engineering work, read only what the task needs, in this order:
 5. `docs/ATENEA_EXECUTION_ROUTING_V0.md` when executing through Atenea;
 6. relevant code/tests/oracles and deployment/governance docs.
 
-`docs/execution/`, `odd/tasks/`, historical handoffs and Gentle/Pi/RDD/4R/lineage/burn material are provenance unless a current ticket cites them as evidence. They are not current execution instructions.
+`docs/execution/`, `odd/tasks/`, historical handoffs and Gentle/Pi/RDD/4R/lineage/burn material are provenance unless a current ticket cites them as evidence. C-077–C-083 runtime instructions, OpenCode V1 and `--pure` are historical, not current execution instructions.
 
 ## Repository / Git authority
 
 - Canonical V4 integration and Render deployment branch: `3.0-main`.
-- Do **not** infer the V4 base from GitHub's repository default branch; as of the C-083 reconciliation the remote default is still `main`.
+- Do **not** infer the V4 base from GitHub's repository default branch; as of the C-084 reconciliation the remote default is still `main`.
 - Start implementation from a clean branch/worktree rooted at the exact accepted V4 base.
 - Do not force-push, rewrite history, auto-merge, delete remote branches, or mutate repository settings without explicit human authority.
 - A PR/review approval never grants merge or deploy authority.
 
-## C-083 execution boundary
+## C-084 execution boundary
 
-Launch OpenCode with `--pure` so historical global Gentle/OpenCode V1 plugins cannot re-enter execution.
+Herdr is user-owned persistent operator infrastructure and is already running. Do not launch, restart, replace or stop Herdr per ticket/train.
 
-- default: `opencode --pure --agent atenea-volume`;
-- risk-triggered: `opencode --pure --agent atenea-complex`;
-- Herdr may keep/observe the process; it is not correctness or product authority;
+Normal visible execution from the existing Herdr project/worktree pane is:
+
+```text
+cd <project-or-worktree>
+opencode .
+```
+
+- `opencode.json` sets `default_agent = atenea-volume`, so a fresh normal session starts in the volume coordinator;
+- for accepted `complex` work, select `atenea-complex` in the visible TUI **before** submitting the execution prompt/handoff;
+- do not manually change the model to bypass Atenea routing;
+- `--pure`, V1 `permission`/`bash`/`task` configuration and OpenCode V1 are historical provenance;
+- `opencode run` is reserved for explicit bounded automation/smokes, not the ordinary visible train path;
 - Matt skills own implementation/TDD/task-graph/worktree/review methodology;
 - this repo supplies product authority, coding standards, deterministic evidence and publication boundaries;
 - one autonomous correction pass maximum; remaining/new material blocker => HUMAN STOP;
