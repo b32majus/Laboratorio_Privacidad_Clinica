@@ -16,42 +16,16 @@
  *
  * The auto no-network fixture from ./harness/fixtures applies to every test.
  */
-import type { Page } from "@playwright/test";
 import path from "node:path";
 
 import { expect, test } from "./harness/fixtures";
 import { expectContrast, type ContrastResult } from "./harness/contrast";
 import { assertNoHorizontalOverflow } from "./harness/viewport";
+import { createStructuredJob, createTextJob, guidanceItem } from "./harness/flows";
 
 const STRUCTURED_CSV = path.resolve(__dirname, "fixtures/policy-structured.csv");
 
-const TEXT_FIXTURE = "Informe de consulta externa. Diagnostico: hipertension arterial controlada.";
-
 const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
-
-async function createTextJob(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByLabel("Paste text").fill(TEXT_FIXTURE);
-  await page.getByRole("button", { name: "Create job" }).click();
-  await expect(page.getByRole("banner")).toContainText("Text job");
-}
-
-async function createStructuredJob(page: Page): Promise<void> {
-  await page.goto("/");
-  await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles(STRUCTURED_CSV);
-  await page.getByRole("button", { name: "Create job" }).click();
-  await expect(page.getByRole("banner")).toContainText("Structured job");
-}
-
-/** One rendered guidance card, located from the visible contract only. */
-function guidanceItem(page: Page, name: string) {
-  return page
-    .getByRole("list", { name: "Privacy Policy guidance" })
-    .getByRole("listitem")
-    .filter({ has: page.getByText(name, { exact: true }) });
-}
 
 test("text job: unavailable policies are disabled and shown unavailable, Standard / Strict available", async ({
   page,
@@ -77,7 +51,7 @@ test("text job: unavailable policies are disabled and shown unavailable, Standar
 });
 
 test("structured job: all four policies are selectable and shown available", async ({ page }) => {
-  await createStructuredJob(page);
+  await createStructuredJob(page, STRUCTURED_CSV);
 
   const select = page.getByLabel("Privacy Policy:");
   for (const name of POLICY_NAMES) {
@@ -141,7 +115,7 @@ for (const width of [375, 768, 1280]) {
     await assertNoHorizontalOverflow(page, `text-job policy workspace @${width}px`);
 
     // Structured job (all four available, patient-ID requirement line).
-    await createStructuredJob(page);
+    await createStructuredJob(page, STRUCTURED_CSV);
     await assertNoHorizontalOverflow(page, `structured-job policy workspace @${width}px`);
   });
 }
