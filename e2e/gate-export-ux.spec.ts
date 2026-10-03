@@ -92,7 +92,8 @@ function measureContrast(element: HTMLElement): ContrastResult {
 
   const fontSize = Number.parseFloat(style.fontSize);
   const fontWeight = Number.parseInt(style.fontWeight, 10) || 400;
-  const largeText = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
+  // WCAG large text: >= 18pt (24px), or >= 14pt (18.6667px) and bold.
+  const largeText = fontSize >= 24 || (fontSize >= 18.6667 && fontWeight >= 700);
   const threshold = largeText ? 3 : 4.5;
 
   return {
@@ -156,6 +157,14 @@ async function gatePairs(page: Page): Promise<MeasuredPair[]> {
     {
       label: "Output availability heading",
       locator: page.getByRole("heading", { name: "Output availability" }),
+    },
+    {
+      label: "Attention facts heading",
+      locator: page.getByRole("heading", { name: "Attention facts" }),
+    },
+    {
+      label: "Attention facts body",
+      locator: page.getByRole("region", { name: "Attention facts" }).locator("p").first(),
     },
     {
       label: "Kept-original warning item",
@@ -348,14 +357,22 @@ test("changed normal-text pairs meet WCAG AA against the rendered composited bac
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
 
-  // Completed Gate: checkpoint + availability + a kept-original attention fact.
+  const measured = [] as ContrastResult[];
+
+  // Pending Gate first: the action-required checkpoint and the blocked-reason
+  // alert share the exact styling used by the Export blocked reasons.
   await gotoReviewWithDetections(page);
+  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
+  await expect(page.getByRole("alert")).toBeVisible();
+  measured.push(await expectContrast(page.getByRole("alert"), "Gate pending blocked reason"));
+
+  // Completed Gate: checkpoint + availability + a kept-original attention fact.
+  await page.getByRole("button", { name: "3. Review" }).click();
   await completeReview(page);
   await page.getByRole("button", { name: "4. Privacy Gate" }).click();
   await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
   await expect(page.getByRole("list", { name: "Kept-original warnings" })).toBeVisible();
-
-  const measured = [] as ContrastResult[];
   for (const pair of await gatePairs(page)) {
     measured.push(await expectContrast(pair.locator, `Gate ${pair.label}`));
   }
@@ -368,7 +385,7 @@ test("changed normal-text pairs meet WCAG AA against the rendered composited bac
   }
 
   // The oracle is not vacuous: every changed pair was actually measured.
-  expect(measured.length).toBeGreaterThanOrEqual(12);
+  expect(measured.length).toBeGreaterThanOrEqual(14);
 });
 
 test("the contrast helper is falsifiable: planted violation, large text, alpha compositing", async ({

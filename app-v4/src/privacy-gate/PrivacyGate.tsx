@@ -93,8 +93,13 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   // Presentation-only derivation of the checkpoint state from the SAME facts
   // the model already supplies: no new authority, no reinterpretation.
   const batchFailed = view.batch !== null && view.batch.failedCount > 0;
-  const actionRequired = view.pendingCount > 0 || batchFailed;
   const safeOutputReady = view.safeOutputReady;
+  // The applicable output is blocked by the current authority. For a batch the
+  // accepted spec defines no Safe Output, so the no-format limitation itself is
+  // an availability fact, never an action the operator can take at this step.
+  const outputBlocked = view.batch === null ? !safeOutputReady : batchFailed;
+  const actionRequired =
+    view.pendingCount > 0 || batchFailed || view.errors.length > 0 || outputBlocked;
   const hasAttentionFacts = view.errors.length > 0 || view.warnings.length > 0;
 
   return (
@@ -115,7 +120,11 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         </p>
       </header>
 
-      <GateCheckpoint actionRequired={actionRequired} safeOutputReady={safeOutputReady} />
+      <GateCheckpoint
+        actionRequired={actionRequired}
+        outputBlocked={outputBlocked}
+        safeOutputReady={safeOutputReady}
+      />
 
       {view.pendingCount > 0 && (
         <p
@@ -169,16 +178,18 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
 }
 
 /**
- * Compact decision checkpoint (UX-PILOT-02). Two textual states driven ONLY by
- * the existing facts: "Action required" while output is blocked by pending
- * decisions / failed batch items, and "Review complete" when it is not. The
- * detailed readiness remains in the Output availability facts below.
+ * Compact decision checkpoint (UX-PILOT-02). States driven ONLY by the existing
+ * facts: "Action required" while the applicable output is blocked by pending
+ * decisions / failed batch items / errors, and "Review complete" when it is
+ * not. The detailed readiness remains in the Output availability facts below.
  */
 function GateCheckpoint({
   actionRequired,
+  outputBlocked,
   safeOutputReady,
 }: {
   actionRequired: boolean;
+  outputBlocked: boolean;
   safeOutputReady: boolean;
 }): ReactElement {
   return (
@@ -205,7 +216,9 @@ function GateCheckpoint({
       </div>
       <p className="mt-2 text-sm leading-relaxed text-neutral-800">
         {actionRequired
-          ? "Safe Output is not available yet: the factual items below still require attention."
+          ? outputBlocked
+            ? "Safe Output is not available yet: the factual items below still require attention."
+            : "A factual error item below requires attention before you rely on this review."
           : safeOutputReady
             ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
             : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available."}
