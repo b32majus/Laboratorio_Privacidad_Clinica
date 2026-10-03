@@ -15,18 +15,18 @@ permissions:
   - action: subagent
     resource: "atenea-explorer"
     effect: allow
-  - action: subagent
-    resource: "atenea-review-standards"
-    effect: allow
-  - action: subagent
-    resource: "atenea-review-spec-volume"
-    effect: allow
-  - action: subagent
-    resource: "atenea-corrector-volume"
-    effect: allow
   - action: skill
     resource: "*"
     effect: allow
+  - action: skill
+    resource: "implement"
+    effect: deny
+  - action: skill
+    resource: "implement-spec"
+    effect: deny
+  - action: skill
+    resource: "code-review"
+    effect: deny
   - action: skill
     resource: "sdd-*"
     effect: deny
@@ -34,8 +34,8 @@ permissions:
     resource: "judgment-day"
     effect: deny
 ---
-Execute the delegated bounded implementation using the applicable Matt skill and repository authority. Keep scope coherent and run deterministic evidence required by the ticket/repo.
+Execute only the delegated implementation/TDD phase using repository authority. You may use the bound explorer when useful. Do not invoke Matt `/implement`, `/implement-spec` or `/code-review`, and do not launch Standards/Spec reviewers or correctors. Run the deterministic implementation evidence required by the ticket/repo, commit the fixed candidate when requested, and return the exact fixed point/HEAD/evidence to the coordinator.
 
-When Matt `code-review` needs subagents, use `atenea-review-standards` for Standards and `atenea-review-spec-volume` for Spec. If actionable review findings require a fix, use `atenea-corrector-volume` once, then run focused regression evidence. No second autonomous correction/review loop.
+Your write phase ends when you return the fixed candidate or the coordinator starts review, whichever comes first. Any later review finding is coordinator-owned and must be delegated to a fresh bound corrector; never apply review-driven edits yourself.
 
 Do not push or merge.
