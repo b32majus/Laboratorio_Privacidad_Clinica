@@ -1,20 +1,12 @@
 # V4 Unattended execution train
 
-Status: **CURRENT ROADMAP / EXECUTION-READY WORK ORDERS**
+Status: **COMPLETED HISTORICAL ROADMAP — T01–T25 integrated**
 
 ## 1. Execution model
 
-This roadmap is executed through the **current Atenea native Pi/Gentle protocol**. Historical GP2.7/GP3.x recipes do not override current Atenea `docs/START_HERE.md`.
+This file records the completed V4 migration roadmap and its historical execution evidence. It is **not** a current execution runbook. T01–T25 are integrated; new work must come from current accepted GitHub issue/spec authority.
 
-- clean isolated worktree + fresh Pi session for a new train;
-- GitHub Work Orders/specs own scope and acceptance;
-- native Gentle owns ODD/decomposition/workers/verification/RDD/review/corrections/burn;
-- external ticket/frontier concurrency remains `1`;
-- coherent work-unit composition follows current Atenea policy;
-- deterministic composed-state closeout is required before publishing a material multi-ticket train;
-- publication requires explicit human authority; final merge remains human-owned.
-
-Project-specific quality authority: `docs/execution/QUALITY_EXECUTION_PROTOCOL_V1.md`.
+Current execution uses Atenea C-083 (`opencode --pure` + project-local agents + upstream Matt skills) under `AGENTS.md`, `CODING_STANDARDS.md` and `docs/ATENEA_EXECUTION_ROUTING_V0.md`. All Gentle/Pi/RDD/4R/review-lineage/burn instructions below are provenance only.
 
 ## 2. Frontier rule
 

@@ -4,12 +4,10 @@ Status: **CURRENT**
 
 ## 1. Canonical branch
 
-- The canonical integration branch is **`3.0-main`** (the repository default).
-- This train's work branch is `work/overnight-t22-t25-20260930`, based on
-  `3.0-main@758acf6546b6c579e1882c743477a04d1cb96f90` (T21 #25, PR #45).
-- Renaming the branch or changing the GitHub default branch is a REMOTE,
-  human-owned action (see §4) — the branch NAME is historical, not a version
-  claim: the product generation is V4 (see `README.md`, §Version).
+- The canonical V4 integration and Render deployment branch is **`3.0-main`**.
+- Current accepted V4 checkpoint at the C-083 reconciliation: `3.0-main@0a7faa40da61d4bae80efe81ca0043d3627be669` (PR #50).
+- GitHub's repository **default branch is still `main`** as of 2026-10-03. Do not infer the V4 execution base from the GitHub default; `main` is not the canonical V4 integration/deploy authority.
+- Changing the GitHub default branch, renaming branches or deleting remote branches is a REMOTE, human-owned action (see §4). The `3.0-main` name is historical; the product generation is V4.
 
 ## 2. Version alignment (GOV-003)
 
@@ -28,9 +26,7 @@ history, clearly separated from the current v4.0 section.
 Enforced in-repo (`.github/workflows/ci.yml`) and locally via `npm test`:
 
 1. `check:links` — no broken local HTML references;
-2. `check:storage` — no sessionStorage/localStorage in production sources
-   (its planted-violation self-test script exists but is deliberately NOT
-   wired into CI/npm test yet — tracked as CI-003/A4, preserved open);
+2. `check:storage` + `check:storage:selftest` — no sessionStorage/localStorage in production sources, with planted-violation falsation wired into CI;
 3. `check:external` (+ self-test) — zero unexpected external runtime
    resources on the clinical origin;
 4. `check:vendor` — vendored lib/fonts byte integrity (sha256 manifest);
@@ -46,7 +42,7 @@ Enforced in-repo (`.github/workflows/ci.yml`) and locally via `npm test`:
     determinism and coverage gate (T22);
 11. `check:headers:selftest` + `check:preview:selftest` — deployment
     header/config oracle self-tests (T24);
-12. `test:v4` — 850 vitest unit/integration tests;
+12. `test:v4` — V4 vitest unit/integration suite (do not pin a stale test-count claim here);
 13. `test:e2e` — Playwright critical contracts against the production
     build; `test:e2e:preview` — the same under the deployed headers;
 14. `typecheck:v4`, `lint:v4`, `format:check:v4`;
@@ -59,7 +55,7 @@ execution does not hold; they are recorded as the publication/governance
 handoff and remain open until the human performs or authorizes them:
 
 - enable branch protection on `3.0-main` with the required checks above;
-- confirm/enforce the default branch;
+- decide whether/when to change the GitHub default branch from `main` to the canonical V4 branch;
 - any ruleset/reviewer-settings mutation.
 
 No remote mutation was performed during the train (no branch deletion, no
