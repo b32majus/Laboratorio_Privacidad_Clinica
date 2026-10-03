@@ -130,9 +130,11 @@ Dedicated IP/VPS remains future resilience fallback.
 ## D-016 — Execution model
 
 **Decision**
-Work is packaged as accepted specs + GitHub Issues/Work Orders and executed through current Atenea C-083: OpenCode V2 `--pure`, project-local role/model bindings and upstream Matt skills for implementation/task-graph/code-review methodology.
+Work is packaged as accepted specs + GitHub Issues/Work Orders and executed through current Atenea C-084: native OpenCode V2, project-local role/model bindings and upstream Matt skills for implementation/task-graph/code-review methodology.
 
-Deterministic repo evidence remains first-line assurance. Herdr may host persistent sessions but is not correctness authority. Human merge/publication boundary remains mandatory.
+The ordinary train is visible: Herdr is the already-running user-owned persistent surface, the operator enters the project/worktree pane and starts the OpenCode V2 TUI with `opencode .`. `atenea-volume` is the project default; accepted complex work selects `atenea-complex` in the TUI before the prompt. `--pure` and OpenCode V1 execution paths are historical provenance only.
+
+Deterministic repo evidence remains first-line assurance. Herdr is not correctness authority. Human merge/publication boundary remains mandatory.
 
 ## D-017 — Authority separation
 
