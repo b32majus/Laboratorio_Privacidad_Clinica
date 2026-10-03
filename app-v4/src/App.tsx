@@ -659,7 +659,7 @@ function PolicyGuidance({ job }: { job: Job | null }) {
       <div className="mx-auto max-w-5xl px-4 py-4">
         <h2
           id="privacy-policy-guidance-heading"
-          className="font-display text-lg font-bold text-primary-dark"
+          className="font-display text-lg font-bold text-neutral-800"
         >
           Privacy Policy
         </h2>

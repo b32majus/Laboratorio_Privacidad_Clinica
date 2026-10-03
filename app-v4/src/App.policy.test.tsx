@@ -55,6 +55,16 @@ describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
       within(guidanceRegion()).queryByText("Not available for this job type yet")
     ).not.toBeInTheDocument();
   });
+
+  it("shows factual no-job copy with no invented positioning and a job-type qualifier", () => {
+    render(<App />);
+    const region = guidanceRegion();
+    // No unsubstantiated qualitative characterization (the old "Balanced").
+    expect(region.textContent ?? "").not.toMatch(/\bbalanced\b/i);
+    for (const item of guidanceItems()) {
+      expect(item).toHaveTextContent(/job type/i);
+    }
+  });
 });
 
 describe("Policy guidance on text/document/batch jobs (POLICY-01 #56)", () => {
@@ -181,6 +191,14 @@ describe("Policy guidance accessibility (POLICY-01 #56)", () => {
     // Availability is conveyed as text, never by color alone.
     expect(guidance).toHaveTextContent("Available");
     expect(guidance).toHaveTextContent("Not available for this job type yet");
+  });
+});
+
+describe("Policy guidance responsive layout (POLICY-01 #56)", () => {
+  it("renders the guidance list with the responsive grid tokens (stacked on narrow screens)", () => {
+    render(<App />);
+    const list = screen.getByRole("list", { name: "Privacy Policy guidance" });
+    expect(list).toHaveClass("sm:grid-cols-2");
   });
 });
 

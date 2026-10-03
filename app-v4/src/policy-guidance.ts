@@ -114,10 +114,14 @@ export type PolicyGuidanceEntry = {
 };
 
 const GENERIC_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
-  standard: "Balanced default profile for routine preparation of clinical content.",
-  "external-ai": "Per-patient date shifting and age bands instead of month-level dates.",
-  "longitudinal-research": "Per-patient date shifting that preserves each patient's timeline.",
-  strict: "Accepted legacy strict processing profile.",
+  standard:
+    "Accepted standard processing profile. The transformations it applies and its availability depend on the job type.",
+  "external-ai":
+    "Accepted External AI policy. The transformations it applies and its availability depend on the job type; text, document and document-batch processing has no accepted operator mapping yet.",
+  "longitudinal-research":
+    "Accepted Longitudinal Research policy. The transformations it applies and its availability depend on the job type; text, document and document-batch processing has no accepted operator mapping yet.",
+  strict:
+    "Accepted legacy strict processing profile. The transformations it applies and its availability depend on the job type.",
 };
 
 const DOCUMENT_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {

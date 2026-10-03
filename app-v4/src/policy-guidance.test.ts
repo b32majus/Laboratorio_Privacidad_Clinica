@@ -85,3 +85,28 @@ describe("policy guidance availability derivation", () => {
     }
   });
 });
+
+describe("policy guidance no-job copy (POLICY-01 #56)", () => {
+  it("stays factual: no invented positioning and no job-kind-specific behavior as universal", () => {
+    for (const policyId of POLICY_IDS) {
+      const guidance = entryFor(null, policyId).guidance;
+      expect(guidance.length).toBeGreaterThan(0);
+      // No unsubstantiated qualitative positioning (e.g. the old "Balanced").
+      expect(guidance).not.toMatch(/\bbalanced\b/i);
+      // Before a job exists the job kind is unknown, so the structured-only
+      // per-patient shift / age-band / month-level behavior must NOT be
+      // presented as this policy's behavior everywhere.
+      expect(guidance).not.toMatch(/per-patient|age[- ]band|month[- ]level/i);
+      // Every entry must be honest that behavior/availability depend on the
+      // (still unknown) job type.
+      expect(guidance).toMatch(/job type/i);
+    }
+  });
+
+  it("states the accepted text/document gap for External AI and Longitudinal Research", () => {
+    const textGap =
+      /text, document and document-batch processing has no accepted operator mapping yet/i;
+    expect(entryFor(null, "external-ai").guidance).toMatch(textGap);
+    expect(entryFor(null, "longitudinal-research").guidance).toMatch(textGap);
+  });
+});
