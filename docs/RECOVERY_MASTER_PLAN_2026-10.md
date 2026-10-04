@@ -105,6 +105,10 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 
 **STOP:** resolving class→action mapping requires a privacy/product choice not supported by the frozen audits/specs.
 
+**Status — REC-03 LOCAL CANDIDATE (2026-10-04, C-084 Go; unmerged on branch `work/rec-03-structured-semantics-recovery-20261004`).** WU-A (deterministic in-Job Study-ID mapping with Safe `ID_ESTUDIO` + Confidential correspondence), WU-B (D-021 Class→Action authority with deterministic `QID_###` pseudonymization and bounded Configure action control), WU-C (structured `process-as-text` through the productive REC-02 text engine with shared `ProcessingContext`, per-cell ReviewSessions and policy/config invalidation) and WU-D (composed Study-ID + action authority + free-text review + T19 date semantics through `Configure → Review → Privacy Gate → Export`, with composed red→green oracles and the focused composed E2E) are implemented on this branch. This paragraph is a local-candidate record only: it does not declare REC-03 complete or merged, and it does not declare overall recovery complete. Publication/merge remains human-owned; Cora's integrated audit is pending.
+
+**Qualification-return evidence (Go, recorded 2026-10-04):** cost policy `go`, risk class `complex`, implementer role `atenea-implementer-go` bound to `opencode-go/muse-spark-1.3-contributor` (no fallback, no model switch); implementation/oracle commit `a13c21282632966d07baa8d995576ada9f7274de` (docs closeout is the HEAD commit of this branch); focused V4 suite `30 files / 385 tests`; full `test:v4` `67 files / 1105 tests` (+1 file / +11 tests vs WU-C baseline 66/1094), full `npm test` exit `0`, `check:privacy-eval` 28/28, typecheck/lint/format/build green, Playwright `11/11 (e2e/structured.spec.ts 1/1, e2e/structured-composed.spec.ts 2/2, e2e/policy-guidance.spec.ts 8/8)`. No claim of Go quality equivalence to Standard Volume is made. Committed evidence is synthetic only; LOCAL_ONLY (no push/PR/merge/deploy/issue mutation).
+
 ---
 
 ### REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01
