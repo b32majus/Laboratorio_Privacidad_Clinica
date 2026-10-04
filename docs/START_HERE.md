@@ -48,7 +48,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 1. `REC-01 — SPANISH-ENGINE-ASSURANCE-01` — **COMPLETED**, merged by PR #66 at `3.0-main@2e641aa54797e97d8019aa0821518b17a078fc42`
 2. `REC-02 — TEXT-POLICY-COMPLETION-01` — **COMPLETED**, merged by PR #68 at `3.0-main@4984040722f55062778b97e7351d2b8b43fe7ce7`
 3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **COMPLETED**, merged by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`
-4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **NEXT**
+4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **LOCAL CANDIDATE** (branch `work/rec-04-structured-io-output-parity-20261004`, unmerged; awaiting Cora integrated audit + human publication)
 5. `REC-05 — SINGLE-OUTPUT-PARITY-01`
 6. `REC-06 — BATCH-WORKFLOW-PARITY-01`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01`

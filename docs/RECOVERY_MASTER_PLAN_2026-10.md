@@ -131,6 +131,8 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - Confidential XLSX is unmistakably separate, contains the authorized mapping only, and cannot download without the additional deliberate confirmation;
 - round-trip/export fixtures are synthetic and adversarial.
 
+**Status — REC-04 LOCAL CANDIDATE (branch `work/rec-04-structured-io-output-parity-20261004`, unmerged; awaiting Cora integrated audit + human publication).** WU-A restored the bounded workbook header-row authority with the typed `header-row-required` explicit-selection path; WU-B added the job-scoped Study-ID prefix plus optional row-order `Visita_Num`, typed Safe scalars and the factual summary; WU-C added browser-local Safe/Confidential XLSX serializers and the structured Confidential deliberate-confirmation interaction; WU-D proved the composed hospital-workbook journey (header detection → Configure options → existing Review/Gate → CSV/XLSX Export) with focused Vitest and Playwright oracles and no new workflow step/route/class/mode. This covers only the REC-04-owned recovery gaps (`H-21`, `H-25`, `H-26`, `H-27`, `H-28`, `H-29` and the structured slice of `H-42`); the global `H-42` blocker stays open for REC-05/REC-07. This status claims no merge, PR, completion or publication.
+
 ---
 
 ### REC-05 — SINGLE-OUTPUT-PARITY-01
