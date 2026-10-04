@@ -190,8 +190,8 @@ function StructuredExport({
         </div>
         <div className="p-4">
           <p className={zoneBody}>
-            The reviewed structured table with date/age and codified columns transformed, identifier
-            columns removed and the selected patient-ID column replaced with a Study ID
+            The reviewed structured table with date/age and pseudonymized columns transformed,
+            identifier columns removed and the selected patient-ID column replaced with a Study ID
             (ID_ESTUDIO). It contains no original↔transformed mapping and no original identifier or
             sensitive values.
           </p>
