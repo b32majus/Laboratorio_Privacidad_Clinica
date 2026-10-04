@@ -33,6 +33,21 @@ The evaluator prints a deterministic JSON report (no timestamps, session ids or
 random values) plus a one-line summary. Exit code `0` = gate pass; `1` = gate
 fail **or** invalid corpus/config (fail-closed, D-009).
 
+### Coverage contract (REC-01 WU-A)
+
+`coverage.json` declares, per top-level type, the meaningful slices that must
+have machine-visible support plus a minimum distinct-case floor, and the
+language/style slices the corpus as a whole must exhibit. `evaluateV4GroundTruth`
+reports per-type/per-slice support (derived F1 included) and fails closed
+(`report.pass === false`) when a declared unit has zero support or a type
+collapses below the floor; unknown slices/styles and malformed manifests raise
+the typed `V4GroundTruthError`. Coverage is not a precision/recall threshold and
+does not modify `config.json`.
+
+The committed corpus does not declare slices yet, so the coverage dimension is
+intentionally red at this fixed point. REC-01 WU-B expands the corpus against
+this contract and flips the interim assertion to `failures: [] / pass: true`.
+
 Options: `--corpus-dir=<dir>` (default `scripts/privacy-eval/corpus`),
 `--config=<file>` (default `scripts/privacy-eval/config.json`),
 `--report=<file>` (also write the JSON report to a file).
