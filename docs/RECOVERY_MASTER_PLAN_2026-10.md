@@ -13,7 +13,7 @@ Recovery does **not** mean reverting to v3. The V4 platform is retained: ReviewS
 
 Recovery means restoring or deliberately replacing the product capabilities and product contract that were lost when “parity” was reduced to workflow existence. No legacy behavior is copied back when the audit identified it as unsafe. The useful capability is recovered on top of the V4 safety/domain model.
 
-A Work Order may not claim parity merely because a workflow or component exists. Its acceptance must cover the exact capability, language/output format and user action it owns.
+A Work Order may not claim parity merely because a workflow or component exists. Its acceptance must cover the exact capability, language/output format and user action it owns. The matrix is a traceability index, not self-proving completeness: REC-12 must first reconcile the frozen source audits + v3 product heritage against the matrix and require every material source obligation to have a row or an explicit `DELIBERATELY_SUPERSEDED` decision.
 
 ## 2. What is explicitly NOT part of baseline recovery
 
@@ -88,7 +88,7 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - separate original patient ID ↔ Study ID correspondence into Confidential Audit;
 - reconcile structured class→action semantics against the frozen UX/spec: Identifier, Quasi-Identifier, Sensitive, Insensitive, Unknown/Review Required;
 - define/implement productive handling for non-date quasi-identifiers rather than `generalize` becoming an unsupported dead end;
-- route configured free-text columns through the same text privacy engine/review semantics as specified;
+- route configured free-text columns through the same text privacy engine/review semantics as specified; this work unit depends on REC-02 final text-policy mappings and must not invent its own policy semantics;
 - keep UNKNOWN fail-closed;
 - do not introduce HMAC/global cross-study identity semantics.
 
@@ -96,7 +96,7 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - a multi-row patient dataset exports a stable non-identifying Study ID that preserves linkage;
 - the original patient identifier appears only in the Confidential artifact;
 - no required structured class produces an accidental unsupported path without an explicit review/product decision;
-- free-text columns can actually be processed by the text engine when configured as such;
+- after REC-02 mappings are authoritative, free-text columns can actually be processed by that same policy-aware text engine when configured as such;
 - longitudinal date/age behavior still passes T19 semantics.
 
 **STOP:** resolving class→action mapping requires a privacy/product choice not supported by the frozen audits/specs.
@@ -108,10 +108,10 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 **Goal:** recover the useful structured ingestion/export ergonomics that were lost while keeping V4 semantics.
 
 **Owns**
-- recover hospital-export header-row detection / explicit user selection when explanatory rows precede headers;
+- recover the v3 Excel/workbook hospital-export header-row detection (or explicit user selection) when explanatory rows precede headers; do not claim this as lost CSV heritage because v3 CSV already used the first row;
 - keep explicit multi-sheet selection;
 - Safe XLSX export from the V4 transformed dataset;
-- separate Confidential XLSX correspondence export;
+- separate Confidential XLSX correspondence export with an additional deliberate-download confirmation because it is identifiable;
 - preserve CSV as an additional Safe format;
 - product decision and recovery for configurable Study-ID prefix and optional sequential `Visita_Num`;
 - useful factual structured summary such as unique patients / visit counts where derivable without privacy claims.
@@ -120,7 +120,7 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - workbook with explanatory metadata rows reaches correct headers without silently treating metadata as schema;
 - CSV/XLS/XLSX safe output preserves rows, blanks and typed values where practical;
 - Safe XLSX contains no original confidential correspondence;
-- Confidential XLSX is unmistakably separate and contains the authorized mapping only;
+- Confidential XLSX is unmistakably separate, contains the authorized mapping only, and cannot download without the additional deliberate confirmation;
 - round-trip/export fixtures are synthetic and adversarial.
 
 ---
@@ -134,13 +134,14 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - retain Safe TXT;
 - Safe DOCX if retained from the accepted target capability;
 - Safe generated PDF report/export;
-- separate Confidential Audit download/report; originals/mappings must never appear in Safe formats merely because the old jsPDF report did;
+- separate Confidential Audit download/report with an additional deliberate-download confirmation; originals/mappings must never appear in Safe formats merely because the old jsPDF report did;
 - Spanish file names/copy and content-zone distinction.
 
 **Acceptance**
 - copy/TXT/DOCX/PDF all derive byte-semantically from canonical final reviewed state;
 - pending review blocks every Safe format;
 - planted original↔replacement mapping/reviewer notes cannot cross into Safe files;
+- Confidential Audit requires a distinct deliberate confirmation immediately before download;
 - a deliberately kept original behaves exactly as ReviewSession says and remains warned at Gate;
 - PDF recovery does not claim layout-preserving redaction of source PDFs.
 
@@ -175,13 +176,15 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - consolidated safe PDF where useful;
 - individual safe outputs packaged as ZIP;
 - batch summary CSV (or a deliberately accepted safer equivalent);
-- separate batch Confidential Audit/correspondence artifact;
+- separate batch Confidential Audit/correspondence artifact with the same deliberate-download confirmation contract as other Confidential outputs;
+- compose the safe single-document output primitives established by REC-05 instead of creating a second PDF/document serialization authority;
 - deterministic naming/indexing and explicit handling of removed/failed items.
 
 **Acceptance**
 - no batch-wide artifact is fabricated while any mandatory review/failure blocker remains;
 - individual/consolidated Safe outputs contain only canonical reviewed safe content;
 - Confidential mapping never leaks into individual/consolidated Safe PDF/ZIP/summary;
+- Confidential batch artifacts require a distinct deliberate confirmation;
 - output manifest accounts for every original batch item.
 
 ---
@@ -195,12 +198,14 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - explicit `Pegar` clipboard convenience with graceful fallback to Ctrl+V;
 - clearer drag/drop/select-file affordance and format explanation;
 - preserve automatic Job inference and fail-closed format handling;
+- close the frozen UX requirement that inference “allow override when necessary”: either define a bounded legitimate override without weakening fail-closed format authority, or record an explicit `DELIBERATELY_SUPERSEDED` decision explaining why deterministic/fail-closed routing replaces it;
 - never reintroduce false `.doc` support.
 
 **Acceptance**
 - one action loads each synthetic example without PHI;
 - Paste never sends content anywhere and handles denied clipboard permission cleanly;
-- example/paste/file pathways converge on the same Job creation authority.
+- example/paste/file pathways converge on the same Job creation authority;
+- pipeline override is not allowed to disappear silently: the accepted outcome is either tested bounded override or explicit `DELIBERATELY_SUPERSEDED` evidence.
 
 ---
 
@@ -212,13 +217,15 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - minimal app IA: New Job / Workspace / Policies / Help, or a documented equivalent that preserves those functions;
 - dedicated Policies/Help content without duplicating policy-engine authority;
 - review shortcuts: Accept, Modify, Keep original, manual mark, next/previous pending (candidate vocabulary from frozen audit: A/M/K/F + J/K or arrows, subject to collision-safe implementation);
+- `Keep original` safety affordance from frozen UX-10: when the entity is a direct identifier, require contextual confirmation and explain before the decision that the original will remain in Safe Output;
 - shortcut discovery/help and disablement while typing/editing;
 - no PHI-bearing job history.
 
 **Acceptance**
 - every IA destination has a distinct useful purpose;
 - shortcuts mutate only ReviewSession and are impossible while focus is in an editable field where they would conflict;
-- keyboard workflow can move through pending review without hidden state changes.
+- keyboard workflow can move through pending review without hidden state changes;
+- a direct identifier cannot be kept original through the ordinary Review UI without the contextual confirmation/explanation; REC-12 has an explicit E2E for this path.
 
 ---
 
@@ -267,9 +274,10 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 **Goal:** prove that recovery is complete against the original product + frozen audit, then repair governance/documentation so the same drift cannot recur.
 
 **Owns**
-- rerun the full 88-row matrix against the final candidate;
-- rerun the 40-row heritage/target matrix;
-- feature-by-feature E2E parity for language, actions, formats, structured linkage and batch outputs;
+- run a **source-to-matrix completeness oracle first**: re-read both frozen September audits plus material v3 product heritage and prove every material source obligation is represented by a traceability row or explicit `DELIBERATELY_SUPERSEDED` decision;
+- rerun the full 88-row frozen debt/audit matrix against the final candidate;
+- rerun the 42-row heritage/target matrix (or the then-current explicitly reconciled count; fixed row count alone is never proof of completeness);
+- feature-by-feature E2E parity for language, actions, formats, structured linkage and batch outputs, including direct-identifier `Keep original` confirmation and deliberate Confidential Audit download confirmation;
 - visual reference pass for canonical states at desktop/tablet/mobile;
 - full Spanish engine quality gate from REC-01;
 - reconcile `DEBT_REGISTER.md` and `ROADMAP.md` from evidence rather than stale status labels;
@@ -284,23 +292,21 @@ Recovery may be declared complete only when every matrix row is one of:
 1. **PRESERVED/RESOLVED/IMPROVED**, or
 2. **DELIBERATELY SUPERSEDED** with an explicit product/privacy decision and evidence.
 
-No row may be silently absent, and “workflow exists” is not sufficient evidence for output-format, language, visual or feature parity.
+No material source obligation may be silently absent from the matrix, no matrix row may be silently absent from closeout, and “workflow exists” is not sufficient evidence for output-format, language, visual or feature parity.
 
 ## 4. Dependency graph
 
 ```text
 REC-01 Spanish engine assurance
-   └──────────────┐
-                  v
-REC-02 Text policy completion
+   └──> REC-02 Text policy completion
+            └──> REC-03 free-text routing work unit
 
-REC-03 Structured semantics recovery
+REC-03 core Study-ID / structured class semantics
    └──> REC-04 Structured I/O + output parity
 
-REC-05 Single text/document output parity
-
-REC-06 Batch workflow parity
-   └──> REC-07 Batch output parity
+REC-05 Single text/document output parity ─┐
+                                           ├──> REC-07 Batch output parity
+REC-06 Batch workflow parity ──────────────┘
 
 REC-08 Input productivity parity
 
@@ -316,7 +322,7 @@ REC-02 + REC-03 + REC-04 + REC-05 + REC-06 + REC-07 + REC-08
                          REC-12 Recovery closeout + governance
 ```
 
-REC-01 should begin first. REC-02/REC-03/REC-05/REC-06 can then run in parallel only if Work Unit boundaries do not touch the same product authority. REC-10 and REC-11 intentionally come late so we do not translate/style transient surfaces twice.
+REC-01 should begin first. After it, REC-02, REC-03 core Study-ID/class work, REC-05 and REC-06 may progress in parallel when Work Unit boundaries do not touch the same authority. The REC-03 free-text routing work unit waits for REC-02 final mappings. REC-07 waits for both REC-05 safe single-output primitives and REC-06 batch workflow authority. REC-10 and REC-11 intentionally come late so we do not translate/style transient surfaces twice.
 
 ## 5. Fixed authorities that survive recovery
 

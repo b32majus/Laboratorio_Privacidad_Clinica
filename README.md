@@ -118,7 +118,7 @@ Ahora detecta y elimina:
 - La herramienta apoya la preparación y revisión humana; no certifica anonimización ni cumplimiento normativo.
 
 ### Recuperación de producto en curso
-El plan vigente contiene 12 Work Orders (`REC-01`…`REC-12`) para cerrar aseguramiento del motor español, políticas de texto, semántica/I-O structured, outputs single/batch, productividad de entrada/review, localización completa al español, sistema visual Sophilux y el closeout 88+40. Ver `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
+El plan vigente contiene 12 Work Orders (`REC-01`…`REC-12`) para cerrar aseguramiento del motor español, políticas de texto, semántica/I-O structured, outputs single/batch, productividad de entrada/review, localización completa al español, sistema visual Sophilux y el closeout trazable. La matriz reconciliada tiene 88 filas congeladas + 42 de patrimonio/target, pero REC-12 debe demostrar primero source→matrix completeness: el número de filas por sí solo no prueba paridad. Ver `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
 
 ## 🚀 Despliegue canónico
 

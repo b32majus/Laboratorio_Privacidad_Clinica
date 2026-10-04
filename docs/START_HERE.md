@@ -20,13 +20,14 @@ For any new product/recovery work, use this precedence:
 
 1. `docs/START_HERE.md` — current position and authority map;
 2. `docs/RECOVERY_MASTER_PLAN_2026-10.md` — **single current recovery plan and execution order**;
-3. `docs/audits/2026-10-recovery-traceability-matrix.md` — exhaustive traceability: 88 frozen debt rows + 40 product/heritage capabilities;
-4. `docs/audits/2026-10-recovery-traceability-audit.md` — root-cause analysis and evidence narrative;
-5. `docs/shaping/CURRENT_DECISIONS.md` — accepted architecture/product decisions, as amended by the recovery authority below;
-6. relevant `docs/specs/SPEC_V4_*.md` — implementation contracts where they do not narrow the recovery contract;
-7. accepted GitHub Work Order for the current REC ticket;
-8. code + deterministic tests/oracles;
-9. historical roadmap, T01–T25 task docs and legacy-retirement evidence — provenance only unless explicitly cited.
+3. `docs/audits/2026-10-recovery-traceability-matrix.md` — current traceability index: 88 frozen debt rows + 42 product/heritage capabilities after external falsification;
+4. `docs/audits/2026-10-recovery-traceability-audit.md` — root-cause analysis and internal evidence narrative;
+5. `docs/audits/2026-10-recovery-plan-external-adversarial-audit-sol61.md` — independent Sol 6.1 adversarial falsification and required-change evidence;
+6. `docs/shaping/CURRENT_DECISIONS.md` — accepted architecture/product decisions, as amended by the recovery authority below;
+7. relevant `docs/specs/SPEC_V4_*.md` — implementation contracts where they do not narrow the recovery contract;
+8. accepted GitHub Work Order for the current REC ticket;
+9. code + deterministic tests/oracles;
+10. historical roadmap, T01–T25 task docs and legacy-retirement evidence — provenance only unless explicitly cited.
 
 If an older spec/ticket is narrower than the recovery matrix for a capability being recovered, **the recovery plan/matrix wins for scope discovery**; implementation still requires a shaped Work Order with explicit acceptance criteria.
 
@@ -38,7 +39,7 @@ Recovery was reconstructed from:
 - frozen pre-refactor authority: `e164ca2`;
 - V4 checkpoint audited on 2026-10-04: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a`.
 
-The matrix contains exactly **88 original debt/audit rows + 40 product/heritage rows**. At shaping time, 28 rows were recovery-blocking and every blocker was assigned to one of the 12 recovery Work Orders below.
+After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**. There are 31 recovery-blocking rows, all owned by the same 12 Recovery Work Orders. These counts are an index, not a completeness proof: REC-12 must re-check the frozen source audits + v3 heritage against the matrix before row-level closeout.
 
 ## 4. Current recovery train
 
@@ -65,7 +66,9 @@ No new recovery ticket should be invented from memory. First locate the capabili
 - The current V4 ground-truth corpus is a useful regression gate but is intentionally small. It is **not yet a robust per-entity clinical-Spanish quality grade**; REC-01 owns that assurance gap.
 - Structured V4 currently uses the patient-ID authority for policy/date processing but Safe Structured Output removes Identifier columns instead of producing the v3-style deterministic Study ID. Recovery of safe longitudinal linkage belongs to REC-03.
 - Batch V4 currently has no accepted batch-wide Safe Output/Confidential Audit format. Recovery belongs to REC-07.
-- V4 currently exposes single/structured output mainly as TXT/CSV + separate confidential TXT. Recovery of safe PDF/DOCX/XLSX and corresponding audit semantics belongs to REC-04/REC-05/REC-07.
+- V4 currently exposes single/structured output mainly as TXT/CSV + separate confidential TXT. Recovery of safe PDF/DOCX/XLSX and corresponding audit semantics belongs to REC-04/REC-05/REC-07; all identifiable Confidential downloads must regain the frozen UX additional-confirmation safeguard.
+- `Keep original` exists, but direct identifiers currently lack the frozen UX contextual confirmation/explanation before the original is kept in Safe Output; REC-09 owns that safeguard.
+- New Privacy Job inference exists, but the frozen “allow override when necessary” clause is unresolved. REC-08 must either implement a bounded legitimate override or explicitly supersede it with deterministic/fail-closed routing rationale.
 - V4 retains Sophilux ingredients (rose/warm surface tokens, Inter and Cormorant), but the original visual composition/design contract was not preserved as acceptance criteria. REC-11 owns recovery of the clinical-workstation visual system.
 - The current product UI is predominantly English despite `lang=es`; REC-10 owns complete Spanish localization after semantic/product surfaces stabilize.
 
@@ -88,4 +91,4 @@ Before implementing a REC Work Order:
 3. define acceptance criteria for **product capability + safety semantics + deterministic evidence**, not only route existence;
 4. use the current Atenea execution model in `AGENTS.md`;
 5. after each REC ticket, update the matrix/plan disposition so context cannot silently narrow again;
-6. REC-12 must re-audit all 88+40 rows against the final product before recovery can be called complete.
+6. REC-12 must first prove **source → matrix completeness** against both frozen audits + material v3 heritage, then re-audit all 88+42 (or explicitly reconciled later count) rows against the final product before recovery can be called complete.

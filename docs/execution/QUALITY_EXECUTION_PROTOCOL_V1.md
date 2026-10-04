@@ -1,6 +1,6 @@
 # Laboratorio de Privacidad Clínica — Quality Execution Protocol v1
 
-Status: **HISTORICAL EXECUTION PROVENANCE — superseded by C-083**
+Status: **HISTORICAL EXECUTION PROVENANCE — superseded; current execution authority is C-084**
 Adopted: 2026-09-24
 
 ## C-083 status

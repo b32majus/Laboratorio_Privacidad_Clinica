@@ -35,7 +35,7 @@ This exception does not mark the predecessor issue completed, does not bypass un
 Authority: map issue #5 comment "Prepared-train dependency rule — 2026-09-30".
 
 
-## Current accepted checkpoint and next frontier — 2026-09-30
+## Historical accepted checkpoint and exhausted frontier — 2026-09-30
 
 ```text
 CURRENT_BASE_BRANCH=3.0-main
@@ -43,7 +43,7 @@ CURRENT_BASE_SHA=758acf6546b6c579e1882c743477a04d1cb96f90
 LAST_MERGED_PR=#45
 T21 #25 = integrated via PR #45
 COMPLETED=T01–T20,T23,T21
-NEXT_PREPARED_TRAIN=T22 #26 → T24 #28 → T25 #29
+HISTORICAL_NEXT_PREPARED_TRAIN=T22 #26 → T24 #28 → T25 #29  # executed/completed; not a current frontier
 ```
 
 PR #45 (merge de `work/t21-playwright-20260929`) integró y cerró T21 #25: suite Playwright crítica determinista contra build estático production-like, monitor de red E2E fail-closed con violación plantada, y cierre de deuda QA-002/QA-003. T23 #27 (supply-chain/CI) había cerrado antes.

@@ -212,9 +212,9 @@ Además, `generalize` sin date role carece de operador productivo y bloquea expo
 
 **Veredicto:** la taxonomía está bien construida, la semántica productiva necesita reconciliación explícita. REC-03.
 
-### R-F5 — Structured perdió auto-detección de la fila real de cabeceras
+### R-F5 — Structured perdió auto-detección Excel/workbook de la fila real de cabeceras
 
-La v3 escaneaba hasta las primeras 10 filas de Excel para detectar una fila de cabeceras plausible y saltar metadatos explicativos, una capacidad diseñada para exportaciones hospitalarias.
+La v3 escaneaba hasta las primeras 10 filas de Excel para detectar una fila de cabeceras plausible y saltar metadatos explicativos, una capacidad diseñada para exportaciones hospitalarias. La auditoría externa confirmó que **v3 CSV no tenía esta capacidad**: ya usaba la primera fila como cabecera, por lo que smart CSV header detection no es patrimonio de recuperación.
 
 V4:
 
@@ -413,3 +413,18 @@ A partir de esta auditoría, **Recovery Complete** significa:
 - roadmap, debt register, specs, default/canonical branch y CI cuentan la misma verdad.
 
 Sólo entonces la recuperación de la aplicación está cerrada.
+
+## 12. External adversarial reconciliation — Sol 6.1 (2026-10-04)
+
+A read-only independent adversarial audit was executed against documentation candidate `35d3ae8fc15486bae66d90b00da7a2ccce85fdd3`, the original v3 fixed point and the current V4 code. Full evidence is preserved in `docs/audits/2026-10-recovery-plan-external-adversarial-audit-sol61.md`. Verdict: **PASS WITH REQUIRED CHANGES**.
+
+The external audit did **not** require a new architecture, a REC-13, or a replan. It independently verified the material engine/Study-ID/output/policy/visual findings and kept all 12 Recovery Work Orders. It found three source-contract gaps in the translation layer and two dependency corrections:
+
+- frozen UX-10 direct-identifier `Keep original` confirmation/explanation → added as H-41 and REC-09 acceptance;
+- frozen Export additional confirmation for identifiable Confidential Audit → added as H-42 and REC-04/05/07 acceptance;
+- frozen input inference “allow override when necessary” → UX-003 reopened as PARTIAL and REC-08 must implement bounded override or explicitly supersede it (D-019);
+- REC-03 free-text routing now depends on REC-02 final text-policy mappings;
+- REC-07 now depends on REC-05 safe single-output primitives **and** REC-06 batch workflow;
+- H-21 heritage corrected to Excel/workbook smart-header detection only; v3 CSV used first-row headers.
+
+Most importantly, REC-12 no longer treats a fixed row count as a completeness proof. Closeout begins with **source→matrix completeness** against both frozen audits and material v3 heritage; only then may matrix→implementation verification close recovery.

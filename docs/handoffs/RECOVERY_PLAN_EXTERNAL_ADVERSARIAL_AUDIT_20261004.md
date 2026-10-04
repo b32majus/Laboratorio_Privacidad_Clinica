@@ -1,6 +1,6 @@
 # RECOVERY PLAN — External adversarial audit handoff
 
-Status: **READ-ONLY EXTERNAL AUDIT REQUEST**
+Status: **EXECUTED READ-ONLY EXTERNAL AUDIT REQUEST — historical input; result: `docs/audits/2026-10-recovery-plan-external-adversarial-audit-sol61.md`**
 Date: 2026-10-04
 
 ## Mission

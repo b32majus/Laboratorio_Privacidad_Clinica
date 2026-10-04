@@ -8,4 +8,4 @@ A ticket is executable only when its current authority says it is ready and requ
 
 Pull requests are delivery/review surfaces, not a general feature-request/triage queue.
 
-Important branch fact: canonical V4 integration/deployment is `3.0-main`; the GitHub repository default branch remains `main` as of the C-083 reconciliation, so default-branch inference is unsafe for V4 work.
+Important branch fact: canonical V4 integration/deployment is `3.0-main`; the GitHub repository default branch remained `main` at the 2026-10-04 recovery reconciliation, so default-branch inference is unsafe for V4 work.
