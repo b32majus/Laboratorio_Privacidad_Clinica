@@ -46,12 +46,13 @@ export function serializeStructuredConfidentialAudit(correspondence: unknown): s
   }
   const studyIdCount = correspondence.totals.studyId ?? 0;
   const pseudonymizeCount = correspondence.totals.pseudonymize ?? 0;
+  const freeTextCount = correspondence.totals.freeText ?? 0;
   const lines: string[] = [
     CONFIDENTIAL_AUDIT_WARNING_LINE,
     "Structured Confidential Audit — original <-> transformed correspondence.",
     "",
     `Policy: ${correspondence.policyId}`,
-    `Columns: ${correspondence.columns.length} (date/age: ${correspondence.totals.dateAge}, pseudonymize: ${pseudonymizeCount}, remove: ${correspondence.totals.remove}${studyIdCount > 0 ? `, study-id: ${studyIdCount}` : ""}) — transformed cells: ${correspondence.totals.transformedCells}`,
+    `Columns: ${correspondence.columns.length} (date/age: ${correspondence.totals.dateAge}, pseudonymize: ${pseudonymizeCount}, remove: ${correspondence.totals.remove}${studyIdCount > 0 ? `, study-id: ${studyIdCount}` : ""}${freeTextCount > 0 ? `, free-text: ${freeTextCount}` : ""}) — transformed cells: ${correspondence.totals.transformedCells}`,
     "",
   ];
   for (const column of correspondence.columns) {

@@ -20,6 +20,11 @@
  *    tokenization (blanks preserved, mapping Confidential-only); it is
  *    available ONLY as the center/ward proposal or as a bounded explicit
  *    choice on a non-date, non-patient-ID quasi-identifier.
+ *  - `process-as-text` activates the productive text-engine path (REC-03
+ *    WU-C): each non-blank cell owns a ReviewSession and Safe reads canonical
+ *    `getFinalText`. The disposition itself is structurally ready; per-cell
+ *    review/failure readiness is checked separately by the dataset builder
+ *    (like date/age review outcomes).
  *  - `keep` preserves; `remove` drops the column from the Safe artifact.
  *  - `review-required` (unknown, or a quasi-identifier with no bounded
  *    explicit action) BLOCKS export fail-closed. There is no productive
@@ -48,6 +53,7 @@ export type StructuredColumnDisposition =
   | { readonly kind: "date-age"; readonly role: StructuredDateColumnRole }
   | { readonly kind: "study-id" }
   | { readonly kind: "pseudonymize" }
+  | { readonly kind: "free-text" }
   | { readonly kind: "keep" }
   | { readonly kind: "remove" }
   | { readonly kind: "unsupported"; readonly reason: StructuredUnsupportedReason };
@@ -109,6 +115,8 @@ function dispositionFor(
       return { kind: "keep" };
     case "pseudonymize":
       return { kind: "pseudonymize" };
+    case "process-as-text":
+      return { kind: "free-text" };
     case "review-required":
       return {
         kind: "unsupported",

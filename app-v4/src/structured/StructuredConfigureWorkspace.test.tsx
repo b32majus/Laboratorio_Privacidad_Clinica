@@ -249,19 +249,30 @@ describe("StructuredConfigureWorkspace — bounded Action control (REC-03 WU-B, 
 
   it("renders no Action editor for derived single-option columns, only the Action fact", () => {
     renderHarness();
-    // Identifier->Remove, Sensitive->Keep: the Action is a visible fact, not a choice.
+    // Identifier->Remove: the Action is a visible fact, not a choice.
     expect(actionSelect("NHC")).toBeNull();
-    expect(actionSelect("Diagnostico")).toBeNull();
     expect(within(columnCard("NHC")).getByText("Action:").nextElementSibling).toHaveTextContent(
       "Remove"
     );
+    // REC-03 WU-C (D-021 free-text columns): a text-like Sensitive column
+    // offers exactly the bounded Keep / Process-as-text choice.
+    const sensitiveSelect = actionSelect("Diagnostico");
+    if (!sensitiveSelect) throw new Error("expected the bounded Action control for Diagnostico");
+    expect(
+      Array.from(sensitiveSelect.querySelectorAll("option")).map((option) => option.value)
+    ).toEqual(["keep", "process-as-text"]);
     expect(
       within(columnCard("Diagnostico")).getByText("Action:").nextElementSibling
     ).toHaveTextContent("Keep");
-    // Unknown explains the resolution path instead of offering Keep directly.
-    expect(actionSelect("CampoLibre")).toBeNull();
+    // Unknown explains the resolution path instead of offering Keep directly;
+    // a text-like Unknown additionally offers the explicit Process-as-text path.
+    const unknownSelect = actionSelect("CampoLibre");
+    if (!unknownSelect) throw new Error("expected the bounded Action control for CampoLibre");
     expect(
-      within(columnCard("CampoLibre")).getByText(/cannot take a productive action/i)
+      Array.from(unknownSelect.querySelectorAll("option")).map((option) => option.value)
+    ).toEqual(["review-required", "process-as-text"]);
+    expect(
+      within(columnCard("CampoLibre")).getByText(/cannot be kept directly/i)
     ).toBeInTheDocument();
   });
 

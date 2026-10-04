@@ -61,6 +61,7 @@ const ACTION_LABELS: Record<StructuredAction, string> = {
   remove: "Remove",
   keep: "Keep",
   pseudonymize: "Pseudonymize",
+  "process-as-text": "Process as text",
   "review-required": "Review required",
 };
 
@@ -605,12 +606,18 @@ function ColumnCard(props: {
       )}
       {onOverrideAction !== undefined &&
         !column.actionLocked &&
-        column.effectiveClass === "unknown" && (
+        column.effectiveClass === "unknown" &&
+        (column.allowedActions.includes("process-as-text") ? (
+          <p className="mt-3 text-sm text-neutral-800">
+            Unknown columns cannot be kept directly. Change the classification above, or route this
+            text column through the text engine with “Process as text”.
+          </p>
+        ) : (
           <p className="mt-3 text-sm text-neutral-800">
             Unknown columns cannot take a productive action directly. Change the classification
             above to resolve this column.
           </p>
-        )}
+        ))}
     </li>
   );
 }

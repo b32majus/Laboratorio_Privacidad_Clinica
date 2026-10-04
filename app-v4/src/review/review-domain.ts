@@ -179,12 +179,80 @@ export async function startReviewSessionAsync(
 }
 
 /**
+ * Reference to one structured free-text cell routed `process-as-text`
+ * (REC-03 WU-C, D-021): which column/row the cell is, without any
+ * ProcessingContext/session internals leaking into the product surface.
+ */
+export type StructuredFreeTextCellRef = {
+  readonly columnIndex: number;
+  readonly rowIndex: number;
+  readonly header: string;
+};
+
+/**
+ * Result of processing ONE structured free-text cell (REC-03 WU-C): either
+ * the cell's ReviewSession plus the engine's returned context, or a typed
+ * {@link ProcessingFailure}. Mirrors {@link BatchItemProcessing}: the caller
+ * owns the {@link ProcessingContext} and promotes successes to shared mode.
+ */
+export type StructuredCellProcessing =
+  | { readonly ok: true; readonly session: ReviewSession; readonly context: ProcessingContext }
+  | { readonly ok: false; readonly failure: ProcessingFailure };
+
+/**
+ * Process ONE structured free-text cell through the registry-composed engine
+ * and map the result into the cell's ReviewSession (REC-03 WU-C, D-021
+ * free-text columns). This is the structured counterpart of
+ * {@link processBatchItem}: one non-blank cell routed `process-as-text` runs
+ * the productive text engine under the Job's own REC-02 policy, and the
+ * result — including low-confidence candidates — becomes a ReviewSession
+ * reviewed through the existing semantics (no auto-accept shortcut).
+ *
+ * The cell text is the ONLY source accepted; a blank cell is refused
+ * fail-closed as `invalid-source` (blank cells stay blank and create no
+ * session). A non-structured job is refused likewise. This method NEVER
+ * throws for a classified failure: any engine throw is mapped through
+ * {@link classifyProcessingFailure} so the cell loop can record the failure
+ * and keep processing the remaining cells. The engine NEVER falls back to
+ * keeping the raw original: a failure is an explicit visible blocker.
+ */
+export async function processStructuredFreeTextCell(
+  job: Pick<Job, "kind" | "name" | "policyId">,
+  cell: StructuredFreeTextCellRef,
+  text: string,
+  context: ProcessingContext,
+  engine: RegistryEngine
+): Promise<StructuredCellProcessing> {
+  try {
+    if (job.kind !== "structured") {
+      throw new ReviewSessionError(
+        "INVALID_SOURCE",
+        `Job "${job.name}" (${job.kind}) is not a structured job; processStructuredFreeTextCell requires a structured job with a process-as-text cell.`
+      );
+    }
+    if (text.trim().length === 0) {
+      throw new ReviewSessionError(
+        "INVALID_SOURCE",
+        `Structured cell [${cell.header}, row ${cell.rowIndex + 1}] is blank; blank cells stay blank and create no review session.`
+      );
+    }
+    const outcome = await engine.process({ text, context, policyId: job.policyId });
+    return {
+      ok: true,
+      session: createReviewSessionFromProcessor(outcome.result) as ReviewSession,
+      context: outcome.context,
+    };
+  } catch (error) {
+    return { ok: false, failure: classifyProcessingFailure(error) };
+  }
+}
+/**
  * The engine process seam consumed by review orchestration, typed
  * structurally (T22 #26 WU-D): `process` may be synchronous (in-process
  * engine) or asynchronous (Worker-backed engine), so a deterministic oracle
  * can inject either stub without importing the heavy engine module.
  */
-type RegistryEngine = {
+export type RegistryEngine = {
   process(input: RegistryEngineInput): EngineOutcome | Promise<EngineOutcome>;
 };
 

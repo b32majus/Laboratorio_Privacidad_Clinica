@@ -80,13 +80,26 @@ export const STRUCTURED_COLUMN_CLASSES: readonly ColumnClass[] = Object.freeze([
  *    non-date, non-patient-ID quasi-identifier;
  *  - `review-required`: no productive action — export stays blocked until a
  *    bounded explicit action exists or the class is resolved.
+ * `process-as-text` (REC-03 WU-C, D-021 free-text columns): an explicit Action
+ *   — never a sixth class — routing a text-like cell through the productive
+ *   text engine under the Job's REC-02 policy with ReviewSession review. It is
+ *   available ONLY for text-like, non-patient-ID, non-date-role quasi,
+ *   sensitive and unknown columns (unknown may not become keep; this is its
+ *   explicit resolution path). Identifier/Insensitive/patient-ID/date-role
+ *   columns reject it typed/closed.
  *
  * `process-as-text` is WU-C scope and is deliberately NOT a member: no
  * reserved slot may silently behave as `keep` before the WU-C engine path
  * exists.
  */
 export type StructuredAction =
-  "study-id" | "date-policy" | "remove" | "keep" | "pseudonymize" | "review-required";
+  | "study-id"
+  | "date-policy"
+  | "remove"
+  | "keep"
+  | "pseudonymize"
+  | "process-as-text"
+  | "review-required";
 
 /** The accepted Action vocabulary, in display order. */
 export const STRUCTURED_ACTIONS: readonly StructuredAction[] = Object.freeze([
@@ -95,6 +108,7 @@ export const STRUCTURED_ACTIONS: readonly StructuredAction[] = Object.freeze([
   "remove",
   "keep",
   "pseudonymize",
+  "process-as-text",
   "review-required",
 ]);
 
@@ -193,9 +207,10 @@ export type StructuredConfiguration = {
   /**
    * Explicit human Action choices, keyed by column index (only entries that
    * differ from the unresolved default). Only a non-date, non-patient-ID
-   * quasi-identifier admits a productive explicit choice (`pseudonymize` or
-   * `keep`); every other combination fails closed at write time and is never
-   * stored.
+   * quasi-identifier admits productive explicit choices (`pseudonymize`,
+   * `keep`, text-like `process-as-text`); text-like Sensitive and Unknown
+   * columns admit explicit `process-as-text`; every other combination fails
+   * closed at write time and is never stored.
    */
   readonly actionOverrides: Readonly<Record<number, StructuredAction>>;
   /** Explicit date roles, keyed by column index (only non-`none` entries). */
@@ -274,22 +289,33 @@ export function allowedActionsForColumn(facts: {
   readonly header: string;
   readonly dateRole: StructuredDateRole;
   readonly isPatientIdColumn: boolean;
+  readonly inferredType: ColumnSampleType;
 }): readonly StructuredAction[] {
   if (facts.isPatientIdColumn) return Object.freeze(["study-id"] as const);
   if (facts.dateRole === "visit" || facts.dateRole === "birth") {
     return Object.freeze(["date-policy"] as const);
   }
+  // D-021 free-text columns (REC-03 WU-C): `process-as-text` is offered only
+  // for text-like columns — never for patient-ID/date-role columns (locked
+  // above), ordinary Identifiers or Insensitive columns.
+  const textLike = facts.inferredType === "text";
   switch (facts.effectiveClass) {
     case "identifier":
       return Object.freeze(["remove"] as const);
     case "sensitive":
-      return Object.freeze(["keep"] as const);
+      return textLike
+        ? Object.freeze(["keep", "process-as-text"] as const)
+        : Object.freeze(["keep"] as const);
     case "insensitive":
       return Object.freeze(["keep"] as const);
     case "unknown":
-      return Object.freeze(["review-required"] as const);
+      return textLike
+        ? Object.freeze(["review-required", "process-as-text"] as const)
+        : Object.freeze(["review-required"] as const);
     case "quasi-identifier":
-      return Object.freeze(["review-required", "pseudonymize", "keep"] as const);
+      return textLike
+        ? Object.freeze(["review-required", "pseudonymize", "keep", "process-as-text"] as const)
+        : Object.freeze(["review-required", "pseudonymize", "keep"] as const);
   }
 }
 
@@ -348,6 +374,7 @@ function resolveColumnState(
     header: classification.column.header,
     dateRole: resolvedDateRole,
     isPatientIdColumn,
+    inferredType: classification.column.inferredType,
   });
   return Object.freeze({
     columnIndex: classification.column.columnIndex,
@@ -423,16 +450,19 @@ function normalizeDateRoles(
  *  - locked columns (patient-ID, explicit date role) can never be
  *    contradicted — only their derived action is accepted (as a no-op);
  *  - Unknown can never take a productive action directly while remaining
- *    Unknown: the reviewer must change the class (or leave it unresolved);
+ *    Unknown, EXCEPT explicit text-like `process-as-text` (its D-021
+ *    resolution path; never KEEP);
  *  - ordinary Identifier admits `remove` only; Sensitive/Insensitive admit
- *    `keep` only; a quasi-identifier admits `pseudonymize`, `keep` or
- *    `review-required` (clear).
+ *    `keep` only (Sensitive additionally admits text-like `process-as-text`);
+ *    a quasi-identifier admits `pseudonymize`, `keep` or `review-required`
+ *    (clear), plus text-like `process-as-text`.
  */
 function normalizeActionOverride(facts: {
   readonly effectiveClass: ColumnClass;
   readonly header: string;
   readonly dateRole: StructuredDateRole;
   readonly isPatientIdColumn: boolean;
+  readonly inferredType: ColumnSampleType;
   readonly action: StructuredAction;
 }): StructuredAction | undefined {
   const allowed = allowedActionsForColumn(facts);
@@ -449,6 +479,13 @@ function normalizeActionOverride(facts: {
     return undefined;
   }
   if (facts.effectiveClass === "unknown" && facts.action !== "review-required") {
+    // D-021 free-text resolution path (REC-03 WU-C): an Unknown column may
+    // take explicit `process-as-text` when it is text-like — its explicit
+    // resolution path, since Unknown may never become KEEP. Any other
+    // productive action while remaining Unknown fails closed.
+    if (facts.action === "process-as-text" && facts.inferredType === "text") {
+      return facts.action;
+    }
     throw new StructuredConfigurationError(
       "invalid-action",
       `Unknown column "${facts.header === "" ? "(unnamed column)" : facts.header}" cannot take the productive action "${facts.action}" directly while remaining Unknown; change its class or leave it unresolved.`
@@ -538,6 +575,7 @@ function buildConfiguration(
       header: classification.column.header,
       dateRole: normalizedDateRoles[columnIndex] ?? "none",
       isPatientIdColumn: false,
+      inferredType: classification.column.inferredType,
       action,
     });
     if (entry !== undefined) normalizedActionOverrides[columnIndex] = entry;
@@ -642,6 +680,7 @@ export function overrideColumnClass(
         header: column.header,
         dateRole: column.dateRole,
         isPatientIdColumn: false,
+        inferredType: column.inferredType,
       });
       if (candidateAllowed.includes(pendingExplicit)) {
         nextActionOverrides[columnIndex] = pendingExplicit;
@@ -726,6 +765,7 @@ function pruneActionOverrideForUnlock(
     header: column.header,
     dateRole: "none",
     isPatientIdColumn: false,
+    inferredType: column.inferredType,
   });
   if (allowed.includes(pending)) return configuration.actionOverrides;
   const pruned: Record<number, StructuredAction> = { ...configuration.actionOverrides };
@@ -803,6 +843,7 @@ export function overrideColumnAction(
     header: column.header,
     dateRole: column.dateRole,
     isPatientIdColumn,
+    inferredType: column.inferredType,
     action,
   });
   const nextActionOverrides: Record<number, StructuredAction> = {
