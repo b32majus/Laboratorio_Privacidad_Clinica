@@ -147,9 +147,10 @@ class LegacyPseudonymizeOperator implements Operator {
  * SPEC_V4_PRIVACY_ENGINE.md §9 lists redaction as a required date behavior.
  *
  * Redaction is delivered by THIS operator rather than by a separate
- * `...date-redact` registry key because T13 may not change the accepted policy
- * mapping (`FECHA → legacy.date-transform`): a second date-redaction key would
- * be equally unreachable and would duplicate this same semantic.
+ * `...date-redact` registry key because the standard/strict policy mapping
+ * (`FECHA → legacy.date-transform`) has no second date-redaction key: a second
+ * key would duplicate this same semantic. (`external-ai` and
+ * `longitudinal-research` select the two V4 date operators instead — REC-02.)
  * `context.date.shift` is deliberately NOT consulted here — the shift
  * semantic is owned by `v4.date-shift` (`./date-operator`). This separation
  * is intentional, not an oversight: DATE_TRANSFORM owns visit labelling and
@@ -229,13 +230,11 @@ class LegacyGeneralizeOperator implements Operator {
  * lookup owns it; a worker must not invent mapping semantics beyond accepted
  * authority).
  *
- * Reachability (T13 #17 WU-B): `AGE_GENERALIZE` is referenced by the accepted
- * standard/strict policy mapping (GitHub #16), while `DATE_GENERALIZE` and
- * `DATE_SHIFT` land as accepted operator capabilities that NO accepted policy
- * mapping references yet — T13 deliberately keeps `FECHA →
- * legacy.date-transform`, and `external-ai`/`longitudinal-research` remain
- * fail-closed — so a later accepted policy can select them without touching
- * this composer.
+ * Reachability (REC-02): `AGE_GENERALIZE` is referenced by every accepted
+ * policy mapping (GitHub #16), `DATE_GENERALIZE` by the accepted `external-ai`
+ * FECHA mapping and `DATE_SHIFT` by the accepted `longitudinal-research` FECHA
+ * mapping. Category→operator dispatch lives in `./policy`; this composer only
+ * makes every accepted operator available under its stable key.
  */
 export function createLegacyOperatorRegistry(): OperatorRegistry {
   const registry = new OperatorRegistry();

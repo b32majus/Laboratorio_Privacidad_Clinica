@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FechasManager } from "../../../js/core/managers/FechasManager.js";
-import { classifyObservationDateRole } from "../engine/date-operator";
-import { PolicyError } from "../engine/policy";
+import { classifyObservationDateRole, DateOperatorError } from "../engine/date-operator";
 import { createRegistryEngine } from "../engine/registry-engine";
 import { buildConfidentialAudit } from "../output/confidential-audit";
 import { buildSafeOutput, serializeSafeOutput } from "../output/safe-output";
@@ -41,8 +40,10 @@ import {
  *     date can claim it, and the failure direction is extra redaction;
  *  6. oracle self-test: a planted original-date KEEP proves the no-leak
  *     assertion is genuinely falsifiable;
- *  7. fail-closed: `external-ai` and `longitudinal-research` throw the typed
- *     PolicyError and produce no session.
+ *  7. REC-02: `external-ai` generalizes every date to month/year precision and
+ *     never leaks a full source date into Safe Output, while
+ *     `longitudinal-research` still fails closed (no shift state threaded) and
+ *     produces no session.
  *
  * Determinism/privacy: all fixtures are synthetic; the only clock-dependent
  * transformation (legacy date relativization) is pinned with fake timers so
@@ -273,17 +274,29 @@ describe("T13 WU-C — composed no-leak: explicit non-visit dates are never rela
     expect(leakedText).toContain(plantedDate);
   });
 
-  it("keeps external-ai and longitudinal-research fail-closed with the typed PolicyError and no session (ORACLE 7)", async () => {
-    for (const policyId of ["external-ai", "longitudinal-research"] as const) {
-      try {
-        const session = await createSessionFromEngineTextAsync(FIXTURE, policyId);
-        throw new Error(
-          `expected ${policyId} to fail closed, got session ${String(session.sessionId)}`
-        );
-      } catch (error) {
-        expect(error).toBeInstanceOf(PolicyError);
-        expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
-      }
+  it("external-ai generalizes every date to month/year precision and never leaks a full source date into Safe Output (ORACLE 7, REC-02)", async () => {
+    const session = acceptAll(await createSessionFromEngineTextAsync(FIXTURE, "external-ai"));
+    const safeText = serializeSafeOutput(buildSafeOutput(session));
+
+    const transformed = fechaTransforms("external-ai");
+    expect(transformed.size).toBe(6);
+    for (const [source, output] of transformed) {
+      expect(output, `external-ai transformed ${source}`).toMatch(/^\d{2}\/\d{4}$/);
+    }
+    for (const date of [...NON_VISIT_DATES, ...VISIT_DATES]) {
+      expect(safeText, `Safe Output leaked ${date}`).not.toContain(date);
+    }
+  });
+
+  it("keeps longitudinal-research fail-closed (missing date-shift state) with no session (ORACLE 7, fail-closed)", async () => {
+    try {
+      const session = await createSessionFromEngineTextAsync(FIXTURE, "longitudinal-research");
+      throw new Error(
+        `expected longitudinal-research to fail closed, got session ${String(session.sessionId)}`
+      );
+    } catch (error) {
+      expect(error).toBeInstanceOf(DateOperatorError);
+      expect((error as DateOperatorError).code).toBe("missing-date-shift-state");
     }
   });
 });

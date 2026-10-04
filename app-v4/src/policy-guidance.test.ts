@@ -34,12 +34,17 @@ describe("policy guidance availability derivation", () => {
     expect(POLICY_AVAILABILITY_LABELS.unavailable).toBe("Not available for this job type yet");
   });
 
-  it("makes only Standard and Strict available for text/document/document-batch jobs", () => {
+  it("makes all four policies available for text/document/document-batch jobs (REC-02)", () => {
     for (const jobKind of ["text", "document", "document-batch"] as const) {
-      expect(isPolicyAvailableForJobKind("standard", jobKind)).toBe("available");
-      expect(isPolicyAvailableForJobKind("strict", jobKind)).toBe("available");
-      expect(isPolicyAvailableForJobKind("external-ai", jobKind)).toBe("unavailable");
-      expect(isPolicyAvailableForJobKind("longitudinal-research", jobKind)).toBe("unavailable");
+      for (const policyId of POLICY_IDS) {
+        expect(isPolicyAvailableForJobKind(policyId, jobKind), `${policyId} on ${jobKind}`).toBe(
+          "available"
+        );
+        expect(
+          isPolicySelectableForJobKind(policyId, jobKind),
+          `${policyId} selectable on ${jobKind}`
+        ).toBe(true);
+      }
     }
   });
 
@@ -103,10 +108,76 @@ describe("policy guidance no-job copy (POLICY-01 #56)", () => {
     }
   });
 
-  it("states the accepted text/document gap for External AI and Longitudinal Research", () => {
-    const textGap =
-      /text, document and document-batch processing has no accepted operator mapping yet/i;
-    expect(entryFor(null, "external-ai").guidance).toMatch(textGap);
-    expect(entryFor(null, "longitudinal-research").guidance).toMatch(textGap);
+  it("no longer claims the newly-mapped text policies lack an operator mapping (REC-02)", () => {
+    for (const jobKind of [null, "text", "document", "document-batch"] as const) {
+      for (const policyId of ["external-ai", "longitudinal-research"] as const) {
+        expect(entryFor(jobKind, policyId).guidance).not.toMatch(
+          /no accepted operator mapping|not available for this job type yet/i
+        );
+      }
+    }
+  });
+});
+
+/**
+ * REC-02 guidance oracles: the text/document/document-batch copy must state the
+ * ACTUAL four-policy behavior (not the mapping table), keep the forbidden
+ * anonymity/certification/compliance vocabulary out, and avoid implying that
+ * External AI transmits data or that Longitudinal Research grants research
+ * approval/governance.
+ */
+describe("policy guidance text/document facts (REC-02)", () => {
+  const TEXT_KINDS = ["text", "document", "document-batch"] as const;
+
+  it("describes Standard as pseudonymize/redact/generalize", () => {
+    for (const jobKind of TEXT_KINDS) {
+      const guidance = entryFor(jobKind, "standard").guidance;
+      expect(guidance).toMatch(/pseudonymiz/i);
+      expect(guidance).toMatch(/redact/i);
+      expect(guidance).toMatch(/generaliz/i);
+    }
+  });
+
+  it("describes Strict as the stricter location/quasi generalization branch", () => {
+    for (const jobKind of TEXT_KINDS) {
+      const guidance = entryFor(jobKind, "strict").guidance;
+      expect(guidance).toMatch(/stricter/i);
+      expect(guidance).toMatch(/location|quasi/i);
+    }
+  });
+
+  it("describes External AI as local-only date-precision reduction that transmits nothing (ACCEPTANCE 18)", () => {
+    for (const jobKind of TEXT_KINDS) {
+      const guidance = entryFor(jobKind, "external-ai").guidance;
+      expect(guidance).toMatch(/local[- ]only/i);
+      expect(guidance).toMatch(/precision|generaliz/i);
+      expect(guidance).toMatch(/nothing is (?:transmitted|sent)/i);
+      // Never implies an outbound transfer to a service/provider.
+      expect(guidance).not.toMatch(
+        /\bupload(?:s|ed)?\b|network request|sent to (?:an? )?(?:external|remote)/i
+      );
+    }
+  });
+
+  it("describes Longitudinal Research as consistent Job-scoped shifting that grants no research approval (ACCEPTANCE 18)", () => {
+    for (const jobKind of TEXT_KINDS) {
+      const guidance = entryFor(jobKind, "longitudinal-research").guidance;
+      expect(guidance).toMatch(/local[- ]only/i);
+      expect(guidance).toMatch(/shift/i);
+      expect(guidance).toMatch(/order|interval/i);
+      expect(guidance).toMatch(/does not grant/i);
+      // No positive conferral of research approval/governance.
+      expect(guidance).not.toMatch(
+        /research[- ]approved|approved for research|confers? (?:research )?approval/i
+      );
+    }
+  });
+
+  it("keeps the four-policy text copy free of forbidden claims", () => {
+    for (const jobKind of TEXT_KINDS) {
+      for (const policyId of POLICY_IDS) {
+        expect(entryFor(jobKind, policyId).guidance).not.toMatch(FORBIDDEN_CLAIM);
+      }
+    }
   });
 });

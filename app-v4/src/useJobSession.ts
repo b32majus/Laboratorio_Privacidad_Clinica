@@ -36,6 +36,7 @@ import {
   withReviewState,
 } from "./domain/job";
 import type { EngineLoader } from "./engine/engine-seam";
+import { createInitialProcessingContext } from "./engine/initial-processing-context";
 import { createDefaultEngineLoader } from "./engine/production-engine";
 import type { ProcessingContext } from "./engine/types";
 import { classifyProcessingFailure } from "./processing-outcome";
@@ -212,11 +213,15 @@ export type BatchReviewRun =
  * `review-required`), because a session that can already be finalized must
  * never demand a fictitious decide/addManual action. A failure is recorded
  * and the loop CONTINUES so later documents still process (SD-4). The first
- * item runs `mode: "fresh"`; every success PROMOTES the engine's returned
- * context to `mode: "shared"` for the next item (passing it as `"fresh"`
- * would reset the pseudonym counters). A failed item contributes NOTHING to
- * the carried context, so cross-document consistency survives a mid-batch
- * failure.
+ * item starts from the policy-owned initial context built by
+ * {@link createInitialProcessingContext} (a Job-scoped date-shift state for
+ * the `v4.date-shift` policy, nothing extra otherwise); every success PROMOTES
+ * the engine's returned context to `mode: "shared"` for the next item carrying
+ * BOTH the returned `pseudonymState` AND the policy-owned `options` (passing it
+ * as `"fresh"` would reset the pseudonym counters, and dropping `options` would
+ * break the consistent Job-scoped date shift). A failed item contributes
+ * NOTHING to the carried context, so cross-document consistency survives a
+ * mid-batch failure.
  *
  * The returned job has `completeProcessing` applied and the batch review state
  * derived in one place; `engineLoader` is an oracle-only seam and production
@@ -229,7 +234,10 @@ export async function runBatchReviewAsync(
 ): Promise<BatchReviewRun> {
   let working = job;
   const sessions: Record<number, ReviewSession> = {};
-  let carriedContext: ProcessingContext = { mode: "fresh" };
+  // REC-02 WU-B: the FIRST item starts from the policy-owned initial context
+  // (a Job-scoped date-shift state only for the `v4.date-shift` policy), not a
+  // bare fresh context. Later successes promote it to shared mode.
+  let carriedContext: ProcessingContext = createInitialProcessingContext(job, job.policyId);
   let activeIndex: number | null = null;
 
   try {
@@ -257,6 +265,10 @@ export async function runBatchReviewAsync(
         carriedContext = {
           mode: "shared",
           pseudonymState: outcome.context.pseudonymState,
+          // REC-02 WU-B defect fix: the policy-owned options (for example the
+          // Job-scoped `dateShift` state) must survive the promotion to shared
+          // mode, not only the pseudonym state.
+          ...(outcome.context.options === undefined ? {} : { options: outcome.context.options }),
         };
         options.onItemSuccess?.(index, outcome.session);
       } else {

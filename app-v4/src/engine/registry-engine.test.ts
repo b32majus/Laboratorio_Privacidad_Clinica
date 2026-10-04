@@ -11,6 +11,7 @@ import { createLegacyOperatorRegistry } from "./legacy-operators";
 import { createLegacyRecognizerRegistry, LEGACY_RECOGNIZER_KEY } from "./legacy-recognizers";
 import { createRegistryEngine, SessionIdError } from "./registry-engine";
 import {
+  LEGACY_OPERATOR_KEYS,
   type Operator,
   type OperatorContext,
   OperatorRegistry,
@@ -362,15 +363,20 @@ describe("createRegistryEngine — ACCEPTANCE 1: recognition is invariant under 
     expect(after).toEqual(before);
   });
 
-  it("fails typed for a known-but-unmapped policy through the composed path (D-007/D-009)", () => {
+  it("resolves the newly accepted external-ai mapping through the composed path (REC-02)", () => {
     const engine = createEngine();
-    try {
-      engine.process({ text: TEXT, context: FRESH, policyId: "external-ai" });
-      throw new Error("expected engine.process to throw");
-    } catch (error) {
-      expect(error).toBeInstanceOf(PolicyError);
-      expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
-    }
+    const externalAi = engine.process({ text: TEXT, context: FRESH, policyId: "external-ai" });
+    const standard = engine.process({ text: TEXT, context: FRESH, policyId: "standard" });
+
+    // Same recognition; the external-ai profile uses the stricter location/
+    // quasi branch (strictMode=true), exactly like `strict`.
+    expect(externalAi.result.entities.map((entity) => entity.type)).toEqual(
+      standard.result.entities.map((entity) => entity.type)
+    );
+    const hospital = externalAi.result.entities.find((entity) => entity.type === "UBICACION");
+    expect(hospital?.transformed).toBe("Centro Sanitario");
+    const quasi = externalAi.result.entities.find((entity) => entity.type === "SOSPECHOSO");
+    expect(quasi?.transformed).toBe("[dato_sensible]");
   });
 
   it("fails typed for an unknown policy id through the composed path", () => {
@@ -748,16 +754,164 @@ describe("createRegistryEngine — EDAD generalization end-to-end (T12 WU-B)", (
     expect(FechasManager.visitasMap.size).toBe(0);
   });
 
-  it("keeps external-ai/longitudinal-research fail-closed (no AGE mapping cloned)", () => {
+  it("bands AGE identically under all four policies (REC-02: no policy keeps exact EDAD)", () => {
     const engine = createEngine();
-    for (const policyId of ["external-ai", "longitudinal-research"] as const) {
+    for (const policyId of [
+      "standard",
+      "strict",
+      "external-ai",
+      "longitudinal-research",
+    ] as const) {
+      const outcome = engine.process({ text: AGE_TEXT, context: FRESH, policyId });
+      const edad = outcome.result.entities.find((entity) => entity.type === "EDAD");
+      expect(edad?.transformed, `${policyId} EDAD`).toBe("40–49 años");
+      expect(outcome.result.processed, `${policyId} processed`).not.toContain("45 años");
+    }
+  });
+});
+
+describe("createRegistryEngine — REC-02 four-policy composed authority", () => {
+  /**
+   * Synthetic mixed note exercising every recognized category: NOMBRE,
+   * IDENTIFICADOR, UBICACION, SOSPECHOSO, EDAD and FECHA. All fixtures are
+   * synthetic; no real content anywhere.
+   */
+  const MIXED_TEXT =
+    "Revisión el 12/03/2024. Nombre: Carmen Sánchez. Atendida por la Dra. Fernández. Teléfono 612345678. Se derivó al Hospital del Rocío desde Sevilla. Síndrome de Ehlers Danlos. Edad: 45 años.";
+
+  type KeyedInvocation = { readonly key: string; readonly type: string; readonly text: string };
+
+  /** Registry that records the dispatched operator KEY for every invocation. */
+  function createKeyRecordingRegistry(invocations: KeyedInvocation[]): OperatorRegistry {
+    const real = createLegacyOperatorRegistry();
+    const registry = new OperatorRegistry();
+    for (const key of real.keys()) {
+      const delegate: Operator = real.get(key);
+      registry.register({
+        key,
+        apply(observation, context) {
+          invocations.push({ key, type: observation.type, text: observation.text });
+          return delegate.apply(observation, context);
+        },
+      });
+    }
+    return registry;
+  }
+
+  /** Distinct operator keys dispatched per observation type, sorted. */
+  function keysByType(invocations: readonly KeyedInvocation[]): Record<string, string[]> {
+    const byType: Record<string, string[]> = {};
+    for (const invocation of invocations) {
+      byType[invocation.type] = [...(byType[invocation.type] ?? []), invocation.key];
+    }
+    for (const type of Object.keys(byType)) {
+      byType[type] = [...new Set(byType[type])].sort();
+    }
+    return byType;
+  }
+
+  /** The REC-02 table by policy, expressed with the registry's stable keys. */
+  const EXPECTED_KEYS_BY_POLICY = {
+    standard: {
+      NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
+      IDENTIFICADOR: LEGACY_OPERATOR_KEYS.REDACT,
+      FECHA: LEGACY_OPERATOR_KEYS.DATE_TRANSFORM,
+      UBICACION: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      SOSPECHOSO: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      EDAD: LEGACY_OPERATOR_KEYS.AGE_GENERALIZE,
+    },
+    strict: {
+      NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
+      IDENTIFICADOR: LEGACY_OPERATOR_KEYS.REDACT,
+      FECHA: LEGACY_OPERATOR_KEYS.DATE_TRANSFORM,
+      UBICACION: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      SOSPECHOSO: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      EDAD: LEGACY_OPERATOR_KEYS.AGE_GENERALIZE,
+    },
+    "external-ai": {
+      NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
+      IDENTIFICADOR: LEGACY_OPERATOR_KEYS.REDACT,
+      FECHA: LEGACY_OPERATOR_KEYS.DATE_GENERALIZE,
+      UBICACION: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      SOSPECHOSO: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      EDAD: LEGACY_OPERATOR_KEYS.AGE_GENERALIZE,
+    },
+    "longitudinal-research": {
+      NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
+      IDENTIFICADOR: LEGACY_OPERATOR_KEYS.REDACT,
+      FECHA: LEGACY_OPERATOR_KEYS.DATE_SHIFT,
+      UBICACION: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      SOSPECHOSO: LEGACY_OPERATOR_KEYS.GENERALIZE,
+      EDAD: LEGACY_OPERATOR_KEYS.AGE_GENERALIZE,
+    },
+  } as const;
+
+  it.each(["standard", "strict", "external-ai", "longitudinal-research"] as const)(
+    "dispatches the exact per-category operator keys of the %s policy on mixed text",
+    (policyId) => {
+      const invocations: KeyedInvocation[] = [];
+      const engine = createRegistryEngine({
+        operatorRegistry: createKeyRecordingRegistry(invocations),
+      });
       try {
-        engine.process({ text: AGE_TEXT, context: FRESH, policyId });
-        throw new Error("expected engine.process to throw");
+        engine.process({ text: MIXED_TEXT, context: FRESH, policyId });
       } catch (error) {
-        expect(error).toBeInstanceOf(PolicyError);
-        expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+        // The date-shift policy fails closed without a shift state; the keys
+        // dispatched before the delegate threw were still recorded.
+        expect(policyId).toBe("longitudinal-research");
+        expect(error).toBeInstanceOf(DateOperatorError);
+        expect((error as DateOperatorError).code).toBe("missing-date-shift-state");
       }
+
+      const byType = keysByType(invocations);
+      // The fixture really exercises every recognized category.
+      for (const category of Object.keys(EXPECTED_KEYS_BY_POLICY.standard)) {
+        expect(byType[category], `${policyId}: ${category} observed`).toBeDefined();
+      }
+      for (const [category, expectedKey] of Object.entries(EXPECTED_KEYS_BY_POLICY[policyId])) {
+        expect(byType[category], `${policyId}: ${category} operator`).toEqual([expectedKey]);
+      }
+    }
+  );
+
+  it("external-ai generalizes text dates instead of visit-labelling them (ACCEPTANCE 6)", () => {
+    const engine = createEngine();
+    const outcome = engine.process({ text: MIXED_TEXT, context: FRESH, policyId: "external-ai" });
+    const fecha = outcome.result.entities.find((entity) => entity.type === "FECHA");
+    expect(fecha?.text).toBe("12/03/2024");
+    expect(fecha?.transformed).toBe("03/2024");
+    expect(fecha?.transformed).not.toMatch(/^Visita/);
+    expect(outcome.result.processed).not.toContain("12/03/2024");
+  });
+
+  it("longitudinal-research fails closed without a threaded shift state (ACCEPTANCE 7)", () => {
+    const engine = createEngine();
+    try {
+      engine.process({ text: MIXED_TEXT, context: FRESH, policyId: "longitudinal-research" });
+      throw new Error("expected the date-shift policy to fail closed without a shift state");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DateOperatorError);
+      expect((error as DateOperatorError).code).toBe("missing-date-shift-state");
+    }
+  });
+
+  it("redacts direct identifiers, bands EDAD and uses the strict location/quasi branch under external-ai and longitudinal (ACCEPTANCE 13/14)", () => {
+    const engine = createEngine();
+    // Date-free variant so the longitudinal fail-closed date does not hide the
+    // other category outcomes.
+    const dateFree = MIXED_TEXT.replace("Revisión el 12/03/2024.", "");
+    for (const policyId of ["external-ai", "longitudinal-research"] as const) {
+      const outcome = engine.process({ text: dateFree, context: FRESH, policyId });
+      const ident = outcome.result.entities.find((entity) => entity.type === "IDENTIFICADOR");
+      expect(ident?.transformed, `${policyId} identifier`).toBe("");
+      const edad = outcome.result.entities.find((entity) => entity.type === "EDAD");
+      expect(edad?.transformed, `${policyId} edad`).toBe("40–49 años");
+      const hospital = outcome.result.entities.find(
+        (entity) => entity.type === "UBICACION" && entity.subtype === "hospital"
+      );
+      expect(hospital?.transformed, `${policyId} hospital`).toBe("Centro Sanitario");
+      const quasi = outcome.result.entities.find((entity) => entity.type === "SOSPECHOSO");
+      expect(quasi?.transformed, `${policyId} quasi`).toBe("[dato_sensible]");
     }
   });
 });

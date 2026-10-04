@@ -260,13 +260,11 @@ export class OperatorRegistry {
  * T13 #17 WU-B (`./date-operator`). None of the last three is a legacy
  * branch.
  *
- * Policy reachability is NOT uniform: `AGE_GENERALIZE` is selected by the
- * accepted standard/strict policy mapping (GitHub #16), while
- * `DATE_GENERALIZE` and `DATE_SHIFT` land as accepted operator capabilities
- * that NO accepted policy mapping references yet — T13 keeps `FECHA →
- * legacy.date-transform`, and `external-ai`/`longitudinal-research` remain
- * fail-closed. A later accepted policy can select the two date keys without
- * touching this contract.
+ * Policy reachability (REC-02): `AGE_GENERALIZE` is selected by every accepted
+ * policy mapping, `DATE_GENERALIZE` is selected by the accepted `external-ai`
+ * FECHA mapping and `DATE_SHIFT` by the accepted `longitudinal-research` FECHA
+ * mapping (`./policy` owns the table). `DATE_SHIFT` requires a caller-supplied
+ * shift state and fails closed without one.
  */
 export const LEGACY_OPERATOR_KEYS: Readonly<
   Record<

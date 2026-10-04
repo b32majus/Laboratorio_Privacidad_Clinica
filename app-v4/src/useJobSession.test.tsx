@@ -13,7 +13,10 @@ import {
   beginProcessing,
   createJob,
   recordItemRead,
+  setPolicy,
 } from "./domain/job";
+import { readDateShiftState } from "./engine/date-operator";
+import { createInitialProcessingContext } from "./engine/initial-processing-context";
 import { PolicyError } from "./engine/policy";
 import { createRegistryEngine } from "./engine/registry-engine";
 import { getPendingDetections, type ReviewSession } from "./review/review-domain";
@@ -27,10 +30,17 @@ import { runBatchReviewAsync, useJobSession } from "./useJobSession";
 const engineControl = vi.hoisted(() => ({
   hold: false,
   pending: [] as Array<{ resolve: () => void; reject: (error: unknown) => void }>,
+  /**
+   * Durable typed-failure producer (REC-02 WU-A): the loader seam rejects with
+   * this error so the typed-failure route depends on no policy-specific
+   * failure condition.
+   */
+  loadError: null as unknown,
 }));
 
 vi.mock("./engine/engine-seam", () => ({
   loadRegistryEngine: async () => {
+    if (engineControl.loadError !== null) throw engineControl.loadError;
     const { createRegistryEngine } = await import("./engine/registry-engine");
     const engine = createRegistryEngine();
     const adapted = {
@@ -61,9 +71,11 @@ function rejectPendingEngine(error: unknown): void {
  * (T15 #19, GitHub #19 acceptance bullet 3).
  *
  * The probe uses the REAL hook and drives the REAL `startReview()`; the engine
- * is never mocked, so the success route runs the composed registry engine and
- * the failure route raises the real typed `PolicyError` for the
- * known-but-unmapped `external-ai` policy. The observed state is rendered as
+ * is never mocked for the success route, so it runs the composed registry
+ * engine. The typed-failure route injects a typed error through the file's
+ * controllable engine-loader seam, which keeps the failure producer durable
+ * and independent of any single policy mapping (REC-02 collapsed the
+ * known-but-unmapped policies). The observed state is rendered as
  * text in a `role="status"` region so the assertions derive from what the hook
  * actually exposes.
  *
@@ -124,6 +136,7 @@ function ProcessingProbe() {
 afterEach(() => {
   engineControl.hold = false;
   engineControl.pending = [];
+  engineControl.loadError = null;
   cleanup();
 });
 
@@ -143,10 +156,29 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).toHaveTextContent("returned: null");
   });
 
-  it("typed-failure route: records failed, appends the typed error and installs no session", async () => {
+  it("newly enabled policy route: an external-ai text job processes successfully (REC-02 WU-A)", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
     fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    });
+
+    const probe = screen.getByRole("status", { name: "processing probe" });
+    expect(probe).toHaveTextContent("processing: succeeded");
+    expect(probe).toHaveTextContent("errors: none");
+    expect(probe).toHaveTextContent("session: installed");
+    expect(probe).toHaveTextContent("returned: null");
+  });
+
+  it("typed-failure route: records failed, appends the typed error and installs no session", async () => {
+    render(<ProcessingProbe />);
+    fireEvent.click(screen.getByRole("button", { name: "create job" }));
+    // Durable producer: a typed error through the controllable loader seam.
+    engineControl.loadError = new PolicyError(
+      "unknown-policy",
+      "Injected loader failure: no such privacy policy in this deterministic test."
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "start review" }));
     });
@@ -156,15 +188,17 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).toHaveTextContent("errors: policy-unsupported");
     expect(probe).toHaveTextContent("session: none");
     expect(probe).toHaveTextContent("returned: policy-unsupported /");
-    expect(probe).toHaveTextContent(/no accepted per-category operator mapping/i);
-    // The failure is never mistaken for a successful review.
+    // The typed failure is never mistaken for a successful review.
     expect(probe).not.toHaveTextContent("processing: succeeded");
   });
 
   it("retry route: a failed attempt can start again and reach a terminal success", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
-    fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
+    engineControl.loadError = new PolicyError(
+      "unknown-policy",
+      "Injected loader failure: no such privacy policy in this deterministic test."
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "start review" }));
     });
@@ -172,8 +206,8 @@ describe("useJobSession.startReview (T15 #19)", () => {
       "processing: failed"
     );
 
-    // Fix the policy back to a mapped one, then retry the same job.
-    fireEvent.click(screen.getByRole("button", { name: "policy standard" }));
+    // The transient loader failure clears, then retry the same job.
+    engineControl.loadError = null;
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "start review" }));
     });
@@ -187,7 +221,10 @@ describe("useJobSession.startReview (T15 #19)", () => {
   it("never-success-never-thrown contract: a typed failure is returned, not thrown", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
-    fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
+    engineControl.loadError = new PolicyError(
+      "unknown-policy",
+      "Injected loader failure: no such privacy policy in this deterministic test."
+    );
 
     // The click handler calls the real startReview(); a throw would escape it.
     await act(async () => {
@@ -212,6 +249,31 @@ const BATCH_DOC_A = "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr
 const BATCH_DOC_B =
   "Nombre: Carmen Sánchez\nLa paciente Lucía Ruiz acude a consulta. El Dr. García López firmó el informe. Familiar: Rosa Martínez.";
 const BATCH_MARKER = "Texto sintético que el motor inyectado rechaza.";
+/** Link-date fixtures for the longitudinal batch oracles (synthetic). */
+const LONG_DOC_A = "Ingreso el 05/01/2024.";
+const LONG_DOC_B = "Analítica el 12/01/2024 y revisión el 02/02/2024.";
+const LONG_DOC_C = "Alta médica el 20/03/2024.";
+const LONG_NAME_DOC_A = "Nombre: Carmen Sánchez. Analítica el 05/01/2024.";
+const LONG_NAME_DOC_C = "Nombre: Carmen Sánchez. Revisión el 12/01/2024.";
+
+/** Parses a `dd/mm/yyyy` fixture into a UTC epoch day. */
+function toUtcDay(dateText: string): number {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateText);
+  if (match === null) throw new Error(`unexpected date format "${dateText}"`);
+  return Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1])) / 86_400_000;
+}
+
+/** Kept (non-candidate) FECHA source→proposal pairs of one session. */
+function fechaPairs(
+  session: ReviewSession
+): { readonly source: string; readonly proposed: string }[] {
+  return session.detections
+    .filter((detection) => detection.type === "FECHA" && detection.lowConfidence !== true)
+    .map((detection) => ({
+      source: detection.original ?? "",
+      proposed: detection.proposed ?? "",
+    }));
+}
 
 /** Build a document batch and drive the read phase through the domain. */
 function domainBatchJob(
@@ -509,6 +571,143 @@ describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
     expect(engineProposal(first, "Carmen Sánchez")).toBe("Paciente 1");
     expect(engineProposal(third, "Carmen Sánchez")).toBe("Paciente 1");
     expect(engineProposal(third, "Lucía Ruiz")).toBe("Paciente 2");
+  });
+});
+
+/**
+ * REC-02 WU-B oracles for the longitudinal date-shift context threading. The
+ * bridge must seed the FIRST item from the policy-owned seam, carry the
+ * returned `options` (not only `pseudonymState`) into shared mode, and keep one
+ * Job-scoped offset across successful items even when an item fails. All
+ * fixtures are synthetic; no real content anywhere.
+ */
+describe("useJobSession batch longitudinal date shift (REC-02 WU-B)", () => {
+  it.each(["standard", "strict", "external-ai", "longitudinal-research"] as const)(
+    "processes a document batch successfully under the %s policy (ACCEPTANCE 10)",
+    async (policyId) => {
+      const job = setPolicy(
+        domainBatchJob([
+          { name: "a.txt", read: { ok: true, extractedText: LONG_DOC_A } },
+          { name: "b.txt", read: { ok: true, extractedText: LONG_DOC_B } },
+        ]),
+        policyId
+      );
+      const real = createRegistryEngine();
+      const run = await runBatchReviewAsync(beginProcessing(job), {
+        engineLoader: async () => ({ process: async (input) => real.process(input) }),
+      });
+      if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
+      for (const index of [0, 1]) {
+        expect(batchItemStatus(run.job, index)).toBe("review-required");
+      }
+    }
+  );
+
+  it("threads ONE Job-scoped shift across successful items and preserves intervals/order (ACCEPTANCE 11)", async () => {
+    const job = setPolicy(
+      domainBatchJob([
+        { name: "doc-a.txt", read: { ok: true, extractedText: LONG_DOC_A } },
+        { name: "doc-b.txt", read: { ok: true, extractedText: LONG_DOC_B } },
+        { name: "doc-c.txt", read: { ok: true, extractedText: LONG_DOC_C } },
+      ]),
+      "longitudinal-research"
+    );
+    const real = createRegistryEngine();
+    const run = await runBatchReviewAsync(beginProcessing(job), {
+      engineLoader: async () => ({ process: async (input) => real.process(input) }),
+    });
+    if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
+    for (const index of [0, 1, 2]) {
+      expect(batchItemStatus(run.job, index)).toBe("review-required");
+    }
+
+    const pairs = [0, 1, 2].flatMap((index) => fechaPairs(run.sessions[index]!));
+    expect(pairs).toHaveLength(4);
+    const deltas = pairs.map((pair) => toUtcDay(pair.proposed) - toUtcDay(pair.source));
+    // One offset across every successful document.
+    expect(new Set(deltas).size).toBe(1);
+    for (const pair of pairs) {
+      expect(pair.proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+      expect(pair.proposed).not.toBe(pair.source);
+      expect(pair.proposed).not.toMatch(/^Visita/);
+    }
+
+    // Every pairwise day interval and the chronological order are preserved.
+    const sources = pairs.map((pair) => pair.source);
+    const shifted = pairs.map((pair) => pair.proposed);
+    for (let i = 0; i < sources.length; i += 1) {
+      for (let j = i + 1; j < sources.length; j += 1) {
+        expect(toUtcDay(shifted[j]) - toUtcDay(shifted[i])).toBe(
+          toUtcDay(sources[j]) - toUtcDay(sources[i])
+        );
+      }
+    }
+    const order = (dates: readonly string[]) =>
+      dates.map((_, index) => index).sort((a, b) => toUtcDay(dates[a]) - toUtcDay(dates[b]));
+    expect(order(shifted)).toEqual(order(sources));
+  });
+
+  it("keeps the carried shift and pseudonym context across an intervening failed item (ACCEPTANCE 12)", async () => {
+    const real = createRegistryEngine();
+    const stub: ReturnType<typeof createRegistryEngine> = {
+      process(input) {
+        if (input.text === BATCH_MARKER) {
+          throw new PolicyError(
+            "policy-operator-mapping-unavailable",
+            "Injected stub: refusing the marker text."
+          );
+        }
+        return real.process(input);
+      },
+    };
+    const job = setPolicy(
+      domainBatchJob([
+        { name: "doc-a.txt", read: { ok: true, extractedText: LONG_NAME_DOC_A } },
+        { name: "doc-b.txt", read: { ok: true, extractedText: BATCH_MARKER } },
+        { name: "doc-c.txt", read: { ok: true, extractedText: LONG_NAME_DOC_C } },
+      ]),
+      "longitudinal-research"
+    );
+    const run = await runBatchReviewAsync(beginProcessing(job), {
+      engineLoader: async () => ({ process: async (input) => stub.process(input) }),
+    });
+    if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
+    expect(batchItemStatus(run.job, 1)).toBe("error");
+    expect(batchItemStatus(run.job, 0)).toBe("review-required");
+    expect(batchItemStatus(run.job, 2)).toBe("review-required");
+
+    // The successful items still shift by exactly the Job-scoped offset the
+    // seam derives: the failed item contributed no replacement state.
+    const state = readDateShiftState(
+      createInitialProcessingContext(job, "longitudinal-research").options
+    );
+    if (state === undefined) throw new Error("expected a Job-scoped date-shift state");
+    const pairs = [run.sessions[0]!, run.sessions[2]!].flatMap((session) => fechaPairs(session));
+    expect(pairs).toHaveLength(2);
+    for (const pair of pairs) {
+      expect(toUtcDay(pair.proposed) - toUtcDay(pair.source)).toBe(state.contextOffsetDays);
+    }
+
+    // Pseudonym context carried across the failure: the returning identity
+    // keeps `Paciente 1`; the failed item neither consumed nor reset a
+    // pseudonym.
+    expect(engineProposal(run.sessions[0]!, "Carmen Sánchez")).toBe("Paciente 1");
+    expect(engineProposal(run.sessions[2]!, "Carmen Sánchez")).toBe("Paciente 1");
+  });
+
+  it("processes a longitudinal-research text job through the hook with a Job-scoped shift (ACCEPTANCE 9)", async () => {
+    const { result } = renderHook(() => useJobSession());
+    act(() => result.current.create({ type: "pasted-text", text: LONG_NAME_DOC_A }));
+    act(() => result.current.updatePolicy("longitudinal-research"));
+    await act(async () => {
+      await result.current.startReview();
+    });
+    expect(result.current.job?.processing).toBe("succeeded");
+    const session = result.current.review;
+    if (!session) throw new Error("expected an installed review session");
+    const fecha = session.detections.find((detection) => detection.type === "FECHA");
+    expect(fecha?.proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(fecha?.proposed).not.toMatch(/^Visita/);
   });
 });
 

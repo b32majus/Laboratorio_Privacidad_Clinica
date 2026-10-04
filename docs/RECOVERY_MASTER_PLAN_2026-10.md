@@ -78,6 +78,8 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 - date intervals/order are preserved where the accepted policy requires shifting;
 - no fallback to Standard and no silent KEEP for unmapped categories.
 
+**Status — REC-02 IMPLEMENTED, LOCAL CANDIDATE (2026-10-04, C-084).** The four accepted policies now resolve complete text/document/document-batch mappings in the single engine authority: `external-ai` maps `FECHA` to date generalization, `longitudinal-research` maps `FECHA` to one consistent Job-scoped date shift (seeded only from non-PHI Job identity) threaded through the single-document and batch product paths, and both use the stricter location/quasi branch while EDAD stays banded and direct identifiers stay redacted. Policy availability and guidance remain derived from the engine/structured authorities, so all four are selectable for every job kind and no UI copy claims External AI/Longitudinal text policies are unavailable. Evidence: focused V4 suite 177/177 and `npm test` 1019/1019 green, `check:privacy-eval:v4`, typecheck/lint/format/build, and Playwright `e2e/policy-guidance.spec.ts` (8/8) proving external-ai/longitudinal selection AND processing through to the output gate. Implementation candidate commit `d188963` on `work/rec-02-text-policy-completion-20261004`; LOCAL_ONLY, not yet reviewed or merged. This closes only the REC-02-owned rows and does **not** declare overall recovery complete; it does **not** advance REC-03.
+
 ---
 
 ### REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01

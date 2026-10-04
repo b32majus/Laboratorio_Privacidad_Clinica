@@ -96,7 +96,12 @@ describe("engine Worker boundary (T22 #26 WU-E)", () => {
     const fake = new FakeWorker();
     const { engine, terminate } = createWorkerEngineFrom(fake as unknown as Worker);
     try {
-      const failureInput: RegistryEngineInput = { ...INPUT, policyId: "external-ai" };
+      // REC-02 WU-A: every accepted policy now resolves, so the durable typed
+      // failure producer is an unknown policy id (never falling back).
+      const failureInput: RegistryEngineInput = {
+        ...INPUT,
+        policyId: "no-such-policy" as RegistryEngineInput["policyId"],
+      };
       let failure: unknown = null;
       try {
         await engine.process(failureInput);
@@ -105,7 +110,7 @@ describe("engine Worker boundary (T22 #26 WU-E)", () => {
       }
       expect(failure).toBeInstanceOf(PolicyError);
       const code = (failure as { code: string }).code;
-      expect(code).toBe("policy-operator-mapping-unavailable");
+      expect(code).toBe("unknown-policy");
       // The classified failure matches the in-process classification exactly.
       const viaWorker = classifyProcessingFailure(failure);
       let inProcessFailure: unknown = null;

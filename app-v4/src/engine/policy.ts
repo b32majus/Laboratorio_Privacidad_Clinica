@@ -1,32 +1,47 @@
 /**
- * V4 headless policy lookup (Work Order T11 #15, WU2b).
+ * V4 headless policy lookup (Work Order T11 #15, WU2b; REC-02
+ * TEXT-POLICY-COMPLETION-01 WU-A).
  *
  * SPEC_V4_PRIVACY_ENGINE.md §6: "A policy maps context/entity to operator +
- * review requirements." This unit implements only the accepted slice of that
+ * review requirements." This unit implements the accepted slice of that
  * authority: a pure, headless lookup that resolves a {@link PrivacyPolicyId}
  * to a frozen {@link PolicyProfile} carrying the policy id, its
  * transformation-behavior flag and the category→operator-key mapping.
  *
- * No-invented-semantics boundary (SPEC §6; CURRENT_DECISIONS.md D-007): the
- * only accepted transformation authority today is the legacy
- * `Processor.transformEntity` switch (js/core/processor.js), mirrored per
- * category by the WU2a operators, plus the accepted T12 AGE mapping
- * (`EDAD` → AGE_GENERALIZE, GitHub #16) shared by both profiles.
- * `standard` and `strict` resolve to the two legacy `modoEstricto` profiles
- * (false/true) with the identical category→operator mapping;
- * `external-ai` and `longitudinal-research` have NO accepted per-category
- * operator mapping yet (T13 owns longitudinal date semantics), so they fail
- * typed instead of guessing a transformation or silently falling back to
- * `standard`.
+ * Four-policy authority (REC-02; handoff "Human-accepted text/document/batch
+ * policy mapping"): all four accepted policies now resolve a complete mapping.
+ *
+ * - `standard` / `strict` mirror the legacy `Processor.transformEntity`
+ *   switch (js/core/processor.js) per category, plus the accepted T12 AGE
+ *   mapping (`EDAD` → AGE_GENERALIZE, GitHub #16). They differ only in the
+ *   `modoEstricto` flag and MUST stay byte/contract compatible with their
+ *   current accepted behavior.
+ * - `external-ai` uses the same stricter (`strictMode=true`) branch for
+ *   location/quasi-identifiers and the same name/identifier/age operators, but
+ *   resolves `FECHA` to the accepted date-generalization operator
+ *   (`v4.date-generalize`) instead of preserving exact intervals via the
+ *   legacy visit transform. It is a LOCAL preparation policy: it transmits
+ *   nothing to any service.
+ * - `longitudinal-research` uses the same stricter branch, but resolves
+ *   `FECHA` to the accepted consistent date-shift operator (`v4.date-shift`).
+ *   It deliberately fails closed when no shift state is threaded
+ *   (`ProcessingContext.options.dateShift` is owned by the context seam), so
+ *   it never silently passes the original date through.
+ *
+ * `EDAD` remains banded under all four policies (R-E-C-02 acceptance: no
+ * policy keeps an exact age). The mapping is data-owned and deeply frozen
+ * here; no policy is a fallback for another.
  *
  * Deliberately out of scope: review/requiresReview semantics (ARCH-011
  * coherence is a separate work unit; D-004 keeps ReviewSession as the review
- * authority), AGE/date policy semantics (T12/T13), and any default profile.
+ * authority), the POLICY-OWNED date-shift context factory (WU-B) and policy
+ * guidance copy (WU-C).
  *
- * Fail-closed (D-009): malformed input, unknown policy ids and
- * known-but-unmapped policy ids all raise typed {@link PolicyError}
- * failures. There is no fallback profile, no default operator mapping and no
- * silent KEEP.
+ * Fail-closed (D-009): malformed input and unknown policy ids raise typed
+ * {@link PolicyError} failures. There is no fallback profile, no default
+ * operator mapping and no silent KEEP. A profile that does not carry the
+ * exact mapping table of its policy is rejected by
+ * {@link assertPolicyProfileConsistent}.
  *
  * Privacy: this module never logs content and stays headless/Worker-safe: it
  * imports only pure local modules (engine contracts plus the job policy
@@ -36,9 +51,6 @@
 import { type PrivacyPolicyId } from "../domain/job";
 import { LEGACY_OPERATOR_KEYS } from "./operator-registry";
 import { RECOGNIZER_CATEGORIES, type RecognizerCategory } from "./recognizer-registry";
-
-/** The policy ids whose transformation mapping has accepted authority today. */
-type MappedPolicyId = "standard" | "strict";
 
 /** Category→operator-key mapping of one policy (SPEC §5/§6). */
 export type PolicyCategoryOperatorKeys = Readonly<Record<RecognizerCategory, string>>;
@@ -53,15 +65,15 @@ export type PolicyCategoryOperatorKeys = Readonly<Record<RecognizerCategory, str
 export type PolicyProfile = {
   readonly policyId: PrivacyPolicyId;
   /**
-   * The ONLY accepted transformation-behavior authority today: the legacy
-   * `Processor.config.modoEstricto` profile branch (`standard` → false,
-   * `strict` → true).
+   * The accepted transformation-behavior authority: the legacy
+   * `Processor.config.modoEstricto` profile branch. `standard` → false; every
+   * other accepted policy uses the stricter branch (true).
    */
   readonly strictMode: boolean;
   /**
    * Maps each taxonomy category to the stable operator registry key
-   * ({@link LEGACY_OPERATOR_KEYS}) that applies under this policy, mirroring
-   * the accepted legacy `transformEntity` semantics exactly.
+   * ({@link LEGACY_OPERATOR_KEYS}) that applies under this policy. The table
+   * is owned by this module and deeply frozen.
    */
   readonly categoryOperatorKeys: PolicyCategoryOperatorKeys;
 };
@@ -92,23 +104,23 @@ const POLICY_IDS: readonly PrivacyPolicyId[] = [
   "strict",
 ];
 
-/** Policies whose per-category operator mapping has accepted authority today. */
-const POLICIES_WITH_ACCEPTED_MAPPING: readonly MappedPolicyId[] = ["standard", "strict"];
-
-/** Legacy `modoEstricto` value per mapped policy (js/core/processor.js). */
-const LEGACY_STRICT_MODE: Readonly<Record<MappedPolicyId, boolean>> = Object.freeze({
+/** Legacy `modoEstricto` value per policy (js/core/processor.js). */
+const LEGACY_STRICT_MODE: Readonly<Record<PrivacyPolicyId, boolean>> = Object.freeze({
   standard: false,
   strict: true,
+  "external-ai": true,
+  "longitudinal-research": true,
 });
 
 /**
- * The single accepted category→operator mapping, mirroring the legacy
- * `transformEntity` switch exactly (D-003: mirror, do not redesign):
- * NOMBRE→pseudonymize, IDENTIFICADOR→redact, FECHA→date-transform,
- * UBICACION→generalize, SOSPECHOSO→generalize. EDAD is the accepted T12 AGE
- * mapping (GitHub #16): AGE_GENERALIZE, shared by standard and strict (the
- * stricter profile deliberately does not invent a second banding scheme).
- * All values are the stable keys of the existing operator registry.
+ * The legacy category→operator mapping shared by `standard` and `strict`,
+ * mirroring the legacy `transformEntity` switch exactly (D-003: mirror, do
+ * not redesign): NOMBRE→pseudonymize, IDENTIFICADOR→redact,
+ * FECHA→date-transform, UBICACION→generalize, SOSPECHOSO→generalize. EDAD is
+ * the accepted T12 AGE mapping (GitHub #16): AGE_GENERALIZE, shared by all
+ * four policies (the stricter policies deliberately do not invent a second
+ * banding scheme). All values are the stable keys of the existing operator
+ * registry.
  */
 const LEGACY_CATEGORY_OPERATOR_KEYS: PolicyCategoryOperatorKeys = Object.freeze({
   NOMBRE: LEGACY_OPERATOR_KEYS.PSEUDONYMIZE,
@@ -129,6 +141,33 @@ function freezeDeep<T>(value: T): T {
   return value;
 }
 
+/**
+ * The single data-owned REC-02 category→operator table, keyed by policy id
+ * and deeply frozen. `standard`/`strict` keep the legacy mapping;
+ * `external-ai` overrides only FECHA with the date-generalization operator;
+ * `longitudinal-research` overrides only FECHA with the consistent date-shift
+ * operator. Nothing here is derived at lookup time, so the authority is one
+ * frozen table rather than a second policy engine.
+ */
+const CATEGORY_OPERATOR_KEYS_BY_POLICY: Readonly<
+  Record<PrivacyPolicyId, PolicyCategoryOperatorKeys>
+> = freezeDeep({
+  standard: { ...LEGACY_CATEGORY_OPERATOR_KEYS },
+  strict: { ...LEGACY_CATEGORY_OPERATOR_KEYS },
+  "external-ai": {
+    ...LEGACY_CATEGORY_OPERATOR_KEYS,
+    FECHA: LEGACY_OPERATOR_KEYS.DATE_GENERALIZE,
+  },
+  "longitudinal-research": {
+    ...LEGACY_CATEGORY_OPERATOR_KEYS,
+    FECHA: LEGACY_OPERATOR_KEYS.DATE_SHIFT,
+  },
+});
+
+function isPolicyId(value: unknown): value is PrivacyPolicyId {
+  return typeof value === "string" && (POLICY_IDS as readonly string[]).includes(value);
+}
+
 function describePolicyIdInput(policyId: unknown): string {
   if (policyId === null) return "null";
   if (typeof policyId === "string") return "(empty string)";
@@ -141,9 +180,7 @@ function describePolicyIdInput(policyId: unknown): string {
  *
  * - malformed input (non-string or empty string) → "invalid-policy-id";
  * - a string outside the D-007 vocabulary → "unknown-policy";
- * - a known-but-unmapped policy (`external-ai`, `longitudinal-research`) →
- *   "policy-operator-mapping-unavailable" — never a guessed transformation,
- *   never a silent fallback to `standard`.
+ * - no policy falls back to another (there is no default profile).
  */
 export function lookupPolicyProfile(policyId: unknown): PolicyProfile {
   if (typeof policyId !== "string" || policyId.length === 0) {
@@ -152,7 +189,7 @@ export function lookupPolicyProfile(policyId: unknown): PolicyProfile {
       `Policy id must be a non-empty string; received ${describePolicyIdInput(policyId)}.`
     );
   }
-  if (!POLICY_IDS.includes(policyId as PrivacyPolicyId)) {
+  if (!isPolicyId(policyId)) {
     throw new PolicyError(
       "unknown-policy",
       `Unknown privacy policy "${policyId}"; the accepted vocabulary is ${POLICY_IDS.join(
@@ -160,31 +197,26 @@ export function lookupPolicyProfile(policyId: unknown): PolicyProfile {
       )} (D-007). Failing closed instead of guessing.`
     );
   }
-  if (!POLICIES_WITH_ACCEPTED_MAPPING.includes(policyId as MappedPolicyId)) {
-    throw new PolicyError(
-      "policy-operator-mapping-unavailable",
-      `Privacy policy "${policyId}" is known but has no accepted per-category operator mapping yet (D-007 defers exact mappings to their owning tickets; T13 owns longitudinal date semantics). Failing closed instead of guessing a transformation or falling back to "standard".`
-    );
-  }
-  return buildProfile(policyId as MappedPolicyId);
+  return buildProfile(policyId);
 }
 
-function buildProfile(policyId: MappedPolicyId): PolicyProfile {
+function buildProfile(policyId: PrivacyPolicyId): PolicyProfile {
   return freezeDeep({
     policyId,
     strictMode: LEGACY_STRICT_MODE[policyId],
-    categoryOperatorKeys: { ...LEGACY_CATEGORY_OPERATOR_KEYS },
+    categoryOperatorKeys: { ...CATEGORY_OPERATOR_KEYS_BY_POLICY[policyId] },
   });
 }
 
 /**
  * Explicit consistency checker for a policy profile (protocol §3.5 planted
  * violation detection). A profile is consistent only when it is deeply
- * frozen, belongs to a policy with accepted mapping authority, carries the
- * exact accepted strictMode flag, and maps exactly the accepted taxonomy
- * categories to the exact accepted operator keys. Anything else — including
- * a strict profile flipped to strictMode=false or an `external-ai` profile
- * silently carrying the standard mapping — fails typed instead of passing.
+ * frozen, belongs to an accepted policy id, carries the exact accepted
+ * strictMode flag, and maps exactly the accepted taxonomy categories to the
+ * exact accepted operator keys OF THAT POLICY. Anything else — a strict
+ * profile flipped to strictMode=false, an `external-ai` profile whose FECHA
+ * silently falls back to the legacy transform, a `longitudinal-research`
+ * profile carrying date-generalize — fails typed instead of passing.
  */
 export function assertPolicyProfileConsistent(profile: unknown): asserts profile is PolicyProfile {
   if (profile === null || typeof profile !== "object") {
@@ -194,15 +226,15 @@ export function assertPolicyProfileConsistent(profile: unknown): asserts profile
     );
   }
   const candidate = profile as Partial<PolicyProfile>;
-  if (!POLICIES_WITH_ACCEPTED_MAPPING.includes(candidate.policyId as MappedPolicyId)) {
+  const policyId = candidate.policyId;
+  if (!isPolicyId(policyId)) {
     throw new PolicyError(
       "policy-operator-mapping-unavailable",
-      `A policy profile can only be consistent for a policy with an accepted operator mapping (${POLICIES_WITH_ACCEPTED_MAPPING.join(
+      `A policy profile can only be consistent for an accepted policy id (${POLICY_IDS.join(
         ", "
-      )}); received "${String(candidate.policyId)}".`
+      )}); received "${String(policyId)}".`
     );
   }
-  const policyId = candidate.policyId as MappedPolicyId;
   if (
     typeof candidate.strictMode !== "boolean" ||
     candidate.strictMode !== LEGACY_STRICT_MODE[policyId]
@@ -231,15 +263,16 @@ export function assertPolicyProfileConsistent(profile: unknown): asserts profile
       )}; received ${actualCategories.join(", ")}.`
     );
   }
+  const expectedMapping = CATEGORY_OPERATOR_KEYS_BY_POLICY[policyId];
   for (const category of expectedCategories) {
-    const expectedKey = LEGACY_CATEGORY_OPERATOR_KEYS[category as RecognizerCategory];
+    const expectedKey = expectedMapping[category as RecognizerCategory];
     const actualKey = (mapping as PolicyCategoryOperatorKeys)[category as RecognizerCategory];
     if (actualKey !== expectedKey) {
       throw new PolicyError(
         "inconsistent-policy-profile",
         `Policy "${policyId}" maps category "${category}" to "${String(
           actualKey
-        )}" but the accepted legacy semantics map it to "${expectedKey}".`
+        )}" but the accepted REC-02 table maps it to "${expectedKey}".`
       );
     }
   }

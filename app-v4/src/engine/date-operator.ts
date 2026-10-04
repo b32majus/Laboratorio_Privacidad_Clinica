@@ -17,14 +17,12 @@
  *    classification — never a guess. Structured/CSV column semantics are out
  *    of scope for #17 (T19 owns them).
  * 2. {@link DateGeneralizeOperator} and {@link DateShiftOperator} are accepted
- *    V4 operator CAPABILITIES: precision generalization (drop the day /
- *    collapse to the year) and consistent date shifting (linked records keep
- *    intervals and order). They are NOT selected by the current accepted
- *    policy mapping: T13 keeps `FECHA → legacy.date-transform` and
- *    `external-ai`/`longitudinal-research` remain fail-closed, so these
- *    operators are reachable through the registry contract and their own
- *    oracles, not through the current policy. A later accepted policy can
- *    select them without touching the registry contract.
+ *    V4 operators selected by the REC-02 policy mapping: `external-ai` maps
+ *    `FECHA → v4.date-generalize` (precision generalization: drop the day /
+ *    collapse to the year) and `longitudinal-research` maps
+ *    `FECHA → v4.date-shift` (consistent shifting so linked records keep
+ *    intervals and order). Standard/strict keep `legacy.date-transform`; the
+ *    shift operator fails closed when no shift state is threaded.
  *
  * Fail-closed (D-009): malformed arguments raise the typed
  * {@link DateOperatorError}; unparseable date CONTENT raises

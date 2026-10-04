@@ -266,17 +266,12 @@ for (const width of [375, 1280]) {
       "Create a job to see which policies are available for its type."
     );
 
-    // Text job: all four entries, both availability states, current policy.
+    // Text job: all four entries, all four available (REC-02), current policy.
     await createTextJob(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
-    await expect(guidanceItem(page, "Standard")).toContainText("Available");
-    await expect(guidanceItem(page, "Strict")).toContainText("Available");
-    await expect(guidanceItem(page, "External AI")).toContainText(
-      "Not available for this job type yet"
-    );
-    await expect(guidanceItem(page, "Longitudinal Research")).toContainText(
-      "Not available for this job type yet"
-    );
+    for (const name of POLICY_NAMES) {
+      await expect(guidanceItem(page, name)).toContainText("Available");
+    }
     await expect(region).toContainText("Current policy: Standard");
 
     // Structured job: all four available and the patient-ID requirement is

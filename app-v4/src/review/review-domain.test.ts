@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { beginItemRead, createJob, recordItemRead, setPolicy, type Job } from "../domain/job";
 import { createRegistryEngine } from "../engine/registry-engine";
+import { DateOperatorError } from "../engine/date-operator";
 import { PolicyError } from "../engine/policy";
 import {
   ReviewSessionError,
@@ -296,6 +297,10 @@ describe("job → review-source mapping", () => {
 const HOSPITAL_TEXT =
   "Se derivó al Hospital Virgen del Rocío desde Sevilla para pruebas complementarias.";
 
+/** HOSPITAL_TEXT carrying one visit date: needed to exercise date policies. */
+const DATED_HOSPITAL_TEXT =
+  "Se derivó al Hospital Virgen del Rocío desde Sevilla el 12/03/2024 para pruebas complementarias.";
+
 describe("policy binding: the session is produced under the job's policy (C1)", () => {
   function proposalsOf(
     session: ReviewSession
@@ -344,20 +349,90 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     expect(hospital?.proposed).toBe("Centro Sanitario");
   });
 
-  it.each(["external-ai", "longitudinal-research"] as const)(
-    "a known-but-unmapped %s job fails closed with the typed PolicyError",
-    async (policyId) => {
-      const job = setPolicy(createJob({ type: "pasted-text", text: HOSPITAL_TEXT }), policyId);
-      try {
-        await startReviewSessionAsync(job);
-        throw new Error("expected startReviewSession to fail closed");
-      } catch (error) {
-        expect(error).toBeInstanceOf(PolicyError);
-        expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
-        expect((error as PolicyError).message).toContain(policyId);
-      }
+  it("runs an external-ai job under its own policy: dates generalized, not visit-relabelled (REC-02)", async () => {
+    const job = setPolicy(
+      createJob({ type: "pasted-text", text: DATED_HOSPITAL_TEXT }),
+      "external-ai"
+    );
+    const session = await startReviewSessionAsync(job);
+
+    const fecha = session.detections.find((detection) => detection.type === "FECHA");
+    expect(fecha?.original).toBe("12/03/2024");
+    expect(fecha?.proposed).toMatch(/^\d{2}\/\d{4}$/);
+    expect(fecha?.proposed).not.toMatch(/^Visita/);
+    // The stricter location branch is used, exactly like `strict`.
+    const hospital = session.detections.find(
+      (detection) =>
+        detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
+    );
+    expect(hospital?.proposed).toBe("Centro Sanitario");
+  });
+
+  it("runs a longitudinal-research text job with one consistent Job-scoped shift (REC-02 WU-B)", async () => {
+    const job = setPolicy(
+      createJob({ type: "pasted-text", text: DATED_HOSPITAL_TEXT }),
+      "longitudinal-research"
+    );
+    const session = await startReviewSessionAsync(job);
+
+    const fecha = session.detections.find(
+      (detection) => detection.type === "FECHA" && detection.original === "12/03/2024"
+    );
+    expect(fecha?.proposed).toBeDefined();
+    // A real shift: not the source date, not the legacy visit label and not the
+    // external-ai month precision.
+    expect(fecha?.proposed).not.toBe("12/03/2024");
+    expect(fecha?.proposed).not.toBe("");
+    expect(fecha?.proposed).not.toMatch(/^Visita/);
+    expect(fecha?.proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+
+    // Deterministic: re-entering the same Job recreates the exact same
+    // Job-scoped shift (handoff contract point 7).
+    const replayed = await startReviewSessionAsync(job);
+    expect(proposalsOf(replayed)).toEqual(proposalsOf(session));
+
+    // The stricter location branch is preserved (REC-02 acceptance 14).
+    const hospital = session.detections.find(
+      (detection) =>
+        detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
+    );
+    expect(hospital?.proposed).toBe("Centro Sanitario");
+  });
+
+  it("runs a longitudinal-research single-document job through the same Job-scoped shift (REC-02 WU-B)", async () => {
+    const job = setPolicy(
+      createJob({
+        type: "files",
+        files: [
+          {
+            name: "nota.txt",
+            extension: "txt",
+            extraction: { status: "extracted", extractedText: DATED_HOSPITAL_TEXT },
+          },
+        ],
+      }),
+      "longitudinal-research"
+    );
+    const session = await startReviewSessionAsync(job);
+    const fecha = session.detections.find((detection) => detection.type === "FECHA");
+    expect(fecha?.original).toBe("12/03/2024");
+    expect(fecha?.proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(fecha?.proposed).not.toMatch(/^Visita/);
+    expect(fecha?.proposed).not.toBe(fecha?.original);
+  });
+
+  it("keeps a missing date-shift state fail-closed at the low-level text seam (REC-02 ACCEPTANCE 7)", async () => {
+    // The product Job path threads a Job-scoped shift; a caller that supplies
+    // NO shift context still fails closed instead of silently passing the
+    // original date through (never a Standard fallback).
+    try {
+      await createSessionFromEngineTextAsync(DATED_HOSPITAL_TEXT, "longitudinal-research");
+      throw new Error("expected the missing-shift-state path to fail closed");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DateOperatorError);
+      expect((error as DateOperatorError).code).toBe("missing-date-shift-state");
     }
-  );
+  });
 
   it("default/standard behavior stays identical to the pre-correction standard output", async () => {
     const engine = createRegistryEngine();

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -13,6 +13,7 @@ import { App } from "./App";
  * textual states, the patient-ID requirement and the copy guardrails.
  */
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic policy guidance tests.";
+const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
 const LOCAL_ONLY_FACT = /processing runs locally in your browser/i;
 const FORBIDDEN_CLAIM =
   /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy/i;
@@ -67,40 +68,39 @@ describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
   });
 });
 
-describe("Policy guidance on text/document/batch jobs (POLICY-01 #56)", () => {
-  it("marks Standard and Strict Available and External AI / Longitudinal Research unavailable on a text job", () => {
+describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", () => {
+  it("makes all four policies selectable and Available on a text job (REC-02)", () => {
     render(<App />);
     createTextJob();
 
-    expect(screen.getByRole("option", { name: "Standard" })).toBeEnabled();
-    expect(screen.getByRole("option", { name: "Strict" })).toBeEnabled();
-    expect(screen.getByRole("option", { name: "External AI" })).toBeDisabled();
-    expect(screen.getByRole("option", { name: "Longitudinal Research" })).toBeDisabled();
+    for (const name of POLICY_NAMES) {
+      expect(screen.getByRole("option", { name })).toBeEnabled();
+    }
 
     const [standard, externalAi, longitudinal, strict] = guidanceItems();
+    for (const item of [standard, externalAi, longitudinal, strict]) {
+      expect(item).toHaveTextContent("Available");
+    }
     expect(standard).toHaveTextContent("Standard");
-    expect(standard).toHaveTextContent("Available");
     expect(strict).toHaveTextContent("Strict");
-    expect(strict).toHaveTextContent("Available");
     expect(externalAi).toHaveTextContent("External AI");
-    expect(externalAi).toHaveTextContent("Not available for this job type yet");
     expect(longitudinal).toHaveTextContent("Longitudinal Research");
-    expect(longitudinal).toHaveTextContent("Not available for this job type yet");
 
     expect(guidanceRegion()).toHaveTextContent("Current policy: Standard");
   });
 
-  it("cannot select an unavailable policy through the text-job UI: the controlled select keeps Standard", () => {
+  it("selects newly enabled policies through the text-job UI (REC-02)", () => {
     render(<App />);
     createTextJob();
     const select = policySelect();
+
     fireEvent.change(select, { target: { value: "external-ai" } });
+    expect(select.value).toBe("external-ai");
+    expect(guidanceRegion()).toHaveTextContent("Current policy: External AI");
+
     fireEvent.change(select, { target: { value: "longitudinal-research" } });
-    expect(select.value).toBe("standard");
-    expect((screen.getByRole("option", { name: "Standard" }) as HTMLOptionElement).selected).toBe(
-      true
-    );
-    expect(guidanceRegion()).toHaveTextContent("Current policy: Standard");
+    expect(select.value).toBe("longitudinal-research");
+    expect(guidanceRegion()).toHaveTextContent("Current policy: Longitudinal Research");
   });
 
   it("applies the same availability to a document job", async () => {
@@ -109,10 +109,12 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create job" }));
     await waitFor(() => expect(screen.getByText("Document job")).toBeInTheDocument());
 
-    expect(screen.getByRole("option", { name: "Standard" })).toBeEnabled();
-    expect(screen.getByRole("option", { name: "Strict" })).toBeEnabled();
-    expect(screen.getByRole("option", { name: "External AI" })).toBeDisabled();
-    expect(screen.getByRole("option", { name: "Longitudinal Research" })).toBeDisabled();
+    for (const name of POLICY_NAMES) {
+      expect(screen.getByRole("option", { name })).toBeEnabled();
+    }
+    for (const item of guidanceItems()) {
+      expect(item).toHaveTextContent("Available");
+    }
   });
 
   it("applies the same availability to a document-batch job", async () => {
@@ -125,10 +127,65 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56)", () => {
       timeout: 10_000,
     });
 
-    expect(screen.getByRole("option", { name: "Standard" })).toBeEnabled();
-    expect(screen.getByRole("option", { name: "Strict" })).toBeEnabled();
-    expect(screen.getByRole("option", { name: "External AI" })).toBeDisabled();
-    expect(screen.getByRole("option", { name: "Longitudinal Research" })).toBeDisabled();
+    for (const name of POLICY_NAMES) {
+      expect(screen.getByRole("option", { name })).toBeEnabled();
+    }
+    for (const item of guidanceItems()) {
+      expect(item).toHaveTextContent("Available");
+    }
+  });
+});
+
+/**
+ * REC-02 product evidence: selecting the newly enabled policies is not enough —
+ * the job must actually process under the selected policy and produce the
+ * policy-correct result. These drive the real App → useJobSession →
+ * RegistryEngine path (jsdom uses the in-process engine seam) and read the
+ * proposal the review workspace shows. All fixtures are synthetic.
+ */
+const POLICY_DATE_NOTE = "Paciente: Carmen Sánchez. Analítica del 05/01/2024.";
+const POLICY_DATE_SOURCE = "05/01/2024";
+
+/** The proposed replacement of the selected Entity Inspector detection. */
+function proposedReplacement(): string {
+  const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+  const term = within(inspector).getByText("Proposed replacement");
+  return term.parentElement?.querySelector("dd")?.textContent?.trim() ?? "";
+}
+
+async function runTextJobWithPolicy(policyId: "external-ai" | "longitudinal-research") {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: POLICY_DATE_NOTE } });
+  fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  fireEvent.change(policySelect(), { target: { value: policyId } });
+  expect(policySelect().value).toBe(policyId);
+  fireEvent.click(screen.getByRole("button", { name: "2. Configure" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "3. Review" }));
+  });
+  await waitFor(
+    () => expect(screen.getByRole("list", { name: "Detections" })).toBeInTheDocument(),
+    { timeout: 10_000 }
+  );
+  const fecha = within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+    name: /FECHA/,
+  });
+  fireEvent.click(fecha);
+}
+
+describe("Policy guidance selected-and-processed evidence (REC-02)", () => {
+  it("selects External AI and processes a text job with reduced date precision", async () => {
+    await runTextJobWithPolicy("external-ai");
+    expect(proposedReplacement()).toBe("01/2024");
+    expect(proposedReplacement()).not.toMatch(/^Visita/);
+  });
+
+  it("selects Longitudinal Research and processes a text job with a shifted, interval-preserving date", async () => {
+    await runTextJobWithPolicy("longitudinal-research");
+    const proposed = proposedReplacement();
+    expect(proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(proposed).not.toBe(POLICY_DATE_SOURCE);
+    expect(proposed).not.toMatch(/^Visita/);
   });
 });
 
@@ -190,7 +247,9 @@ describe("Policy guidance accessibility (POLICY-01 #56)", () => {
 
     // Availability is conveyed as text, never by color alone.
     expect(guidance).toHaveTextContent("Available");
-    expect(guidance).toHaveTextContent("Not available for this job type yet");
+    for (const item of guidanceItems()) {
+      expect(item).toHaveTextContent("Available");
+    }
   });
 });
 
