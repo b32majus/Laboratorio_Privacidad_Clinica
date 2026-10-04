@@ -349,6 +349,52 @@ describe("StructuredConfigureWorkspace — keyboard, responsive and sheet select
     );
     expect(screen.getByRole("alert")).toHaveTextContent("The CSV input is empty.");
   });
+
+  it("requires an explicit header-row choice when detection is ambiguous", () => {
+    const onSelectHeaderRow = vi.fn();
+    render(
+      <StructuredConfigureWorkspace
+        configuration={null}
+        errorMessage={null}
+        sheetNames={null}
+        headerRow={{ sheetName: "Datos", candidateRowIndices: [0, 1], inspectedRowCount: 3 }}
+        onSelectSheet={() => {}}
+        onSelectHeaderRow={onSelectHeaderRow}
+        onOverrideClass={() => {}}
+        onSelectPatientId={() => {}}
+      />
+    );
+    // Inspected rows are offered 1-based; detected candidates are marked.
+    const select = screen.getByLabelText("Header row") as HTMLSelectElement;
+    const options = Array.from(select.querySelectorAll("option")).map(
+      (option) => option.textContent
+    );
+    expect(options).toHaveLength(3);
+    expect(options[0]).toMatch(/row 1/i);
+    expect(options[0]).toMatch(/header candidate/i);
+    expect(options[2]).not.toMatch(/header candidate/i);
+    // The choice round-trips as the 0-based inspected row index.
+    fireEvent.change(select, { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: /use row 2 as header/i }));
+    expect(onSelectHeaderRow).toHaveBeenCalledWith(1);
+  });
+
+  it("keeps worksheet selection first when both sheet and header choices are pending", () => {
+    render(
+      <StructuredConfigureWorkspace
+        configuration={null}
+        errorMessage={null}
+        sheetNames={["Portada", "Datos"]}
+        headerRow={{ sheetName: "Datos", candidateRowIndices: [0], inspectedRowCount: 3 }}
+        onSelectSheet={() => {}}
+        onSelectHeaderRow={() => {}}
+        onOverrideClass={() => {}}
+        onSelectPatientId={() => {}}
+      />
+    );
+    expect(screen.getByLabelText("Worksheet")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Header row")).not.toBeInTheDocument();
+  });
 });
 
 describe("StructuredConfigureWorkspace — progressive disclosure keeps authority visible (outcome F)", () => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { escapeCsvField, serializeStructuredSafeCsv, StructuredCsvError } from "./csv-writer";
+import {
+  escapeCsvField,
+  serializeStructuredSafeCsv,
+  stringifyCsvCell,
+  StructuredCsvError,
+} from "./csv-writer";
 import { parseCsv } from "./csv";
 
 /**
@@ -52,5 +57,31 @@ describe("serializeStructuredSafeCsv", () => {
     expect(escapeCsvField("plain")).toBe("plain");
     expect(escapeCsvField('a"b')).toBe('"a""b"');
     expect(escapeCsvField("a,b")).toBe('"a,b"');
+  });
+
+  it("renders typed Safe scalars deterministically: null is empty, numbers/booleans stringify", () => {
+    expect(stringifyCsvCell(null)).toBe("");
+    expect(stringifyCsvCell(34)).toBe("34");
+    expect(stringifyCsvCell(true)).toBe("true");
+    expect(stringifyCsvCell("a")).toBe("a");
+    const csv = serializeStructuredSafeCsv({
+      kind: "structured-safe-dataset",
+      headers: ["Edad_Num", "Flag", "Nota"],
+      rows: [
+        [34, true, "a"],
+        [null, false, null],
+      ],
+    });
+    expect(csv).toBe("Edad_Num,Flag,Nota\n34,true,a\n,false,");
+  });
+
+  it("fails closed on a non-scalar Safe cell", () => {
+    expect(() =>
+      serializeStructuredSafeCsv({
+        kind: "structured-safe-dataset",
+        headers: ["a"],
+        rows: [[{ nested: true }]],
+      })
+    ).toThrowError(StructuredCsvError);
   });
 });

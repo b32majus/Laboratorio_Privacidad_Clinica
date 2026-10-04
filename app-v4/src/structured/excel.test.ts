@@ -116,8 +116,13 @@ describe("listSheetNames", () => {
 describe("parseStructuredWorkbook", () => {
   it("parses the EXPLICITLY selected sheet, not the first sheet", async () => {
     seedWindow();
+    // REC-04 WU-A (D-022): this fixture's data rows are all-text with 3+
+    // cells ("Centro Norte"/"Centro Sur"), so the bounded detector is
+    // genuinely ambiguous; the T18 sheet-selection oracle now resolves it
+    // through the explicit header-row path with row 1 as the header.
     const result = await parseStructuredWorkbook(buildWorkbookBytes(), {
       sheetName: "DatosClinicos",
+      headerRowIndex: 0,
     });
     expect(result.status).toBe("success");
     if (result.status !== "success") return;
@@ -131,6 +136,7 @@ describe("parseStructuredWorkbook", () => {
     seedWindow();
     const result = await parseStructuredWorkbook(buildWorkbookBytes(), {
       sheetName: "DatosClinicos",
+      headerRowIndex: 0,
     });
     expect(result.status).toBe("success");
     if (result.status !== "success") return;
@@ -144,6 +150,7 @@ describe("parseStructuredWorkbook", () => {
     seedWindow();
     const result = await parseStructuredWorkbook(buildWorkbookBytes(), {
       sheetName: "DatosClinicos",
+      headerRowIndex: 0,
     });
     expect(result.status).toBe("success");
     if (result.status !== "success") return;

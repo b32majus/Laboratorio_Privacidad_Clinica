@@ -19,9 +19,17 @@
  * fail-closed; no silent partial table). Sensitive cell content is memory-
  * only (D-013): never persisted, logged, placed in URLs, or sent over the
  * network; no console.* calls.
+ *
+ * REC-04 WU-A (D-022 "Workbook header-row authority"): the FIRST row is no
+ * longer assumed to be the header. The explicitly selected sheet is
+ * normalized to a cell matrix and resolved through `header-row.ts`: exactly
+ * one inspected candidate auto-selects; zero or multiple candidates return
+ * the typed `header-row-required` state (never a silent row 1); an explicit
+ * `headerRowIndex` is bounded to the inspected rows and validated.
  */
 import { isBlankCell, type StructuredCell, type StructuredGrid } from "./grid";
 import { excelSerialToIsoDate } from "./excel-serial";
+import { resolveHeaderRow, validateHeaderRowSelection, type HeaderRowMatrix } from "./header-row";
 import { loadXlsx, type XlsxCell, type XlsxLib, type XlsxWorksheet } from "./xlsx-loader";
 
 export type StructuredWorkbookFailureCode =
@@ -30,10 +38,21 @@ export type StructuredWorkbookFailureCode =
   | "empty-workbook"
   | "empty-sheet"
   | "excel-cell-error"
-  | "excel-date-out-of-range";
+  | "excel-date-out-of-range"
+  | "invalid-header-row";
 
 export type ParsedWorkbookResult =
   | { readonly status: "success"; readonly grid: StructuredGrid }
+  | {
+      readonly status: "header-row-required";
+      readonly code: "header-row-required";
+      readonly sheetName: string;
+      /** 0-based inspected row indices that qualify as header candidates. */
+      readonly candidateRowIndices: readonly number[];
+      /** How many used rows (from the top, at most 10) were inspected. */
+      readonly inspectedRowCount: number;
+      readonly message: string;
+    }
   | {
       readonly status: "failed";
       readonly code: StructuredWorkbookFailureCode;
@@ -66,16 +85,22 @@ export async function listSheetNames(bytes: ArrayBuffer | Uint8Array): Promise<S
 
 /**
  * Parse one explicitly selected sheet of a workbook into a normalized
- * {@link StructuredGrid}. The first non-empty row is the header row; missing
- * or empty-string cells are `null` absence.
+ * {@link StructuredGrid}. Header resolution follows D-022: when
+ * `headerRowIndex` is provided it is validated against the inspected rows
+ * (invalid/out-of-range fails typed `invalid-header-row`); otherwise the
+ * bounded detector auto-selects exactly one candidate row, and zero or
+ * multiple candidates return typed `header-row-required` (never a silent
+ * first row). Rows above the chosen header are skipped metadata; rows below
+ * preserve order, blanks and scalar normalization exactly.
  *
  * Failures (all typed, all fail-closed): no sheet selected, selected sheet
  * not present (message lists available sheets), empty workbook, empty sheet,
- * error cells, and date serials outside the supported range.
+ * error cells, date serials outside the supported range, and invalid
+ * explicit header-row selection.
  */
 export async function parseStructuredWorkbook(
   bytes: ArrayBuffer | Uint8Array,
-  options: { sheetName: string }
+  options: { sheetName: string; headerRowIndex?: number }
 ): Promise<ParsedWorkbookResult> {
   const xlsx = await loadXlsx();
 
@@ -106,15 +131,83 @@ export async function parseStructuredWorkbook(
     };
   }
 
-  return worksheetToGrid(sheet, xlsx);
+  return worksheetToGridResolved(sheet, xlsx, sheetName, options.headerRowIndex);
 }
 
 /**
- * Convert a SheetJS worksheet into a normalized grid. Exported for the
- * deterministic grid-level oracle (hand-built worksheets), not as a public
- * UI surface.
+ * Resolve the header row of one selected worksheet and build the grid.
+ * Exported for deterministic workbook-level oracles; the UI reaches it
+ * through {@link parseStructuredWorkbook} / the intake module.
  */
-export function worksheetToGrid(sheet: XlsxWorksheet, xlsx: XlsxLib): ParsedWorkbookResult {
+export function worksheetToGridResolved(
+  sheet: XlsxWorksheet,
+  xlsx: XlsxLib,
+  sheetName: string,
+  headerRowIndex?: number
+): ParsedWorkbookResult {
+  const matrixResult = worksheetToMatrix(sheet, xlsx);
+  if (matrixResult.status === "failed") return matrixResult;
+  const matrix = matrixResult.matrix;
+  const inspectedRowCount = Math.min(matrix.length, 10);
+
+  if (headerRowIndex !== undefined) {
+    const validation = validateHeaderRowSelection(headerRowIndex, inspectedRowCount);
+    if (!validation.valid) {
+      return { status: "failed", code: "invalid-header-row", message: validation.message };
+    }
+    return { status: "success", grid: matrixToGrid(matrix, validation.headerRowIndex) };
+  }
+
+  const resolution = resolveHeaderRow(matrix);
+  if (resolution.status === "header-row-required") {
+    return {
+      status: "header-row-required",
+      code: "header-row-required",
+      sheetName,
+      candidateRowIndices: resolution.candidateRowIndices,
+      inspectedRowCount: resolution.inspectedRowCount,
+      message: headerRowRequiredMessage(
+        sheetName,
+        resolution.candidateRowIndices,
+        resolution.inspectedRowCount
+      ),
+    };
+  }
+  return { status: "success", grid: matrixToGrid(matrix, resolution.headerRowIndex) };
+}
+
+/**
+ * Human-actionable message for the typed `header-row-required` state. Carries
+ * only 1-based row numbers — never cell content (D-013).
+ */
+function headerRowRequiredMessage(
+  sheetName: string,
+  candidateRowIndices: readonly number[],
+  inspectedRowCount: number
+): string {
+  if (candidateRowIndices.length === 0) {
+    return (
+      `The worksheet "${sheetName}" has no clear header row in the first ` +
+      `${inspectedRowCount} rows. Choose the header row explicitly.`
+    );
+  }
+  const rows = candidateRowIndices.map((index) => `row ${index + 1}`).join(", ");
+  return (
+    `The worksheet "${sheetName}" has several rows that look like headers ` +
+    `(${rows}). Choose the header row explicitly; the first row is never assumed.`
+  );
+}
+
+/** Normalized cell matrix of a worksheet: rows above/below carry no header meaning yet. */
+type WorksheetMatrixResult =
+  | { readonly status: "ok"; readonly matrix: HeaderRowMatrix }
+  | {
+      readonly status: "failed";
+      readonly code: StructuredWorkbookFailureCode;
+      readonly message: string;
+    };
+
+function worksheetToMatrix(sheet: XlsxWorksheet, xlsx: XlsxLib): WorksheetMatrixResult {
   const ref = sheet["!ref"];
   if (typeof ref !== "string" || ref.length === 0) {
     return {
@@ -137,7 +230,7 @@ export function worksheetToGrid(sheet: XlsxWorksheet, xlsx: XlsxLib): ParsedWork
   const ssfIsDate =
     typeof xlsx.SSF?.is_date === "function" ? (fmt: unknown) => xlsx.SSF.is_date(fmt) : null;
 
-  const grid: StructuredCell[][] = [];
+  const matrix: StructuredCell[][] = [];
   for (let r = range.s.r; r <= range.e.r; r += 1) {
     const row: StructuredCell[] = [];
     for (let c = range.s.c; c <= range.e.c; c += 1) {
@@ -149,20 +242,52 @@ export function worksheetToGrid(sheet: XlsxWorksheet, xlsx: XlsxLib): ParsedWork
       }
       row.push(cellResult.value);
     }
-    grid.push(row);
+    matrix.push(row);
   }
+  return { status: "ok", matrix };
+}
 
-  const [headerRow, ...dataRows] = grid;
+/**
+ * Build a normalized grid from a matrix with the header at an explicit
+ * 0-based row. Rows above are skipped metadata, never data rows; rows below
+ * keep order and values verbatim.
+ */
+function matrixToGrid(matrix: HeaderRowMatrix, headerRowIndex: number): StructuredGrid {
+  const headerRow = matrix[headerRowIndex];
   const headers: string[] = headerRow.map((header) => (header === null ? "" : String(header)));
   return {
-    status: "success",
-    grid: {
-      // Blank header cells keep a structural empty label (headers are grid
-      // addresses, not values); data cells keep null absence (STRUCT-009).
-      headers,
-      rows: dataRows,
-    },
+    // Blank header cells keep a structural empty label (headers are grid
+    // addresses, not values); data cells keep null absence (STRUCT-009).
+    headers,
+    rows: matrix.slice(headerRowIndex + 1),
   };
+}
+
+/**
+ * Convert a SheetJS worksheet into a normalized grid with the first used row
+ * as the header. Exported for the deterministic grid-level oracle
+ * (hand-built worksheets), not as a public UI surface: production workbook
+ * intake resolves the header through D-022 instead of assuming row 1.
+ */
+export function worksheetToGrid(sheet: XlsxWorksheet, xlsx: XlsxLib): ParsedWorkbookResult {
+  const matrixResult = worksheetToMatrix(sheet, xlsx);
+  if (matrixResult.status === "failed") {
+    // `worksheetToMatrix` never succeeds with a header-row-required state, so
+    // the union narrows to success/failed here; map explicitly regardless.
+    return {
+      status: "failed",
+      code: matrixResult.code,
+      message: matrixResult.message,
+    };
+  }
+  if (matrixResult.matrix.length === 0) {
+    return {
+      status: "failed",
+      code: "empty-sheet",
+      message: "The selected Excel sheet is empty.",
+    };
+  }
+  return { status: "success", grid: matrixToGrid(matrixResult.matrix, 0) };
 }
 
 type CellNormalization =

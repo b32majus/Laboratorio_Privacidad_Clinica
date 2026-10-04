@@ -17,6 +17,12 @@
  *  - a workbook with several sheets returns `sheet-required` with the sheet
  *    names, so the human chooses explicitly (SPEC §9). A single-sheet workbook
  *    is parsed directly;
+ *  - REC-04 WU-A (D-022): an explicitly selected sheet whose header row is
+ *    ambiguous (zero or several inspected candidates) returns the typed
+ *    `header-row-required` state with the inspected candidate/row indices, so
+ *    the caller can ask the human to choose the header row explicitly and
+ *    then call {@link readStructuredSheet} with that `headerRowIndex`. The
+ *    first row is never assumed silently; CSV semantics are unchanged;
  *  - every parser failure is a typed non-success result (D-009 fail-closed),
  *    never an apparently successful empty table.
  *
@@ -34,6 +40,15 @@ import type { StructuredCell, StructuredGrid } from "./grid";
 export type StructuredReadOutcome =
   | { readonly status: "parsed"; readonly grid: StructuredGrid }
   | { readonly status: "sheet-required"; readonly sheetNames: readonly string[] }
+  | {
+      readonly status: "header-row-required";
+      readonly sheetName: string;
+      /** 0-based inspected row indices that qualify as header candidates. */
+      readonly candidateRowIndices: readonly number[];
+      /** How many used rows (from the top, at most 10) were inspected. */
+      readonly inspectedRowCount: number;
+      readonly message: string;
+    }
   | { readonly status: "failed"; readonly code: string; readonly message: string };
 
 const WORKBOOK_EXTENSIONS: ReadonlySet<string> = new Set(["xls", "xlsx"]);
@@ -86,20 +101,29 @@ function gridTextLength(grid: StructuredGrid): number {
 
 /** Map the T18 Excel adapter result onto this module's outcome union. */
 function workbookOutcome(result: ParsedWorkbookResult): StructuredReadOutcome {
-  return result.status === "success"
-    ? { status: "parsed", grid: result.grid }
-    : { status: "failed", code: result.code, message: result.message };
+  if (result.status === "success") return { status: "parsed", grid: result.grid };
+  if (result.status === "header-row-required") {
+    return {
+      status: "header-row-required",
+      sheetName: result.sheetName,
+      candidateRowIndices: result.candidateRowIndices,
+      inspectedRowCount: result.inspectedRowCount,
+      message: result.message,
+    };
+  }
+  return { status: "failed", code: result.code, message: result.message };
 }
 
 async function parseWorkbookBytes(
   bytes: ArrayBuffer,
-  sheetName: string
+  sheetName: string,
+  headerRowIndex?: number
 ): Promise<StructuredReadOutcome> {
   // `parseStructuredWorkbook` returns typed failures; only the governed
   // SheetJS loader can throw, and that too must fail closed.
   let outcome: StructuredReadOutcome;
   try {
-    outcome = workbookOutcome(await parseStructuredWorkbook(bytes, { sheetName }));
+    outcome = workbookOutcome(await parseStructuredWorkbook(bytes, { sheetName, headerRowIndex }));
   } catch (error) {
     return {
       status: "failed",
@@ -191,12 +215,15 @@ export async function readStructuredFile(file: SourceFileLike): Promise<Structur
 
 /**
  * Read one explicitly selected sheet of a structured workbook. Used after
- * {@link readStructuredFile} returned `sheet-required`; the sheet name is
- * always explicit (SPEC §9), never a silent first sheet.
+ * {@link readStructuredFile} returned `sheet-required` (the sheet name is
+ * always explicit, never a silent first sheet), and again after a
+ * `header-row-required` outcome with the explicitly chosen 0-based
+ * `headerRowIndex` (bounded to the inspected rows; invalid fails typed).
  */
 export async function readStructuredSheet(
   file: SourceFileLike,
-  sheetName: string
+  sheetName: string,
+  headerRowIndex?: number
 ): Promise<StructuredReadOutcome> {
   let bytes: ArrayBuffer;
   try {
@@ -204,5 +231,5 @@ export async function readStructuredSheet(
   } catch {
     return readFailure(file.name);
   }
-  return parseWorkbookBytes(bytes, sheetName);
+  return parseWorkbookBytes(bytes, sheetName, headerRowIndex);
 }

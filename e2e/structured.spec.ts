@@ -82,6 +82,9 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
 
   const auditDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
+  // REC-04 D-022 (H-42 structured slice): the identifiable Confidential
+  // artifact requires the additional deliberate in-zone confirmation.
+  await page.getByRole("button", { name: "Confirm confidential download (.txt)" }).click();
   const auditDownload = await auditDownloadPromise;
   const audit = fs.readFileSync((await auditDownload.path())!, "utf8");
   expect(audit).toContain("CONFIDENTIAL");

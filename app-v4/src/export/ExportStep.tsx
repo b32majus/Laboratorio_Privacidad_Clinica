@@ -41,6 +41,7 @@
  * anywhere (D-006).
  */
 import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { getProgress, type ReviewSession } from "../review/review-domain";
 import type { Job } from "../domain/job";
@@ -52,9 +53,19 @@ import {
 } from "../output/confidential-audit-serializer";
 import { serializeStructuredSafeCsv } from "../structured/csv-writer";
 import { serializeStructuredConfidentialAudit } from "../structured/structured-confidential-audit";
+import {
+  buildConfidentialXlsxBytes,
+  buildSafeXlsxBytes,
+  CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME,
+  SAFE_STRUCTURED_XLSX_FILE_NAME,
+} from "../structured/xlsx-export";
+import { loadXlsx } from "../structured/xlsx-loader";
+import {
+  deriveStructuredSummary,
+  type StructuredOutputPreparation,
+} from "../structured/transformed-dataset";
 import type { StructuredConfiguration } from "../structured/configuration";
 import type { StructuredTransformPlan } from "../structured/transform-plan";
-import type { StructuredOutputPreparation } from "../structured/transformed-dataset";
 import {
   batchConfidentialAuditUnavailableMessage,
   batchFailedItemsMessage,
@@ -97,6 +108,26 @@ export function downloadTextFile(fileName: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Client-side, network-free download of a binary XLSX artifact. Same seam
+ * as {@link downloadTextFile} (Blob + object URL + anchor click, revoked
+ * afterwards): no network, no persistence (D-013: memory-only).
+ */
+export function downloadXlsxFile(fileName: string, bytes: Uint8Array): void {
+  const copy = new Uint8Array(bytes);
+  const blob = new Blob([copy.buffer as ArrayBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export type ExportStepProps = {
   /** The frozen domain job (carries the derived output availability). */
   readonly job: Job;
@@ -118,11 +149,24 @@ export type ExportStepProps = {
 };
 
 /**
- * Structured export surface (HARDEN-01 WU-A3): the Safe Structured CSV and the
- * SEPARATE Confidential correspondence, produced from the SAME reviewed
- * preparation the bridge already computed. Never combined. Fail-closed with
- * the exact block reasons; every control is a keyboard-operable button.
+ * Structured export surface (HARDEN-01 WU-A3; REC-04 WU-C D-022): the Safe
+ * Structured CSV + XLSX and the SEPARATE Confidential TXT + XLSX, produced
+ * from the SAME reviewed preparation the bridge already computed. Never
+ * combined. Fail-closed with the exact block reasons; every control is a
+ * keyboard-operable button.
+ *
+ * REC-04 WU-C confirmation (H-42 structured slice): every structured
+ * Confidential download format (TXT and XLSX) shares ONE reusable
+ * deliberate confirmation inside the Confidential zone. The first click
+ * only reveals the confirmation and downloads nothing; explicit Confirm
+ * performs that one download, Cancel performs none. The confirmation is
+ * transient interaction safety only — never output readiness authority —
+ * so it resets after confirm/cancel and cannot survive another Job, a
+ * newly blocked/stale preparation, or disabled Confidential readiness.
+ * Safe downloads never require it and download directly when ready.
  */
+type StructuredConfidentialFormat = "txt" | "xlsx";
+
 function StructuredExport({
   job,
   structured,
@@ -148,6 +192,86 @@ function StructuredExport({
         ? "structured-confidential-blocked-reason"
         : undefined;
 
+  const [pendingConfirmation, setPendingConfirmation] =
+    useState<StructuredConfidentialFormat | null>(null);
+  const [xlsxError, setXlsxError] = useState<{
+    readonly zone: "safe" | "confidential";
+    readonly message: string;
+  } | null>(null);
+
+  // The CURRENT authorization snapshot (REC-04 SPEC-1; extended by
+  // CORA-AUDIT-REC04-01 to the Safe XLSX async path). A download is only
+  // ever requested against one frozen Job + preparation; the actual download
+  // must re-check that the SAME Job is still current and that its
+  // preparation is still ready — even after an `await` (XLSX generation).
+  // This ref always carries the latest render's values, so a state change
+  // during an async generation window is observable at the moment of
+  // download.
+  const confirmationAuthorityRef = useRef<{
+    readonly jobId: string;
+    readonly preparation: StructuredOutputPreparation | null;
+    readonly safeBlocked: boolean;
+    readonly confidentialBlocked: boolean;
+  }>({ jobId: job.id, preparation, safeBlocked: blocked, confidentialBlocked });
+  confirmationAuthorityRef.current = {
+    jobId: job.id,
+    preparation,
+    safeBlocked: blocked,
+    confidentialBlocked,
+  };
+
+  // Just-in-time guard: true only while the download requested against
+  // `requestedJobId` + `requestedPreparation` is still authorized. Used at
+  // the exact moment bytes would be produced, after any await.
+  const isConfirmationCurrent = (
+    requestedJobId: string,
+    requestedPreparation: StructuredOutputPreparation
+  ): boolean => {
+    const current = confirmationAuthorityRef.current;
+    return (
+      !current.confidentialBlocked &&
+      current.jobId === requestedJobId &&
+      current.preparation !== null &&
+      current.preparation === requestedPreparation &&
+      current.preparation.status === "ready"
+    );
+  };
+
+  // The Safe counterpart of the guard above (CORA-AUDIT-REC04-01): true only
+  // while the same Job + preparation are still current, that preparation is
+  // still ready, and Safe output is still not blocked. Safe is a direct
+  // download (no confirmation), so this is the only post-await authority
+  // check on its XLSX path.
+  const isSafeCurrent = (
+    requestedJobId: string,
+    requestedPreparation: StructuredOutputPreparation
+  ): boolean => {
+    const current = confirmationAuthorityRef.current;
+    return (
+      !current.safeBlocked &&
+      current.jobId === requestedJobId &&
+      current.preparation !== null &&
+      current.preparation === requestedPreparation &&
+      current.preparation.status === "ready"
+    );
+  };
+
+  // The confirmation grants no readiness and never outlives the Job or the
+  // preparation it was requested against: any new Job or preparation (in
+  // particular a newly blocked/stale one) clears it. The domain inputs are
+  // frozen, so a changed status/readiness always arrives as a new reference.
+  useEffect(() => {
+    setPendingConfirmation(null);
+    setXlsxError(null);
+  }, [job, preparation]);
+  // Defense in depth: a disabled Confidential readiness clears a pending
+  // confirmation even if the references above were somehow reused.
+  useEffect(() => {
+    if (confidentialBlocked) {
+      setPendingConfirmation(null);
+    }
+  }, [confidentialBlocked]);
+
   const handleDownloadSafe = () => {
     if (blocked || preparation === null || preparation.status !== "ready") return;
     downloadTextFile(
@@ -155,12 +279,88 @@ function StructuredExport({
       serializeStructuredSafeCsv(preparation.output.safe)
     );
   };
-  const handleDownloadConfidential = () => {
+  const handleDownloadSafeXlsx = async () => {
+    if (blocked || preparation === null || preparation.status !== "ready") return;
+    const requestedJobId = job.id;
+    const requestedPreparation = preparation;
+    setXlsxError(null);
+    try {
+      const lib = await loadXlsx();
+      // Re-check AFTER the async generation window (CORA-AUDIT-REC04-01): a
+      // Job change or a no-longer-ready/blocked preparation that arrived
+      // while awaiting must produce NO download, no stale bytes and no
+      // success. The current render governs the UI from here on.
+      if (!isSafeCurrent(requestedJobId, requestedPreparation)) return;
+      downloadXlsxFile(
+        SAFE_STRUCTURED_XLSX_FILE_NAME,
+        buildSafeXlsxBytes(
+          lib,
+          requestedPreparation.output.safe,
+          structured === null ? null : deriveStructuredSummary(structured.configuration)
+        )
+      );
+    } catch (error) {
+      setXlsxError({
+        zone: "safe",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Safe XLSX could not be generated from the prepared output.",
+      });
+    }
+  };
+  const handleRequestConfidential = (format: StructuredConfidentialFormat) => {
     if (confidentialBlocked || preparation === null || preparation.status !== "ready") return;
-    downloadTextFile(
-      CONFIDENTIAL_STRUCTURED_FILE_NAME,
-      serializeStructuredConfidentialAudit(preparation.output.confidential)
-    );
+    setXlsxError(null);
+    setPendingConfirmation(format);
+  };
+  const handleConfirmConfidential = async () => {
+    if (
+      pendingConfirmation === null ||
+      confidentialBlocked ||
+      preparation === null ||
+      preparation.status !== "ready"
+    ) {
+      return;
+    }
+    const format = pendingConfirmation;
+    const requestedJobId = job.id;
+    const requestedPreparation = preparation;
+    // Reset first: one explicit Confirm performs exactly one download, and
+    // the confirmation never survives the download either way.
+    setPendingConfirmation(null);
+    try {
+      if (format === "txt") {
+        // Synchronous, so this guard holds at the moment of execution too.
+        if (!isConfirmationCurrent(requestedJobId, requestedPreparation)) return;
+        downloadTextFile(
+          CONFIDENTIAL_STRUCTURED_FILE_NAME,
+          serializeStructuredConfidentialAudit(preparation.output.confidential)
+        );
+      } else {
+        const lib = await loadXlsx();
+        // Re-check AFTER the async generation window: a Job change, a
+        // no-longer-ready/stale preparation or disabled Confidential
+        // readiness that arrived while awaiting must produce NO download
+        // (D-022 / §4.5.4: the confirmation cannot survive them).
+        if (!isConfirmationCurrent(requestedJobId, requestedPreparation)) return;
+        downloadXlsxFile(
+          CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME,
+          buildConfidentialXlsxBytes(lib, preparation.output.confidential)
+        );
+      }
+    } catch (error) {
+      setXlsxError({
+        zone: "confidential",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Confidential XLSX could not be generated from the prepared output.",
+      });
+    }
+  };
+  const handleCancelConfidential = () => {
+    setPendingConfirmation(null);
   };
 
   return (
@@ -215,6 +415,20 @@ function StructuredExport({
           >
             Download Safe Structured Output (.csv)
           </button>
+          <button
+            type="button"
+            onClick={() => void handleDownloadSafeXlsx()}
+            disabled={blocked}
+            aria-describedby={blocked ? "safe-structured-blocked-reason" : undefined}
+            className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+          >
+            Download Safe Structured Output (.xlsx)
+          </button>
+          {xlsxError !== null && xlsxError.zone === "safe" && (
+            <p role="alert" className={blockedNote}>
+              {xlsxError.message}
+            </p>
+          )}
         </div>
       </section>
 
@@ -238,9 +452,9 @@ function StructuredExport({
             {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            The original↔transformed correspondence behind the Safe CSV (date/age, pseudonymized and
-            Study-ID columns, plus removed columns). It is an internal traceability record and must
-            never be shared or delivered outside the authorized audit trail.
+            The original↔transformed correspondence behind the Safe table (date/age, pseudonymized
+            and Study-ID columns, plus removed columns). It is an internal traceability record and
+            must never be shared or delivered outside the authorized audit trail.
           </p>
           {confidentialReasonVisible && (
             <p role="status" id="structured-confidential-blocked-reason" className={blockedNote}>
@@ -249,13 +463,62 @@ function StructuredExport({
           )}
           <button
             type="button"
-            onClick={handleDownloadConfidential}
+            onClick={() => handleRequestConfidential("txt")}
             disabled={confidentialBlocked}
             aria-describedby={confidentialDescribedBy}
             className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
             Download Structured Confidential Audit (.txt)
           </button>
+          <button
+            type="button"
+            onClick={() => handleRequestConfidential("xlsx")}
+            disabled={confidentialBlocked}
+            aria-describedby={confidentialDescribedBy}
+            className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+          >
+            Download Structured Confidential Audit (.xlsx)
+          </button>
+          {pendingConfirmation !== null && !confidentialBlocked && (
+            <div
+              role="group"
+              aria-labelledby="structured-confidential-confirm-heading"
+              className="mt-3 rounded border-2 border-surface-dark bg-surface-light px-3 py-2"
+            >
+              <h4
+                id="structured-confidential-confirm-heading"
+                className="text-sm font-bold text-neutral-800"
+              >
+                Confirm confidential download ({pendingConfirmation === "txt" ? ".txt" : ".xlsx"})
+              </h4>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-800">
+                This artifact contains identifiable, reversible original↔transformed correspondence
+                and is for authorized internal handling only. Confirm to download it once now, or
+                cancel to download nothing.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmConfidential()}
+                  className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+                >
+                  Confirm confidential download ({pendingConfirmation === "txt" ? ".txt" : ".xlsx"})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelConfidential}
+                  className={`rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white ${focusRing}`}
+                >
+                  Cancel confidential download
+                </button>
+              </div>
+            </div>
+          )}
+          {xlsxError !== null && xlsxError.zone === "confidential" && (
+            <p role="alert" className={blockedNote}>
+              {xlsxError.message}
+            </p>
+          )}
         </div>
       </section>
     </section>

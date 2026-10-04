@@ -40,15 +40,30 @@ import {
   type StructuredFreeTextState,
 } from "./free-text";
 import { isBlankCell, type StructuredCell } from "./grid";
+import {
+  buildVisitSequence,
+  resolveStudyIdPrefix,
+  VISIT_NUMBER_HEADER,
+  type StructuredOutputOptions,
+} from "./output-options";
 import { buildStudyIdMapping, STUDY_ID_HEADER } from "./study-id";
 import type { StructuredTransformPlan, StructuredTransformPlanColumn } from "./transform-plan";
 import { canFinalize, getFinalText } from "../review/review-domain";
+
+/**
+ * One canonical Safe cell (REC-04 WU-B, D-022 "Structured Safe data"):
+ * unchanged `keep` numeric/boolean cells stay `number`/`boolean`, absence
+ * stays `null`, and canonical transformed values (Study IDs, QIDs, reviewed
+ * free text, date/age transforms) are their produced `string` values. The
+ * derived `Visita_Num` is numeric.
+ */
+export type StructuredSafeCell = string | number | boolean | null;
 
 /** The Safe structured dataset: flattened cells, no correspondence field. */
 export type StructuredSafeDataset = {
   readonly kind: "structured-safe-dataset";
   readonly headers: readonly string[];
-  readonly rows: readonly (readonly string[])[];
+  readonly rows: readonly (readonly StructuredSafeCell[])[];
 };
 
 /** One original↔transformed entry (Confidential only). */
@@ -159,12 +174,18 @@ function dateRoleHeader(
  * failures and every cell session finalizable. A missing state, a stale
  * policy, an altered cell set, a failure or a pending session each blocks
  * with an exact reason — the raw original is never kept as fallback.
+ *
+ * The optional `outputOptions` carries the REC-04 WU-B job-scoped output
+ * options: an invalid non-blank Study-ID prefix blocks explicitly (never a
+ * silent fallback), and a conflicting Safe header `Visita_Num` blocks while
+ * visit numbering would emit the derived column.
  */
 export function structuredBlockReasons(
   plan: StructuredTransformPlan,
   reviewRequiredCells: readonly StructuredReviewRequiredCell[] = [],
   configuration?: StructuredConfiguration,
-  freeText?: StructuredFreeTextState | null
+  freeText?: StructuredFreeTextState | null,
+  outputOptions?: StructuredOutputOptions
 ): readonly string[] {
   const reasons: string[] = [];
   const unsupported = plan.columns.filter((column) => column.disposition.kind === "unsupported");
@@ -222,6 +243,44 @@ export function structuredBlockReasons(
       reasons.push(
         `Structured export is blocked: Safe header "${STUDY_ID_HEADER}" is already used by another input column "${otherLabel}"; the Study-ID column is never written over it silently.`
       );
+    }
+  }
+  // REC-04 WU-B output options (D-022): an invalid non-blank Study-ID
+  // prefix blocks explicitly while a Study ID would be generated (a patient-ID
+  // authority exists) — never a silent fallback or sanitized token. Without
+  // a patient authority the prefix configures nothing and never blocks.
+  const hasStudyId = studyIdColumns.length > 0;
+  if (hasStudyId) {
+    const resolvedPrefix = resolveStudyIdPrefix(outputOptions?.studyIdPrefix);
+    if (resolvedPrefix.status === "invalid") {
+      reasons.push(`Structured export is blocked: ${resolvedPrefix.reason}`);
+    }
+  }
+  // REC-04 WU-B `Visita_Num` collision (D-022): while visit numbering is
+  // effectively enabled (flag on AND a patient-ID authority exists), the
+  // derived column is emitted immediately after `ID_ESTUDIO` — a conflicting
+  // different input column already named `Visita_Num` blocks rather than
+  // being overwritten or duplicated silently. SPEC-1 parity with the
+  // `ID_ESTUDIO` check: EVERY disposition that emits a Safe column
+  // participates; `remove` emits nothing and never collides.
+  const visitEffective = outputOptions?.addVisitNumber === true && hasStudyId;
+  if (visitEffective && studyIdColumns.length > 0) {
+    for (const studyColumn of studyIdColumns) {
+      const colliding = plan.columns.filter(
+        (column) =>
+          column.columnIndex !== studyColumn.columnIndex &&
+          column.header === VISIT_NUMBER_HEADER &&
+          (column.disposition.kind === "keep" ||
+            column.disposition.kind === "pseudonymize" ||
+            column.disposition.kind === "date-age" ||
+            column.disposition.kind === "free-text")
+      );
+      for (const other of colliding) {
+        const otherLabel = other.header === "" ? "(unnamed column)" : other.header;
+        reasons.push(
+          `Structured export is blocked: Safe header "${VISIT_NUMBER_HEADER}" is already used by another input column "${otherLabel}"; the visit-number column is never written over it silently.`
+        );
+      }
     }
   }
   if (configuration !== undefined) {
@@ -325,11 +384,19 @@ function freeTextBlockReasons(
  * proposal. The caller must supply the current `freeText` state (same policy,
  * same cell set, every session finalizable); otherwise this throws
  * fail-closed instead of producing Safe bytes from unreviewed content.
+ *
+ * REC-04 WU-B: `outputOptions` configures the generated Study-ID token text
+ * (same first-appearance grouping, never another identity) and the optional
+ * row-order `Visita_Num` column immediately after `ID_ESTUDIO`. Absent
+ * options preserve legacy output exactly (`PAC`, no visit column). An
+ * invalid prefix throws here (preparation blocks first); without a
+ * patient-ID authority the prefix and the visit flag configure nothing.
  */
 export function computeStructuredOutput(
   configuration: StructuredConfiguration,
   plan: StructuredTransformPlan,
-  freeText?: StructuredFreeTextState | null
+  freeText?: StructuredFreeTextState | null,
+  outputOptions?: StructuredOutputOptions
 ): StructuredOutput {
   if (!plan.dispositionsReady) {
     throw new Error(
@@ -337,6 +404,17 @@ export function computeStructuredOutput(
     );
   }
   const grid = configuration.grid;
+
+  // REC-04 WU-B: resolve the effective Study-ID prefix once (blank/absent is
+  // the heritage default; invalid refuses here — preparation blocks first so
+  // this is defense in depth, never a silent fallback).
+  const resolvedPrefix = resolveStudyIdPrefix(outputOptions?.studyIdPrefix);
+  if (resolvedPrefix.status === "invalid") {
+    throw new Error(
+      `computeStructuredOutput ${resolvedPrefix.reason} Failing closed instead of exporting with a guessed token.`
+    );
+  }
+  const studyIdPrefix = resolvedPrefix.prefix;
 
   const dateColumns = plan.columns.filter((column) => column.disposition.kind === "date-age");
   let dateApplication: StructuredDateAgeApplication | null = null;
@@ -439,8 +517,10 @@ export function computeStructuredOutput(
     if (disposition.kind === "study-id") {
       // D-021: the selected patient-ID column is replaced in place by
       // `ID_ESTUDIO`; the original header/values never enter Safe output and
-      // the unique original↔Study-ID mapping is Confidential-only.
-      const mapping = buildStudyIdMapping(valuesFor(column.columnIndex));
+      // the unique original↔Study-ID mapping is Confidential-only. REC-04
+      // WU-B: token text follows the resolved prefix; grouping/order are the
+      // same first-appearance mapping as REC-03.
+      const mapping = buildStudyIdMapping(valuesFor(column.columnIndex), studyIdPrefix);
       // Defense in depth: preparation blocks these rows first (see
       // structuredBlockReasons), but a direct compute call must still never
       // emit an unlinkable row silently.
@@ -571,8 +651,13 @@ export function computeStructuredOutput(
   }
 
   // Materialize the Safe cells per column index (pseudonymize needs the whole
-  // column before per-row output).
-  const safeCellsByColumnIndex = new Map<number, readonly string[]>();
+  // column before per-row output). REC-04 WU-B typed scalars (D-022): an
+  // unchanged `keep` cell keeps its domain type (`number`/`boolean` stay
+  // typed) and absence stays `null`; canonical transformed values (Study IDs,
+  // QIDs, reviewed free text, date/age transforms) are their produced
+  // strings; the derived `Visita_Num` is numeric. The CSV serializer renders
+  // `null` as an empty field, so string-only datasets stay byte-compatible.
+  const safeCellsByColumnIndex = new Map<number, readonly StructuredSafeCell[]>();
   for (const column of plan.columns) {
     const disposition = column.disposition;
     if (disposition.kind === "remove" || disposition.kind === "unsupported") continue;
@@ -583,13 +668,16 @@ export function computeStructuredOutput(
         Object.freeze(
           grid.rows.map((_row, rowIndex) => {
             const outcome = outcomes[rowIndex];
-            return outcome !== undefined && outcome.kind === "transformed" ? outcome.value : "";
+            return outcome !== undefined && outcome.kind === "transformed" ? outcome.value : null;
           })
         )
       );
     } else if (disposition.kind === "pseudonymize") {
       const tokens = pseudonymizeColumnValues(valuesFor(column.columnIndex));
-      safeCellsByColumnIndex.set(column.columnIndex, Object.freeze([...tokens]));
+      safeCellsByColumnIndex.set(
+        column.columnIndex,
+        Object.freeze(tokens.map((token) => (token === "" ? null : token)))
+      );
     } else if (disposition.kind === "free-text") {
       // REC-03 WU-C: Safe cells are the canonical reviewed final texts.
       safeCellsByColumnIndex.set(
@@ -597,7 +685,7 @@ export function computeStructuredOutput(
         Object.freeze(
           grid.rows.map((_row, rowIndex) => {
             const held = freeTextFinals.get(`${column.columnIndex}:${rowIndex}`);
-            return held === undefined ? "" : held.final;
+            return held === undefined ? null : held.final;
           })
         )
       );
@@ -605,25 +693,57 @@ export function computeStructuredOutput(
       const studyIds = studyIdsByColumn.get(column.columnIndex) ?? [];
       safeCellsByColumnIndex.set(
         column.columnIndex,
-        Object.freeze(studyIds.map((studyId) => studyId ?? ""))
+        Object.freeze(studyIds.map((studyId) => studyId ?? null))
       );
     } else {
       safeCellsByColumnIndex.set(
         column.columnIndex,
-        Object.freeze(valuesFor(column.columnIndex).map((cell) => formatCell(cell)))
+        Object.freeze(
+          valuesFor(column.columnIndex).map((cell) => (isBlankCell(cell) ? null : cell))
+        )
       );
     }
   }
 
-  const safeRows = Object.freeze(
+  const baseSafeHeaders = Object.freeze(safeHeaders);
+  const baseSafeRows = Object.freeze(
     grid.rows.map((_row, rowIndex) =>
       Object.freeze(
         safeColumnIndices.map(
-          (columnIndex) => safeCellsByColumnIndex.get(columnIndex)?.[rowIndex] ?? ""
+          (columnIndex) => safeCellsByColumnIndex.get(columnIndex)?.[rowIndex] ?? null
         )
       )
     )
   );
+
+  // REC-04 WU-B derived `Visita_Num` (D-022): effective only with the flag on
+  // AND a patient-ID authority. Inserted numerically immediately after
+  // `ID_ESTUDIO`; the sequence is 1-based occurrence per patient in current
+  // input row order (never sorted, never chronology). No correspondence is
+  // emitted: the count is computable from Safe grouping + row order and
+  // carries no original value.
+  const studyIdPlanColumn = plan.columns.find((column) => column.disposition.kind === "study-id");
+  const visitEffective = outputOptions?.addVisitNumber === true && studyIdPlanColumn !== undefined;
+  let safeHeadersOut: readonly string[] = baseSafeHeaders;
+  let safeRowsOut: readonly (readonly StructuredSafeCell[])[] = baseSafeRows;
+  if (visitEffective && studyIdPlanColumn !== undefined) {
+    const studyIdSafePosition = baseSafeHeaders.indexOf(STUDY_ID_HEADER);
+    const visitSequence = buildVisitSequence(valuesFor(studyIdPlanColumn.columnIndex));
+    safeHeadersOut = Object.freeze([
+      ...baseSafeHeaders.slice(0, studyIdSafePosition + 1),
+      VISIT_NUMBER_HEADER,
+      ...baseSafeHeaders.slice(studyIdSafePosition + 1),
+    ]);
+    safeRowsOut = Object.freeze(
+      baseSafeRows.map((row, rowIndex) =>
+        Object.freeze([
+          ...row.slice(0, studyIdSafePosition + 1),
+          (visitSequence[rowIndex] ?? null) as StructuredSafeCell,
+          ...row.slice(studyIdSafePosition + 1),
+        ])
+      )
+    );
+  }
 
   const totals: StructuredCorrespondenceTotals = Object.freeze({
     dateAge: correspondenceColumns.filter((column) => column.disposition === "date-age").length,
@@ -643,8 +763,8 @@ export function computeStructuredOutput(
   return Object.freeze({
     safe: Object.freeze({
       kind: "structured-safe-dataset" as const,
-      headers: Object.freeze(safeHeaders),
-      rows: safeRows,
+      headers: safeHeadersOut,
+      rows: safeRowsOut,
     }),
     confidential: Object.freeze({
       kind: "structured-confidential-correspondence" as const,
@@ -665,22 +785,35 @@ export function computeStructuredOutput(
  * job-scoped `freeText` review state. Without it — or with a stale, failed
  * or unreviewed state — preparation is `blocked` and no Safe artifact
  * exists. Callers without free-text columns omit it (no behavior change).
+ *
+ * REC-04 WU-B: `outputOptions` configures Study-ID token text and the
+ * optional row-order `Visita_Num`. Absent options preserve legacy output
+ * exactly (`PAC`, no visit column); an invalid prefix blocks explicitly.
  */
 export function prepareStructuredOutput(
   configuration: StructuredConfiguration,
   plan: StructuredTransformPlan,
-  options: { readonly freeText?: StructuredFreeTextState | null } = {}
+  options: {
+    readonly freeText?: StructuredFreeTextState | null;
+    readonly outputOptions?: StructuredOutputOptions;
+  } = {}
 ): StructuredOutputPreparation {
   const structuralReasons = structuredBlockReasons(
     plan,
     [],
     configuration,
-    options.freeText ?? null
+    options.freeText ?? null,
+    options.outputOptions
   );
   if (structuralReasons.length > 0) {
     return Object.freeze({ status: "blocked" as const, output: null, reasons: structuralReasons });
   }
-  const output = computeStructuredOutput(configuration, plan, options.freeText ?? null);
+  const output = computeStructuredOutput(
+    configuration,
+    plan,
+    options.freeText ?? null,
+    options.outputOptions
+  );
   if (output.reviewRequiredCells.length > 0) {
     return Object.freeze({
       status: "blocked" as const,
@@ -689,7 +822,8 @@ export function prepareStructuredOutput(
         plan,
         output.reviewRequiredCells,
         configuration,
-        options.freeText ?? null
+        options.freeText ?? null,
+        options.outputOptions
       ),
     });
   }
@@ -700,7 +834,58 @@ export function prepareStructuredOutput(
 export function isStructuredOutputReady(
   configuration: StructuredConfiguration,
   plan: StructuredTransformPlan,
-  options: { readonly freeText?: StructuredFreeTextState | null } = {}
+  options: {
+    readonly freeText?: StructuredFreeTextState | null;
+    readonly outputOptions?: StructuredOutputOptions;
+  } = {}
 ): boolean {
   return prepareStructuredOutput(configuration, plan, options).status === "ready";
+}
+
+/** Patient-linked facts of a structured job (descriptive counts only). */
+export type StructuredPatientSummary = {
+  /** Distinct non-blank original patient identifiers (first-appearance grouping). */
+  readonly uniquePatients: number;
+  /** Data rows carrying a patient identifier (linked rows/visits in row order). */
+  readonly linkedRows: number;
+  /** Mean linked rows per patient (linkedRows / uniquePatients). */
+  readonly averageLinkedRowsPerPatient: number;
+};
+
+/**
+ * Factual structured summary (REC-04 WU-B, D-022 H-27): always the data row
+ * count; with a selected patient-ID authority, the unique patient count, the
+ * linked-row/visit count and the average linked rows per patient. Without a
+ * patient-ID authority those facts are unavailable (`null`), never guessed.
+ * Descriptive facts only: not a risk/privacy score, no chronology claim, no
+ * certification language. Memory-only (D-013).
+ */
+export type StructuredSummary = {
+  readonly rowCount: number;
+  readonly patient: StructuredPatientSummary | null;
+};
+
+export function deriveStructuredSummary(configuration: StructuredConfiguration): StructuredSummary {
+  const rowCount = configuration.grid.rows.length;
+  if (configuration.patientId.status !== "resolved") {
+    return Object.freeze({ rowCount, patient: null });
+  }
+  const columnIndex = configuration.patientId.columnIndex;
+  const distinct = new Set<string>();
+  let linkedRows = 0;
+  for (const row of configuration.grid.rows) {
+    const cell = row[columnIndex];
+    if (isBlankCell(cell)) continue;
+    linkedRows += 1;
+    distinct.add(String(cell));
+  }
+  const uniquePatients = distinct.size;
+  return Object.freeze({
+    rowCount,
+    patient: Object.freeze({
+      uniquePatients,
+      linkedRows,
+      averageLinkedRowsPerPatient: uniquePatients === 0 ? 0 : linkedRows / uniquePatients,
+    }),
+  });
 }

@@ -125,7 +125,7 @@ describe("WU-C bridge — run installs job-scoped cell sessions and gates Safe o
     );
     expect(
       result.current.structured.preparation.output.safe.rows.map((row) => row[safeIndex])
-    ).toEqual([finals[0], "", finals[1]]);
+    ).toEqual([finals[0], null, finals[1]]);
     expect(JSON.stringify(result.current.structured.preparation.output.safe)).not.toContain(
       "Carmen Sánchez"
     );
@@ -309,6 +309,6 @@ describe("WU-C bridge — an all-blank routed free-text column has no required s
     expect(safeIndex).toBeGreaterThanOrEqual(0);
     expect(
       result.current.structured.preparation.output.safe.rows.map((row) => row[safeIndex])
-    ).toEqual(["", ""]);
+    ).toEqual([null, null]);
   });
 });

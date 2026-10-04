@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   type DecisionExtras,
@@ -62,6 +62,13 @@ import {
   replaceFreeTextCellSession,
   type StructuredFreeTextState,
 } from "./structured/free-text";
+import {
+  createDefaultStructuredOutputOptions,
+  resolveStudyIdPrefix,
+  setAddVisitNumber,
+  type StructuredOutputOptions,
+  type StudyIdPrefixResolution,
+} from "./structured/output-options";
 import type { StructuredGrid } from "./structured/grid";
 import {
   buildStructuredTransformPlan,
@@ -315,6 +322,26 @@ export function useJobSession() {
   structuredRef.current = structured;
 
   /**
+   * Job-scoped structured output options (REC-04 WU-B, D-022): the canonical
+   * Study-ID prefix + visit-numbering authority, held as DOMAIN state keyed
+   * by job id alongside the configuration — never React-label-only state, so
+   * normal V4 step navigation within the Job can never lose it and every
+   * change re-derives output/gate state through the structured bridge below.
+   * Memory-only (D-013): held in state, never persisted or logged. `null`
+   * means no structured job holds options (never installed, or cleared).
+   *
+   * The stored prefix is the raw value as typed: an invalid non-blank value
+   * is an explicit invalid state (see `structuredPrefixInvalid`) that blocks
+   * preparation fail-closed — it is never sanitized into an accepted token.
+   */
+  const [structuredOptions, setStructuredOptions] = useState<{
+    readonly jobId: string;
+    readonly options: StructuredOutputOptions;
+  } | null>(null);
+  const structuredOptionsRef = useRef(structuredOptions);
+  structuredOptionsRef.current = structuredOptions;
+
+  /**
    * Job-scoped structured free-text review state (REC-03 WU-C, D-021): the
    * domain `StructuredFreeTextState` plus the position of the cell under
    * review in its row-major queue. Domain state held here — never React-local
@@ -332,12 +359,14 @@ export function useJobSession() {
 
   const create = useCallback((input: JobInput) => {
     setStructured(null);
+    setStructuredOptions(null);
     setFreeText(null);
     setState({ job: createJob(input), review: null, batch: null });
   }, []);
 
   const clear = useCallback(() => {
     setStructured(null);
+    setStructuredOptions(null);
     setFreeText(null);
     setState(EMPTY_STATE);
   }, []);
@@ -359,12 +388,16 @@ export function useJobSession() {
    * is the exact bridge between Configure and the export gate. The optional
    * free-text review state is the WU-C cell authority: preparation reads
    * canonical reviewed final text only through it, and stays blocked without
-   * a current, finalized, failure-free state.
+   * a current, finalized, failure-free state. `outputOptions` is the REC-04
+   * WU-B job-scoped options authority ( Study-ID prefix token text +
+   * row-order visit numbering); absent options preserve legacy output
+   * exactly, and an invalid prefix blocks fail-closed with an exact reason.
    */
   const installStructured = useCallback(
     (
       configuration: StructuredConfiguration,
-      freeTextState: StructuredFreeTextState | null
+      freeTextState: StructuredFreeTextState | null,
+      outputOptions?: StructuredOutputOptions
     ): void => {
       const job = stateRef.current.job;
       if (!job || job.kind !== "structured") return;
@@ -374,6 +407,7 @@ export function useJobSession() {
       });
       const preparation = prepareStructuredOutput(configuration, plan, {
         freeText: freeTextState,
+        ...(outputOptions === undefined ? {} : { outputOptions }),
       });
       setStructured({ jobId: job.id, configuration, plan, preparation });
       setState((current) =>
@@ -386,15 +420,29 @@ export function useJobSession() {
   );
 
   /**
+   * Read the options held for one job id (`undefined` when none belong to
+   * it). Every configuration transition below passes the result into
+   * {@link installStructured} so output/gate state always re-derives through
+   * the same options authority.
+   */
+  const optionsForJob = useCallback((jobId: string): StructuredOutputOptions | undefined => {
+    const held = structuredOptionsRef.current;
+    return held !== null && held.jobId === jobId ? held.options : undefined;
+  }, []);
+
+  /**
    * Recompute the canonical structured plan + exact preparation from a
    * reviewed configuration and derive the job's export-gated state in ONE
    * write (HARDEN-01 WU-A). A configuration/action change that alters the
    * free-text cell set (or any policy drift) discards the held cell sessions
    * as stale in the same transition — stale review state can never certify
    * Safe output; the operator reprocesses explicitly under the new facts.
+   * An explicit `outputOptions` replaces the held options for this
+   * transition (patient-authority changes); otherwise the held job options
+   * carry over unchanged.
    */
   const applyStructuredConfiguration = useCallback(
-    (configuration: StructuredConfiguration): void => {
+    (configuration: StructuredConfiguration, outputOptions?: StructuredOutputOptions): void => {
       const job = stateRef.current.job;
       const held = freeTextRef.current;
       const kept =
@@ -406,49 +454,59 @@ export function useJobSession() {
           ? held.state
           : null;
       if (kept === null && held !== null) setFreeText(null);
-      installStructured(configuration, kept);
+      const effective = outputOptions ?? (job === null ? undefined : optionsForJob(job.id));
+      if (outputOptions !== undefined && job !== null) {
+        setStructuredOptions({ jobId: job.id, options: outputOptions });
+      }
+      installStructured(configuration, kept, effective);
     },
-    [installStructured]
+    [installStructured, optionsForJob]
   );
 
-  const updatePolicy = useCallback((policyId: PrivacyPolicyId) => {
-    const current = stateRef.current;
-    if (!current.job) return;
-    if (current.job.policyId === policyId) return;
-    // PR #40 corrective C2: a REAL policy change invalidates any existing
-    // ReviewSession in the same atomic write — the domain transition resets
-    // the derived review/output state and the bridge drops the stale session.
-    // T17 #21 SD-8: for a batch the domain returns non-error items to
-    // `queued`, so every per-item session is dropped in the same write.
-    const next = setPolicy(current.job, policyId);
-    let job: Job = next;
-    const structuredState = structuredRef.current;
-    if (
-      next.kind === "structured" &&
-      structuredState !== null &&
-      structuredState.jobId === next.id
-    ) {
-      // The structured plan depends on the policy: recompute it and re-derive
-      // the gate in the same transition. REC-03 WU-C: a REAL policy change
-      // invalidates the held free-text sessions in the same atomic write —
-      // they were processed under the previous policy and must be
-      // reprocessed explicitly under the new one, never reused.
-      setFreeText(null);
-      const plan = buildStructuredTransformPlan(structuredState.configuration, {
-        policyId: next.policyId,
-        jobSeed: next.id,
-      });
-      const preparation = prepareStructuredOutput(structuredState.configuration, plan);
-      setStructured({
-        jobId: next.id,
-        configuration: structuredState.configuration,
-        plan,
-        preparation,
-      });
-      job = withDerivedStructuredState(next, preparation);
-    }
-    setState({ job, review: null, batch: null });
-  }, []);
+  const updatePolicy = useCallback(
+    (policyId: PrivacyPolicyId) => {
+      const current = stateRef.current;
+      if (!current.job) return;
+      if (current.job.policyId === policyId) return;
+      // PR #40 corrective C2: a REAL policy change invalidates any existing
+      // ReviewSession in the same atomic write — the domain transition resets
+      // the derived review/output state and the bridge drops the stale session.
+      // T17 #21 SD-8: for a batch the domain returns non-error items to
+      // `queued`, so every per-item session is dropped in the same write.
+      const next = setPolicy(current.job, policyId);
+      let job: Job = next;
+      const structuredState = structuredRef.current;
+      if (
+        next.kind === "structured" &&
+        structuredState !== null &&
+        structuredState.jobId === next.id
+      ) {
+        // The structured plan depends on the policy: recompute it and re-derive
+        // the gate in the same transition. REC-03 WU-C: a REAL policy change
+        // invalidates the held free-text sessions in the same atomic write —
+        // they were processed under the previous policy and must be
+        // reprocessed explicitly under the new one, never reused.
+        setFreeText(null);
+        const plan = buildStructuredTransformPlan(structuredState.configuration, {
+          policyId: next.policyId,
+          jobSeed: next.id,
+        });
+        const heldOptions = optionsForJob(next.id);
+        const preparation = prepareStructuredOutput(structuredState.configuration, plan, {
+          ...(heldOptions === undefined ? {} : { outputOptions: heldOptions }),
+        });
+        setStructured({
+          jobId: next.id,
+          configuration: structuredState.configuration,
+          plan,
+          preparation,
+        });
+        job = withDerivedStructuredState(next, preparation);
+      }
+      setState({ job, review: null, batch: null });
+    },
+    [optionsForJob]
+  );
 
   /**
    * Batch read phase (T17 #21 SD-2/SD-3): mark one item `reading`, then record
@@ -590,7 +648,7 @@ export function useJobSession() {
           session
         );
         setFreeText({ ...held, state: nextState });
-        installStructured(structuredState.configuration, nextState);
+        installStructured(structuredState.configuration, nextState, optionsForJob(current.job.id));
         return;
       }
       if (current.batch) {
@@ -624,7 +682,7 @@ export function useJobSession() {
         batch: null,
       });
     },
-    [installStructured]
+    [installStructured, optionsForJob]
   );
 
   const addManual = useCallback(
@@ -650,7 +708,7 @@ export function useJobSession() {
           session
         );
         setFreeText({ ...held, state: nextState });
-        installStructured(structuredState.configuration, nextState);
+        installStructured(structuredState.configuration, nextState, optionsForJob(current.job.id));
         return;
       }
       if (current.batch) {
@@ -682,7 +740,7 @@ export function useJobSession() {
         batch: null,
       });
     },
-    [installStructured]
+    [installStructured, optionsForJob]
   );
 
   /**
@@ -738,7 +796,7 @@ export function useJobSession() {
         setFreeText(
           emptyState === null ? null : { jobId: job.id, state: emptyState, activeCell: null }
         );
-        installStructured(configuration, emptyState);
+        installStructured(configuration, emptyState, optionsForJob(job.id));
         return null;
       }
       const jobStillCurrent = (): boolean => {
@@ -762,7 +820,7 @@ export function useJobSession() {
           state: produced,
           activeCell: produced.cells.length > 0 ? 0 : null,
         });
-        installStructured(configuration, produced);
+        installStructured(configuration, produced, optionsForJob(job.id));
         setState((state) =>
           state.job && jobStillCurrent() ? { ...state, job: completeProcessing(state.job) } : state
         );
@@ -777,7 +835,7 @@ export function useJobSession() {
         return failure;
       }
     },
-    [installStructured]
+    [installStructured, optionsForJob]
   );
 
   /**
@@ -802,13 +860,19 @@ export function useJobSession() {
   /**
    * Install the canonical structured configuration built from a parsed grid
    * (T20 #24). Refuses to install onto a non-structured job, so the bridge can
-   * never attach structured authority to another job family.
+   * never attach structured authority to another job family. A fresh grid
+   * starts with the heritage output-options defaults (no patient authority
+   * yet, so visit numbering is absent).
    */
   const installStructuredGrid = useCallback(
     (grid: StructuredGrid) => {
       const current = stateRef.current;
       if (!current.job || current.job.kind !== "structured") return;
-      applyStructuredConfiguration(createStructuredConfiguration(grid));
+      const configuration = createStructuredConfiguration(grid);
+      const options = createDefaultStructuredOutputOptions(
+        configuration.patientId.status === "resolved"
+      );
+      applyStructuredConfiguration(configuration, options);
     },
     [applyStructuredConfiguration]
   );
@@ -842,14 +906,77 @@ export function useJobSession() {
     [applyStructuredConfiguration]
   );
 
-  /** Set (or clear) the single structured patient-ID column authority. */
+  /**
+   * Set (or clear with `null`) the single structured patient-ID column
+   * authority. REC-04 WU-B heritage rule: acquiring the authority for the
+   * first time enables visit numbering by default; releasing it makes the
+   * visit column effectively absent; switching authorities keeps the held
+   * choice. The typed prefix is never touched by this transition.
+   */
   const selectStructuredPatientId = useCallback(
     (header: string | null) => {
       const current = structuredRef.current;
-      if (current === null) return;
-      applyStructuredConfiguration(selectPatientIdColumn(current.configuration, header));
+      const job = stateRef.current.job;
+      if (current === null || job === null) return;
+      const nextConfiguration = selectPatientIdColumn(current.configuration, header);
+      const hadAuthority = current.configuration.patientId.status === "resolved";
+      const hasAuthority = nextConfiguration.patientId.status === "resolved";
+      const held = optionsForJob(job.id);
+      const base =
+        held ??
+        createDefaultStructuredOutputOptions(current.configuration.patientId.status === "resolved");
+      const nextOptions: StructuredOutputOptions =
+        !hadAuthority && hasAuthority
+          ? Object.freeze({ ...base, addVisitNumber: true })
+          : !hasAuthority
+            ? Object.freeze({ ...base, addVisitNumber: false })
+            : base;
+      applyStructuredConfiguration(nextConfiguration, nextOptions);
     },
-    [applyStructuredConfiguration]
+    [applyStructuredConfiguration, optionsForJob]
+  );
+
+  /**
+   * Store one raw Study-ID prefix choice (REC-04 WU-B). The value is stored
+   * verbatim — never sanitized — and an invalid non-blank value blocks
+   * preparation fail-closed through the same bridge (explicit invalid state
+   * + gate behaviour). A no-op without held structured state.
+   */
+  const setStructuredStudyIdPrefix = useCallback(
+    (raw: string) => {
+      const current = structuredRef.current;
+      const job = stateRef.current.job;
+      if (current === null || job === null) return;
+      const held = optionsForJob(job.id);
+      if (held === undefined) return;
+      if (raw === held.studyIdPrefix) return;
+      applyStructuredConfiguration(
+        current.configuration,
+        Object.freeze({ ...held, studyIdPrefix: raw })
+      );
+    },
+    [applyStructuredConfiguration, optionsForJob]
+  );
+
+  /**
+   * Store the explicit visit-numbering choice (REC-04 WU-B). Without a
+   * patient-ID authority the column is unavailable/effectively absent, so
+   * enabling coerces to absent. Output/gate state re-derives in the same
+   * transition. A no-op without held structured state.
+   */
+  const setStructuredAddVisitNumber = useCallback(
+    (enabled: boolean) => {
+      const current = structuredRef.current;
+      const job = stateRef.current.job;
+      if (current === null || job === null) return;
+      const held = optionsForJob(job.id);
+      if (held === undefined) return;
+      const hasAuthority = current.configuration.patientId.status === "resolved";
+      const next = setAddVisitNumber(held, enabled, hasAuthority);
+      if (next === held) return;
+      applyStructuredConfiguration(current.configuration, next);
+    },
+    [applyStructuredConfiguration, optionsForJob]
   );
 
   /**
@@ -867,12 +994,60 @@ export function useJobSession() {
     [applyStructuredConfiguration]
   );
 
+  const currentJobId = state.job?.id ?? null;
+  const heldStructuredOptions =
+    structuredOptions !== null && structuredOptions.jobId === currentJobId
+      ? structuredOptions.options
+      : null;
+  /**
+   * The held raw prefix resolved ONCE per options change to the typed
+   * resolution discriminated union (SM-2): the invalid state is represented
+   * by the resolved typed value, not a bare re-derived string. No
+   * per-render re-computation of `resolveStudyIdPrefix`.
+   */
+  const heldPrefixResolution: StudyIdPrefixResolution | null = useMemo(
+    () =>
+      heldStructuredOptions === null
+        ? null
+        : resolveStudyIdPrefix(heldStructuredOptions.studyIdPrefix),
+    [heldStructuredOptions]
+  );
+  /**
+   * Exact invalid-prefix reason, or `null` while it resolves, derived
+   * directly from the typed resolution rather than re-running resolution.
+   */
+  const heldPrefixInvalid =
+    heldPrefixResolution !== null && heldPrefixResolution.status === "invalid"
+      ? heldPrefixResolution.reason
+      : null;
+
   return {
     job: state.job,
     review: state.review,
     batchSessions: state.batch ? state.batch.sessions : null,
     batchActiveIndex: state.batch ? state.batch.activeIndex : null,
     structured,
+    /**
+     * Job-scoped structured output options (REC-04 WU-B, D-022), or `null`
+     * while no structured job holds them. Domain state — never label-only —
+     * so Configure controls and Export/gate reads share one authority.
+     */
+    structuredOptions: heldStructuredOptions,
+    /**
+     * The held raw prefix as its resolved typed discriminated union (SM-2):
+     * `valid` carries the effective token, `invalid` carries the exact
+     * refusal reason. `null` while no structured job holds options. The
+     * invalid state is represented by this resolved value, never a bare
+     * re-derived string.
+     */
+    structuredPrefixResolution: heldPrefixResolution,
+    /**
+     * Exact invalid-prefix reason for the held raw prefix, or `null` while
+     * it resolves — derived from {@link structuredPrefixResolution} at this
+     * clean boundary. The preparation blocks with the same reason; the
+     * export gate stays closed until the prefix is fixed.
+     */
+    structuredPrefixInvalid: heldPrefixInvalid,
     /**
      * Job-scoped structured free-text review state (REC-03 WU-C), or `null`
      * while no current processed state exists for this job. The active cell
@@ -903,6 +1078,8 @@ export function useJobSession() {
     overrideStructuredColumn,
     overrideStructuredColumnAction,
     selectStructuredPatientId,
+    setStructuredStudyIdPrefix,
+    setStructuredAddVisitNumber,
     setStructuredColumnDateRole,
   };
 }

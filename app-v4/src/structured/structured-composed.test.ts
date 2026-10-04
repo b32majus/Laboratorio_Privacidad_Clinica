@@ -216,7 +216,7 @@ describe("WU-D — composed Safe CSV facts", () => {
     // Reviewed free text equals canonical getFinalText; the blank stays blank.
     const finals = state.cells.map((cell) => (cell.ok ? getFinalText(cell.session) : "<failed>"));
     expect(finals).toHaveLength(2);
-    expect(preparation.output.safe.rows.map((row) => row[5])).toEqual([finals[0], finals[1], ""]);
+    expect(preparation.output.safe.rows.map((row) => row[5])).toEqual([finals[0], finals[1], null]);
 
     // No leak: no original patient ID, no removed DNI, no exact date, no
     // unreviewed name, no kept-diagnosis correspondence confusion in Safe.
