@@ -39,7 +39,7 @@ Recovery was reconstructed from:
 - frozen pre-refactor authority: `e164ca2`;
 - V4 checkpoint audited on 2026-10-04: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a`.
 
-After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**. After REC-02, **24 rows remain recovery-blocking**, all owned by the same 12 Recovery Work Orders. These counts are an index, not a completeness proof: REC-12 must re-check the frozen source audits + v3 heritage against the matrix before row-level closeout.
+After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**. After REC-03, **20 rows remain recovery-blocking**, all owned by the same 12 Recovery Work Orders. These counts are an index, not a completeness proof: REC-12 must re-check the frozen source audits + v3 heritage against the matrix before row-level closeout.
 
 ## 4. Current recovery train
 
@@ -47,8 +47,8 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 
 1. `REC-01 — SPANISH-ENGINE-ASSURANCE-01` — **COMPLETED**, merged by PR #66 at `3.0-main@2e641aa54797e97d8019aa0821518b17a078fc42`
 2. `REC-02 — TEXT-POLICY-COMPLETION-01` — **COMPLETED**, merged by PR #68 at `3.0-main@4984040722f55062778b97e7351d2b8b43fe7ce7`
-3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **NEXT**
-4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01`
+3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **COMPLETED**, merged by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`
+4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **NEXT**
 5. `REC-05 — SINGLE-OUTPUT-PARITY-01`
 6. `REC-06 — BATCH-WORKFLOW-PARITY-01`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01`
@@ -58,7 +58,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-Current next Work Order: **REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01**.
+Current next Work Order: **REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01**.
 
 No new recovery ticket should be invented from memory. First locate the capability in the traceability matrix and either map it to the owning REC Work Order or explicitly amend the master plan.
 
@@ -66,8 +66,8 @@ No new recovery ticket should be invented from memory. First locate the capabili
 
 - The text privacy engine is Spanish/Spain-oriented; the V4 UI being English is **not evidence that the recognizer dictionaries were translated to English**.
 - REC-01 materially broadened the synthetic/no-PHI Spanish engine assurance corpus to **35 core + 4 adversarial cases** on the productive `createRegistryEngine()` path, with machine-visible type/slice coverage and deterministic precision/recall/F1/FNR evidence. It remains an assurance/regression gate, **not a universal statistical clinical-Spanish quality grade**.
-- REC-02 completed all four accepted Privacy Policies for pasted text, single documents and document batches: External AI reduces date precision; Longitudinal Research applies one deterministic Job-scoped date shift while preserving ordering/intervals; Standard/Strict retain their accepted semantics. The REC-03 free-text-routing prerequisite is now satisfied.
-- Structured V4 currently uses the patient-ID authority for policy/date processing but Safe Structured Output removes Identifier columns instead of producing the v3-style deterministic Study ID. Recovery of safe longitudinal linkage belongs to REC-03.
+- REC-02 completed all four accepted Privacy Policies for pasted text, single documents and document batches: External AI reduces date precision; Longitudinal Research applies one deterministic Job-scoped date shift while preserving ordering/intervals; Standard/Strict retain their accepted semantics. REC-03 then reused that same authority for structured `process-as-text` cells rather than inventing a second text-policy system.
+- REC-03 restored structured semantics: the selected patient-ID now becomes deterministic in-Job `ID_ESTUDIO` / `PAC_001…` in Safe output with Confidential-only correspondence; structured Class and productive Action are separate authorities; unresolved Unknown/quasi states remain fail-closed; and configured text-like cells can route through the same REC-02 text engine + ReviewSession path. Configurable Study-ID prefix/`Visita_Num`, smart workbook headers and XLSX outputs remain REC-04 scope.
 - Batch V4 currently has no accepted batch-wide Safe Output/Confidential Audit format. Recovery belongs to REC-07.
 - V4 currently exposes single/structured output mainly as TXT/CSV + separate confidential TXT. Recovery of safe PDF/DOCX/XLSX and corresponding audit semantics belongs to REC-04/REC-05/REC-07; all identifiable Confidential downloads must regain the frozen UX additional-confirmation safeguard.
 - `Keep original` exists, but direct identifiers currently lack the frozen UX contextual confirmation/explanation before the original is kept in Safe Output; REC-09 owns that safeguard.
