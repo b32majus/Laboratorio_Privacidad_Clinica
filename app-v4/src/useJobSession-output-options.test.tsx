@@ -104,7 +104,18 @@ describe("WU-B bridge — job-scoped output options authority", () => {
     });
     // Stored verbatim (never sanitized into CMD), flagged invalid.
     expect(result.current.structuredOptions?.studyIdPrefix).toBe("=CMD");
-    expect(result.current.structuredPrefixInvalid).not.toBeNull();
+    // SM-2: the invalid state is represented by the resolved TYPED value,
+    // not a bare re-derived string; the reason surface derives from it.
+    expect(result.current.structuredPrefixResolution?.status).toBe("invalid");
+    expect(result.current.structuredPrefixResolution).toMatchObject({
+      status: "invalid",
+      reason: expect.stringMatching(/invalid/i),
+    });
+    expect(result.current.structuredPrefixInvalid).toBe(
+      result.current.structuredPrefixResolution?.status === "invalid"
+        ? result.current.structuredPrefixResolution.reason
+        : null
+    );
     const preparation = result.current.structured?.preparation;
     expect(preparation?.status).toBe("blocked");
     if (preparation?.status !== "blocked") return;

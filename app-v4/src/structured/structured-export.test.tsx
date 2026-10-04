@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as vm from "node:vm";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -17,7 +17,7 @@ import {
 import type { StructuredGrid } from "./grid";
 import { buildStructuredTransformPlan } from "./transform-plan";
 import { prepareStructuredOutput } from "./transformed-dataset";
-import type { XlsxCell, XlsxLib } from "./xlsx-loader";
+import { resetXlsxLoaderForTests, type XlsxCell, type XlsxLib } from "./xlsx-loader";
 
 /**
  * REC-04 WU-C oracles for the structured export surface: Safe CSV + XLSX
@@ -178,6 +178,12 @@ const CONF_XLSX_BUTTON = "Download Structured Confidential Audit (.xlsx)";
 afterEach(() => {
   cleanup();
   delete window.XLSX;
+  resetXlsxLoaderForTests();
+  // The lazy loader appends its governed <script> and never removes it;
+  // drop it so a later test cannot dispatch `load` on a stale element.
+  for (const script of Array.from(document.head.querySelectorAll("script"))) {
+    if (script.getAttribute("src") === "/vendor/xlsx.full.min.js") script.remove();
+  }
   vi.restoreAllMocks();
 });
 
@@ -357,6 +363,100 @@ describe("ExportStep — structured Confidential confirmation (H-42 slice)", () 
       expect(capture.downloads).toHaveLength(0);
     } finally {
       capture.restore();
+    }
+  });
+});
+
+describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", () => {
+  function findInjectedXlsxScript(): HTMLScriptElement | null {
+    const found = Array.from(document.head.querySelectorAll("script")).find(
+      (element) => element.getAttribute("src") === "/vendor/xlsx.full.min.js"
+    );
+    return found instanceof HTMLScriptElement ? found : null;
+  }
+
+  /**
+   * Resolve the real lazy SheetJS load that {@link loadXlsx} opened when no
+   * library was pre-seeded. Until this runs the handler is genuinely
+   * suspended after `await loadXlsx()`, which is the exact async generation
+   * window REC-04 SPEC-1 must guard.
+   */
+  async function completeXlsxGenerationWindow(script: HTMLScriptElement): Promise<void> {
+    await act(async () => {
+      window.XLSX = XLSX;
+      script.dispatchEvent(new Event("load"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("produces no stale Confidential XLSX when the preparation stops being ready during generation", async () => {
+    const capture = captureDownloads();
+    resetXlsxLoaderForTests();
+    const structured = readyInput();
+    const view = render(
+      <ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
+      // Explicit Confirm starts the real generation; the handler suspends on
+      // the lazy load, so no bytes exist yet.
+      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      const injection = findInjectedXlsxScript();
+      expect(injection).not.toBeNull();
+      expect(capture.downloads).toHaveLength(0);
+
+      // While that window is open the preparation becomes blocked/stale.
+      const blocked = blockedInput();
+      view.rerender(<ExportStep job={jobFor("job-1", true)} review={null} structured={blocked} />);
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+
+      // The now-irrelevant generation completes: no stale artifact may be
+      // produced and nothing may be downloaded.
+      await completeXlsxGenerationWindow(injection as HTMLScriptElement);
+      expect(capture.downloads).toHaveLength(0);
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+    } finally {
+      capture.restore();
+      delete window.XLSX;
+      resetXlsxLoaderForTests();
+    }
+  });
+
+  it("produces no stale Confidential XLSX when the Job changes during generation", async () => {
+    const capture = captureDownloads();
+    resetXlsxLoaderForTests();
+    const structured = readyInput();
+    const view = render(
+      <ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      const injection = findInjectedXlsxScript();
+      expect(injection).not.toBeNull();
+      expect(capture.downloads).toHaveLength(0);
+
+      // Another Job arrives while the generation window is open.
+      view.rerender(
+        <ExportStep job={jobFor("job-2", true)} review={null} structured={structured} />
+      );
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+
+      await completeXlsxGenerationWindow(injection as HTMLScriptElement);
+      expect(capture.downloads).toHaveLength(0);
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+    } finally {
+      capture.restore();
+      delete window.XLSX;
+      resetXlsxLoaderForTests();
     }
   });
 });

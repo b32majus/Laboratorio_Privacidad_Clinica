@@ -41,7 +41,7 @@
  * anywhere (D-006).
  */
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { getProgress, type ReviewSession } from "../review/review-domain";
 import type { Job } from "../domain/job";
@@ -199,6 +199,37 @@ function StructuredExport({
     readonly message: string;
   } | null>(null);
 
+  // The CURRENT authorization snapshot (REC-04 SPEC-1). A confirmation is
+  // only ever requested against one frozen Job + preparation; the actual
+  // download must re-check that the SAME Job is still current and that its
+  // preparation is still ready with Confidential readiness enabled — even
+  // after an `await` (XLSX generation). This ref always carries the latest
+  // render's values, so a state change during an async generation window is
+  // observable at the moment of download.
+  const confirmationAuthorityRef = useRef<{
+    readonly jobId: string;
+    readonly preparation: StructuredOutputPreparation | null;
+    readonly confidentialBlocked: boolean;
+  }>({ jobId: job.id, preparation, confidentialBlocked });
+  confirmationAuthorityRef.current = { jobId: job.id, preparation, confidentialBlocked };
+
+  // Just-in-time guard: true only while the download requested against
+  // `requestedJobId` + `requestedPreparation` is still authorized. Used at
+  // the exact moment bytes would be produced, after any await.
+  const isConfirmationCurrent = (
+    requestedJobId: string,
+    requestedPreparation: StructuredOutputPreparation
+  ): boolean => {
+    const current = confirmationAuthorityRef.current;
+    return (
+      !current.confidentialBlocked &&
+      current.jobId === requestedJobId &&
+      current.preparation !== null &&
+      current.preparation === requestedPreparation &&
+      current.preparation.status === "ready"
+    );
+  };
+
   // The confirmation grants no readiness and never outlives the Job or the
   // preparation it was requested against: any new Job or preparation (in
   // particular a newly blocked/stale one) clears it. The domain inputs are
@@ -260,17 +291,26 @@ function StructuredExport({
       return;
     }
     const format = pendingConfirmation;
+    const requestedJobId = job.id;
+    const requestedPreparation = preparation;
     // Reset first: one explicit Confirm performs exactly one download, and
     // the confirmation never survives the download either way.
     setPendingConfirmation(null);
     try {
       if (format === "txt") {
+        // Synchronous, so this guard holds at the moment of execution too.
+        if (!isConfirmationCurrent(requestedJobId, requestedPreparation)) return;
         downloadTextFile(
           CONFIDENTIAL_STRUCTURED_FILE_NAME,
           serializeStructuredConfidentialAudit(preparation.output.confidential)
         );
       } else {
         const lib = await loadXlsx();
+        // Re-check AFTER the async generation window: a Job change, a
+        // no-longer-ready/stale preparation or disabled Confidential
+        // readiness that arrived while awaiting must produce NO download
+        // (D-022 / §4.5.4: the confirmation cannot survive them).
+        if (!isConfirmationCurrent(requestedJobId, requestedPreparation)) return;
         downloadXlsxFile(
           CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME,
           buildConfidentialXlsxBytes(lib, preparation.output.confidential)

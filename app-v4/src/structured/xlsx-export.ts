@@ -23,10 +23,10 @@
  * (no timestamps, no randomness in the generated artifact).
  */
 import { CONFIDENTIAL_AUDIT_WARNING_LINE } from "../output/confidential-audit-serializer";
+import { isSafeDataset } from "./csv-writer";
 import type {
   StructuredConfidentialCorrespondence,
   StructuredSafeCell,
-  StructuredSafeDataset,
   StructuredSummary,
 } from "./transformed-dataset";
 import type { XlsxLib, XlsxWorksheet } from "./xlsx-loader";
@@ -60,29 +60,6 @@ export class XlsxExportError extends Error {
     super(message);
     this.name = "XlsxExportError";
   }
-}
-
-function isSafeCell(value: unknown): value is StructuredSafeCell {
-  return (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  );
-}
-
-function isSafeDataset(value: unknown): value is StructuredSafeDataset {
-  if (typeof value !== "object" || value === null) return false;
-  const candidate = value as Partial<StructuredSafeDataset>;
-  if (
-    candidate.kind !== "structured-safe-dataset" ||
-    !Array.isArray(candidate.headers) ||
-    !Array.isArray(candidate.rows)
-  ) {
-    return false;
-  }
-  if (!candidate.headers.every((header) => typeof header === "string")) return false;
-  return candidate.rows.every((row) => Array.isArray(row) && row.every((cell) => isSafeCell(cell)));
 }
 
 const VALID_DISPOSITIONS = ["date-age", "pseudonymize", "remove", "study-id", "free-text"] as const;

@@ -427,7 +427,11 @@ export function App() {
       ? null
       : {
           prefix: session.structuredOptions.studyIdPrefix,
-          prefixInvalid: session.structuredPrefixInvalid,
+          prefixResolution: session.structuredPrefixResolution,
+          prefixInvalid:
+            session.structuredPrefixResolution?.status === "invalid"
+              ? session.structuredPrefixResolution.reason
+              : null,
           addVisitNumber: session.structuredOptions.addVisitNumber,
           visitAvailable: structuredConfiguration.patientId.status === "resolved",
           summary: deriveStructuredSummary(structuredConfiguration),

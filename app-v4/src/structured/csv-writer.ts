@@ -33,7 +33,13 @@ function isSafeCell(value: unknown): value is StructuredSafeCell {
   );
 }
 
-function isSafeDataset(value: unknown): value is StructuredSafeDataset {
+/**
+ * Structural guard for the canonical Safe dataset shape. Exported as the
+ * single shared fail-closed validator (REC-04 SM-1): the CSV writer and the
+ * XLSX Safe serializer must agree on the same accepted shape rather than
+ * keep two copies that can drift.
+ */
+export function isSafeDataset(value: unknown): value is StructuredSafeDataset {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<StructuredSafeDataset>;
   if (

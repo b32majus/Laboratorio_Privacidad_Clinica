@@ -54,6 +54,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         {...baseProps()}
         outputOptions={{
           prefix: "PAC",
+          prefixResolution: null,
           prefixInvalid: null,
           addVisitNumber: true,
           visitAvailable: true,
@@ -77,6 +78,11 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         {...baseProps()}
         outputOptions={{
           prefix: "=CMD",
+          prefixResolution: {
+            status: "invalid",
+            reason:
+              'Structured output option "study-ID prefix" is invalid: "=CMD" must start with a letter.',
+          },
           prefixInvalid:
             'Structured output option "study-ID prefix" is invalid: "=CMD" must start with a letter.',
           addVisitNumber: true,
@@ -98,6 +104,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         {...baseProps()}
         outputOptions={{
           prefix: "PAC",
+          prefixResolution: null,
           prefixInvalid: null,
           addVisitNumber: true,
           visitAvailable: true,
@@ -117,6 +124,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         {...baseProps()}
         outputOptions={{
           prefix: "PAC",
+          prefixResolution: null,
           prefixInvalid: null,
           addVisitNumber: false,
           visitAvailable: false,
@@ -136,6 +144,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         {...baseProps()}
         outputOptions={{
           prefix: "PAC",
+          prefixResolution: null,
           prefixInvalid: null,
           addVisitNumber: true,
           visitAvailable: true,
@@ -155,6 +164,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         {...baseProps()}
         outputOptions={{
           prefix: "PAC",
+          prefixResolution: null,
           prefixInvalid: null,
           addVisitNumber: false,
           visitAvailable: false,

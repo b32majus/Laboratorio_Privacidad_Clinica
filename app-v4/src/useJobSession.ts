@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   type DecisionExtras,
@@ -67,6 +67,7 @@ import {
   resolveStudyIdPrefix,
   setAddVisitNumber,
   type StructuredOutputOptions,
+  type StudyIdPrefixResolution,
 } from "./structured/output-options";
 import type { StructuredGrid } from "./structured/grid";
 import {
@@ -998,13 +999,27 @@ export function useJobSession() {
     structuredOptions !== null && structuredOptions.jobId === currentJobId
       ? structuredOptions.options
       : null;
+  /**
+   * The held raw prefix resolved ONCE per options change to the typed
+   * resolution discriminated union (SM-2): the invalid state is represented
+   * by the resolved typed value, not a bare re-derived string. No
+   * per-render re-computation of `resolveStudyIdPrefix`.
+   */
+  const heldPrefixResolution: StudyIdPrefixResolution | null = useMemo(
+    () =>
+      heldStructuredOptions === null
+        ? null
+        : resolveStudyIdPrefix(heldStructuredOptions.studyIdPrefix),
+    [heldStructuredOptions]
+  );
+  /**
+   * Exact invalid-prefix reason, or `null` while it resolves, derived
+   * directly from the typed resolution rather than re-running resolution.
+   */
   const heldPrefixInvalid =
-    heldStructuredOptions === null
-      ? null
-      : (() => {
-          const resolved = resolveStudyIdPrefix(heldStructuredOptions.studyIdPrefix);
-          return resolved.status === "invalid" ? resolved.reason : null;
-        })();
+    heldPrefixResolution !== null && heldPrefixResolution.status === "invalid"
+      ? heldPrefixResolution.reason
+      : null;
 
   return {
     job: state.job,
@@ -1019,9 +1034,18 @@ export function useJobSession() {
      */
     structuredOptions: heldStructuredOptions,
     /**
+     * The held raw prefix as its resolved typed discriminated union (SM-2):
+     * `valid` carries the effective token, `invalid` carries the exact
+     * refusal reason. `null` while no structured job holds options. The
+     * invalid state is represented by this resolved value, never a bare
+     * re-derived string.
+     */
+    structuredPrefixResolution: heldPrefixResolution,
+    /**
      * Exact invalid-prefix reason for the held raw prefix, or `null` while
-     * it resolves. The preparation blocks with the same reason; the export
-     * gate stays closed until the prefix is fixed.
+     * it resolves — derived from {@link structuredPrefixResolution} at this
+     * clean boundary. The preparation blocks with the same reason; the
+     * export gate stays closed until the prefix is fixed.
      */
     structuredPrefixInvalid: heldPrefixInvalid,
     /**

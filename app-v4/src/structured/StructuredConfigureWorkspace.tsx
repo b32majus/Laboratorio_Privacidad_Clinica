@@ -40,6 +40,7 @@ import {
   type StructuredDateRole,
 } from "./configuration";
 import type { StructuredSummary } from "./transformed-dataset";
+import type { StudyIdPrefixResolution } from "./output-options";
 import type { ColumnSampleType } from "./column-profile";
 import type { ProposedAction } from "./classification";
 
@@ -148,6 +149,11 @@ export type StructuredConfigureWorkspaceProps = {
   readonly outputOptions?: {
     /** The raw Study-ID prefix as typed (blank resolves to the default). */
     readonly prefix: string;
+    /**
+     * The typed resolution of the held raw prefix, or `null` without held
+     * options (SM-2). The invalid state is represented by this typed value.
+     */
+    readonly prefixResolution: StudyIdPrefixResolution | null;
     /** Exact invalid-prefix reason, or `null` while the prefix resolves. */
     readonly prefixInvalid: string | null;
     /** Whether row-order visit numbering is enabled. */
