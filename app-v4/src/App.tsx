@@ -126,6 +126,18 @@ export function App() {
     readonly jobId: string;
     readonly sheetNames: readonly string[];
   } | null>(null);
+  /**
+   * Pending explicit header-row choice (REC-04 WU-A, D-022): the selected
+   * worksheet resolved to zero/several header candidates, so the human must
+   * pick the header row from the inspected rows. Job-scoped like the sheet
+   * choice; indices only, never cell content.
+   */
+  const [structuredHeader, setStructuredHeader] = useState<{
+    readonly jobId: string;
+    readonly sheetName: string;
+    readonly candidateRowIndices: readonly number[];
+    readonly inspectedRowCount: number;
+  } | null>(null);
   const structuredFileRef = useRef<File | null>(null);
   /**
    * Latest rendered job id (SD-11): the async batch-read loop snapshots it
@@ -142,6 +154,7 @@ export function App() {
     setInputError(null);
     setStructuredError(null);
     setStructuredSheet(null);
+    setStructuredHeader(null);
     setFreeTextRunError(null);
     structuredFileRef.current = null;
   };
@@ -447,9 +460,10 @@ export function App() {
    * Structured intake (T20 #24): parse the single selected CSV/XLS/XLSX file
    * with the T18 authorities and install the canonical configuration in the
    * domain bridge. A multi-sheet workbook waits for an explicit sheet choice;
-   * every failure is typed and surfaced (never a silent empty table). The
-   * parsed configuration is only installed when the job it was read for is
-   * still the current job (stale reads are discarded).
+   * an ambiguous workbook sheet waits for an explicit header-row choice
+   * (REC-04 WU-A, D-022); every failure is typed and surfaced (never a silent
+   * empty table). The parsed configuration is only installed when the job it
+   * was read for is still the current job (stale reads are discarded).
    */
   const intakeStructured = async (file: File, previousJobId: string | null) => {
     setIsExtracting(true);
@@ -461,11 +475,23 @@ export function App() {
         session.installStructuredGrid(outcome.grid);
         setStructuredError(null);
         setStructuredSheet(null);
+        setStructuredHeader(null);
       } else if (outcome.status === "sheet-required") {
         structuredFileRef.current = file;
         setStructuredSheet({ jobId, sheetNames: outcome.sheetNames });
+        setStructuredHeader(null);
+      } else if (outcome.status === "header-row-required") {
+        structuredFileRef.current = file;
+        setStructuredSheet(null);
+        setStructuredHeader({
+          jobId,
+          sheetName: outcome.sheetName,
+          candidateRowIndices: outcome.candidateRowIndices,
+          inspectedRowCount: outcome.inspectedRowCount,
+        });
       } else {
         setStructuredError(outcome.message);
+        setStructuredHeader(null);
       }
     } finally {
       setIsExtracting(false);
@@ -485,8 +511,49 @@ export function App() {
         session.installStructuredGrid(outcome.grid);
         setStructuredError(null);
         setStructuredSheet(null);
+        setStructuredHeader(null);
         structuredFileRef.current = null;
+      } else if (outcome.status === "header-row-required") {
+        setStructuredSheet(null);
+        setStructuredHeader({
+          jobId: pending.jobId,
+          sheetName: outcome.sheetName,
+          candidateRowIndices: outcome.candidateRowIndices,
+          inspectedRowCount: outcome.inspectedRowCount,
+        });
       } else if (outcome.status === "failed") {
+        setStructuredError(outcome.message);
+        setStructuredHeader(null);
+      }
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  /** Resolve a pending header-row choice with the explicitly selected row. */
+  const handleSelectStructuredHeaderRow = async (rowIndex: number) => {
+    const file = structuredFileRef.current;
+    const pending = structuredHeader;
+    if (!file || !pending) return;
+    setIsExtracting(true);
+    try {
+      const outcome = await readStructuredSheet(file, pending.sheetName, rowIndex);
+      if (jobIdRef.current !== pending.jobId) return;
+      if (outcome.status === "parsed") {
+        session.installStructuredGrid(outcome.grid);
+        setStructuredError(null);
+        setStructuredHeader(null);
+        structuredFileRef.current = null;
+      } else if (outcome.status === "header-row-required") {
+        setStructuredHeader({
+          jobId: pending.jobId,
+          sheetName: outcome.sheetName,
+          candidateRowIndices: outcome.candidateRowIndices,
+          inspectedRowCount: outcome.inspectedRowCount,
+        });
+      } else if (outcome.status === "failed") {
+        // Keep the pending choice so the human can retry another inspected
+        // row; only an explicit new job/selection clears it.
         setStructuredError(outcome.message);
       }
     } finally {
@@ -627,7 +694,9 @@ export function App() {
             configuration={structuredConfiguration}
             errorMessage={structuredError}
             sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
+            headerRow={structuredHeader?.jobId === job.id ? structuredHeader : null}
             onSelectSheet={handleSelectStructuredSheet}
+            onSelectHeaderRow={handleSelectStructuredHeaderRow}
             onOverrideClass={session.overrideStructuredColumn}
             onOverrideAction={session.overrideStructuredColumnAction}
             onSelectPatientId={session.selectStructuredPatientId}

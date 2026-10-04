@@ -98,8 +98,20 @@ export type StructuredConfigureWorkspaceProps = {
   readonly errorMessage?: string | null;
   /** Sheet names of a multi-sheet workbook awaiting an explicit selection. */
   readonly sheetNames?: readonly string[] | null;
+  /**
+   * Explicit header-row choice pending for the selected worksheet (REC-04
+   * WU-A, D-022): candidate/inspected rows are 0-based; the UI renders them
+   * 1-based and never shows cell content.
+   */
+  readonly headerRow?: {
+    readonly sheetName: string;
+    readonly candidateRowIndices: readonly number[];
+    readonly inspectedRowCount: number;
+  } | null;
   /** Load an explicitly selected worksheet (never a silent first sheet). */
   readonly onSelectSheet: (sheetName: string) => void;
+  /** Use an explicitly selected inspected row as the header row (0-based). */
+  readonly onSelectHeaderRow?: (rowIndex: number) => void;
   /** Explicit reviewer override of one column's class (domain transition). */
   readonly onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
   /**
@@ -134,7 +146,9 @@ export function StructuredConfigureWorkspace(
     configuration,
     errorMessage = null,
     sheetNames = null,
+    headerRow = null,
     onSelectSheet,
+    onSelectHeaderRow,
     onOverrideClass,
     onOverrideAction,
     onSelectPatientId,
@@ -169,6 +183,12 @@ export function StructuredConfigureWorkspace(
             sheetNames={sheetNames}
             onSelectSheet={onSelectSheet}
           />
+        ) : headerRow !== null && onSelectHeaderRow !== undefined ? (
+          <HeaderRowSelection
+            key={`${headerRow.sheetName}|${headerRow.candidateRowIndices.join(",")}|${headerRow.inspectedRowCount}`}
+            headerRow={headerRow}
+            onSelectHeaderRow={onSelectHeaderRow}
+          />
         ) : errorMessage === null ? (
           <p
             role="status"
@@ -191,6 +211,68 @@ export function StructuredConfigureWorkspace(
   );
 }
 
+/** Explicit header-row choice for the selected worksheet (REC-04 WU-A, D-022). */
+function HeaderRowSelection(props: {
+  headerRow: {
+    readonly sheetName: string;
+    readonly candidateRowIndices: readonly number[];
+    readonly inspectedRowCount: number;
+  };
+  onSelectHeaderRow: (rowIndex: number) => void;
+}): ReactElement {
+  const { headerRow, onSelectHeaderRow } = props;
+  const candidates = new Set(headerRow.candidateRowIndices);
+  // Default to the first detected candidate (or row 1 when none qualified);
+  // the human still confirms explicitly — nothing is assumed silently.
+  const [selected, setSelected] = useState(headerRow.candidateRowIndices[0] ?? 0);
+  return (
+    <section
+      aria-label="Workbook header row selection"
+      className="mt-4 max-w-3xl rounded border border-primary bg-surface-light p-3"
+    >
+      <h3 className="font-display text-base font-bold text-primary-dark">Select the header row</h3>
+      <p className="mt-2 text-sm text-neutral-800">
+        The worksheet “{headerRow.sheetName}” has no single clear header row. Choose which of the
+        inspected rows is the header; rows above it are skipped as explanatory notes, never data.
+        The first row is never assumed.
+      </p>
+      <form
+        className="mt-3 flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSelectHeaderRow(selected);
+        }}
+      >
+        <div>
+          <label
+            htmlFor="structured-header-row"
+            className="block text-sm font-semibold text-neutral-800"
+          >
+            Header row
+          </label>
+          <select
+            id="structured-header-row"
+            value={selected}
+            onChange={(event) => setSelected(Number(event.target.value))}
+            className={`mt-1 rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+          >
+            {Array.from({ length: headerRow.inspectedRowCount }, (_, index) => (
+              <option key={index} value={index}>
+                {candidates.has(index) ? `Row ${index + 1} (header candidate)` : `Row ${index + 1}`}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="submit"
+          className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+        >
+          Use row {selected + 1} as header
+        </button>
+      </form>
+    </section>
+  );
+}
 /** Explicit worksheet choice for a multi-sheet workbook (SPEC §9). */
 function SheetSelection(props: {
   sheetNames: readonly string[];

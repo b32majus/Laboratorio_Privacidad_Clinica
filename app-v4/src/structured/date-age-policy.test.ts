@@ -322,8 +322,13 @@ describe("parser-normalized serial dates flow into date/age semantics exactly on
 
   it("shifts serial-normalized and text ISO cells of one patient consistently", async () => {
     window.XLSX = XLSX;
+    // REC-04 WU-A (D-022): this two-column sheet has no header candidate by
+    // construction (fewer than 3 textual cells per row), so the typed
+    // `header-row-required` state would block; the date/age oracle resolves
+    // it through the explicit header-row path with row 1 as the header.
     const parsed = await parseStructuredWorkbook(buildSerialWorkbookBytes(), {
       sheetName: "Visitas",
+      headerRowIndex: 0,
     });
     expect(parsed.status).toBe("success");
     if (parsed.status !== "success") return;

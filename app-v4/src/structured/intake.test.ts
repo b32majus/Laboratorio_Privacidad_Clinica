@@ -146,14 +146,36 @@ describe("readStructuredFile — workbook sheet selection (SPEC §9)", () => {
     });
   });
 
-  it("parses the explicitly selected sheet, not the first", async () => {
+  it("blocks on header-row-required for an ambiguous sheet, then parses the explicitly selected header row", async () => {
     window.XLSX = XLSX;
     const bytes = buildWorkbookBytes();
-    const outcome = await readStructuredSheet(bytesFile("labs.xlsx", bytes), "DatosClinicos");
+    // REC-04 WU-A (D-022): every row of DatosClinicos is all-text with 3+
+    // cells, so the bounded detector is genuinely ambiguous and must block
+    // instead of silently assuming the first row.
+    const blocked = await readStructuredSheet(bytesFile("labs.xlsx", bytes), "DatosClinicos");
+    expect(blocked.status).toBe("header-row-required");
+    if (blocked.status !== "header-row-required") return;
+    expect(blocked.sheetName).toBe("DatosClinicos");
+    expect(blocked.candidateRowIndices).toEqual([0, 1, 2]);
+    expect(blocked.inspectedRowCount).toBe(3);
+
+    const outcome = await readStructuredSheet(bytesFile("labs.xlsx", bytes), "DatosClinicos", 0);
     expect(outcome.status).toBe("parsed");
     if (outcome.status !== "parsed") return;
     expect(outcome.grid.headers).toEqual(["NHC", "Nombre", "Diagnostico"]);
     expect(outcome.grid.rows).toHaveLength(2);
+  });
+
+  it("fails typed for an invalid explicit header-row selection", async () => {
+    window.XLSX = XLSX;
+    const outcome = await readStructuredSheet(
+      bytesFile("labs.xlsx", buildWorkbookBytes()),
+      "DatosClinicos",
+      7
+    );
+    expect(outcome.status).toBe("failed");
+    if (outcome.status !== "failed") return;
+    expect(outcome.code).toBe("invalid-header-row");
   });
 
   it("fails closed with available sheet names when the selection is unknown", async () => {
@@ -207,7 +229,10 @@ describe("readStructuredFile/readStructuredSheet — supported-size authority (S
       "DatosClinicos"
     );
     const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
-    const outcome = await readStructuredSheet(bytesFile("big.xlsx", bytes), "DatosClinicos");
+    // REC-04 WU-A (D-022): the single-column sheet has no header candidate,
+    // so the explicit header-row path is taken; the size gate still applies
+    // to the accepted representation unchanged.
+    const outcome = await readStructuredSheet(bytesFile("big.xlsx", bytes), "DatosClinicos", 0);
     expect(outcome.status).toBe("failed");
     if (outcome.status !== "failed") return;
     expect(outcome.code).toBe("input-too-large");
@@ -229,7 +254,7 @@ describe("readStructuredFile/readStructuredSheet — supported-size authority (S
     const file = bytesFile("big.xlsx", bytes);
     const first = await readStructuredFile(file);
     expect(first.status).toBe("sheet-required");
-    const second = await readStructuredSheet(file, "DatosClinicos");
+    const second = await readStructuredSheet(file, "DatosClinicos", 0);
     expect(second.status).toBe("failed");
     if (second.status !== "failed") return;
     expect(second.code).toBe("input-too-large");
@@ -246,7 +271,81 @@ describe("readStructuredFile/readStructuredSheet — supported-size authority (S
       "DatosClinicos"
     );
     const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
-    const outcome = await readStructuredSheet(bytesFile("boundary.xlsx", bytes), "DatosClinicos");
+    const outcome = await readStructuredSheet(
+      bytesFile("boundary.xlsx", bytes),
+      "DatosClinicos",
+      0
+    );
     expect(outcome.status).toBe("parsed");
+  });
+});
+
+describe("readStructuredFile/readStructuredSheet — workbook header authority (REC-04 WU-A, D-022)", () => {
+  /** Single-sheet workbook: metadata rows above the real headers on row 4. */
+  function buildMetadataWorkbookBytes(): ArrayBuffer {
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["Hospital General — registro de visitas", null, null],
+        ["Unidad: urgencias", null, null],
+        [null, null, null],
+        ["NHC", "Nombre", "Edad"],
+        ["00123", "Ana", 33],
+        ["00456", "Luis", 41],
+      ]),
+      "Visitas"
+    );
+    return XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+  }
+
+  it("auto-resolves a single-sheet metadata-before-header workbook without asking", async () => {
+    window.XLSX = XLSX;
+    const outcome = await readStructuredFile(
+      bytesFile("visitas.xlsx", buildMetadataWorkbookBytes())
+    );
+    expect(outcome.status).toBe("parsed");
+    if (outcome.status !== "parsed") return;
+    expect(outcome.grid.headers).toEqual(["NHC", "Nombre", "Edad"]);
+    expect(outcome.grid.rows).toEqual([
+      ["00123", "Ana", 33],
+      ["00456", "Luis", 41],
+    ]);
+  });
+
+  it("returns header-row-required for a single-sheet ambiguous workbook", async () => {
+    window.XLSX = XLSX;
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet([
+        ["NHC", "Nombre", "Centro"],
+        ["00123", "Ana", "Centro Norte"],
+        ["00456", null, null],
+      ]),
+      "Datos"
+    );
+    const bytes = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const outcome = await readStructuredFile(bytesFile("datos.xlsx", bytes));
+    expect(outcome.status).toBe("header-row-required");
+    if (outcome.status !== "header-row-required") return;
+    expect(outcome.sheetName).toBe("Datos");
+    expect(outcome.candidateRowIndices).toEqual([0, 1]);
+    expect(outcome.inspectedRowCount).toBe(3);
+  });
+
+  it("keeps CSV first-record semantics even for metadata-heavy first rows", async () => {
+    const outcome = await readStructuredFile(
+      textFile("notas.csv", "informe trimestral,nota,nota\nNHC,Nombre,Edad\n00123,Ana,33")
+    );
+    expect(outcome.status).toBe("parsed");
+    if (outcome.status !== "parsed") return;
+    // CSV is unchanged: the first parsed record is the header row, even when
+    // it looks metadata-heavy. Smart header recovery is XLS/XLSX only.
+    expect(outcome.grid.headers).toEqual(["informe trimestral", "nota", "nota"]);
+    expect(outcome.grid.rows).toEqual([
+      ["NHC", "Nombre", "Edad"],
+      ["00123", "Ana", "33"],
+    ]);
   });
 });
