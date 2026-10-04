@@ -1,10 +1,10 @@
 # Legacy retirement — parity evidence and review status (T25 #29)
 
-Status: **CURRENT — PUBLICATION/HUMAN HANDOFF ON THE DESTRUCTIVE REVIEW**
+Status: **HISTORICAL T25 MIGRATION EVIDENCE — NOT CURRENT PRODUCT-PARITY AUTHORITY**
 
-This document is the durable parity map for the legacy multi-page application
-retirement performed in this branch, and the exact record of the review
-lifecycle status for that destructive change.
+> **2026-10-04 reconciliation:** this document remains the durable record proving that the retired legacy *routes/modules* had V4 workflow/security replacements at T25. It does **not** prove full product parity. The later recovery audit found missing product capabilities (formats/actions/language/structured linkage/visual contract) even though those route-retirement checks were factually green. Current recovery authority is `docs/START_HERE.md` → `docs/RECOVERY_MASTER_PLAN_2026-10.md` → the reconciled traceability matrix; its current index is 88 frozen rows + 42 product/heritage rows, subject to REC-12 source→matrix completeness.
+
+This document records the legacy multi-page application retirement performed by T25 and the exact review lifecycle status for that destructive change.
 
 ## 1. What was retired (branch-local, reversible Git deletions)
 

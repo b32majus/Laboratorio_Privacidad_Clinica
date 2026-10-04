@@ -1,6 +1,6 @@
 # T18 #22 / T19 #23 — historical evidence reconciliation (factual only)
 
-Status: **CURRENT**  
+Status: **HISTORICAL FACTUAL RECORD — NOT CURRENT PLANNING AUTHORITY**
 Owner debt: `DOC-002` (issue #43, A5)  
 Scope: factual record only — **no retrospective evidence reconstruction**
 

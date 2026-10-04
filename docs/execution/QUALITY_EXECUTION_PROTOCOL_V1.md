@@ -1,11 +1,11 @@
 # Laboratorio de Privacidad Clínica — Quality Execution Protocol v1
 
-Status: **HISTORICAL EXECUTION PROVENANCE — superseded by C-083**
+Status: **HISTORICAL EXECUTION PROVENANCE — superseded; current execution authority is C-084**
 Adopted: 2026-09-24
 
-## C-083 status
+## Historical C-083 provenance
 
-Do **not** execute the Gentle/Pi/RDD/ASSESS/lineage/burn sequences in this document. Current execution authority is `AGENTS.md`, `CODING_STANDARDS.md`, `docs/ATENEA_EXECUTION_ROUTING_V0.md` and Atenea C-083. The deterministic lessons recorded here remain useful historical evidence where a current ticket cites them, but this file is not a workflow/runbook.
+Do **not** execute the Gentle/Pi/RDD/ASSESS/lineage/burn sequences in this document. Current execution authority is `AGENTS.md`, `CODING_STANDARDS.md`, `docs/ATENEA_EXECUTION_ROUTING_V0.md` and Atenea C-084. The deterministic lessons recorded here remain useful historical evidence where a current ticket cites them, but this file is not a workflow/runbook.
 
 ## 1. Purpose and ownership
 

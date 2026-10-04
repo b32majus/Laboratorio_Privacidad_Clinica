@@ -8,12 +8,14 @@ This repository is the V4 brownfield privacy application. Product/domain authori
 
 For engineering work, read only what the task needs, in this order:
 
-1. `CONTEXT.md`;
-2. the accepted GitHub issue/spec/ticket, including comments and blockers;
-3. the cited `docs/specs/` contract(s) and relevant `docs/shaping/CURRENT_DECISIONS.md` decisions;
-4. `CODING_STANDARDS.md`;
-5. `docs/ATENEA_EXECUTION_ROUTING_V0.md` when executing through Atenea;
-6. relevant code/tests/oracles and deployment/governance docs.
+1. `docs/START_HERE.md`;
+2. `CONTEXT.md`;
+3. for recovery work, the owning section of `docs/RECOVERY_MASTER_PLAN_2026-10.md` and cited rows in `docs/audits/2026-10-recovery-traceability-matrix.md`;
+4. the accepted GitHub issue/spec/ticket, including comments and blockers;
+5. the cited `docs/specs/` contract(s) and relevant `docs/shaping/CURRENT_DECISIONS.md` decisions;
+6. `CODING_STANDARDS.md`;
+7. `docs/ATENEA_EXECUTION_ROUTING_V0.md` when executing through Atenea;
+8. relevant code/tests/oracles and deployment/governance docs.
 
 `docs/execution/`, `odd/tasks/`, historical handoffs and Gentle/Pi/RDD/4R/lineage/burn material are provenance unless a current ticket cites them as evidence. C-077–C-083 runtime instructions, OpenCode V1 and `--pure` are historical, not current execution instructions.
 
@@ -61,6 +63,7 @@ Use `complex` for material privacy/security/trust-boundary risk, difficult state
 - Existing privacy behavior is migrated behind explicit adapters/contracts; no big-bang rewrite.
 - Heavy processing stays behind the accepted Web Worker boundary where applicable.
 - Keep one durable source of truth for policy/state/identity; ambiguous classification fails explicitly.
+- During the 2026-10 recovery train, do not treat route/workflow existence as product parity. Preserve the capability contract owned by the Recovery Master Plan/matrix; any deliberate substitution/removal must be explicit and traced back to the matrix.
 
 ## Privacy and data invariants
 
