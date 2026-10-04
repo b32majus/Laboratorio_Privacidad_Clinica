@@ -187,3 +187,66 @@ The accepted per-category behavior for pasted text, single documents and documen
 - All four map `EDAD` to age banding; no policy keeps an exact age.
 
 Availability remains derived from the engine/structured authorities, never a second hard-coded table. This text mapping is job-family-specific and deliberately distinct from the structured date/age mapping (structured keeps explicit column roles and the patient-ID/shift authority). REC-10 owns Spanish localization and REC-12 owns recovery closeout. Implementation evidence: `app-v4/src/engine/policy.ts`, `app-v4/src/engine/initial-processing-context.ts`, `app-v4/src/policy-guidance.ts` and their oracles.
+## D-021 — REC-03 structured semantics recovery
+
+**Accepted: 2026-10-04 (REC-03 STRUCTURED-SEMANTICS-RECOVERY-01 shaping, before implementation).**
+
+REC-03 restores the structured product contract without adding a sixth privacy class or a new top-level workflow. The accepted classes remain exactly `Identifier / Quasi-Identifier / Sensitive / Insensitive / Unknown`. **Class and productive Action are separate authorities** when class alone cannot determine a safe transformation.
+
+### Patient identity / Study ID
+
+- The explicitly selected patient-ID column is the single patient identity authority.
+- When selected, its Safe disposition is `Replace with Study ID`, not remove. The original selected identifier never appears in Safe output.
+- REC-03 uses the fixed in-Job heritage format `PAC_001`, `PAC_002`, … assigned deterministically by first appearance of each distinct non-blank original patient identifier. Repeated rows for the same original ID reuse the same Study ID.
+- The generated Safe header is `ID_ESTUDIO` at the selected column's position. A conflicting different input column already named `ID_ESTUDIO` blocks preparation rather than being overwritten silently.
+- A non-empty data row with a blank value in the selected patient-ID column blocks preparation: do not produce an unlinkable row silently.
+- Confidential correspondence carries the unique original patient ID ↔ Study ID mapping. No HMAC/global/cross-Job identity is introduced.
+- Configurable Study-ID prefix and optional `Visita_Num` remain REC-04 scope.
+
+### Structured Class → Action authority
+
+Derived/fixed outcomes:
+
+- selected patient-ID column → `study-id`;
+- explicit `visit`/`birth` date role → existing policy-driven `date-policy` semantics (T19 remains authority);
+- other `Identifier` → `remove`;
+- `Sensitive` → `keep` by default (clinical attribute retained, matching the frozen UX target);
+- `Insensitive` → `keep`;
+- `Unknown` → `review-required`, never KEEP;
+- non-date `Quasi-Identifier` has **no universal automatic generalization**. It remains `review-required` unless a bounded accepted action is proposed/selected.
+
+A recognized center/ward quasi-identifier may propose `pseudonymize`, matching the frozen UX target. Other non-date quasi-identifiers do not acquire an invented operator merely to unblock export.
+
+Explicit reviewer action choices are bounded:
+
+- non-date Quasi-Identifier: `pseudonymize`, `keep`, or `process-as-text` when the column is text-like;
+- Sensitive: `keep` or `process-as-text` when text-like;
+- Unknown: may be resolved by changing class, or by explicit `process-as-text` when text-like; it may not be changed directly to KEEP while remaining Unknown;
+- ordinary Identifier remains `remove`; the selected patient-ID remains `study-id`;
+- Insensitive remains `keep`;
+- date-role columns and selected patient-ID have their derived action locked by those stronger authorities.
+
+Structured `pseudonymize` is deterministic, column-local categorical tokenization (`QID_001`, `QID_002`, … by first appearance), blanks preserved, with original↔token correspondence Confidential-only. Existing codification primitives may be reused internally, but `codify` is not a separate user-facing privacy class/action in the recovered contract.
+
+### Free-text columns
+
+`process-as-text` is an **Action**, not a new privacy class. It is available only for text-like non-patient-ID, non-date-role columns under the bounded rules above.
+
+- Every non-blank configured free-text cell is processed through the same productive text privacy engine and the same REC-02 policy mapping; no second structured text policy is invented.
+- Processing order is deterministic row-major, carrying one shared `ProcessingContext` across the configured cells so pseudonyms/context remain stable within the Job.
+- The initial context is the REC-02 text-policy context for the Job. Consequently Longitudinal Research inside a free-text cell uses the REC-02 **Job-scoped text date shift**; explicit structured visit/birth columns continue using their existing T19 structured semantics. REC-03 does not invent a third date policy.
+- Blank free-text cells remain blank and create no ReviewSession.
+- Each non-blank processed cell owns a ReviewSession. Low-confidence candidates remain visible/pending exactly as in ordinary text review. Safe structured output remains blocked until every required structured free-text session can finalize.
+- The Safe cell value is `ReviewSession.getFinalText()` (canonical reviewed state), never the raw engine proposal bypassing review.
+- Engine/read failure for any configured free-text cell is explicit and blocks Safe output; it never silently keeps the original cell.
+- Policy change invalidates/rebuilds structured free-text review state under the new policy.
+- Confidential structured correspondence may contain original↔final reviewed free-text values; originals never enter Safe output through the correspondence path.
+
+### Product-fidelity boundary
+
+- Keep the existing `Input → Configure → Review → Privacy Gate → Export` shell.
+- Do not add a new privacy class, route, app, mode or standalone structured-review product.
+- Configure gains/restores the explicit effective **Action** control/fact inside the existing column cards; action choices are constrained by the rules above rather than exposing an unconstrained expert editor.
+- When `process-as-text` is configured, the existing Review step shows a bounded queue of those cells and reuses the existing ReviewWorkspace semantics. When none are configured, the existing structured review summary remains.
+- Do not expose internal mappings/context objects as user concepts.
+- ARX/risk scoring, configurable prefix/`Visita_Num`, smart workbook headers, XLSX exports, Confidential-download confirmation, Spanish localization and visual redesign remain owned by later REC Work Orders.
