@@ -43,12 +43,12 @@ CURRENT_BASE_SHA=758acf6546b6c579e1882c743477a04d1cb96f90
 LAST_MERGED_PR=#45
 T21 #25 = integrated via PR #45
 COMPLETED=T01–T20,T23,T21
-HISTORICAL_NEXT_PREPARED_TRAIN=T22 #26 → T24 #28 → T25 #29  # executed/completed; not a current frontier
+HISTORICAL_COMPLETED_TAIL=T22 #26 → T24 #28 → T25 #29  # executed/completed historical sequence
 ```
 
 PR #45 (merge de `work/t21-playwright-20260929`) integró y cerró T21 #25: suite Playwright crítica determinista contra build estático production-like, monitor de red E2E fail-closed con violación plantada, y cierre de deuda QA-002/QA-003. T23 #27 (supply-chain/CI) había cerrado antes.
 
-**Next prepared frontier (train unattended autorizado, publicación LOCAL_ONLY):** `T22 #26 → T24 #28 → T25 #29 → composed closeout → STOP`. T22 #26 (`EXECUTION_READY=YES`, deudas PERF-001..004, spec `SPEC_V4_QUALITY_SECURITY_DEPLOY.md`) tiene sus bloqueos externos #9 y #25 cerrados. T24 #28 (bloqueos #13, #25, #27 cerrados) y T25 #29 (bloqueos #25, #26, #28) consumen los checkpoints locales aceptados del mismo train bajo la excepción intra-train de arriba. La rama/worktree histórica `work/opencode/v4-overnight-t17-t18-20260928` ya no es superficie de trabajo vigente.
+**Historical completed tail (provenance only; not executable):** `T22 #26 → T24 #28 → T25 #29 → composed closeout → STOP`. At the time, T22 #26 had been marked `EXECUTION_READY=YES` (deudas PERF-001..004, spec `SPEC_V4_QUALITY_SECURITY_DEPLOY.md`) after its external blockers #9 and #25 were closed; that historical marker has no current execution authority. T24 #28 (bloqueos #13, #25, #27 cerrados) y T25 #29 (bloqueos #25, #26, #28) consumen los checkpoints locales aceptados del mismo train bajo la excepción intra-train de arriba. La rama/worktree histórica `work/opencode/v4-overnight-t17-t18-20260928` ya no es superficie de trabajo vigente.
 
 **Deuda post-PR#42 (auditoría de promoción READ-ONLY):** registrada como duradero en issue #43 y en `docs/DEBT_REGISTER.md` (STRUCT-012/A1 alta, BATCH-003 actualización A2, CI-003/A4, DOC-002/A5 factual). No son bloqueantes retroactivos (la auditoría concluyó PASS) y NO se pliegan en T21 #25: A1 recibe una corrección propia y acotada (fail-closed de tamaño soportado en la entrada estructurada, misma autoridad `oversizeInputFor` aceptada por T15); A2 corrige propiedad de BATCH-003 (pipeline estructurado de app, no T20/T21); A4 es CI de proceso; A5 es factual only. El plan de lanzamiento histórico del tren T06–T08 (`TRAIN_T06_T08_20260924.md`) se conserva como evidencia cerrada, no como frontier vigente.
 
