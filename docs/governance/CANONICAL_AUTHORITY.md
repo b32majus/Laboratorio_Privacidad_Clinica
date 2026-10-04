@@ -5,7 +5,7 @@ Status: **CURRENT**
 ## 1. Canonical branch
 
 - The canonical V4 integration and Render deployment branch is **`3.0-main`**.
-- Current accepted V4 checkpoint before the C-084 reconciliation PR: `3.0-main@6645100f3f804f60562d687c780bba58ccf8f7aa` (PR #51, C-083 local reconciliation merge). C-084 supersedes C-083 as execution-runtime authority without changing product/runtime application code.
+- Current accepted V4 checkpoint at the 2026-10-04 recovery audit: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a` (UX-CLOSEOUT-01 / PR #64 merged). Current product/recovery authority is indexed by `docs/START_HERE.md`; C-084 remains the execution-runtime authority.
 - GitHub's repository **default branch is still `main`** as of 2026-10-03. Do not infer the V4 execution base from the GitHub default; `main` is not the canonical V4 integration/deploy authority.
 - Changing the GitHub default branch, renaming branches or deleting remote branches is a REMOTE, human-owned action (see §4). The `3.0-main` name is historical; the product generation is V4.
 

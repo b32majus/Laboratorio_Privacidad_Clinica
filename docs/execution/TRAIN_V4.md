@@ -6,7 +6,7 @@ Status: **COMPLETED HISTORICAL ROADMAP — T01–T25 integrated**
 
 This file records the completed V4 migration roadmap and its historical execution evidence. It is **not** a current execution runbook. T01–T25 are integrated; new work must come from current accepted GitHub issue/spec authority.
 
-Current execution uses Atenea C-083 (`opencode --pure` + project-local agents + upstream Matt skills) under `AGENTS.md`, `CODING_STANDARDS.md` and `docs/ATENEA_EXECUTION_ROUTING_V0.md`. All Gentle/Pi/RDD/4R/review-lineage/burn instructions below are provenance only.
+Current execution uses Atenea C-084 (project-local OpenCode V2 agents + upstream Matt skills) under `AGENTS.md`, `CODING_STANDARDS.md` and `docs/ATENEA_EXECUTION_ROUTING_V0.md`. All Gentle/Pi/RDD/4R/review-lineage/burn instructions below are provenance only.
 
 ## 2. Frontier rule
 

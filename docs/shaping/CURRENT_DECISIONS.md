@@ -28,7 +28,7 @@ Incremental brownfield migration.
 
 Existing core behavior is wrapped behind adapters and regression tests first. No big-bang rewrite.
 
-Legacy remains temporarily available until explicit parity/retirement criteria pass.
+Historical migration condition: legacy remained available until T25 retirement criteria passed. T25 is complete; legacy is no longer a runtime fallback. D-018 clarifies that those retirement criteria established workflow/security replacement, not full product parity.
 
 ## D-004 — Review authority
 
@@ -139,11 +139,26 @@ Deterministic repo evidence remains first-line assurance. Herdr is not correctne
 ## D-017 — Authority separation
 
 **Decision**
-- `CONTEXT.md`: vocabulary/boundaries.
+- `docs/START_HERE.md`: current repository entrypoint and authority map.
+- `CONTEXT.md`: vocabulary/boundaries and scope-vs-implementation authority.
+- `docs/RECOVERY_MASTER_PLAN_2026-10.md` + the 2026-10 traceability matrix: current recovery scope authority under D-018.
 - `docs/shaping/`: accepted decisions.
-- `docs/specs/`: behavioral/architectural contracts.
-- `docs/knowledge/` and audits: evidence/reference.
-- GitHub Issues: Work Orders.
+- `docs/specs/`: behavioral/architectural contracts for implementation, subject to explicit later recovery amendments.
+- `docs/knowledge/` and other audits: evidence/reference unless promoted by an accepted later decision.
+- GitHub Issues: executable Work Orders.
 - Atenea: execution.
 - Cora: independent audit/planning.
-- Human: final merge.
+- Human: final merge/publication.
+
+## D-018 — Recovery authority and parity semantics
+
+**Accepted reconciliation: 2026-10-04.**
+
+The 2026-10 recovery traceability audit demonstrated that T25 legacy retirement proved workflow/security parity but did not prove full product parity. Therefore:
+
+- `docs/RECOVERY_MASTER_PLAN_2026-10.md` and its 88+40 traceability matrix are the current scope authority for recovery;
+- “parity” means preservation or explicitly accepted replacement of product capability, safety semantics, workflow, output affordance and required visual/product contract — not merely route existence;
+- a historical `DONE` debt row may remain technically true while a broader product-level recovery gap is still open;
+- legacy implementation code is **not** to be restored wholesale. Recover valuable capabilities on top of V4 authorities (ReviewSession, RegistryEngine, Safe Output / Confidential Audit, fail-closed state, local-only runtime);
+- specs/Work Orders must not silently narrow a recovery row. Any intentional removal/substitution must be explicit in the ticket and reflected back into the traceability matrix;
+- recovery cannot be declared complete until `REC-12` re-verifies all 88 frozen debt/audit rows plus all 40 product/heritage rows against code and the shipped product.

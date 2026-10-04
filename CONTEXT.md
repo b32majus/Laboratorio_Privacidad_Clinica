@@ -1,7 +1,7 @@
 # Laboratorio de Privacidad Clínica — Contexto canónico
 
 Status: **CURRENT**
-Product generation: **V4 current / post-migration product iteration**
+Product generation: **V4 current / recovery in progress after 2026-10 parity reconciliation**
 
 ## 1. Purpose
 
@@ -105,18 +105,28 @@ Marketing/docs and the clinical application must be separate origins.
 
 ## 8. Authority
 
-When sources conflict, use this order:
+`docs/START_HERE.md` is the entrypoint and current authority map. During the 2026-10 recovery train, distinguish **scope authority** from **implementation authority**:
 
-1. accepted specs under `docs/specs/`;
-2. accepted architectural/product decisions under `docs/shaping/CURRENT_DECISIONS.md`;
-3. this `CONTEXT.md`;
-4. current executable GitHub Work Order / issue;
+### Recovery scope authority
+
+1. `docs/RECOVERY_MASTER_PLAN_2026-10.md`;
+2. `docs/audits/2026-10-recovery-traceability-matrix.md`;
+3. the 2026-10 recovery audit narrative;
+4. accepted product/architecture decisions in `docs/shaping/CURRENT_DECISIONS.md`.
+
+These sources determine what capability must be preserved, improved, explicitly replaced or recovered. An older spec/Work Order cannot silently narrow that scope.
+
+### Implementation authority for one accepted REC Work Order
+
+1. the current accepted GitHub Work Order / issue, shaped from the owning recovery rows;
+2. accepted `docs/specs/` contracts cited by that Work Order, plus any explicit recovery amendment;
+3. `docs/shaping/CURRENT_DECISIONS.md`;
+4. this `CONTEXT.md`;
 5. source code + deterministic tests as implementation evidence;
-6. audits/knowledge as evidence;
-7. historical specs/docs;
-8. chat or agent memory.
+6. historical audits/tasks/docs as evidence/provenance;
+7. chat or agent memory.
 
-Audits identify debt and evidence; they do not override an accepted spec.
+If implementation authority intentionally substitutes or removes a recovered capability, that decision must be explicit and the recovery matrix must be updated in the same documentation lifecycle.
 
 ## 9. Execution ownership
 
@@ -147,6 +157,9 @@ No auto-merge and no force-push.
 ## 11. Durable references
 
 Read alongside this file:
+- `docs/START_HERE.md`
+- `docs/RECOVERY_MASTER_PLAN_2026-10.md`
+- `docs/audits/2026-10-recovery-traceability-matrix.md`
 - `docs/shaping/CURRENT_DECISIONS.md`
 - `docs/specs/SPEC_V4_APP_AND_REVIEW.md`
 - `docs/specs/SPEC_V4_PRIVACY_ENGINE.md`

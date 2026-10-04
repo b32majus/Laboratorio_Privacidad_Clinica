@@ -2,12 +2,14 @@
 
 **Herramienta educativa local-first para preparar información sanitaria antes de usar IA.**
 
-[![Estado](https://img.shields.io/badge/Estado-Estable-success)](https://github.com/)
+[![Estado](https://img.shields.io/badge/Estado-Recuperaci%C3%B3n%20V4-orange)](https://github.com/)
 [![Privacidad](https://img.shields.io/badge/Privacidad-100%25_Local-blue)](https://github.com/)
 [![Versión](https://img.shields.io/badge/Versi%C3%B3n-4.0-purple)](https://github.com/)
 [![Licencia](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
 
 ---
+
+> **Estado de producto (2026-10-04): recuperación V4 en curso.** La SPA V4 es la base técnica canónica y contiene mejoras sustanciales de seguridad, dominio y QA, pero la auditoría de trazabilidad posterior a T25 detectó capacidades de producto v3 y requisitos UX originales aún no recuperados. No interpretar “v4.0”, T25 o CI verde como paridad funcional/visual completa. Ver `docs/START_HERE.md` y `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
 
 ## 📖 Descripción
 
@@ -18,7 +20,7 @@ El **Laboratorio de Privacidad Clínica** es una aplicación web diseñada para 
 ### ⚠️ Disclaimer de Responsabilidad
 
 - Esta herramienta es de apoyo para automatizar parte de la seudonimización.
-- La responsabilidad del tratamiento de datos y de la anonimización final recae **exclusivamente en la persona usuaria** que procesa la información.
+- La responsabilidad del tratamiento de datos y de la validación final del contenido preparado recae **exclusivamente en la persona usuaria** que procesa la información.
 - La revisión humana final es **crítica y obligatoria** antes de compartir cualquier contenido.
 - No garantiza cumplimiento normativo ni reemplaza los circuitos legales, de seguridad o de gobernanza de datos de cada organización.
 
@@ -83,94 +85,74 @@ Ahora detecta y elimina:
 
 ---
 
-## 🏥 Características Principales
+## 🏥 Estado funcional V4 actual
 
-### Preparación antes de IA
-- **Texto, documentos y datos estructurados:** Revisa notas, informes, abstracts, comunicaciones, pósters, proyectos de calidad, formularios y bases CSV/Excel.
-- **Casos sanitarios prácticos:** Útil para comunicación científica, docencia, investigación, mejora de procesos y estructuración de textos clínicos con IA.
-- **Revisión humana obligatoria:** La salida debe validarse antes de compartirla o introducirla en cualquier herramienta externa.
+> Para el detalle exhaustivo de qué está preservado, mejorado, perdido o pendiente de recuperación, la fuente de verdad es `docs/audits/2026-10-recovery-traceability-matrix.md`. Esta sección describe sólo la superficie V4 actual; las capacidades históricas de v3 aparecen arriba y no deben interpretarse como disponibles si la matriz las marca para recuperación.
 
-### Procesamiento de Texto Clínico
-- **Detección Inteligente:** Identifica nombres, fechas, ubicaciones, DNIs, teléfonos y emails.
-- **Coherencia:** Mismo dato original = mismo pseudónimo en todo el documento.
-- **Categorización Visual:** Sistema de colores intuitivo para revisión rápida.
-- **Revisión Manual:** Herramientas para aceptar, modificar o restaurar entidades detectadas.
-- **Ejemplos Precargados:** Casos de uso reales (Urgencias, Quirúrgico, Historia Clínica).
+### Texto y documentos
+- Entrada única para texto pegado, TXT, PDF con capa de texto y DOCX.
+- Motor local de detección/preparación orientado a texto clínico en español, con nombres, identificadores, fechas, ubicaciones, sospechosos/cuasidentificadores y edad.
+- ReviewSession como autoridad de revisión: aceptar propuesta, modificar, restaurar y añadir detecciones manuales sin derivar el resultado del DOM.
+- Cola visible de candidatos de baja confianza y bloqueo fail-closed de pendientes obligatorios.
+- Privacy Gate factual antes de Export.
+- Salida V4 actual: Safe Output de texto y Confidential Audit separados. La recuperación de Copy y formatos DOCX/PDF seguros pertenece a REC-05.
 
-### 📊 Modo Batch (Datos Estructurados)
-- **Soporte CSV/Excel:** Procesa múltiples registros simultáneamente.
-- **Detección automática de cabeceras:** Salta filas explicativas.
-- **Seudonimización Consistente:** Mantiene coherencia para estudios longitudinales.
-- **Tabla de Correspondencia:** Genera archivo de mapeo para re-identificación controlada.
+### Batch documental
+- Batch como capacidad nativa del mismo Job, no como aplicación/Premium separado.
+- Estado por documento, fallos visibles, revisión por documento y ProcessingContext compartido para consistencia.
+- La navegación no certifica revisión y un fallo no desaparece del lote.
+- **Pendiente de recuperación:** no existe todavía un Safe Output / Confidential Audit batch-wide aceptado; REC-06/REC-07 recuperan workflow y formatos de salida útiles sin restaurar los exportadores legacy inseguros.
 
-### 🔒 Privacidad y Seguridad
-- **Procesamiento Local:** No requiere backend ni APIs de procesamiento en la nube.
-- **Sesión Efímera:** Datos clínicos en almacenamiento de sesión con borrado manual global.
-- **Librerías críticas locales:** PDF.js, Mammoth y JSZip servidos desde `/lib` (sin dependencia de CDN para procesar).
-- **Apoyo privacy-first:** Diseñado como paso previo de revisión, no como certificación automática de anonimización o cumplimiento.
+### Datos estructurados CSV/Excel
+- CSV, XLS y XLSX con selección explícita de hoja, normalización de fechas Excel, profiling distribuido y clasificación Identifier / Quasi-Identifier / Sensitive / Insensitive / Unknown.
+- Una única autoridad de Patient ID; UNKNOWN requiere revisión y no se exporta como KEEP silencioso.
+- Políticas de fecha/edad estructuradas con generalización o desplazamiento longitudinal por paciente según política.
+- Salida V4 actual: Safe Structured CSV + Confidential Audit separado.
+- **Pendiente de recuperación:** Study ID exportable/ligadura longitudinal, autodetección avanzada de fila de cabeceras, XLSX seguro/confidencial, opciones longitudinales útiles y otras capacidades trazadas en REC-03/REC-04.
 
----
+### Privacidad y seguridad
+- Procesamiento clínico local en el navegador; Render sirve sólo bytes estáticos.
+- Estado sensible del Job en memoria; V4 no usa `sessionStorage`/`localStorage` como almacenamiento de datos clínicos.
+- Sin analytics ni recursos runtime de terceros en el origen clínico; CSP y otros headers gobernados por `render.yaml`.
+- Web Worker para procesamiento pesado y fallos tipados/fail-closed para entradas no soportadas o estados incompletos.
+- La herramienta apoya la preparación y revisión humana; no certifica anonimización ni cumplimiento normativo.
 
-## 🚀 Despliegue en GitHub Pages
+### Recuperación de producto en curso
+El plan vigente contiene 12 Work Orders (`REC-01`…`REC-12`) para cerrar aseguramiento del motor español, políticas de texto, semántica/I-O structured, outputs single/batch, productividad de entrada/review, localización completa al español, sistema visual Sophilux y el closeout 88+40. Ver `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
 
-Esta aplicación está lista para ser desplegada gratuitamente en **GitHub Pages**.
+## 🚀 Despliegue canónico
 
-### Instrucciones paso a paso:
-
-1.  **Subir el código:** Sube este repositorio a tu cuenta de GitHub.
-2.  **Configurar Pages:**
-    *   Ve a la pestaña **Settings** de tu repositorio.
-    *   En el menú lateral, haz clic en **Pages**.
-    *   En **Source**, selecciona `Deploy from a branch`.
-    *   En **Branch**, selecciona `3.0` y la carpeta `/ (root)`.
-    *   Haz clic en **Save**.
-3.  **Listo:** En unos minutos, tu aplicación estará en `https://tu-usuario.github.io/tu-repositorio/`.
-
-**Nota:** GitHub Pages sirve la web desde `index.html`; el `README.md` sigue siendo la portada del repositorio en GitHub, no la página pública del sitio.
-
----
+La aplicación clínica V4 se construye con Vite y se publica como sitio estático desde `dist/`. El target canónico actual es **Render Static**, gobernado por `render.yaml` y `docs/deployment/RENDER_STATIC.md`. GitHub Pages y la rama histórica `3.0` ya no son la autoridad de despliegue clínico.
 
 ## 💻 Instalación Local
 
-Si prefieres ejecutarlo en tu ordenador sin internet:
-
-1.  **Clonar:**
-    ```bash
-    git clone https://github.com/tu-usuario/laboratorio-privacidad-clinica.git
-    ```
-2.  **Ejecutar:**
-    *   Opción A: Abre el archivo `index.html` directamente en tu navegador.
-    *   Opción B (Recomendado): Usa un servidor local simple.
-        ```bash
-        # Python 3
-        python -m http.server 8000
-        ```
-    Luego visita `http://localhost:8000`.
-
-### Build de assets locales (UI)
-
-Si modificas clases o estilos Tailwind:
-
 ```bash
-npm install
-npm run build
+git clone https://github.com/b32majus/Laboratorio_Privacidad_Clinica.git
+cd Laboratorio_Privacidad_Clinica
+npm ci
+npm run dev:v4
 ```
 
----
+Para reproducir el artefacto de producción:
 
-## 🛠️ Stack Técnico
+```bash
+npm run build
+npm run preview:v4
+```
 
-*   **Core:** HTML5, CSS3, JavaScript (Vanilla ES6+).
-*   **Estilos:** Tailwind CSS compilado a `css/tailwind.generated.css` (sin CDN en runtime).
-*   **Librerías:**
-    *   `Mammoth.js` (procesamiento .docx, local)
-    *   `PDF.js` (lectura de PDFs, local)
-    *   `SheetJS` (procesamiento Excel/CSV)
-    *   `jsPDF` (generación de informes, local)
-    *   `JSZip` (exportaciones batch ZIP, local)
-*   **Iconos y fuentes:** Material Symbols, Inter y Cormorant Garamond servidos desde `fonts/` + `css/local-fonts.css`.
+La entrada clínica V4 es `app-v4/index.html`; el build servido es `dist/index.html`. Abrir el `index.html` raíz histórico directamente no reproduce la aplicación clínica canónica.
 
----
+## 🛠️ Stack Técnico actual
+
+* **Aplicación:** Vite + TypeScript + React.
+* **UI:** Tailwind compilado; fuentes locales Inter + Cormorant Garamond; Material Symbols local.
+* **Motor:** `app-v4/src/engine/*` compuesto sobre capacidades preservadas de `js/core/*`, con adapters y Web Worker.
+* **Entrada:** TXT, PDF con capa de texto, DOCX, CSV, XLS/XLSX; fallos tipados/fail-closed.
+* **Persistencia sensible:** estado de Job en memoria; sin `sessionStorage`/`localStorage` en fuentes V4 productivas.
+* **Deployment:** Render Static, sin backend de procesamiento clínico.
+* **Calidad:** Vitest, Playwright, privacy-eval, lint/typecheck/format, guards de storage/red/vendor/PDF/headers y CodeQL.
+
+Las librerías/formatos históricos de v3 se conservan sólo como referencia en las secciones históricas y en Git; no deben inferirse como superficie V4 disponible salvo evidencia en la matriz actual.
 
 ## 🏛️ Arquitectura histórica v3 (retirada en v4)
 
@@ -223,7 +205,7 @@ por el motor compuesto V4 con Worker.
 **Esta herramienta es un proyecto educativo.**
 
 *   **NO garantiza el cumplimiento normativo total** (RGPD, HIPAA, LOPDgdd) por sí misma.
-*   La responsabilidad del tratamiento de datos y de la anonimización final corresponde exclusivamente a quien usa la herramienta.
+*   La responsabilidad del tratamiento de datos y de la validación final del contenido preparado corresponde exclusivamente a quien usa la herramienta.
 *   Siempre debe haber una **revisión humana** de los resultados.
 *   No debe usarse como único mecanismo de seguridad en entornos de producción crítica sin una auditoría previa.
 

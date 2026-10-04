@@ -1,6 +1,8 @@
 # Roadmap técnico y de producto — Laboratorio de Privacidad Clínica
 
-> Este roadmap ordena la deuda, pero no autoriza implementación hasta cerrar la auditoría UX/UI y la decisión de arquitectura/despliegue.
+> **HISTÓRICO / SUPERSEDED FOR CURRENT PLANNING (2026-10-04).** Este documento conserva el roadmap de migración V4 de septiembre de 2026 y explica la intención original. No es ya el backlog operativo ni prueba de paridad de producto. La autoridad actual de recuperación es `docs/START_HERE.md` → `docs/RECOVERY_MASTER_PLAN_2026-10.md` → matriz/auditoría de trazabilidad 2026-10.
+>
+> La frase histórica «mantener legacy ... hasta alcanzar paridad E2E» se interpretó durante T25 como paridad de workflow/seguridad; la auditoría 2026-10 demostró que no equivalía a paridad funcional/visual completa. No reutilizar este roadmap para declarar recuperación cerrada.
 
 ## Gate 0 — Auditoría y decisión de producto
 
