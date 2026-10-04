@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -133,6 +133,59 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
     for (const item of guidanceItems()) {
       expect(item).toHaveTextContent("Available");
     }
+  });
+});
+
+/**
+ * REC-02 product evidence: selecting the newly enabled policies is not enough —
+ * the job must actually process under the selected policy and produce the
+ * policy-correct result. These drive the real App → useJobSession →
+ * RegistryEngine path (jsdom uses the in-process engine seam) and read the
+ * proposal the review workspace shows. All fixtures are synthetic.
+ */
+const POLICY_DATE_NOTE = "Paciente: Carmen Sánchez. Analítica del 05/01/2024.";
+const POLICY_DATE_SOURCE = "05/01/2024";
+
+/** The proposed replacement of the selected Entity Inspector detection. */
+function proposedReplacement(): string {
+  const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+  const term = within(inspector).getByText("Proposed replacement");
+  return term.parentElement?.querySelector("dd")?.textContent?.trim() ?? "";
+}
+
+async function runTextJobWithPolicy(policyId: "external-ai" | "longitudinal-research") {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: POLICY_DATE_NOTE } });
+  fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  fireEvent.change(policySelect(), { target: { value: policyId } });
+  expect(policySelect().value).toBe(policyId);
+  fireEvent.click(screen.getByRole("button", { name: "2. Configure" }));
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "3. Review" }));
+  });
+  await waitFor(
+    () => expect(screen.getByRole("list", { name: "Detections" })).toBeInTheDocument(),
+    { timeout: 10_000 }
+  );
+  const fecha = within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+    name: /FECHA/,
+  });
+  fireEvent.click(fecha);
+}
+
+describe("Policy guidance selected-and-processed evidence (REC-02)", () => {
+  it("selects External AI and processes a text job with reduced date precision", async () => {
+    await runTextJobWithPolicy("external-ai");
+    expect(proposedReplacement()).toBe("01/2024");
+    expect(proposedReplacement()).not.toMatch(/^Visita/);
+  });
+
+  it("selects Longitudinal Research and processes a text job with a shifted, interval-preserving date", async () => {
+    await runTextJobWithPolicy("longitudinal-research");
+    const proposed = proposedReplacement();
+    expect(proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(proposed).not.toBe(POLICY_DATE_SOURCE);
+    expect(proposed).not.toMatch(/^Visita/);
   });
 });
 

@@ -54,6 +54,87 @@ test("structured job: all four policies are selectable and shown available", asy
   }
 });
 
+/**
+ * REC-02 selected-and-processed evidence: enabling the option is not enough.
+ * These drive the real browser flow — select the policy, run Review, read the
+ * policy-correct proposal from the Entity Inspector, then complete every
+ * mandatory decision and prove the output gate opens. All content is synthetic.
+ */
+const POLICY_TEXT_FIXTURE = "Paciente: Carmen Sánchez. Analítica del 05/01/2024.";
+const POLICY_DATE_SOURCE = "05/01/2024";
+
+async function createPolicyTextJob(
+  page: import("@playwright/test").Page,
+  policyId: "external-ai" | "longitudinal-research"
+): Promise<void> {
+  await page.goto("/");
+  await page.getByLabel("Paste text").fill(POLICY_TEXT_FIXTURE);
+  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByLabel("Privacy Policy:").selectOption(policyId);
+  await page.getByRole("button", { name: "2. Configure" }).click();
+  await page.getByRole("button", { name: "3. Review" }).click();
+  await expect(
+    page.getByRole("list", { name: "Detections" }).getByRole("button").first()
+  ).toBeVisible();
+}
+
+/** The Entity Inspector's "Proposed replacement" value for the selected detection. */
+function proposedReplacement(page: import("@playwright/test").Page) {
+  return page.getByLabel("Entity inspector").locator('dt:text-is("Proposed replacement") + dd');
+}
+
+/** Accept/keep every pending decision until the review reports zero pending. */
+async function completeAllPending(page: import("@playwright/test").Page): Promise<void> {
+  const progress = page.getByRole("status", { name: "Review progress" });
+  const pendingCount = progress.locator('dt:text-is("Pending:") + dd');
+  await page.getByRole("button", { name: "Pending", exact: true }).click();
+  for (let guard = 0; guard < 40; guard += 1) {
+    if ((await pendingCount.innerText()).trim() === "0") break;
+    await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+    const accept = page.getByRole("button", { name: "Accept detection" });
+    if (await accept.isEnabled()) await accept.click();
+    else await page.getByRole("button", { name: "Keep original" }).click();
+  }
+  await expect(pendingCount).toHaveText("0");
+}
+
+test("text job: External AI is selected and processes with reduced date precision (REC-02)", async ({
+  page,
+}) => {
+  await createPolicyTextJob(page, "external-ai");
+
+  await page
+    .getByRole("list", { name: "Detections" })
+    .getByRole("button", { name: /FECHA/ })
+    .click();
+  await expect(proposedReplacement(page)).toHaveText("01/2024");
+
+  await completeAllPending(page);
+  // The completed review opens the output gate: Privacy Gate then Export.
+  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await expect(page.getByRole("button", { name: "5. Export" })).toBeEnabled();
+});
+
+test("text job: Longitudinal Research is selected and processes with a consistent date shift (REC-02)", async ({
+  page,
+}) => {
+  await createPolicyTextJob(page, "longitudinal-research");
+
+  await page
+    .getByRole("list", { name: "Detections" })
+    .getByRole("button", { name: /FECHA/ })
+    .click();
+  const shifted = (await proposedReplacement(page).innerText()).trim();
+  expect(shifted).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+  expect(shifted).not.toBe(POLICY_DATE_SOURCE);
+  expect(shifted).not.toMatch(/^Visita/);
+
+  await completeAllPending(page);
+  // The completed review opens the output gate: Privacy Gate then Export.
+  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await expect(page.getByRole("button", { name: "5. Export" })).toBeEnabled();
+});
+
 test("changed policy guidance normal text meets WCAG AA against the rendered composited background", async ({
   page,
 }) => {

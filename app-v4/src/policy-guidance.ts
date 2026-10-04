@@ -118,9 +118,9 @@ const GENERIC_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
   standard:
     "Accepted standard processing profile. The transformations it applies and its availability depend on the job type.",
   "external-ai":
-    "Accepted External AI policy. The transformations it applies and its availability depend on the job type; text, document and document-batch processing has no accepted operator mapping yet.",
+    "Accepted External AI policy. The transformations it applies and its availability depend on the job type.",
   "longitudinal-research":
-    "Accepted Longitudinal Research policy. The transformations it applies and its availability depend on the job type; text, document and document-batch processing has no accepted operator mapping yet.",
+    "Accepted Longitudinal Research policy. The transformations it applies and its availability depend on the job type.",
   strict:
     "Accepted legacy strict processing profile. The transformations it applies and its availability depend on the job type.",
 };
@@ -129,11 +129,11 @@ const DOCUMENT_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
   standard:
     "Names are pseudonymized, direct identifiers are redacted, and dates, locations and ages are generalized.",
   "external-ai":
-    "Not available for text, documents or document batches yet: the text engine has no accepted per-category operator mapping for this policy.",
+    "Local-only preparation: dates are generalized to a lower precision (month or year) instead of preserving exact intervals, and locations and quasi-identifiers use the stricter generalization branch. Nothing is transmitted to an external service or AI provider.",
   "longitudinal-research":
-    "Not available for text, documents or document batches yet: the text engine has no accepted per-category operator mapping for this policy.",
+    "Local-only preparation: dates are shifted by one consistent Job-scoped offset so ordering and intervals between linked dates are preserved, and locations and quasi-identifiers use the stricter generalization branch. It does not grant research approval or governance authorization.",
   strict:
-    "Accepted legacy strict processing profile. On text and documents it applies the same per-category transformations as Standard; select it when a stricter processing profile is required.",
+    "Applies the same per-category transformations as Standard, but uses the stricter generalization branch for locations and quasi-identifiers.",
 };
 
 const STRUCTURED_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
