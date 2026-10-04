@@ -199,19 +199,26 @@ function StructuredExport({
     readonly message: string;
   } | null>(null);
 
-  // The CURRENT authorization snapshot (REC-04 SPEC-1). A confirmation is
-  // only ever requested against one frozen Job + preparation; the actual
-  // download must re-check that the SAME Job is still current and that its
-  // preparation is still ready with Confidential readiness enabled — even
-  // after an `await` (XLSX generation). This ref always carries the latest
-  // render's values, so a state change during an async generation window is
-  // observable at the moment of download.
+  // The CURRENT authorization snapshot (REC-04 SPEC-1; extended by
+  // CORA-AUDIT-REC04-01 to the Safe XLSX async path). A download is only
+  // ever requested against one frozen Job + preparation; the actual download
+  // must re-check that the SAME Job is still current and that its
+  // preparation is still ready — even after an `await` (XLSX generation).
+  // This ref always carries the latest render's values, so a state change
+  // during an async generation window is observable at the moment of
+  // download.
   const confirmationAuthorityRef = useRef<{
     readonly jobId: string;
     readonly preparation: StructuredOutputPreparation | null;
+    readonly safeBlocked: boolean;
     readonly confidentialBlocked: boolean;
-  }>({ jobId: job.id, preparation, confidentialBlocked });
-  confirmationAuthorityRef.current = { jobId: job.id, preparation, confidentialBlocked };
+  }>({ jobId: job.id, preparation, safeBlocked: blocked, confidentialBlocked });
+  confirmationAuthorityRef.current = {
+    jobId: job.id,
+    preparation,
+    safeBlocked: blocked,
+    confidentialBlocked,
+  };
 
   // Just-in-time guard: true only while the download requested against
   // `requestedJobId` + `requestedPreparation` is still authorized. Used at
@@ -223,6 +230,25 @@ function StructuredExport({
     const current = confirmationAuthorityRef.current;
     return (
       !current.confidentialBlocked &&
+      current.jobId === requestedJobId &&
+      current.preparation !== null &&
+      current.preparation === requestedPreparation &&
+      current.preparation.status === "ready"
+    );
+  };
+
+  // The Safe counterpart of the guard above (CORA-AUDIT-REC04-01): true only
+  // while the same Job + preparation are still current, that preparation is
+  // still ready, and Safe output is still not blocked. Safe is a direct
+  // download (no confirmation), so this is the only post-await authority
+  // check on its XLSX path.
+  const isSafeCurrent = (
+    requestedJobId: string,
+    requestedPreparation: StructuredOutputPreparation
+  ): boolean => {
+    const current = confirmationAuthorityRef.current;
+    return (
+      !current.safeBlocked &&
       current.jobId === requestedJobId &&
       current.preparation !== null &&
       current.preparation === requestedPreparation &&
@@ -255,14 +281,21 @@ function StructuredExport({
   };
   const handleDownloadSafeXlsx = async () => {
     if (blocked || preparation === null || preparation.status !== "ready") return;
+    const requestedJobId = job.id;
+    const requestedPreparation = preparation;
     setXlsxError(null);
     try {
       const lib = await loadXlsx();
+      // Re-check AFTER the async generation window (CORA-AUDIT-REC04-01): a
+      // Job change or a no-longer-ready/blocked preparation that arrived
+      // while awaiting must produce NO download, no stale bytes and no
+      // success. The current render governs the UI from here on.
+      if (!isSafeCurrent(requestedJobId, requestedPreparation)) return;
       downloadXlsxFile(
         SAFE_STRUCTURED_XLSX_FILE_NAME,
         buildSafeXlsxBytes(
           lib,
-          preparation.output.safe,
+          requestedPreparation.output.safe,
           structured === null ? null : deriveStructuredSummary(structured.configuration)
         )
       );

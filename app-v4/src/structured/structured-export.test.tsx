@@ -460,3 +460,82 @@ describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", (
     }
   });
 });
+
+describe("ExportStep — structured Safe XLSX just-in-time guard (CORA-AUDIT-REC04-01)", () => {
+  function findInjectedXlsxScript(): HTMLScriptElement | null {
+    const found = Array.from(document.head.querySelectorAll("script")).find(
+      (element) => element.getAttribute("src") === "/vendor/xlsx.full.min.js"
+    );
+    return found instanceof HTMLScriptElement ? found : null;
+  }
+
+  /**
+   * Resolve the real lazy SheetJS load that {@link loadXlsx} opened when no
+   * library was pre-seeded. Until this runs the Safe XLSX handler is
+   * genuinely suspended after `await loadXlsx()`, which is the exact
+   * post-await / pre-download boundary that must revalidate authority.
+   */
+  async function completeXlsxGenerationWindow(script: HTMLScriptElement): Promise<void> {
+    await act(async () => {
+      window.XLSX = XLSX;
+      script.dispatchEvent(new Event("load"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("produces no stale Safe XLSX when the preparation stops being ready during generation", async () => {
+    const capture = captureDownloads();
+    resetXlsxLoaderForTests();
+    const structured = readyInput();
+    const view = render(
+      <ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />
+    );
+    try {
+      // Safe downloads directly: no confirmation is involved.
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      const injection = findInjectedXlsxScript();
+      expect(injection).not.toBeNull();
+      expect(capture.downloads).toHaveLength(0);
+
+      // While the lazy-load window is open the preparation becomes blocked.
+      const blocked = blockedInput();
+      view.rerender(<ExportStep job={jobFor("job-1", true)} review={null} structured={blocked} />);
+
+      // The now-irrelevant generation completes: no stale artifact may be
+      // produced and nothing may be downloaded.
+      await completeXlsxGenerationWindow(injection as HTMLScriptElement);
+      expect(capture.downloads).toHaveLength(0);
+    } finally {
+      capture.restore();
+      delete window.XLSX;
+      resetXlsxLoaderForTests();
+    }
+  });
+
+  it("produces no stale Safe XLSX when the Job changes during generation", async () => {
+    const capture = captureDownloads();
+    resetXlsxLoaderForTests();
+    const structured = readyInput();
+    const view = render(
+      <ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      const injection = findInjectedXlsxScript();
+      expect(injection).not.toBeNull();
+      expect(capture.downloads).toHaveLength(0);
+
+      // Another Job arrives while the generation window is open.
+      view.rerender(
+        <ExportStep job={jobFor("job-2", true)} review={null} structured={structured} />
+      );
+
+      await completeXlsxGenerationWindow(injection as HTMLScriptElement);
+      expect(capture.downloads).toHaveLength(0);
+    } finally {
+      capture.restore();
+      delete window.XLSX;
+      resetXlsxLoaderForTests();
+    }
+  });
+});
