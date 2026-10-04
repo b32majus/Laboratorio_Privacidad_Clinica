@@ -94,13 +94,13 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   // the model already supplies: no new authority, no reinterpretation.
   const batchFailed = view.batch !== null && view.batch.failedCount > 0;
   const safeOutputReady = view.safeOutputReady;
+  const hasJobErrors = view.errors.length > 0;
   // The applicable output is blocked by the current authority. For a batch the
   // accepted spec defines no Safe Output, so the no-format limitation itself is
   // an availability fact, never an action the operator can take at this step.
   const outputBlocked = view.batch === null ? !safeOutputReady : batchFailed;
-  const actionRequired =
-    view.pendingCount > 0 || batchFailed || view.errors.length > 0 || outputBlocked;
-  const hasAttentionFacts = view.errors.length > 0 || view.warnings.length > 0;
+  const actionRequired = view.pendingCount > 0 || batchFailed || hasJobErrors || outputBlocked;
+  const hasAttentionFacts = hasJobErrors || view.warnings.length > 0;
 
   return (
     <section aria-labelledby="privacy-gate-step-heading">
@@ -124,6 +124,9 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         actionRequired={actionRequired}
         outputBlocked={outputBlocked}
         safeOutputReady={safeOutputReady}
+        pendingCount={view.pendingCount}
+        hasJobErrors={hasJobErrors}
+        batchFailed={batchFailed}
       />
 
       {view.pendingCount > 0 && (
@@ -182,16 +185,53 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
  * facts: "Action required" while the applicable output is blocked by pending
  * decisions / failed batch items / errors, and "Review complete" when it is
  * not. The detailed readiness remains in the Output availability facts below.
+ *
+ * The body copy discriminates the SAME factual causes (UX-CLOSEOUT-01 outcome
+ * C): failed batch items, a genuine job error, pending review decisions, and
+ * the residual applicable output readiness cause. It never asserts a factual
+ * error item when the only cause is pending review (the audit #62 F3 defect)
+ * or a failed batch item (a batch fact, not a job `errors` item either).
  */
 function GateCheckpoint({
   actionRequired,
   outputBlocked,
   safeOutputReady,
+  pendingCount,
+  hasJobErrors,
+  batchFailed,
 }: {
   actionRequired: boolean;
   outputBlocked: boolean;
   safeOutputReady: boolean;
+  pendingCount: number;
+  hasJobErrors: boolean;
+  /** The batch has one or more failed items; only meaningful for a batch. */
+  batchFailed: boolean;
 }): ReactElement {
+  // The body names the operative factual cause when output readiness is blocked
+  // (UX-CLOSEOUT-01 outcome C). Fail-closed ordering: a failed batch item is
+  // named first, then a genuine job error, then pending review decisions, and
+  // only then the residual output readiness cause. A factual error item is
+  // never asserted unless the job actually carries one.
+  const body = actionRequired
+    ? outputBlocked
+      ? batchFailed
+        ? "Safe Output is blocked because a batch item failed; the failure details and remedy are shown below."
+        : hasJobErrors
+          ? "A factual error item below requires attention before you rely on this review."
+          : pendingCount === 1
+            ? "1 mandatory review decision is still pending below before you rely on this review."
+            : pendingCount > 1
+              ? `${pendingCount} mandatory review decisions are still pending below before you rely on this review.`
+              : "Safe Output is not available yet: the applicable output readiness rules below are not satisfied."
+      : hasJobErrors
+        ? "A factual error item below requires attention before you rely on this review."
+        : pendingCount === 1
+          ? "1 mandatory review decision is still pending below before you rely on this review."
+          : `${pendingCount} mandatory review decisions are still pending below before you rely on this review.`
+    : safeOutputReady
+      ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
+      : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available.";
   return (
     <section
       aria-labelledby="gate-checkpoint-heading"
@@ -214,15 +254,7 @@ function GateCheckpoint({
           Decision checkpoint
         </h3>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-neutral-800">
-        {actionRequired
-          ? outputBlocked
-            ? "Safe Output is not available yet: the factual items below still require attention."
-            : "A factual error item below requires attention before you rely on this review."
-          : safeOutputReady
-            ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
-            : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available."}
-      </p>
+      <p className="mt-2 text-sm leading-relaxed text-neutral-800">{body}</p>
     </section>
   );
 }
