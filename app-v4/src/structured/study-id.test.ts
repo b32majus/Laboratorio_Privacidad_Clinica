@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import * as StudyId from "./study-id";
-import { buildStudyIdMapping, STUDY_ID_HEADER } from "./study-id";
+import { buildStudyIdMapping, formatStudyId, STUDY_ID_HEADER } from "./study-id";
 import {
   createStructuredConfiguration,
   overrideColumnAction,
@@ -36,6 +36,34 @@ function readyConfig() {
   config = overrideColumnClass(config, 4, "insensitive");
   return config;
 }
+
+describe("study-id prefix (REC-04 WU-B, D-022) — configurable token text, same grouping", () => {
+  it("formats tokens with the configured prefix: hs1 resolves to HS1_001…", () => {
+    const result = buildStudyIdMapping(["P-001", "P-001", "P-002"], "HS1");
+    expect(result.studyIds).toEqual(["HS1_001", "HS1_001", "HS1_002"]);
+    expect([...result.mapping.entries()]).toEqual([
+      ["P-001", "HS1_001"],
+      ["P-002", "HS1_002"],
+    ]);
+  });
+
+  it("keeps the PAC heritage default when the option is untouched", () => {
+    expect(buildStudyIdMapping(["P-001"]).studyIds).toEqual(["PAC_001"]);
+    expect(formatStudyId(1)).toBe("PAC_001");
+    expect(formatStudyId(1, "HS1")).toBe("HS1_001");
+  });
+
+  it("changing only the prefix never changes patient grouping or row order", () => {
+    const values = ["P-002", "P-001", "P-002", "P-003", "P-001"] as const;
+    const pac = buildStudyIdMapping(values);
+    const custom = buildStudyIdMapping(values, "HS1");
+    // Same grouping: rows sharing a token under PAC share one under HS1.
+    const groupOf = (studyIds: readonly (string | null)[]) =>
+      studyIds.map((id) => studyIds.indexOf(id));
+    expect(groupOf(custom.studyIds)).toEqual(groupOf(pac.studyIds));
+    expect(custom.studyIds).toEqual(["HS1_001", "HS1_002", "HS1_001", "HS1_003", "HS1_002"]);
+  });
+});
 
 describe("study-id primitive — deterministic in-Job mapping", () => {
   it("maps P-001, P-001, P-002 to PAC_001, PAC_001, PAC_002 in first-appearance order", () => {
@@ -77,13 +105,15 @@ describe("study-id primitive — deterministic in-Job mapping", () => {
     expect(jobAAgain.mapping.size).toBe(2);
   });
 
-  it("introduces no configurable prefix and no visit-number option", () => {
+  it("keeps the single Study-ID mapping authority: prefix configures tokens, never grouping", () => {
     expect(STUDY_ID_HEADER).toBe("ID_ESTUDIO");
+    // The prefix option lives in the output-options authority; the primitive
+    // takes it as a parameter and never stores identity state.
     const exportNames = Object.keys(StudyId);
-    expect(exportNames.filter((name) => /prefix/i.test(name))).toEqual([]);
     expect(exportNames.filter((name) => /visit/i.test(name))).toEqual([]);
-    const result = buildStudyIdMapping(["P-001"]);
-    expect(result.studyIds[0]).toMatch(/^PAC_\d{3}$/);
+    expect(exportNames).toContain("buildStudyIdMapping");
+    const result = buildStudyIdMapping(["P-001"], "HS1");
+    expect(result.studyIds[0]).toMatch(/^HS1_\d{3}$/);
   });
 });
 
@@ -157,9 +187,9 @@ describe("study-id preparation — Safe linkage and Confidential correspondence"
       "CampoLibre",
     ]);
     expect(safe.rows.map((row) => row[0])).toEqual(["PAC_001", "PAC_001", "PAC_002"]);
-    // Row order and blanks in other columns are preserved.
+    // Row order and blanks in other columns are preserved (REC-04 WU-B: absence is null).
     expect(safe.rows).toHaveLength(3);
-    expect(safe.rows[2][4]).toBe("");
+    expect(safe.rows[2][4]).toBe(null);
   });
 
   it("planted leak oracle: no original selected patient ID appears anywhere in Safe output", () => {

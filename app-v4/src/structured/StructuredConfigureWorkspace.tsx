@@ -39,6 +39,7 @@ import {
   type StructuredConfiguration,
   type StructuredDateRole,
 } from "./configuration";
+import type { StructuredSummary } from "./transformed-dataset";
 import type { ColumnSampleType } from "./column-profile";
 import type { ProposedAction } from "./classification";
 
@@ -137,6 +138,29 @@ export type StructuredConfigureWorkspaceProps = {
     readonly ready: boolean;
     readonly reasons: readonly string[];
   } | null;
+  /**
+   * Job-scoped structured output options (REC-04 WU-B, D-022): the bounded
+   * "Output options" area inside Configure. When absent the area is not
+   * rendered (backward-compatible controlled surface). The values come from
+   * the bridge options authority; every change goes out through its
+   * callbacks — this component never owns option state.
+   */
+  readonly outputOptions?: {
+    /** The raw Study-ID prefix as typed (blank resolves to the default). */
+    readonly prefix: string;
+    /** Exact invalid-prefix reason, or `null` while the prefix resolves. */
+    readonly prefixInvalid: string | null;
+    /** Whether row-order visit numbering is enabled. */
+    readonly addVisitNumber: boolean;
+    /** False without a patient-ID authority (the control is then unavailable). */
+    readonly visitAvailable: boolean;
+    /** Factual descriptive counts (row/patient facts, never scores). */
+    readonly summary: StructuredSummary;
+    /** Store one raw prefix choice in the bridge authority. */
+    readonly onPrefixChange: (raw: string) => void;
+    /** Store the explicit visit-numbering choice in the bridge authority. */
+    readonly onToggleVisitNumber: (enabled: boolean) => void;
+  } | null;
 };
 
 export function StructuredConfigureWorkspace(
@@ -154,6 +178,7 @@ export function StructuredConfigureWorkspace(
     onSelectPatientId,
     onSetDateRole,
     exportReadiness = null,
+    outputOptions = null,
   } = props;
 
   return (
@@ -205,6 +230,7 @@ export function StructuredConfigureWorkspace(
           onSelectPatientId={onSelectPatientId}
           onSetDateRole={onSetDateRole}
           exportReadiness={exportReadiness}
+          outputOptions={outputOptions}
         />
       )}
     </section>
@@ -335,6 +361,7 @@ function ConfigurationView(props: {
   onSelectPatientId: (header: string | null) => void;
   onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
   exportReadiness: { readonly ready: boolean; readonly reasons: readonly string[] } | null;
+  outputOptions: StructuredConfigureWorkspaceProps["outputOptions"];
 }): ReactElement {
   const {
     configuration,
@@ -343,6 +370,7 @@ function ConfigurationView(props: {
     onSelectPatientId,
     onSetDateRole,
     exportReadiness,
+    outputOptions,
   } = props;
   const patientIdIndex =
     configuration.patientId.status === "resolved" ? configuration.patientId.columnIndex : null;
@@ -351,6 +379,9 @@ function ConfigurationView(props: {
     <div className="mt-4 space-y-4">
       <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
       <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
+      {outputOptions !== null && outputOptions !== undefined && (
+        <OutputOptionsSection outputOptions={outputOptions} />
+      )}
       <section
         aria-label="Column classifications"
         className="rounded border border-primary bg-surface-light p-3"
@@ -486,6 +517,105 @@ function PatientIdAuthority(props: {
   );
 }
 
+/** Bounded structured output options (REC-04 WU-B, D-022): prefix + visit numbering + facts. */
+function OutputOptionsSection(props: {
+  outputOptions: NonNullable<StructuredConfigureWorkspaceProps["outputOptions"]>;
+}): ReactElement {
+  const { outputOptions } = props;
+  const { summary } = outputOptions;
+  return (
+    <section
+      aria-label="Structured output options"
+      className="rounded border border-primary bg-surface-light p-3"
+    >
+      <h3 className="font-display text-base font-bold text-primary-dark">Output options</h3>
+      <p className="mt-2 text-sm text-neutral-800">
+        How generated Study IDs are formatted. Changing these options never changes patient grouping
+        or row order — only the generated token text.
+      </p>
+      <div className="mt-3">
+        <label
+          htmlFor="structured-study-id-prefix"
+          className="block text-sm font-semibold text-neutral-800"
+        >
+          Study-ID prefix
+        </label>
+        <input
+          id="structured-study-id-prefix"
+          type="text"
+          value={outputOptions.prefix}
+          onChange={(event) => outputOptions.onPrefixChange(event.target.value)}
+          aria-describedby={
+            outputOptions.prefixInvalid !== null ? "structured-study-id-prefix-invalid" : undefined
+          }
+          aria-invalid={outputOptions.prefixInvalid !== null}
+          className={`mt-1 w-full max-w-sm rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+        />
+        <p className="mt-1 text-xs text-neutral-700">
+          Blank uses the default PAC. Otherwise letters and digits, starting with a letter, up to 10
+          characters (for example HS1 gives HS1_001, HS1_002, …).
+        </p>
+        {outputOptions.prefixInvalid !== null && (
+          <p
+            role="alert"
+            aria-label="Study-ID prefix invalid"
+            id="structured-study-id-prefix-invalid"
+            className="mt-2 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
+          >
+            {outputOptions.prefixInvalid}
+          </p>
+        )}
+      </div>
+      <div className="mt-3">
+        <label
+          htmlFor="structured-visit-number"
+          className="flex cursor-pointer items-start gap-2 text-sm font-semibold text-neutral-800"
+        >
+          <input
+            id="structured-visit-number"
+            type="checkbox"
+            checked={outputOptions.addVisitNumber}
+            disabled={!outputOptions.visitAvailable}
+            onChange={(event) => outputOptions.onToggleVisitNumber(event.target.checked)}
+            className={`mt-0.5 ${focusRing}`}
+          />
+          Visit numbering (Visita_Num)
+        </label>
+        <p className="mt-1 text-xs text-neutral-700">
+          {outputOptions.visitAvailable
+            ? "Adds a numeric Visita_Num column after ID_ESTUDIO: 1-based occurrence per patient in input row order. It is not visit chronology."
+            : "Available when a patient-ID column is selected."}
+        </p>
+      </div>
+      <div className="mt-3 rounded border border-neutral-300 bg-white p-2">
+        <h4 className="text-xs font-bold text-primary-dark">Structured output facts</h4>
+        <dl
+          role="status"
+          aria-label="Structured output facts"
+          className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
+        >
+          <dt className="font-semibold">Data rows:</dt>
+          <dd>{summary.rowCount}</dd>
+          {summary.patient !== null ? (
+            <>
+              <dt className="font-semibold">Patients:</dt>
+              <dd>{summary.patient.uniquePatients}</dd>
+              <dt className="font-semibold">Linked rows:</dt>
+              <dd>{summary.patient.linkedRows}</dd>
+              <dt className="font-semibold">Average linked rows per patient:</dt>
+              <dd>{summary.patient.averageLinkedRowsPerPatient}</dd>
+            </>
+          ) : (
+            <>
+              <dt className="font-semibold">Patients:</dt>
+              <dd>unavailable without a selected patient-ID column</dd>
+            </>
+          )}
+        </dl>
+      </div>
+    </section>
+  );
+}
 /** One column card with class, effective Action, evidence and override controls. */
 function ColumnCard(props: {
   column: StructuredColumnState;

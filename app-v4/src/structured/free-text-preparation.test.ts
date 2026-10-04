@@ -146,17 +146,17 @@ describe("WU-C — Safe output is gated on reviewed free-text sessions", () => {
     if (preparation.status !== "ready") return;
     const safeIndex = preparation.output.safe.headers.indexOf("Notas");
     const finals = decided.cells.map((cell) => (cell.ok ? getFinalText(cell.session) : "<failed>"));
-    // Row 1's blank cell stays blank and created no session.
+    // Row 1's blank cell stays blank and created no session (REC-04 WU-B: absence is null).
     expect(preparation.output.safe.rows.map((row) => row[safeIndex])).toEqual([
       finals[0],
-      "",
+      null,
       finals[1],
     ]);
     const safeJson = JSON.stringify(preparation.output.safe);
     expect(safeJson).not.toContain("Carmen Sánchez");
     // The blank cell stays blank and created no session.
     expect(decided.cells.length).toBe(2);
-    expect(preparation.output.safe.rows[1][safeIndex]).toBe("");
+    expect(preparation.output.safe.rows[1][safeIndex]).toBe(null);
   });
 
   it("carries original<->final free-text correspondence Confidential-only", async () => {

@@ -196,8 +196,13 @@ describe("WU-B — deterministic QID pseudonymization (column-local, Confidentia
     const { safe, confidential } = preparation.output;
     expect(safe.headers).toContain("Centro");
     const centroIndex = safe.headers.indexOf("Centro");
-    expect(safe.rows.map((row) => row[centroIndex])).toEqual(["QID_001", "QID_001", "QID_002", ""]);
-    // Repeated values reuse the same token; blanks stay blank.
+    expect(safe.rows.map((row) => row[centroIndex])).toEqual([
+      "QID_001",
+      "QID_001",
+      "QID_002",
+      null,
+    ]);
+    // Repeated values reuse the same token; blanks stay blank (REC-04 WU-B: absence is null).
     const cpIndex = safe.headers.indexOf("CP");
     expect(safe.rows.map((row) => row[cpIndex])).toEqual([
       "QID_001",

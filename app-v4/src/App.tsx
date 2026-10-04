@@ -41,6 +41,7 @@ import { StructuredConfigureWorkspace } from "./structured/StructuredConfigureWo
 import { StructuredFreeTextReview } from "./structured/StructuredFreeTextReview";
 import type { StructuredConfiguration } from "./structured/configuration";
 import type { StructuredOutputPreparation } from "./structured/transformed-dataset";
+import { deriveStructuredSummary } from "./structured/transformed-dataset";
 import { readStructuredFile, readStructuredSheet } from "./structured/intake";
 import {
   buildPolicyGuidance,
@@ -415,6 +416,24 @@ export function App() {
     session.structured !== null && job !== null && session.structured.jobId === job.id
       ? session.structured.preparation
       : null;
+  /**
+   * Job-scoped structured output options for the CURRENT structured job
+   * (REC-04 WU-B): values and callbacks come from the single bridge options
+   * authority; the summary is derived from the canonical configuration.
+   * Memory-only; nothing here persists.
+   */
+  const structuredOutputOptions =
+    structuredConfiguration === null || session.structuredOptions === null
+      ? null
+      : {
+          prefix: session.structuredOptions.studyIdPrefix,
+          prefixInvalid: session.structuredPrefixInvalid,
+          addVisitNumber: session.structuredOptions.addVisitNumber,
+          visitAvailable: structuredConfiguration.patientId.status === "resolved",
+          summary: deriveStructuredSummary(structuredConfiguration),
+          onPrefixChange: session.setStructuredStudyIdPrefix,
+          onToggleVisitNumber: session.setStructuredAddVisitNumber,
+        };
   const structuredGateInput =
     session.structured !== null && job !== null && session.structured.jobId === job.id
       ? {
@@ -709,6 +728,7 @@ export function App() {
                     reasons: structuredPreparation.reasons,
                   }
             }
+            outputOptions={structuredOutputOptions}
           />
         ) : currentStep === "configure" && job ? (
           <UnstructuredConfigureState job={job} reviewError={reviewError} />
