@@ -1,26 +1,41 @@
 /**
- * Structured transformation plan (HARDEN-01 WU-A, issue #47 §A / BATCH-003).
+ * Structured transformation plan (HARDEN-01 WU-A, issue #47 §A / BATCH-003;
+ * REC-03 WU-B D-021 Class→Action authority).
  *
  * The plan is the SINGLE bridge between the reviewed structured configuration
  * and any productive transformation. It is pure and frozen, and it is the only
  * thing a consumer needs to know exactly what will happen to each column.
+ * It consumes the configuration's effective productive Action directly —
+ * never a re-derived class mapping — so Class and Action stay separate facts
+ * end to end.
  *
- * Hard rules (HARDEN-01 decision, 2026-09-30; REC-03 WU-A D-021):
- *  - `dateRole = visit | birth` is the ONLY thing that activates T19; `none`
- *    never does (no inference).
- *  - the explicitly selected patient-ID column is `study-id` (D-021): it
- *    takes precedence over any other rule, including a date role, and it is
- *    the ONLY column that ever receives that disposition (never auto-selected).
- *  - `codify` is activated ONLY by the accepted action of the reviewed
- *    effective class (`sensitive -> codify`); nothing else.
+ * Hard rules (HARDEN-01 decision, 2026-09-30; REC-03 WU-A/WU-B D-021):
+ *  - `study-id` is the ONLY disposition of the explicitly selected patient-ID
+ *    column: it takes precedence over any other rule, including a date role,
+ *    and it is the ONLY column that ever receives that disposition (never
+ *    auto-selected).
+ *  - `date-policy` is the ONLY thing that activates T19, and only together
+ *    with an explicit `visit`/`birth` role; anything else never does.
+ *  - `pseudonymize` activates deterministic column-local `QID_###`
+ *    tokenization (blanks preserved, mapping Confidential-only); it is
+ *    available ONLY as the center/ward proposal or as a bounded explicit
+ *    choice on a non-date, non-patient-ID quasi-identifier.
  *  - `keep` preserves; `remove` drops the column from the Safe artifact.
- *  - Anything without an accepted structured operator (`generalize` without a
- *    date role, `review-required`, any other action) BLOCKS export fail-closed.
+ *  - `review-required` (unknown, or a quasi-identifier with no bounded
+ *    explicit action) BLOCKS export fail-closed. There is no productive
+ *    `generalize` operator for non-date columns and no `codify` user-facing
+ *    action: the `generalize-without-operator` reason names exactly that
+ *    blocked quasi state, and `unknown-review-required` names the blocked
+ *    unknown state.
  *
  * The plan carries NO sensitive cell values: it is structural only.
  */
-import { proposedActionForClass, type ColumnClass } from "./classification";
-import type { StructuredConfiguration, StructuredDateRole } from "./configuration";
+import type { ColumnClass } from "./classification";
+import type {
+  StructuredAction,
+  StructuredConfiguration,
+  StructuredDateRole,
+} from "./configuration";
 import { resolveStructuredDateAgePolicy, type StructuredDateColumnRole } from "./date-age-policy";
 import type { PrivacyPolicyId } from "../domain/job";
 
@@ -32,7 +47,7 @@ export type StructuredUnsupportedReason =
 export type StructuredColumnDisposition =
   | { readonly kind: "date-age"; readonly role: StructuredDateColumnRole }
   | { readonly kind: "study-id" }
-  | { readonly kind: "codify" }
+  | { readonly kind: "pseudonymize" }
   | { readonly kind: "keep" }
   | { readonly kind: "remove" }
   | { readonly kind: "unsupported"; readonly reason: StructuredUnsupportedReason };
@@ -42,6 +57,7 @@ export type StructuredTransformPlanColumn = {
   readonly columnIndex: number;
   readonly header: string;
   readonly effectiveClass: ColumnClass;
+  readonly effectiveAction: StructuredAction;
   readonly dateRole: StructuredDateRole;
   readonly disposition: StructuredColumnDisposition;
 };
@@ -73,28 +89,32 @@ export type StructuredTransformPlan = {
 };
 
 function dispositionFor(
+  effectiveAction: StructuredAction,
   effectiveClass: ColumnClass,
-  role: StructuredDateRole,
-  isPatientIdColumn: boolean
+  role: StructuredDateRole
 ): StructuredColumnDisposition {
-  // D-021 precedence: the explicitly selected patient-ID column is always
-  // `study-id`, never `remove`, and no date role overrides it.
-  if (isPatientIdColumn) return { kind: "study-id" };
-  if (role === "visit") return { kind: "date-age", role: "visit-date" };
-  if (role === "birth") return { kind: "date-age", role: "birth-date" };
-  switch (proposedActionForClass(effectiveClass)) {
-    case "codify":
-      return { kind: "codify" };
-    case "keep":
-      return { kind: "keep" };
+  // D-021 precedence, consumed verbatim from the configuration authority:
+  // locked derived actions win, productive bounded choices execute, and
+  // `review-required` blocks with the exact reason for its class.
+  switch (effectiveAction) {
+    case "study-id":
+      return { kind: "study-id" };
+    case "date-policy":
+      if (role === "visit") return { kind: "date-age", role: "visit-date" };
+      if (role === "birth") return { kind: "date-age", role: "birth-date" };
+      return { kind: "unsupported", reason: "unsupported-action" };
     case "remove":
       return { kind: "remove" };
-    case "generalize":
-      return { kind: "unsupported", reason: "generalize-without-operator" };
+    case "keep":
+      return { kind: "keep" };
+    case "pseudonymize":
+      return { kind: "pseudonymize" };
     case "review-required":
-      return { kind: "unsupported", reason: "unknown-review-required" };
-    default:
-      return { kind: "unsupported", reason: "unsupported-action" };
+      return {
+        kind: "unsupported",
+        reason:
+          effectiveClass === "unknown" ? "unknown-review-required" : "generalize-without-operator",
+      };
   }
 }
 
@@ -115,19 +135,13 @@ export function buildStructuredTransformPlan(
   }
   const profile = resolveStructuredDateAgePolicy(options.policyId);
 
-  const patientColumnIndex =
-    configuration.patientId.status === "resolved" ? configuration.patientId.columnIndex : null;
-
   const columns: StructuredTransformPlanColumn[] = configuration.columns.map((column) => ({
     columnIndex: column.columnIndex,
     header: column.header,
     effectiveClass: column.effectiveClass,
+    effectiveAction: column.effectiveAction,
     dateRole: column.dateRole,
-    disposition: dispositionFor(
-      column.effectiveClass,
-      column.dateRole,
-      column.columnIndex === patientColumnIndex
-    ),
+    disposition: dispositionFor(column.effectiveAction, column.effectiveClass, column.dateRole),
   }));
 
   const blockingColumns = columns

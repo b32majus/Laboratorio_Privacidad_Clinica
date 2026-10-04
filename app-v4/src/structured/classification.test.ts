@@ -26,7 +26,7 @@ describe("classifyGridColumns", () => {
     expect(classifications[0].matchedBy).toBe("header-pattern");
 
     expect(classifications[2].columnClass).toBe("sensitive");
-    expect(classifications[2].proposedAction).toBe("codify");
+    expect(classifications[2].proposedAction).toBe("keep");
   });
 
   it("UNKNOWN becomes Review Required and is NEVER KEEP (STRUCT-001 oracle)", () => {
@@ -86,7 +86,30 @@ describe("classifyColumn", () => {
     const [profile] = profileColumns(grid);
     const classification = classifyColumn(profile, ["1990-05-01"]);
     expect(classification.columnClass).toBe("quasi-identifier");
-    expect(classification.proposedAction).toBe("generalize");
+    expect(classification.proposedAction).toBe("review-required");
     expect(classification.evidence[0]).toContain("birth-date header");
+  });
+
+  it("a center/ward quasi-identifier header proposes pseudonymize (frozen UX target)", () => {
+    const grid: StructuredGrid = {
+      headers: ["Centro"],
+      rows: [["Centro A"], ["Centro B"], [null]],
+    };
+    const [profile] = profileColumns(grid);
+    const classification = classifyColumn(profile, ["Centro A", "Centro B"]);
+    expect(classification.columnClass).toBe("quasi-identifier");
+    expect(classification.proposedAction).toBe("pseudonymize");
+    expect(classification.evidence[0]).toContain("center/ward header");
+  });
+
+  it("a postal-code quasi-identifier header proposes review-required (no invented operator)", () => {
+    const grid: StructuredGrid = {
+      headers: ["CP"],
+      rows: [["28001"], ["28002"], [null]],
+    };
+    const [profile] = profileColumns(grid);
+    const classification = classifyColumn(profile, ["28001", "28002"]);
+    expect(classification.columnClass).toBe("quasi-identifier");
+    expect(classification.proposedAction).toBe("review-required");
   });
 });

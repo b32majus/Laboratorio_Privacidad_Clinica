@@ -42,9 +42,11 @@ import type { ProcessingContext } from "./engine/types";
 import { classifyProcessingFailure } from "./processing-outcome";
 import {
   createStructuredConfiguration,
+  overrideColumnAction as overrideColumnActionConfig,
   overrideColumnClass,
   selectPatientIdColumn,
   setStructuredDateRole as setStructuredDateRoleConfig,
+  type StructuredAction,
   type StructuredConfiguration,
   type StructuredDateRole,
 } from "./structured/configuration";
@@ -148,7 +150,8 @@ function withDerivedBatchReviewState(job: Job): Job {
 
 /**
  * HARDEN-01 WU-A: derive a structured job's export-gated state from the exact
- * structured preparation (the only authority that activates T19/codify). Safe
+ * structured preparation (the only authority that activates T19/date-age,
+ * QID pseudonymization and Study-ID). Safe
  * and Confidential become available together, because both are produced from
  * the same reviewed configuration; any fail-closed block keeps both false.
  */
@@ -604,6 +607,23 @@ export function useJobSession() {
     [applyStructuredConfiguration]
   );
 
+  /**
+   * Explicit reviewer choice of one structured column's productive Action
+   * (REC-03 WU-B). Goes through the same single bridge as the class
+   * override: the canonical frozen configuration is rebuilt and the plan +
+   * gate state re-derived together, never a label-only edit.
+   */
+  const overrideStructuredColumnAction = useCallback(
+    (columnIndex: number, action: StructuredAction) => {
+      const current = structuredRef.current;
+      if (current === null) return;
+      applyStructuredConfiguration(
+        overrideColumnActionConfig(current.configuration, columnIndex, action)
+      );
+    },
+    [applyStructuredConfiguration]
+  );
+
   /** Set (or clear) the single structured patient-ID column authority. */
   const selectStructuredPatientId = useCallback(
     (header: string | null) => {
@@ -648,6 +668,7 @@ export function useJobSession() {
     selectDocument,
     installStructuredGrid,
     overrideStructuredColumn,
+    overrideStructuredColumnAction,
     selectStructuredPatientId,
     setStructuredColumnDateRole,
   };

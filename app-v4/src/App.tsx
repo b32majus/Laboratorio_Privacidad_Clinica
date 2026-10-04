@@ -594,6 +594,7 @@ export function App() {
             sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
             onSelectSheet={handleSelectStructuredSheet}
             onOverrideClass={session.overrideStructuredColumn}
+            onOverrideAction={session.overrideStructuredColumnAction}
             onSelectPatientId={session.selectStructuredPatientId}
             onSetDateRole={session.setStructuredColumnDateRole}
             exportReadiness={

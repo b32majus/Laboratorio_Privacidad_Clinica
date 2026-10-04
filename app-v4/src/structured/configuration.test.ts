@@ -5,10 +5,11 @@ import {
   StructuredConfigurationError,
   createStructuredConfiguration,
   isStructuredExportReady,
+  overrideColumnAction,
   overrideColumnClass,
   selectPatientIdColumn,
 } from "./configuration";
-import { proposedActionForClass } from "./classification";
+import { proposedActionForClass, proposedActionForColumn } from "./classification";
 import type { StructuredGrid } from "./grid";
 
 /**
@@ -30,11 +31,18 @@ const GRID: StructuredGrid = {
 describe("proposedActionForClass — accepted class/action mapping", () => {
   it("maps the five accepted classes, with unknown NEVER keep", () => {
     expect(proposedActionForClass("identifier")).toBe("remove");
-    expect(proposedActionForClass("quasi-identifier")).toBe("generalize");
-    expect(proposedActionForClass("sensitive")).toBe("codify");
+    expect(proposedActionForClass("quasi-identifier")).toBe("review-required");
+    expect(proposedActionForClass("sensitive")).toBe("keep");
     expect(proposedActionForClass("insensitive")).toBe("keep");
     expect(proposedActionForClass("unknown")).toBe("review-required");
     expect(proposedActionForClass("unknown")).not.toBe("keep");
+  });
+
+  it("proposes pseudonymize for a center/ward quasi-identifier header (frozen UX target)", () => {
+    expect(proposedActionForColumn("quasi-identifier", "Centro")).toBe("pseudonymize");
+    expect(proposedActionForColumn("quasi-identifier", "Hospital")).toBe("pseudonymize");
+    expect(proposedActionForColumn("quasi-identifier", "CP")).toBe("review-required");
+    expect(proposedActionForColumn("sensitive", "Centro")).toBe("keep");
   });
 });
 
@@ -56,8 +64,15 @@ describe("createStructuredConfiguration", () => {
     ]);
     expect(config.columns.map((column) => column.proposedAction)).toEqual([
       "remove",
-      "generalize",
-      "codify",
+      "review-required",
+      "keep",
+      "review-required",
+    ]);
+    // D-021: effective Action is a separate fact from the class.
+    expect(config.columns.map((column) => column.effectiveAction)).toEqual([
+      "remove",
+      "review-required",
+      "keep",
       "review-required",
     ]);
   });
@@ -74,7 +89,9 @@ describe("createStructuredConfiguration", () => {
     // KEEP or to insensitive would fail these assertions.
     expect(unknown.proposedAction).not.toBe("keep");
     expect(unknown.effectiveClass).not.toBe("insensitive");
-    expect(config.columnsRequiringReview).toEqual([3]);
+    // D-021: the unresolved quasi-identifier (Fecha_Nac, no date role, no
+    // explicit action) also requires review — never a silent generalize.
+    expect(config.columnsRequiringReview).toEqual([1, 3]);
     expect(config.exportReady).toBe(false);
     expect(isStructuredExportReady(config)).toBe(false);
   });
@@ -91,15 +108,21 @@ describe("createStructuredConfiguration", () => {
 });
 
 describe("explicit human override changes the canonical configuration", () => {
-  it("resolving the unknown column to Insensitive closes the export gate", () => {
+  it("resolving every review-required column closes the export gate", () => {
     const config = createStructuredConfiguration(GRID);
-    const resolved = overrideColumnClass(config, 3, "insensitive");
+    // Unknown -> Insensitive (class resolution) plus an explicit bounded
+    // action for the unresolved quasi-identifier: both move together.
+    let resolved = overrideColumnClass(config, 3, "insensitive");
+    resolved = overrideColumnAction(resolved, 1, "keep");
     const column = resolved.columns[3];
     expect(column.detectedClass).toBe("unknown");
     expect(column.effectiveClass).toBe("insensitive");
     expect(column.overridden).toBe(true);
     expect(column.requiresReview).toBe(false);
     expect(column.proposedAction).toBe("keep");
+    expect(column.effectiveAction).toBe("keep");
+    expect(resolved.columns[1].effectiveAction).toBe("keep");
+    expect(resolved.columns[1].actionSource).toBe("explicit");
     expect(resolved.columnsRequiringReview).toEqual([]);
     expect(resolved.exportReady).toBe(true);
     // The frozen configuration is rebuilt, not mutated in place.
@@ -113,7 +136,10 @@ describe("explicit human override changes the canonical configuration", () => {
     const resolved = overrideColumnClass(config, 3, "identifier");
     expect(resolved.columns[3].effectiveClass).toBe("identifier");
     expect(resolved.columns[3].proposedAction).toBe("remove");
-    expect(resolved.exportReady).toBe(true);
+    expect(resolved.columns[3].effectiveAction).toBe("remove");
+    // D-021: the unresolved quasi-identifier still blocks the gate on its own.
+    expect(resolved.columnsRequiringReview).toEqual([1]);
+    expect(resolved.exportReady).toBe(false);
   });
 
   it("overriding one column never mutates another column's classification", () => {
@@ -176,8 +202,10 @@ describe("single patient-ID authority (SPEC §6, STRUCT-002)", () => {
 
   it("an override preserves the explicit patient-ID selection", () => {
     const config = selectPatientIdColumn(createStructuredConfiguration(GRID), "NHC");
-    const resolved = overrideColumnClass(config, 3, "insensitive");
+    let resolved = overrideColumnClass(config, 3, "insensitive");
+    resolved = overrideColumnAction(resolved, 1, "pseudonymize");
     expect(resolved.patientId).toEqual({ status: "resolved", column: "NHC", columnIndex: 0 });
+    expect(resolved.columns[0].effectiveAction).toBe("study-id");
     expect(resolved.exportReady).toBe(true);
   });
 });

@@ -1,19 +1,26 @@
 /**
- * Structured transformed dataset + export readiness (HARDEN-01 WU-A, #47 §A).
+ * Structured transformed dataset + export readiness (HARDEN-01 WU-A, #47 §A;
+ * REC-03 WU-B D-021 Class→Action authority).
  *
  * This is the SINGLE production module that activates the accepted structured
  * transformations: it is the only caller of `applyStructuredDateAgePolicy`
- * (T19) and `codifyColumnValues` (T18), and it only ever runs through a
- * {@link StructuredTransformPlan} derived from the reviewed configuration.
+ * (T19) and `codifyColumnValues` (T18, reused ONLY as the internal
+ * first-appearance primitive behind structured `pseudonymize`), and it only
+ * ever runs through a {@link StructuredTransformPlan} derived from the
+ * reviewed configuration's effective Action.
  *
  * Separation (D-005 / PRIV-002, HARDEN-01 §6):
  *  - `safe`: the Safe Structured dataset — transformed/kept cells only. A
  *    `remove` column (ordinary Identifier) is dropped entirely and never
  *    appears; there is no correspondence field. The selected patient-ID
  *    column is `study-id` (REC-03 D-021): Safe carries `ID_ESTUDIO` in its
- *    place, never the original header or values.
+ *    place, never the original header or values. A `pseudonymize` column
+ *    carries column-local `QID_###` tokens; the original↔token mapping below
+ *    is the ONLY place the correspondence exists. A `keep` column (Sensitive
+ *    default, Insensitive) is preserved verbatim with no correspondence.
  *  - `confidential`: the separate original↔transformed correspondence for the
- *    date/age, codify, study-id and remove decisions. Never merged with `safe`.
+ *    date/age, pseudonymize, study-id and remove decisions. Never merged with
+ *    `safe`.
  *
  * Fail-closed (D-009): while any column is unsupported, the patient-ID needed
  * by a shift policy is missing, or any date/age cell requires review, the
@@ -48,14 +55,14 @@ export type StructuredCorrespondenceEntry = {
 export type StructuredCorrespondenceColumn = {
   readonly columnIndex: number;
   readonly header: string;
-  readonly disposition: "date-age" | "codify" | "remove" | "study-id";
+  readonly disposition: "date-age" | "pseudonymize" | "remove" | "study-id";
   readonly entries: readonly StructuredCorrespondenceEntry[];
 };
 
 /** Coarse correspondence totals for the Confidential artifact header. */
 export type StructuredCorrespondenceTotals = {
   readonly dateAge: number;
-  readonly codify: number;
+  readonly pseudonymize: number;
   readonly remove: number;
   readonly studyId: number;
   readonly transformedCells: number;
@@ -94,6 +101,26 @@ export type StructuredOutputPreparation =
 
 function columnLabel(column: StructuredTransformPlanColumn): string {
   return column.header === "" ? "(unnamed column)" : column.header;
+}
+
+/**
+ * Deterministic structured pseudonymization (REC-03 WU-B, D-021):
+ * column-local categorical tokens `QID_001`, `QID_002`, … by first appearance
+ * of each distinct non-blank value; repeated values reuse the token; blanks
+ * stay blank (`""` here, `null` in the mapping sense) and never enter the
+ * mapping. Built on `codifyColumnValues` as the internal first-appearance
+ * primitive — `codify` itself is NOT a user-facing action contract.
+ */
+export function formatQuasiToken(sequence: number): string {
+  return `QID_${String(sequence).padStart(3, "0")}`;
+}
+
+/** Pseudonymize one column's values: tokens aligned with the input. */
+export function pseudonymizeColumnValues(values: readonly StructuredCell[]): readonly string[] {
+  const { coded } = codifyColumnValues(values);
+  return Object.freeze(
+    coded.map((code) => (code === null || code === undefined ? "" : formatQuasiToken(code + 1)))
+  );
 }
 
 function formatCell(cell: StructuredCell | undefined): string {
@@ -166,7 +193,7 @@ export function structuredBlockReasons(
         column.columnIndex !== studyColumn.columnIndex &&
         column.header === STUDY_ID_HEADER &&
         (column.disposition.kind === "keep" ||
-          column.disposition.kind === "codify" ||
+          column.disposition.kind === "pseudonymize" ||
           column.disposition.kind === "date-age")
     );
     for (const other of colliding) {
@@ -354,16 +381,19 @@ export function computeStructuredOutput(
       continue;
     }
 
-    if (disposition.kind === "codify") {
-      const result = codifyColumnValues(valuesFor(column.columnIndex));
+    if (disposition.kind === "pseudonymize") {
+      // D-021: deterministic column-local categorical tokenization. Blanks
+      // remain blank and never enter the Confidential mapping; repeated
+      // values reuse the token assigned at first appearance.
+      const tokens = pseudonymizeColumnValues(valuesFor(column.columnIndex));
       const entries: StructuredCorrespondenceEntry[] = [];
       grid.rows.forEach((row, rowIndex) => {
-        const code = result.coded[rowIndex];
-        if (code === null || code === undefined) return;
+        const token = tokens[rowIndex];
+        if (token === "" || token === undefined) return;
         entries.push(
           Object.freeze({
             original: formatCell(row[column.columnIndex]),
-            transformed: String(code),
+            transformed: token,
           })
         );
       });
@@ -371,7 +401,7 @@ export function computeStructuredOutput(
         Object.freeze({
           columnIndex: column.columnIndex,
           header: column.header,
-          disposition: "codify" as const,
+          disposition: "pseudonymize" as const,
           entries: Object.freeze(entries),
         })
       );
@@ -381,7 +411,7 @@ export function computeStructuredOutput(
     // keep: preserved verbatim in the Safe dataset, no correspondence.
   }
 
-  // Materialize the Safe cells per column index (codify needs the whole
+  // Materialize the Safe cells per column index (pseudonymize needs the whole
   // column before per-row output).
   const safeCellsByColumnIndex = new Map<number, readonly string[]>();
   for (const column of plan.columns) {
@@ -398,14 +428,9 @@ export function computeStructuredOutput(
           })
         )
       );
-    } else if (disposition.kind === "codify") {
-      const result = codifyColumnValues(valuesFor(column.columnIndex));
-      safeCellsByColumnIndex.set(
-        column.columnIndex,
-        Object.freeze(
-          result.coded.map((code) => (code === null || code === undefined ? "" : String(code)))
-        )
-      );
+    } else if (disposition.kind === "pseudonymize") {
+      const tokens = pseudonymizeColumnValues(valuesFor(column.columnIndex));
+      safeCellsByColumnIndex.set(column.columnIndex, Object.freeze([...tokens]));
     } else if (disposition.kind === "study-id") {
       const studyIds = studyIdsByColumn.get(column.columnIndex) ?? [];
       safeCellsByColumnIndex.set(
@@ -432,7 +457,8 @@ export function computeStructuredOutput(
 
   const totals: StructuredCorrespondenceTotals = Object.freeze({
     dateAge: correspondenceColumns.filter((column) => column.disposition === "date-age").length,
-    codify: correspondenceColumns.filter((column) => column.disposition === "codify").length,
+    pseudonymize: correspondenceColumns.filter((column) => column.disposition === "pseudonymize")
+      .length,
     remove: correspondenceColumns.filter((column) => column.disposition === "remove").length,
     studyId: correspondenceColumns.filter((column) => column.disposition === "study-id").length,
     transformedCells: correspondenceColumns.reduce(

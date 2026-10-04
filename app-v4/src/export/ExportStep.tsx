@@ -238,9 +238,9 @@ function StructuredExport({
             {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            The original↔transformed correspondence behind the Safe CSV (date/age, codify, Study-ID
-            and removed columns). It is an internal traceability record and must never be shared or
-            delivered outside the authorized audit trail.
+            The original↔transformed correspondence behind the Safe CSV (date/age, pseudonymized and
+            Study-ID columns, plus removed columns). It is an internal traceability record and must
+            never be shared or delivered outside the authorized audit trail.
           </p>
           {confidentialReasonVisible && (
             <p role="status" id="structured-confidential-blocked-reason" className={blockedNote}>
