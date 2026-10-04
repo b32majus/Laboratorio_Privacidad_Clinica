@@ -1,23 +1,33 @@
 /**
  * Column classification for V4 structured ingestion (T18 #22, SPEC_V4_BATCH_
- * AND_STRUCTURED.md §5, CURRENT_DECISIONS D-012, DEBT STRUCT-001).
+ * AND_STRUCTURED.md §5, CURRENT_DECISIONS D-012/D-021, DEBT STRUCT-001).
  *
  * SPEC §5: every column is assigned one of Identifier, Quasi-Identifier,
  * Sensitive, Insensitive, Unknown / Review Required, and "UNKNOWN is not
  * KEEP". The UI may propose a class/action with confidence, but the human
  * must be able to review and change it.
  *
- * Boundary of this module (deliberately narrow):
- *  - It proposes classes/actions as review foundations; it is NOT the
- *    privacy-policy authority (per-category operator mappings under accepted
- *    policies remain a later accepted policy decision, D-007/D-010).
+ * REC-03 WU-B (D-021): Class and productive Action are separate authorities.
+ * This module proposes a class-level action foundation only:
+ *  - `identifier` → `remove`;
+ *  - `sensitive` → `keep` (clinical attribute retained, frozen UX target);
+ *  - `insensitive` → `keep`;
  *  - `unknown` ALWAYS yields `review-required` and NEVER `keep`
  *    (D-009 fail-closed). This is the only hard rule enforced here.
+ *  - `quasi-identifier` → `review-required`, EXCEPT a recognized
+ *    center/ward header, which proposes `pseudonymize` (frozen UX target).
+ *    There is deliberately NO generic `generalize` proposal: non-date
+ *    generalization has no accepted operator, so unresolved quasi semantics
+ *    stay explicitly review-required instead of pointing at a dead end.
  *  - No column is automatically classified `insensitive`: that class exists
  *    in the model for explicit human review decisions, not for a default
  *    guess (fail-closed).
- *  - No column carries patient-ID semantics here: the single patient-ID
- *    authority is `patient-id.ts` (STRUCT-002).
+ *  - No column carries patient-ID or date-role semantics here: the single
+ *    patient-ID authority is `patient-id.ts` (STRUCT-002) and explicit date
+ *    roles live in `configuration.ts`. The effective productive Action
+ *    (study-id / date-policy / remove / keep / pseudonymize /
+ *    review-required) is derived by `configuration.ts` under D-021
+ *    precedence — never here.
  *
  * Sensitive content is memory-only (D-013): sampled values are used only to
  * derive content evidence in-process and are never persisted, logged, or
@@ -32,9 +42,10 @@ export type ColumnClass =
 /**
  * Review-facing action proposal. `review-required` is the fail-closed
  * disposition: a human must decide before any use of the column.
+ * `pseudonymize` here is the class-level center/ward proposal only; the
+ * effective productive Action is derived by `configuration.ts` (D-021).
  */
-export type ProposedAction =
-  "remove" | "pseudonymize" | "generalize" | "codify" | "keep" | "review-required";
+export type ProposedAction = "remove" | "pseudonymize" | "keep" | "review-required";
 
 export type ColumnClassification = {
   readonly column: ColumnProfile;
@@ -48,9 +59,17 @@ export type ColumnClassification = {
 };
 
 /**
- * Spanish clinical header vocabulary (legacy-aligned; synthetic in tests).
- * Order matters: first match wins, so patient-ID patterns are checked first.
+ * Recognized center/ward header (frozen UX target, D-021): the ONLY
+ * quasi-identifier header family that proposes `pseudonymize`. Shared with
+ * the header-pattern table below so the proposal can never drift from the
+ * classification vocabulary.
  */
+const CENTER_WARD_HEADER_PATTERN = /^(centro|hospital|h_?clinic|servicio|planta|sala)/i;
+
+/** True for a recognized center/ward quasi-identifier header (D-021 proposal). */
+export function isCenterWardHeader(header: string): boolean {
+  return CENTER_WARD_HEADER_PATTERN.test(header);
+}
 const CLASS_HEADER_PATTERNS: readonly {
   readonly columnClass: Exclude<ColumnClass, "unknown" | "insensitive">;
   readonly pattern: RegExp;
@@ -116,7 +135,7 @@ const CLASS_HEADER_PATTERNS: readonly {
   {
     columnClass: "quasi-identifier",
     label: "center/ward header",
-    pattern: /^(centro|hospital|h_?clinic|servicio|planta|sala)/i,
+    pattern: CENTER_WARD_HEADER_PATTERN,
   },
   {
     columnClass: "sensitive",
@@ -155,17 +174,23 @@ const CLASS_CONTENT_PATTERNS: readonly {
 ];
 
 /**
- * Action proposal per accepted class (D-012). The unknown class is ALWAYS
- * `review-required` (D-009 fail-closed: never KEEP); only an explicit human
- * review decision can move a column out of it. `insensitive` maps to `keep`
- * because that is the whole meaning of the class — it is only reachable
- * through an explicit human override, never through automatic inference
- * (see {@link classifyColumn}).
+ * Action proposal per accepted class (D-012/D-021). The unknown class is
+ * ALWAYS `review-required` (D-009 fail-closed: never KEEP); only an explicit
+ * human review decision can move a column out of it. `insensitive` maps to
+ * `keep` because that is the whole meaning of the class — it is only
+ * reachable through an explicit human override, never through automatic
+ * inference (see {@link classifyColumn}). `sensitive` maps to `keep` (the
+ * clinical attribute is retained, frozen UX target): there is deliberately
+ * no `codify` proposal anymore. A quasi-identifier maps to
+ * `review-required`: non-date generalization has no accepted operator, so an
+ * unresolved quasi column stays explicitly blocked instead of pointing at a
+ * `generalize` dead end. The single header-driven exception is the
+ * center/ward proposal — see {@link proposedActionForColumn}.
  */
 const ACTION_BY_CLASS: Readonly<Record<ColumnClass, ProposedAction>> = Object.freeze({
   identifier: "remove",
-  "quasi-identifier": "generalize",
-  sensitive: "codify",
+  "quasi-identifier": "review-required",
+  sensitive: "keep",
   insensitive: "keep",
   unknown: "review-required",
 });
@@ -177,6 +202,20 @@ const ACTION_BY_CLASS: Readonly<Record<ColumnClass, ProposedAction>> = Object.fr
  * `keep`.
  */
 export function proposedActionForClass(columnClass: ColumnClass): ProposedAction {
+  return ACTION_BY_CLASS[columnClass];
+}
+
+/**
+ * Header-aware action proposal (D-021): a recognized center/ward
+ * quasi-identifier header proposes `pseudonymize` (frozen UX target); every
+ * other class/header combination follows {@link proposedActionForClass}.
+ * Used both by {@link classifyColumn} and by the configuration authority so
+ * the proposal is identical at detection and at review time.
+ */
+export function proposedActionForColumn(columnClass: ColumnClass, header: string): ProposedAction {
+  if (columnClass === "quasi-identifier" && isCenterWardHeader(header)) {
+    return "pseudonymize";
+  }
   return ACTION_BY_CLASS[columnClass];
 }
 
@@ -199,7 +238,7 @@ export function classifyColumn(
       column,
       columnClass: headerMatch.columnClass,
       requiresReview: false,
-      proposedAction: proposedActionForClass(headerMatch.columnClass),
+      proposedAction: proposedActionForColumn(headerMatch.columnClass, column.header),
       matchedBy: "header-pattern",
       confidence: 0.9,
       evidence: [`header matches ${headerMatch.label}`, ...column.evidence],
@@ -237,7 +276,7 @@ export function classifyColumn(
       column,
       columnClass: contentMatch.columnClass,
       requiresReview: false,
-      proposedAction: proposedActionForClass(contentMatch.columnClass),
+      proposedAction: proposedActionForColumn(contentMatch.columnClass, column.header),
       matchedBy: "content",
       confidence: 0.7,
       evidence: [`${contentMatch.label} in the distributed sample`, ...column.evidence],

@@ -559,8 +559,9 @@ describe("PrivacyGate — decision checkpoint (UX-PILOT-02 #55)", () => {
 /**
  * UX-PILOT-02 (#55) spec conformance: the checkpoint must never say
  * "Review complete" while the current authority blocks the applicable output.
- * A structured job can have zero columns requiring review yet still be blocked
- * (e.g. a quasi-identifier date column with no explicit date role).
+ * A structured job with an unresolved quasi-identifier date column (no
+ * explicit date role, no bounded explicit action) is blocked with that column
+ * requiring review (REC-03 WU-B, D-021: no silent generalize).
  */
 describe("PrivacyGate — structured checkpoint state (UX-PILOT-02 #55)", () => {
   const GRID: StructuredGrid = {
@@ -571,13 +572,14 @@ describe("PrivacyGate — structured checkpoint state (UX-PILOT-02 #55)", () => 
     ],
   };
 
-  it("shows Action required when the structured output is blocked with no column requiring review", () => {
+  it("shows Action required when the structured output is blocked with a column requiring review", () => {
     const configuration = createStructuredConfiguration(GRID, {
       selectedPatientIdColumn: "Paciente",
     });
-    // No date role: the quasi-identifier date column is unsupported, so the
-    // preparation blocks while columnsRequiringReview stays 0.
-    expect(configuration.columnsRequiringReview).toHaveLength(0);
+    // No date role and no explicit action: the quasi-identifier date column
+    // is explicitly review-required, so the preparation blocks with an exact
+    // reason instead of pointing at a generalize dead end.
+    expect(configuration.columnsRequiringReview).toEqual([1]);
     const plan = buildStructuredTransformPlan(configuration, {
       policyId: "standard",
       jobSeed: "privacy-gate-structured-checkpoint",
@@ -600,10 +602,10 @@ describe("PrivacyGate — structured checkpoint state (UX-PILOT-02 #55)", () => 
     const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
     expect(checkpoint).toHaveTextContent("Action required");
     expect(checkpoint).not.toHaveTextContent("Review complete");
-    // UX-CLOSEOUT-01 (#63) outcome C: nothing is pending and no error is
-    // present, so the body names the applicable output readiness cause.
+    // The unresolved quasi column is a pending review decision, so the body
+    // names it factually (never a generic sentence, never an error).
     const body = checkpoint.querySelector("p");
-    expect(body?.textContent ?? "").toMatch(/output readiness/i);
+    expect(body?.textContent ?? "").toMatch(/mandatory review decision/i);
     expect(body?.textContent ?? "").not.toMatch(/error/i);
   });
 });

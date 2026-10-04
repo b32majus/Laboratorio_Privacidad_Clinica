@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createStructuredConfiguration,
+  overrideColumnAction,
   overrideColumnClass,
   setStructuredDateRole,
 } from "./configuration";
@@ -15,8 +16,9 @@ import {
 
 /**
  * HARDEN-01 WU-A deterministic oracles for the structured output: the SINGLE
- * module that activates T19 date/age and codify, and the exact fail-closed
- * export gate. Synthetic fixtures only; no real PHI.
+ * module that activates T19 date/age, QID pseudonymization and Study-ID, and
+ * the exact fail-closed export gate. REC-03 WU-B (D-021): Sensitive defaults
+ * to Keep (no codify user-facing action). Synthetic fixtures only; no real PHI.
  */
 const JOB_SEED = "hardening-wua-dataset";
 
@@ -45,44 +47,50 @@ function planFor(
 }
 
 describe("Windows-1252/structured output — Safe vs Confidential separation", () => {
-  it("standard: generalizes dates to month, codifies sensitive, keeps insensitive, drops identifiers", () => {
+  it("standard: generalizes dates to month, keeps sensitive/insensitive, drops identifiers", () => {
     const config = readyConfig();
     const preparation = prepareStructuredOutput(config, planFor(config, "standard"));
     expect(preparation.status).toBe("ready");
     if (preparation.status !== "ready") return;
     const { safe, confidential } = preparation.output;
 
-    // Identifier (including the patient-ID column) is dropped from Safe.
-    expect(safe.headers).toEqual(["Fecha_Visita", "Fecha_Nacimiento", "Diagnostico", "CampoLibre"]);
+    // The selected patient-ID column becomes a Study ID in Safe output (REC-03
+    // D-021), not a dropped identifier.
+    expect(safe.headers).toEqual([
+      "ID_ESTUDIO",
+      "Fecha_Visita",
+      "Fecha_Nacimiento",
+      "Diagnostico",
+      "CampoLibre",
+    ]);
     expect(safe.headers).not.toContain("Paciente");
 
-    const [visit, birth, diagnosis, free] = safe.rows[0];
+    const [studyId, visit, birth, diagnosis, free] = safe.rows[0];
+    expect(studyId).toBe("PAC_001");
+    expect(safe.rows.map((row) => row[0])).toEqual(["PAC_001", "PAC_001", "PAC_002"]);
     expect(visit).toMatch(/^\d{4}-\d{2}$/);
     expect(birth).toMatch(/^\d{4}-\d{2}$/);
     expect(visit).not.toBe("2023-01-10");
-    expect(diagnosis).toBe("0");
+    // D-021: Sensitive defaults to Keep — the clinical attribute is retained
+    // verbatim in Safe output (there is no codify user-facing action).
+    expect(diagnosis).toBe("Gripe A");
+    expect(safe.rows.map((row) => row[3])).toEqual(["Gripe A", "Fractura", "Gripe A"]);
     expect(free).toBe("nota libre");
-    // Codes are stable per distinct value, first appearance order.
-    expect(safe.rows.map((row) => row[2])).toEqual(["0", "1", "0"]);
 
-    // NO original sensitive values / identity in the Safe dataset.
+    // NO original identity / exact dates in the Safe dataset.
     const safeJson = JSON.stringify(safe);
     expect(safeJson).not.toContain("P-001");
     expect(safeJson).not.toContain("P-002");
-    expect(safeJson).not.toContain("Gripe A");
-    expect(safeJson).not.toContain("Fractura");
     expect(safeJson).not.toContain("1954-03-12");
 
     // Correspondence is separate and holds the originals.
     const confidentialJson = JSON.stringify(confidential);
     expect(confidentialJson).toContain("P-001");
-    expect(confidentialJson).toContain("Gripe A");
     expect(confidentialJson).toContain("1954-03-12");
     expect(confidential.columns.map((column) => column.disposition).sort()).toEqual([
-      "codify",
       "date-age",
       "date-age",
-      "remove",
+      "study-id",
     ]);
   });
 
@@ -93,27 +101,46 @@ describe("Windows-1252/structured output — Safe vs Confidential separation", (
     if (preparation.status !== "ready") return;
     const { safe } = preparation.output;
 
-    expect(safe.headers).toEqual(["Fecha_Visita", "Fecha_Nacimiento", "Diagnostico", "CampoLibre"]);
-    expect(safe.rows[0][0]).not.toBe("2023-01-10");
+    expect(safe.headers).toEqual([
+      "ID_ESTUDIO",
+      "Fecha_Visita",
+      "Fecha_Nacimiento",
+      "Diagnostico",
+      "CampoLibre",
+    ]);
+    expect(safe.rows[0][1]).not.toBe("2023-01-10");
     // Same patient, same shift offset across rows -> interval preserved.
-    expect(safe.rows[0][0]).not.toBe(safe.rows[2][0]);
-    expect(safe.rows[0][1]).toMatch(/años/);
+    expect(safe.rows[0][1]).not.toBe(safe.rows[2][1]);
+    expect(safe.rows[0][2]).toMatch(/años/);
     expect(JSON.stringify(safe)).not.toContain("P-001");
   });
 
-  it("codify runs ONLY when the reviewed effective class requests it", () => {
+  it("keep is the sensitive default; only a bounded explicit quasi choice pseudonymizes", () => {
     let config = createStructuredConfiguration(GRID, { selectedPatientIdColumn: "Paciente" });
     config = overrideColumnClass(config, 3, "insensitive"); // Diagnostico: sensitive -> insensitive
     const plan = buildStructuredTransformPlan(config, { policyId: "standard", jobSeed: JOB_SEED });
     const diagnosis = plan.columns.find((column) => column.header === "Diagnostico");
     expect(diagnosis?.disposition).toEqual({ kind: "keep" });
-    // And the sensitive default IS codify (already exercised above).
+    // And the sensitive default IS keep (D-021: no codify user-facing action).
     const sensitivePlan = buildStructuredTransformPlan(
       createStructuredConfiguration(GRID, { selectedPatientIdColumn: "Paciente" }),
       { policyId: "standard", jobSeed: JOB_SEED }
     );
     expect(sensitivePlan.columns.find((c) => c.header === "Diagnostico")?.disposition).toEqual({
-      kind: "codify",
+      kind: "keep",
+    });
+    // A bounded explicit quasi choice resolves to the pseudonymize operator.
+    const pseudoConfig = overrideColumnAction(
+      createStructuredConfiguration(GRID, { selectedPatientIdColumn: "Paciente" }),
+      1,
+      "pseudonymize"
+    );
+    const pseudoPlan = buildStructuredTransformPlan(pseudoConfig, {
+      policyId: "standard",
+      jobSeed: JOB_SEED,
+    });
+    expect(pseudoPlan.columns.find((c) => c.header === "Fecha_Visita")?.disposition).toEqual({
+      kind: "pseudonymize",
     });
   });
 

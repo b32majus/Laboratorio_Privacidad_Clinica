@@ -36,19 +36,32 @@ import {
   withReviewState,
 } from "./domain/job";
 import type { EngineLoader } from "./engine/engine-seam";
-import { createInitialProcessingContext } from "./engine/initial-processing-context";
+import {
+  createInitialProcessingContext,
+  promoteToSharedContext,
+} from "./engine/initial-processing-context";
 import { createDefaultEngineLoader } from "./engine/production-engine";
 import type { ProcessingContext } from "./engine/types";
 import { classifyProcessingFailure } from "./processing-outcome";
 import {
   createStructuredConfiguration,
+  overrideColumnAction as overrideColumnActionConfig,
   overrideColumnClass,
   selectPatientIdColumn,
   setStructuredDateRole as setStructuredDateRoleConfig,
+  type StructuredAction,
   type StructuredConfiguration,
   type StructuredDateRole,
 } from "./structured/configuration";
 import type { ColumnClass } from "./structured/classification";
+import {
+  createEmptyFreeTextState,
+  enumerateFreeTextCells,
+  isFreeTextCellSetCurrent,
+  processStructuredFreeTextCells,
+  replaceFreeTextCellSession,
+  type StructuredFreeTextState,
+} from "./structured/free-text";
 import type { StructuredGrid } from "./structured/grid";
 import {
   buildStructuredTransformPlan,
@@ -148,7 +161,8 @@ function withDerivedBatchReviewState(job: Job): Job {
 
 /**
  * HARDEN-01 WU-A: derive a structured job's export-gated state from the exact
- * structured preparation (the only authority that activates T19/codify). Safe
+ * structured preparation (the only authority that activates T19/date-age,
+ * QID pseudonymization and Study-ID). Safe
  * and Confidential become available together, because both are produced from
  * the same reviewed configuration; any fail-closed block keeps both false.
  */
@@ -262,14 +276,7 @@ export async function runBatchReviewAsync(
         if (canFinalize(outcome.session)) {
           working = recordItemReviewCompletion(working, index, true);
         }
-        carriedContext = {
-          mode: "shared",
-          pseudonymState: outcome.context.pseudonymState,
-          // REC-02 WU-B defect fix: the policy-owned options (for example the
-          // Job-scoped `dateShift` state) must survive the promotion to shared
-          // mode, not only the pseudonym state.
-          ...(outcome.context.options === undefined ? {} : { options: outcome.context.options }),
-        };
+        carriedContext = promoteToSharedContext(outcome.context);
         options.onItemSuccess?.(index, outcome.session);
       } else {
         working = recordItemFailed(working, index, outcome.failure);
@@ -307,13 +314,31 @@ export function useJobSession() {
   const structuredRef = useRef(structured);
   structuredRef.current = structured;
 
+  /**
+   * Job-scoped structured free-text review state (REC-03 WU-C, D-021): the
+   * domain `StructuredFreeTextState` plus the position of the cell under
+   * review in its row-major queue. Domain state held here — never React-local
+   * UI state — so navigation can never mutate or certify review progress.
+   * `null` means no processed free-text state exists for the current job
+   * (never processed, or discarded as stale after a policy/config change).
+   */
+  const [freeText, setFreeText] = useState<{
+    readonly jobId: string;
+    readonly state: StructuredFreeTextState;
+    readonly activeCell: number | null;
+  } | null>(null);
+  const freeTextRef = useRef(freeText);
+  freeTextRef.current = freeText;
+
   const create = useCallback((input: JobInput) => {
     setStructured(null);
+    setFreeText(null);
     setState({ job: createJob(input), review: null, batch: null });
   }, []);
 
   const clear = useCallback(() => {
     setStructured(null);
+    setFreeText(null);
     setState(EMPTY_STATE);
   }, []);
 
@@ -328,20 +353,28 @@ export function useJobSession() {
   }, []);
 
   /**
-   * Recompute the canonical structured plan + exact preparation from a
-   * reviewed configuration and derive the job's export-gated state in ONE
-   * write (HARDEN-01 WU-A). This is the only path that installs structured
-   * authority; it is the exact bridge between Configure and the export gate.
+   * Install a canonical structured configuration with its exact plan +
+   * preparation and derive the job's export-gated state in ONE write
+   * (HARDEN-01 WU-A). The ONLY path that installs structured authority; it
+   * is the exact bridge between Configure and the export gate. The optional
+   * free-text review state is the WU-C cell authority: preparation reads
+   * canonical reviewed final text only through it, and stays blocked without
+   * a current, finalized, failure-free state.
    */
-  const applyStructuredConfiguration = useCallback(
-    (configuration: StructuredConfiguration): void => {
+  const installStructured = useCallback(
+    (
+      configuration: StructuredConfiguration,
+      freeTextState: StructuredFreeTextState | null
+    ): void => {
       const job = stateRef.current.job;
       if (!job || job.kind !== "structured") return;
       const plan = buildStructuredTransformPlan(configuration, {
         policyId: job.policyId,
         jobSeed: job.id,
       });
-      const preparation = prepareStructuredOutput(configuration, plan);
+      const preparation = prepareStructuredOutput(configuration, plan, {
+        freeText: freeTextState,
+      });
       setStructured({ jobId: job.id, configuration, plan, preparation });
       setState((current) =>
         current.job
@@ -350,6 +383,32 @@ export function useJobSession() {
       );
     },
     []
+  );
+
+  /**
+   * Recompute the canonical structured plan + exact preparation from a
+   * reviewed configuration and derive the job's export-gated state in ONE
+   * write (HARDEN-01 WU-A). A configuration/action change that alters the
+   * free-text cell set (or any policy drift) discards the held cell sessions
+   * as stale in the same transition — stale review state can never certify
+   * Safe output; the operator reprocesses explicitly under the new facts.
+   */
+  const applyStructuredConfiguration = useCallback(
+    (configuration: StructuredConfiguration): void => {
+      const job = stateRef.current.job;
+      const held = freeTextRef.current;
+      const kept =
+        job !== null &&
+        job.kind === "structured" &&
+        held !== null &&
+        held.jobId === job.id &&
+        isFreeTextCellSetCurrent(configuration, held.state, job.policyId)
+          ? held.state
+          : null;
+      if (kept === null && held !== null) setFreeText(null);
+      installStructured(configuration, kept);
+    },
+    [installStructured]
   );
 
   const updatePolicy = useCallback((policyId: PrivacyPolicyId) => {
@@ -370,7 +429,11 @@ export function useJobSession() {
       structuredState.jobId === next.id
     ) {
       // The structured plan depends on the policy: recompute it and re-derive
-      // the gate in the same transition.
+      // the gate in the same transition. REC-03 WU-C: a REAL policy change
+      // invalidates the held free-text sessions in the same atomic write —
+      // they were processed under the previous policy and must be
+      // reprocessed explicitly under the new one, never reused.
+      setFreeText(null);
       const plan = buildStructuredTransformPlan(structuredState.configuration, {
         policyId: next.policyId,
         jobSeed: next.id,
@@ -505,6 +568,31 @@ export function useJobSession() {
   const decide = useCallback(
     (id: string, decision: ExplicitDecisionStatus, extras?: DecisionExtras) => {
       const current = stateRef.current;
+      // REC-03 WU-C: a structured job with free-text state decides the ACTIVE
+      // cell's session through the same domain transition. The decided session
+      // is replaced (never mutated) and the preparation + gate re-derive in
+      // the same transition, so Safe output always reads canonical final text.
+      const held = freeTextRef.current;
+      const structuredState = structuredRef.current;
+      if (
+        current.job?.kind === "structured" &&
+        held !== null &&
+        structuredState !== null &&
+        held.jobId === current.job.id
+      ) {
+        const outcome = held.activeCell === null ? undefined : held.state.cells[held.activeCell];
+        if (outcome === undefined || !outcome.ok) return;
+        const session = applyDecision(outcome.session, id, decision, extras);
+        const nextState = replaceFreeTextCellSession(
+          held.state,
+          outcome.cell.columnIndex,
+          outcome.cell.rowIndex,
+          session
+        );
+        setFreeText({ ...held, state: nextState });
+        installStructured(structuredState.configuration, nextState);
+        return;
+      }
       if (current.batch) {
         const activeIndex = current.batch.activeIndex;
         const activeSession =
@@ -536,35 +624,66 @@ export function useJobSession() {
         batch: null,
       });
     },
-    []
+    [installStructured]
   );
 
-  const addManual = useCallback((detection: ManualDetectionInput) => {
-    const current = stateRef.current;
-    if (current.batch) {
-      const activeIndex = current.batch.activeIndex;
-      const activeSession = activeIndex === null ? undefined : current.batch.sessions[activeIndex];
-      if (activeIndex === null || !current.job || !activeSession) return;
-      const review = addManualDetection(activeSession, detection);
-      const updatedJob = recordItemReviewCompletion(current.job, activeIndex, canFinalize(review));
-      setState({
-        job: withDerivedBatchReviewState(updatedJob),
-        review: null,
-        batch: {
-          sessions: Object.freeze({ ...current.batch.sessions, [activeIndex]: review }),
+  const addManual = useCallback(
+    (detection: ManualDetectionInput) => {
+      const current = stateRef.current;
+      // REC-03 WU-C: a structured job with free-text state adds the manual
+      // detection to the ACTIVE cell's session, then re-derives.
+      const held = freeTextRef.current;
+      const structuredState = structuredRef.current;
+      if (
+        current.job?.kind === "structured" &&
+        held !== null &&
+        structuredState !== null &&
+        held.jobId === current.job.id
+      ) {
+        const outcome = held.activeCell === null ? undefined : held.state.cells[held.activeCell];
+        if (outcome === undefined || !outcome.ok) return;
+        const session = addManualDetection(outcome.session, detection);
+        const nextState = replaceFreeTextCellSession(
+          held.state,
+          outcome.cell.columnIndex,
+          outcome.cell.rowIndex,
+          session
+        );
+        setFreeText({ ...held, state: nextState });
+        installStructured(structuredState.configuration, nextState);
+        return;
+      }
+      if (current.batch) {
+        const activeIndex = current.batch.activeIndex;
+        const activeSession =
+          activeIndex === null ? undefined : current.batch.sessions[activeIndex];
+        if (activeIndex === null || !current.job || !activeSession) return;
+        const review = addManualDetection(activeSession, detection);
+        const updatedJob = recordItemReviewCompletion(
+          current.job,
           activeIndex,
-        },
+          canFinalize(review)
+        );
+        setState({
+          job: withDerivedBatchReviewState(updatedJob),
+          review: null,
+          batch: {
+            sessions: Object.freeze({ ...current.batch.sessions, [activeIndex]: review }),
+            activeIndex,
+          },
+        });
+        return;
+      }
+      if (!current.review) return;
+      const review = addManualDetection(current.review, detection);
+      setState({
+        job: current.job ? withDerivedReviewState(current.job, review) : null,
+        review,
+        batch: null,
       });
-      return;
-    }
-    if (!current.review) return;
-    const review = addManualDetection(current.review, detection);
-    setState({
-      job: current.job ? withDerivedReviewState(current.job, review) : null,
-      review,
-      batch: null,
-    });
-  }, []);
+    },
+    [installStructured]
+  );
 
   /**
    * Change the viewed batch document (T17 #21 SD-5). This is the ONLY batch
@@ -576,6 +695,108 @@ export function useJobSession() {
     setState((current) =>
       current.batch ? { ...current, batch: { ...current.batch, activeIndex: index } } : current
     );
+  }, []);
+
+  /**
+   * Run the structured free-text review loop (REC-03 WU-C): every non-blank
+   * `process-as-text` cell is processed in row-major order through the
+   * productive engine under the Job's own policy with one shared context,
+   * and the resulting cell sessions are installed as domain state. This is
+   * the structured counterpart of {@link startReview}: an explicit,
+   * reviewer-triggered run — never automatic, never an auto-accept shortcut.
+   *
+   * With no routed cells the held state is cleared and the gate re-derives.
+   * A rejected engine load is a classified processing failure recorded on
+   * the job (never an unhandled rejection). A policy change between run
+   * start and install drops the stale outcome instead of certifying review
+   * under the wrong policy (same async-gap guard as the single path).
+   */
+  const runStructuredFreeTextReview = useCallback(
+    async (options: BatchReviewRunOptions = {}): Promise<ProcessingFailure | null> => {
+      const current = stateRef.current;
+      const structuredState = structuredRef.current;
+      if (
+        !current.job ||
+        current.job.kind !== "structured" ||
+        structuredState === null ||
+        structuredState.jobId !== current.job.id
+      ) {
+        return null;
+      }
+      const job = current.job;
+      const configuration = structuredState.configuration;
+      if (enumerateFreeTextCells(configuration).length === 0) {
+        // SPEC-2: a routed `process-as-text` column whose current cells are
+        // all blank has no required session. Install a current EMPTY state
+        // (same policy, same cell set) so preparation can reach `ready`
+        // instead of blocking forever; when no column is routed, clearing to
+        // `null` remains the exact behavior.
+        const hasRoutedColumns = configuration.columns.some(
+          (column) => column.effectiveAction === "process-as-text"
+        );
+        const emptyState = hasRoutedColumns ? createEmptyFreeTextState(job.id, job.policyId) : null;
+        setFreeText(
+          emptyState === null ? null : { jobId: job.id, state: emptyState, activeCell: null }
+        );
+        installStructured(configuration, emptyState);
+        return null;
+      }
+      const jobStillCurrent = (): boolean => {
+        const latest = stateRef.current.job;
+        if (latest === null) return false;
+        return latest.id === job.id && latest.policyId === job.policyId;
+      };
+      setState((state) => (state.job ? { ...state, job: beginProcessing(state.job) } : state));
+      try {
+        const engine = await (options.engineLoader ?? DEFAULT_ENGINE_LOADER)();
+        const produced = await processStructuredFreeTextCells({
+          jobId: job.id,
+          jobName: job.name,
+          policyId: job.policyId,
+          configuration,
+          engine,
+        });
+        if (!jobStillCurrent()) return null;
+        setFreeText({
+          jobId: job.id,
+          state: produced,
+          activeCell: produced.cells.length > 0 ? 0 : null,
+        });
+        installStructured(configuration, produced);
+        setState((state) =>
+          state.job && jobStillCurrent() ? { ...state, job: completeProcessing(state.job) } : state
+        );
+        return null;
+      } catch (error) {
+        if (!jobStillCurrent()) return null;
+        const failure = classifyProcessingFailure(error);
+        setState((state) => {
+          if (state.job === null || !jobStillCurrent()) return state;
+          return { ...state, job: failProcessing(state.job, failure) };
+        });
+        return failure;
+      }
+    },
+    [installStructured]
+  );
+
+  /**
+   * Change the free-text cell under review (REC-03 WU-C navigation). This is
+   * the ONLY cell-navigation entry: it writes the active position and
+   * nothing else — the job object and every cell session are left untouched,
+   * so viewing a cell can never mark it reviewed. A no-op without free-text
+   * state; out-of-range positions are refused.
+   */
+  const selectFreeTextCell = useCallback((position: number | null) => {
+    const held = freeTextRef.current;
+    if (held === null) return;
+    if (
+      position !== null &&
+      (!Number.isInteger(position) || position < 0 || position >= held.state.cells.length)
+    ) {
+      return;
+    }
+    setFreeText({ ...held, activeCell: position });
   }, []);
 
   /**
@@ -599,6 +820,23 @@ export function useJobSession() {
       if (current === null) return;
       applyStructuredConfiguration(
         overrideColumnClass(current.configuration, columnIndex, columnClass)
+      );
+    },
+    [applyStructuredConfiguration]
+  );
+
+  /**
+   * Explicit reviewer choice of one structured column's productive Action
+   * (REC-03 WU-B). Goes through the same single bridge as the class
+   * override: the canonical frozen configuration is rebuilt and the plan +
+   * gate state re-derived together, never a label-only edit.
+   */
+  const overrideStructuredColumnAction = useCallback(
+    (columnIndex: number, action: StructuredAction) => {
+      const current = structuredRef.current;
+      if (current === null) return;
+      applyStructuredConfiguration(
+        overrideColumnActionConfig(current.configuration, columnIndex, action)
       );
     },
     [applyStructuredConfiguration]
@@ -635,6 +873,19 @@ export function useJobSession() {
     batchSessions: state.batch ? state.batch.sessions : null,
     batchActiveIndex: state.batch ? state.batch.activeIndex : null,
     structured,
+    /**
+     * Job-scoped structured free-text review state (REC-03 WU-C), or `null`
+     * while no current processed state exists for this job. The active cell
+     * position is the row-major queue index under review (or `null`).
+     */
+    structuredFreeText:
+      freeText !== null && state.job !== null && freeText.jobId === state.job.id
+        ? freeText.state
+        : null,
+    structuredFreeTextActive:
+      freeText !== null && state.job !== null && freeText.jobId === state.job.id
+        ? freeText.activeCell
+        : null,
     create,
     clear,
     navigate,
@@ -646,8 +897,11 @@ export function useJobSession() {
     decide,
     addManual,
     selectDocument,
+    runStructuredFreeTextReview,
+    selectFreeTextCell,
     installStructuredGrid,
     overrideStructuredColumn,
+    overrideStructuredColumnAction,
     selectStructuredPatientId,
     setStructuredColumnDateRole,
   };

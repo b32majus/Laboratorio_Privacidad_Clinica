@@ -6,9 +6,13 @@
  * Renders the canonical structured configuration (`configuration.ts`) as the
  * "Configure" step of the common app shell:
  *   - every column is visibly classified as Identifier / Quasi-Identifier /
- *     Sensitive / Insensitive / Unknown (D-012), with its proposed action;
- *   - an Unknown column is visibly "Review required" and keeps the structured
+ *     Sensitive / Insensitive / Unknown (D-012), with its effective productive
+ *     Action (D-021, REC-03 WU-B): Class and Action are separate facts;
+ *   - an Unknown column, and a non-date quasi-identifier with no bounded
+ *     explicit action, are visibly "Review required" and keep the structured
  *     export gate closed (D-009; UNKNOWN is not KEEP);
+ *   - stronger authorities (patient-ID selection, explicit date role) visibly
+ *     lock/derive the Action instead of offering a contradicting choice;
  *   - confidence and value-free evidence are inspectable for human review;
  *   - the reviewer can override any column's class, which goes back to the
  *     domain bridge and rebuilds the canonical configuration (never a
@@ -30,6 +34,7 @@ import {
   STRUCTURED_COLUMN_CLASSES,
   STRUCTURED_DATE_ROLES,
   type ColumnClass,
+  type StructuredAction,
   type StructuredColumnState,
   type StructuredConfiguration,
   type StructuredDateRole,
@@ -49,12 +54,21 @@ const CLASS_LABELS: Record<ColumnClass, string> = {
   unknown: "Unknown",
 };
 
-/** Visible action labels for the proposed action. */
-const ACTION_LABELS: Record<ProposedAction, string> = {
+/** Visible action labels for the effective productive Action (D-021, REC-03 WU-B). */
+const ACTION_LABELS: Record<StructuredAction, string> = {
+  "study-id": "Study ID",
+  "date-policy": "Date policy",
+  remove: "Remove",
+  keep: "Keep",
+  pseudonymize: "Pseudonymize",
+  "process-as-text": "Process as text",
+  "review-required": "Review required",
+};
+
+/** Visible proposal labels (class/header proposal, a subset of the Action vocabulary). */
+const PROPOSAL_LABELS: Record<ProposedAction, string> = {
   remove: "Remove",
   pseudonymize: "Pseudonymize",
-  generalize: "Generalize",
-  codify: "Codify",
   keep: "Keep",
   "review-required": "Review required",
 };
@@ -88,6 +102,13 @@ export type StructuredConfigureWorkspaceProps = {
   readonly onSelectSheet: (sheetName: string) => void;
   /** Explicit reviewer override of one column's class (domain transition). */
   readonly onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
+  /**
+   * Explicit reviewer choice of one column's productive Action (REC-03 WU-B
+   * domain transition). When absent the Action control is not rendered
+   * (backward-compatible controlled surface); the effective Action fact stays
+   * visible regardless.
+   */
+  readonly onOverrideAction?: (columnIndex: number, action: StructuredAction) => void;
   /** Set the single patient-ID authority to a header (or clear with `null`). */
   readonly onSelectPatientId: (header: string | null) => void;
   /**
@@ -115,6 +136,7 @@ export function StructuredConfigureWorkspace(
     sheetNames = null,
     onSelectSheet,
     onOverrideClass,
+    onOverrideAction,
     onSelectPatientId,
     onSetDateRole,
     exportReadiness = null,
@@ -159,6 +181,7 @@ export function StructuredConfigureWorkspace(
         <ConfigurationView
           configuration={configuration}
           onOverrideClass={onOverrideClass}
+          onOverrideAction={onOverrideAction}
           onSelectPatientId={onSelectPatientId}
           onSetDateRole={onSetDateRole}
           exportReadiness={exportReadiness}
@@ -226,12 +249,19 @@ function SheetSelection(props: {
 function ConfigurationView(props: {
   configuration: StructuredConfiguration;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
+  onOverrideAction?: (columnIndex: number, action: StructuredAction) => void;
   onSelectPatientId: (header: string | null) => void;
   onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
   exportReadiness: { readonly ready: boolean; readonly reasons: readonly string[] } | null;
 }): ReactElement {
-  const { configuration, onOverrideClass, onSelectPatientId, onSetDateRole, exportReadiness } =
-    props;
+  const {
+    configuration,
+    onOverrideClass,
+    onOverrideAction,
+    onSelectPatientId,
+    onSetDateRole,
+    exportReadiness,
+  } = props;
   const patientIdIndex =
     configuration.patientId.status === "resolved" ? configuration.patientId.columnIndex : null;
 
@@ -251,6 +281,7 @@ function ConfigurationView(props: {
               column={column}
               isPatientId={patientIdIndex === column.columnIndex}
               onOverrideClass={onOverrideClass}
+              onOverrideAction={onOverrideAction}
               onSetDateRole={onSetDateRole}
             />
           ))}
@@ -373,15 +404,17 @@ function PatientIdAuthority(props: {
   );
 }
 
-/** One column card with class, evidence, confidence and override control. */
+/** One column card with class, effective Action, evidence and override controls. */
 function ColumnCard(props: {
   column: StructuredColumnState;
   isPatientId: boolean;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
+  onOverrideAction?: (columnIndex: number, action: StructuredAction) => void;
   onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
 }): ReactElement {
-  const { column, isPatientId, onOverrideClass, onSetDateRole } = props;
+  const { column, isPatientId, onOverrideClass, onOverrideAction, onSetDateRole } = props;
   const selectId = `structured-class-${column.columnIndex}`;
+  const actionSelectId = `structured-action-${column.columnIndex}`;
   const dateRoleSelectId = `structured-date-role-${column.columnIndex}`;
   const columnName = column.header === "" ? "(unnamed column)" : column.header;
   return (
@@ -397,8 +430,9 @@ function ColumnCard(props: {
 
       {/*
         Outcome F: authority facts stay immediately visible. Effective
-        classification (with its reviewer-override marker), current date role
-        and the patient-ID note are never behind a disclosure, so a safety fact
+        classification (with its reviewer-override marker), the effective
+        productive Action (with its source), the current date role and the
+        patient-ID note are never behind a disclosure, so a safety fact
         can never be hidden as a false-ready state.
       */}
       <dl className="mt-2 space-y-1 text-sm text-neutral-800">
@@ -407,6 +441,19 @@ function ColumnCard(props: {
           <dd>
             {CLASS_LABELS[column.effectiveClass]}
             {column.overridden ? " (reviewer override)" : ""}
+          </dd>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <dt className="font-semibold">Action:</dt>
+          <dd>
+            {ACTION_LABELS[column.effectiveAction]}
+            {column.actionSource === "explicit" ? " (reviewer choice)" : ""}
+            {column.actionSource === "proposed" &&
+            column.effectiveAction === "pseudonymize" &&
+            column.effectiveClass === "quasi-identifier"
+              ? " (proposed)"
+              : ""}
+            {column.actionLocked ? " (derived, locked)" : ""}
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -439,7 +486,7 @@ function ColumnCard(props: {
           </div>
           <div className="flex flex-wrap gap-2">
             <dt className="font-semibold">Proposed action:</dt>
-            <dd>{ACTION_LABELS[column.proposedAction]}</dd>
+            <dd>{PROPOSAL_LABELS[column.proposedAction]}</dd>
           </div>
           <div className="flex flex-wrap gap-2">
             <dt className="font-semibold">Inferred type:</dt>
@@ -514,6 +561,63 @@ function ColumnCard(props: {
           </select>
         </>
       )}
+
+      {/*
+        REC-03 WU-B (D-021): the bounded Action control. Locked stronger
+        authorities render as derived text (no contradicting choice is
+        offered); a non-date, non-patient-ID quasi-identifier offers exactly
+        its bounded choices; every other column renders its derived Action as
+        text, with Unknown guidance pointing at class resolution (Unknown can
+        never become Keep directly).
+      */}
+      {onOverrideAction !== undefined &&
+        !column.actionLocked &&
+        column.allowedActions.length > 1 && (
+          <>
+            <label
+              htmlFor={actionSelectId}
+              className="mt-3 block text-sm font-semibold text-neutral-800"
+            >
+              Reviewer action for {columnName}
+            </label>
+            <select
+              id={actionSelectId}
+              value={column.effectiveAction}
+              onChange={(event) =>
+                onOverrideAction(column.columnIndex, event.target.value as StructuredAction)
+              }
+              className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+            >
+              {column.allowedActions.map((action) => (
+                <option key={action} value={action}>
+                  {ACTION_LABELS[action]}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+      {column.actionLocked && (
+        <p className="mt-3 text-sm text-neutral-800">
+          <span className="font-semibold">Action locked:</span>{" "}
+          {isPatientId
+            ? "the patient-ID authority derives Study ID; no other action can be selected."
+            : "the explicit date role derives Date policy; no other action can be selected."}
+        </p>
+      )}
+      {onOverrideAction !== undefined &&
+        !column.actionLocked &&
+        column.effectiveClass === "unknown" &&
+        (column.allowedActions.includes("process-as-text") ? (
+          <p className="mt-3 text-sm text-neutral-800">
+            Unknown columns cannot be kept directly. Change the classification above, or route this
+            text column through the text engine with “Process as text”.
+          </p>
+        ) : (
+          <p className="mt-3 text-sm text-neutral-800">
+            Unknown columns cannot take a productive action directly. Change the classification
+            above to resolve this column.
+          </p>
+        ))}
     </li>
   );
 }

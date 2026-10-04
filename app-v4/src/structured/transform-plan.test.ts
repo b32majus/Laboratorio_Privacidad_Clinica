@@ -38,13 +38,13 @@ function rolesConfig(roles: Record<number, "visit" | "birth" | "none">) {
 }
 
 describe("buildStructuredTransformPlan — disposition per column", () => {
-  it("maps identifier->remove, sensitive->codify, unknown->unsupported, quasi(date role)->date-age", () => {
+  it("maps selected patient-ID->study-id, identifier->remove, sensitive->keep, unknown->unsupported, quasi(date role)->date-age", () => {
     const config = createStructuredConfiguration(GRID, { selectedPatientIdColumn: "Paciente" });
     const plan = buildStructuredTransformPlan(config, { policyId: "standard", jobSeed: JOB_SEED });
 
     const byHeader = new Map(plan.columns.map((column) => [column.header, column.disposition]));
-    expect(byHeader.get("Paciente")).toEqual({ kind: "remove" });
-    expect(byHeader.get("Diagnostico")).toEqual({ kind: "codify" });
+    expect(byHeader.get("Paciente")).toEqual({ kind: "study-id" });
+    expect(byHeader.get("Diagnostico")).toEqual({ kind: "keep" });
     expect(byHeader.get("CampoLibre")).toEqual({
       kind: "unsupported",
       reason: "unknown-review-required",

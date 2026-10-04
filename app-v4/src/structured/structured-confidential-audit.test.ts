@@ -23,18 +23,18 @@ describe("serializeStructuredConfidentialAudit", () => {
       },
       {
         columnIndex: 3,
-        header: "Diagnostico",
-        disposition: "codify" as const,
-        entries: [{ original: "Gripe A", transformed: "0" }],
+        header: "Centro",
+        disposition: "pseudonymize" as const,
+        entries: [{ original: "Centro A", transformed: "QID_001" }],
       },
     ],
-    totals: { dateAge: 0, codify: 1, remove: 1, transformedCells: 1 },
+    totals: { dateAge: 0, pseudonymize: 1, remove: 1, transformedCells: 1 },
   };
 
   it("is marked confidential and carries the original↔transformed correspondence", () => {
     const text = serializeStructuredConfidentialAudit(correspondence);
     expect(text.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
-    expect(text).toContain("Gripe A -> 0");
+    expect(text).toContain("Centro A -> QID_001");
     expect(text).toContain("P-001 -> (removed)");
     expect(text).toContain("Policy: standard");
   });

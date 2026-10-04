@@ -38,6 +38,7 @@ import { BatchReviewView } from "./review/BatchReviewView";
 import { ReviewWorkspace } from "./review/ReviewWorkspace";
 import { ReviewSessionError, jobSupportsReview } from "./review/review-domain";
 import { StructuredConfigureWorkspace } from "./structured/StructuredConfigureWorkspace";
+import { StructuredFreeTextReview } from "./structured/StructuredFreeTextReview";
 import type { StructuredConfiguration } from "./structured/configuration";
 import type { StructuredOutputPreparation } from "./structured/transformed-dataset";
 import { readStructuredFile, readStructuredSheet } from "./structured/intake";
@@ -141,6 +142,7 @@ export function App() {
     setInputError(null);
     setStructuredError(null);
     setStructuredSheet(null);
+    setFreeTextRunError(null);
     structuredFileRef.current = null;
   };
 
@@ -335,9 +337,10 @@ export function App() {
    *
    * A document batch is deliberately excluded here: its review attempt is
    * started by the reads-settle effect below, so entering Review during the
-   * read phase can never start processing mid-read. Structured jobs keep their
-   * review in the Configure workspace, so entering Review never starts a text
-   * review session for them.
+   * read phase can never start processing mid-read. Structured jobs never
+   * auto-start here either: free-text cell processing is an explicit
+   * reviewer-triggered run on the Review step itself (REC-03 WU-C), so
+   * entering Review never starts the engine or resets decisions.
    */
   const handleGoToStep = async (step: FlowStep) => {
     try {
@@ -407,6 +410,38 @@ export function App() {
           preparation: session.structured.preparation,
         }
       : null;
+  /** Job-scoped free-text cell sessions for the CURRENT structured job (REC-03 WU-C). */
+  const structuredFreeText =
+    session.structuredFreeText !== null && job !== null && session.structured?.jobId === job.id
+      ? session.structuredFreeText
+      : null;
+  const structuredFreeTextActive =
+    job !== null && session.structured?.jobId === job.id ? session.structuredFreeTextActive : null;
+  /** Whether the current structured configuration routes any free-text column. */
+  const hasFreeTextColumns =
+    structuredConfiguration !== null &&
+    structuredConfiguration.columns.some((column) => column.effectiveAction === "process-as-text");
+  /**
+   * Last free-text run failure, job-scoped so a stale message can never
+   * leak onto another job (the bridge drops the state itself on
+   * policy/config changes; this only carries the run's own failure text).
+   */
+  const [freeTextRunError, setFreeTextRunError] = useState<{
+    readonly jobId: string;
+    readonly message: string;
+  } | null>(null);
+  const runStructuredFreeText = async () => {
+    const failure = await session.runStructuredFreeTextReview();
+    if (failure) {
+      const currentId = jobIdRef.current;
+      setFreeTextRunError(
+        currentId === null ? null : { jobId: currentId, message: failure.message }
+      );
+    } else {
+      setFreeTextRunError(null);
+    }
+    return failure;
+  };
 
   /**
    * Structured intake (T20 #24): parse the single selected CSV/XLS/XLSX file
@@ -594,6 +629,7 @@ export function App() {
             sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
             onSelectSheet={handleSelectStructuredSheet}
             onOverrideClass={session.overrideStructuredColumn}
+            onOverrideAction={session.overrideStructuredColumnAction}
             onSelectPatientId={session.selectStructuredPatientId}
             onSetDateRole={session.setStructuredColumnDateRole}
             exportReadiness={
@@ -624,12 +660,31 @@ export function App() {
             onAddManual={session.addManual}
           />
         ) : currentStep === "review" && job && job.kind === "structured" ? (
-          <StructuredReviewNotice
-            job={job}
-            configuration={structuredConfiguration}
-            preparation={structuredPreparation}
-            onGoToStep={handleGoToStep}
-          />
+          hasFreeTextColumns && structuredConfiguration !== null ? (
+            <StructuredFreeTextReview
+              configuration={structuredConfiguration}
+              preparation={structuredPreparation}
+              freeText={structuredFreeText}
+              activeCell={structuredFreeTextActive}
+              runError={
+                freeTextRunError !== null && freeTextRunError.jobId === job.id
+                  ? freeTextRunError.message
+                  : null
+              }
+              onRun={runStructuredFreeText}
+              onSelectFreeTextCell={session.selectFreeTextCell}
+              onDecide={session.decide}
+              onAddManual={session.addManual}
+              onGoToStep={handleGoToStep}
+            />
+          ) : (
+            <StructuredReviewNotice
+              job={job}
+              configuration={structuredConfiguration}
+              preparation={structuredPreparation}
+              onGoToStep={handleGoToStep}
+            />
+          )
         ) : currentStep === "privacy-gate" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
@@ -1024,14 +1079,15 @@ function UnstructuredConfigureState({
 }
 
 /**
- * Honest structured Review state (UX-CLOSEOUT-01 outcome B). Structured human
- * review already happens in Configure (column classification, the single
- * patient-ID authority and explicit date roles); this step never creates a
- * ReviewSession, detection review or any new structured semantics. Readiness
- * and blockers are summarized from the existing structured
- * configuration/preparation facts only, and the operator is directed back to
- * Configure when action is required or onward to the Privacy Gate when the
- * existing readiness permits.
+ * Honest structured Review state (UX-CLOSEOUT-01 outcome B) for jobs WITHOUT
+ * free-text routing. Structured human review already happens in Configure
+ * (column classification, the single patient-ID authority and explicit date
+ * roles); this step never creates a ReviewSession, detection review or any
+ * new structured semantics. (Jobs WITH `process-as-text` columns render
+ * `StructuredFreeTextReview` instead.) Readiness and blockers are summarized
+ * from the existing structured configuration/preparation facts only, and the
+ * operator is directed back to Configure when action is required or onward
+ * to the Privacy Gate when the existing readiness permits.
  */
 function StructuredReviewNotice({
   job,

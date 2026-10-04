@@ -3,9 +3,9 @@
  *
  * The Confidential Audit is a SEPARATE product from the Safe Structured CSV
  * (CURRENT_DECISIONS D-005 / SPEC §13): it is the only place that carries the
- * original↔transformed correspondence for the accepted date/age, codify and
- * remove decisions. It is always marked with the canonical confidential
- * warning line and is never combined with the Safe artifact.
+ * original↔transformed correspondence for the accepted date/age,
+ * pseudonymize, study-id and remove decisions. It is always marked with the
+ * canonical confidential warning line and is never combined with the Safe artifact.
  *
  * Deterministic and memory-only (D-013): no timestamps, no persistence, no
  * logging of values.
@@ -44,12 +44,15 @@ export function serializeStructuredConfidentialAudit(correspondence: unknown): s
       "serializeStructuredConfidentialAudit requires a structurally valid structured correspondence."
     );
   }
+  const studyIdCount = correspondence.totals.studyId ?? 0;
+  const pseudonymizeCount = correspondence.totals.pseudonymize ?? 0;
+  const freeTextCount = correspondence.totals.freeText ?? 0;
   const lines: string[] = [
     CONFIDENTIAL_AUDIT_WARNING_LINE,
     "Structured Confidential Audit — original <-> transformed correspondence.",
     "",
     `Policy: ${correspondence.policyId}`,
-    `Columns: ${correspondence.columns.length} (date/age: ${correspondence.totals.dateAge}, codify: ${correspondence.totals.codify}, remove: ${correspondence.totals.remove}) — transformed cells: ${correspondence.totals.transformedCells}`,
+    `Columns: ${correspondence.columns.length} (date/age: ${correspondence.totals.dateAge}, pseudonymize: ${pseudonymizeCount}, remove: ${correspondence.totals.remove}${studyIdCount > 0 ? `, study-id: ${studyIdCount}` : ""}${freeTextCount > 0 ? `, free-text: ${freeTextCount}` : ""}) — transformed cells: ${correspondence.totals.transformedCells}`,
     "",
   ];
   for (const column of correspondence.columns) {

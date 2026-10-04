@@ -5,8 +5,10 @@ import "@testing-library/jest-dom/vitest";
 
 import {
   createStructuredConfiguration,
+  overrideColumnAction,
   overrideColumnClass,
   selectPatientIdColumn,
+  type StructuredAction,
   type StructuredConfiguration,
 } from "./configuration";
 import type { ColumnClass } from "./classification";
@@ -44,6 +46,9 @@ function Harness(props: {
       onOverrideClass={(columnIndex: number, columnClass: ColumnClass) =>
         setConfiguration((current) => overrideColumnClass(current, columnIndex, columnClass))
       }
+      onOverrideAction={(columnIndex: number, action: StructuredAction) =>
+        setConfiguration((current) => overrideColumnAction(current, columnIndex, action))
+      }
       onSelectPatientId={(header: string | null) =>
         setConfiguration((current) => selectPatientIdColumn(current, header))
       }
@@ -68,6 +73,10 @@ function overrideSelect(header: string): HTMLSelectElement {
   return screen.getByLabelText(`Reviewer classification for ${header}`) as HTMLSelectElement;
 }
 
+function actionSelect(header: string): HTMLSelectElement | null {
+  return screen.queryByLabelText(`Reviewer action for ${header}`) as HTMLSelectElement | null;
+}
+
 afterEach(cleanup);
 
 describe("StructuredConfigureWorkspace — classification display from domain facts", () => {
@@ -85,13 +94,17 @@ describe("StructuredConfigureWorkspace — classification display from domain fa
     expect(overrideSelect("Diagnostico")).toHaveValue("sensitive");
     expect(overrideSelect("CampoLibre")).toHaveValue("unknown");
 
-    // Status/class are conveyed as text, never color alone.
+    // Status/class/action are conveyed as text, never color alone.
     expect(within(columnCard("CampoLibre")).getAllByText("Review required").length).toBeGreaterThan(
       0
     );
     expect(within(columnCard("NHC")).getAllByText("Remove").length).toBeGreaterThan(0);
-    expect(within(columnCard("Fecha_Nac")).getAllByText("Generalize").length).toBeGreaterThan(0);
-    expect(within(columnCard("Diagnostico")).getAllByText("Codify").length).toBeGreaterThan(0);
+    // D-021: an unresolved quasi-identifier is Review required (no generic
+    // Generalize dead end); Sensitive defaults to Keep (no Codify action).
+    expect(within(columnCard("Fecha_Nac")).getAllByText("Review required").length).toBeGreaterThan(
+      0
+    );
+    expect(within(columnCard("Diagnostico")).getAllByText("Keep").length).toBeGreaterThan(0);
   });
 
   it("shows confidence and evidence that correspond exactly to domain facts", () => {
@@ -116,30 +129,43 @@ describe("StructuredConfigureWorkspace — classification display from domain fa
 });
 
 describe("StructuredConfigureWorkspace — Unknown review + export gate", () => {
-  it("shows the fail-closed gate for an unknown column and NEVER defaults it to KEEP", () => {
+  it("shows the fail-closed gate for review-required columns and NEVER defaults them to KEEP", () => {
     const { configRef } = renderHarness();
     const facts = screen.getByRole("status", { name: /structured configuration facts/i });
-    expect(facts).toHaveTextContent("Columns requiring review: 1");
+    // D-021: CampoLibre (unknown) AND Fecha_Nac (unresolved quasi) require review.
+    expect(facts).toHaveTextContent("Columns requiring review: 2");
     expect(facts).toHaveTextContent("Structured export ready: No");
     expect(screen.getByRole("alert")).toHaveTextContent(/export is blocked/i);
 
-    // The unknown column is not KEEP: the effective class stays unknown and
-    // the canonical export gate stays closed.
+    // Neither review-required column is KEEP: the effective classes stay put
+    // and the canonical export gate stays closed.
     expect(overrideSelect("CampoLibre")).toHaveValue("unknown");
+    expect(overrideSelect("Fecha_Nac")).toHaveValue("quasi-identifier");
     expect(configRef.current.exportReady).toBe(false);
   });
 
-  it("only an explicit human override resolves the gate and changes the canonical authority", () => {
+  it("only explicit human decisions resolve the gate and change the canonical authority", () => {
     const { configRef } = renderHarness();
     const before = configRef.current;
     fireEvent.change(overrideSelect("CampoLibre"), { target: { value: "insensitive" } });
 
-    // Canonical authority changed (not a label-only change): new object,
-    // effective class insensitive, action keep, gate open.
+    // One reviewer decision is not enough while the quasi column is unresolved.
+    expect(configRef.current.exportReady).toBe(false);
+
+    // A bounded explicit Action for the quasi column closes the gate together
+    // with the class resolution: one canonical rebuild, never label-only.
+    const fechaAction = actionSelect("Fecha_Nac");
+    if (!fechaAction) throw new Error("expected the bounded Action control for Fecha_Nac");
+    fireEvent.change(fechaAction, { target: { value: "keep" } });
+
     expect(configRef.current).not.toBe(before);
     const column = configRef.current.columns.find((candidate) => candidate.header === "CampoLibre");
     expect(column?.effectiveClass).toBe("insensitive");
     expect(column?.proposedAction).toBe("keep");
+    expect(column?.effectiveAction).toBe("keep");
+    expect(configRef.current.columns.find((c) => c.header === "Fecha_Nac")?.effectiveAction).toBe(
+      "keep"
+    );
     expect(configRef.current.exportReady).toBe(true);
 
     const facts = screen.getByRole("status", { name: /structured configuration facts/i });
@@ -201,6 +227,77 @@ describe("StructuredConfigureWorkspace — single patient-ID authority (SPEC §6
       column: "NHC",
       columnIndex: 0,
     });
+  });
+});
+
+describe("StructuredConfigureWorkspace — bounded Action control (REC-03 WU-B, D-021)", () => {
+  it("offers exactly the bounded Action choices for a non-date quasi-identifier", () => {
+    const { configRef } = renderHarness();
+    const select = actionSelect("Fecha_Nac");
+    if (!select) throw new Error("expected the bounded Action control for Fecha_Nac");
+    expect(select.tagName).toBe("SELECT");
+    const options = Array.from(select.querySelectorAll("option")).map((option) => option.value);
+    expect(options).toEqual(["review-required", "pseudonymize", "keep"]);
+    expect(select).toHaveValue("review-required");
+
+    fireEvent.change(select, { target: { value: "pseudonymize" } });
+    expect(configRef.current.columns.find((c) => c.header === "Fecha_Nac")?.effectiveAction).toBe(
+      "pseudonymize"
+    );
+    expect(select).toHaveValue("pseudonymize");
+  });
+
+  it("renders no Action editor for derived single-option columns, only the Action fact", () => {
+    renderHarness();
+    // Identifier->Remove: the Action is a visible fact, not a choice.
+    expect(actionSelect("NHC")).toBeNull();
+    expect(within(columnCard("NHC")).getByText("Action:").nextElementSibling).toHaveTextContent(
+      "Remove"
+    );
+    // REC-03 WU-C (D-021 free-text columns): a text-like Sensitive column
+    // offers exactly the bounded Keep / Process-as-text choice.
+    const sensitiveSelect = actionSelect("Diagnostico");
+    if (!sensitiveSelect) throw new Error("expected the bounded Action control for Diagnostico");
+    expect(
+      Array.from(sensitiveSelect.querySelectorAll("option")).map((option) => option.value)
+    ).toEqual(["keep", "process-as-text"]);
+    expect(
+      within(columnCard("Diagnostico")).getByText("Action:").nextElementSibling
+    ).toHaveTextContent("Keep");
+    // Unknown explains the resolution path instead of offering Keep directly;
+    // a text-like Unknown additionally offers the explicit Process-as-text path.
+    const unknownSelect = actionSelect("CampoLibre");
+    if (!unknownSelect) throw new Error("expected the bounded Action control for CampoLibre");
+    expect(
+      Array.from(unknownSelect.querySelectorAll("option")).map((option) => option.value)
+    ).toEqual(["review-required", "process-as-text"]);
+    expect(
+      within(columnCard("CampoLibre")).getByText(/cannot be kept directly/i)
+    ).toBeInTheDocument();
+  });
+
+  it("locks the Action of the patient-ID column with derived text and no contradicting choice", () => {
+    const configRef = {
+      current: selectPatientIdColumn(createStructuredConfiguration(GRID), "NHC"),
+    };
+    render(<Harness initial={configRef.current} configRef={configRef} />);
+    expect(actionSelect("NHC")).toBeNull();
+    const card = columnCard("NHC");
+    expect(within(card).getByText("Action:").nextElementSibling).toHaveTextContent(
+      "Study ID (derived, locked)"
+    );
+    expect(
+      within(card).getByText(/the patient-ID authority derives Study ID/i)
+    ).toBeInTheDocument();
+  });
+
+  it("exposes the Action control as a keyboard-operable select with visible focus", () => {
+    renderHarness();
+    const select = actionSelect("Fecha_Nac");
+    if (!select) throw new Error("expected the bounded Action control for Fecha_Nac");
+    select.focus();
+    expect(select).toHaveFocus();
+    expect(select).toHaveClass("focus-visible:ring-2");
   });
 });
 

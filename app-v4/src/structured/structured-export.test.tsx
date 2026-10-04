@@ -112,9 +112,13 @@ describe("ExportStep — structured", () => {
       fireEvent.click(safeButton);
       const safeCsv = await textOf(capture.downloads[0]);
       expect(capture.downloads[0].fileName).toBe("safe-structured-output.csv");
-      expect(safeCsv.split("\n")[0]).toBe("Fecha_Visita,Fecha_Nacimiento,Diagnostico,CampoLibre");
+      expect(safeCsv.split("\n")[0]).toBe(
+        "ID_ESTUDIO,Fecha_Visita,Fecha_Nacimiento,Diagnostico,CampoLibre"
+      );
       expect(safeCsv).not.toContain("P-001");
-      expect(safeCsv).not.toContain("Gripe A");
+      // D-021: Sensitive defaults to Keep, so the kept clinical attribute
+      // stays in Safe output verbatim; identity and exact dates never do.
+      expect(safeCsv).toContain("Gripe A");
       expect(safeCsv).not.toContain("1954-03-12");
 
       fireEvent.click(auditButton);
@@ -122,7 +126,9 @@ describe("ExportStep — structured", () => {
       expect(capture.downloads[1].fileName).toBe("structured-confidential-audit.txt");
       expect(audit.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
       expect(audit).toContain("P-001");
-      expect(audit).toContain("Gripe A");
+      // Kept columns carry no correspondence: the audit holds Study-ID and
+      // date/age originals, never the kept diagnosis.
+      expect(audit).not.toContain("Gripe A");
     } finally {
       capture.restore();
     }

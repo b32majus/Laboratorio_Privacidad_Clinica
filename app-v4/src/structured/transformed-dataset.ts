@@ -1,17 +1,26 @@
 /**
- * Structured transformed dataset + export readiness (HARDEN-01 WU-A, #47 §A).
+ * Structured transformed dataset + export readiness (HARDEN-01 WU-A, #47 §A;
+ * REC-03 WU-B D-021 Class→Action authority).
  *
  * This is the SINGLE production module that activates the accepted structured
  * transformations: it is the only caller of `applyStructuredDateAgePolicy`
- * (T19) and `codifyColumnValues` (T18), and it only ever runs through a
- * {@link StructuredTransformPlan} derived from the reviewed configuration.
+ * (T19) and `codifyColumnValues` (T18, reused ONLY as the internal
+ * first-appearance primitive behind structured `pseudonymize`), and it only
+ * ever runs through a {@link StructuredTransformPlan} derived from the
+ * reviewed configuration's effective Action.
  *
  * Separation (D-005 / PRIV-002, HARDEN-01 §6):
  *  - `safe`: the Safe Structured dataset — transformed/kept cells only. A
- *    `remove` column (Identifier, including the patient-ID column) is dropped
- *    entirely and never appears; there is no correspondence field.
+ *    `remove` column (ordinary Identifier) is dropped entirely and never
+ *    appears; there is no correspondence field. The selected patient-ID
+ *    column is `study-id` (REC-03 D-021): Safe carries `ID_ESTUDIO` in its
+ *    place, never the original header or values. A `pseudonymize` column
+ *    carries column-local `QID_###` tokens; the original↔token mapping below
+ *    is the ONLY place the correspondence exists. A `keep` column (Sensitive
+ *    default, Insensitive) is preserved verbatim with no correspondence.
  *  - `confidential`: the separate original↔transformed correspondence for the
- *    date/age, codify and remove decisions. Never merged with `safe`.
+ *    date/age, pseudonymize, study-id and remove decisions. Never merged with
+ *    `safe`.
  *
  * Fail-closed (D-009): while any column is unsupported, the patient-ID needed
  * by a shift policy is missing, or any date/age cell requires review, the
@@ -25,8 +34,15 @@ import { codifyColumnValues } from "./codify";
 import type { StructuredConfiguration } from "./configuration";
 import { applyStructuredDateAgePolicy, type StructuredDateAgeApplication } from "./date-age-policy";
 import type { StructuredDateCellOutcome } from "./date-age";
+import {
+  enumerateFreeTextCells,
+  isFreeTextCellSetCurrent,
+  type StructuredFreeTextState,
+} from "./free-text";
 import { isBlankCell, type StructuredCell } from "./grid";
+import { buildStudyIdMapping, STUDY_ID_HEADER } from "./study-id";
 import type { StructuredTransformPlan, StructuredTransformPlanColumn } from "./transform-plan";
+import { canFinalize, getFinalText } from "../review/review-domain";
 
 /** The Safe structured dataset: flattened cells, no correspondence field. */
 export type StructuredSafeDataset = {
@@ -45,15 +61,17 @@ export type StructuredCorrespondenceEntry = {
 export type StructuredCorrespondenceColumn = {
   readonly columnIndex: number;
   readonly header: string;
-  readonly disposition: "date-age" | "codify" | "remove";
+  readonly disposition: "date-age" | "pseudonymize" | "remove" | "study-id" | "free-text";
   readonly entries: readonly StructuredCorrespondenceEntry[];
 };
 
 /** Coarse correspondence totals for the Confidential artifact header. */
 export type StructuredCorrespondenceTotals = {
   readonly dateAge: number;
-  readonly codify: number;
+  readonly pseudonymize: number;
   readonly remove: number;
+  readonly studyId: number;
+  readonly freeText: number;
   readonly transformedCells: number;
 };
 
@@ -92,7 +110,27 @@ function columnLabel(column: StructuredTransformPlanColumn): string {
   return column.header === "" ? "(unnamed column)" : column.header;
 }
 
-function formatCell(cell: StructuredCell | undefined): string {
+/**
+ * Deterministic structured pseudonymization (REC-03 WU-B, D-021):
+ * column-local categorical tokens `QID_001`, `QID_002`, … by first appearance
+ * of each distinct non-blank value; repeated values reuse the token; blanks
+ * stay blank (`""` here, `null` in the mapping sense) and never enter the
+ * mapping. Built on `codifyColumnValues` as the internal first-appearance
+ * primitive — `codify` itself is NOT a user-facing action contract.
+ */
+export function formatQuasiToken(sequence: number): string {
+  return `QID_${String(sequence).padStart(3, "0")}`;
+}
+
+/** Pseudonymize one column's values: tokens aligned with the input. */
+export function pseudonymizeColumnValues(values: readonly StructuredCell[]): readonly string[] {
+  const { coded } = codifyColumnValues(values);
+  return Object.freeze(
+    coded.map((code) => (code === null || code === undefined ? "" : formatQuasiToken(code + 1)))
+  );
+}
+
+function formatCell(cell: StructuredCell): string {
   return isBlankCell(cell) ? "" : String(cell);
 }
 
@@ -108,11 +146,25 @@ function dateRoleHeader(
 
 /**
  * Exact fail-closed block reasons of a plan (plus any per-cell date/age
- * reviews). Text-first; never color-only. Empty means the plan is exportable.
+ * reviews and free-text review state). Text-first; never color-only. Empty
+ * means the plan is exportable.
+ *
+ * The optional `configuration` carries the grid values needed for the REC-03
+ * Study-ID blank-patient-ID check; without it only the structural Study-ID
+ * header-collision check applies.
+ *
+ * The optional `freeText` carries the job-scoped structured free-text review
+ * state (REC-03 WU-C): when the plan routes `free-text` columns, Safe output
+ * additionally requires a current state (same policy, same cell set) with no
+ * failures and every cell session finalizable. A missing state, a stale
+ * policy, an altered cell set, a failure or a pending session each blocks
+ * with an exact reason — the raw original is never kept as fallback.
  */
 export function structuredBlockReasons(
   plan: StructuredTransformPlan,
-  reviewRequiredCells: readonly StructuredReviewRequiredCell[] = []
+  reviewRequiredCells: readonly StructuredReviewRequiredCell[] = [],
+  configuration?: StructuredConfiguration,
+  freeText?: StructuredFreeTextState | null
 ): readonly string[] {
   const reasons: string[] = [];
   const unsupported = plan.columns.filter((column) => column.disposition.kind === "unsupported");
@@ -147,6 +199,47 @@ export function structuredBlockReasons(
     );
   }
 
+  // REC-03 WU-A Study-ID fail-closed checks (D-021): a Safe header collision
+  // with another input column, and a blank selected patient-ID cell on a row
+  // that carries other data (an unlinkable Safe row is never produced).
+  // SPEC-1: EVERY disposition that emits a Safe column participates —
+  // `keep`, `pseudonymize`, `date-age` and `free-text` (a routed
+  // `process-as-text` column emits its header into Safe output too). `remove`
+  // emits nothing and is never treated as a collision.
+  const studyIdColumns = plan.columns.filter((column) => column.disposition.kind === "study-id");
+  for (const studyColumn of studyIdColumns) {
+    const colliding = plan.columns.filter(
+      (column) =>
+        column.columnIndex !== studyColumn.columnIndex &&
+        column.header === STUDY_ID_HEADER &&
+        (column.disposition.kind === "keep" ||
+          column.disposition.kind === "pseudonymize" ||
+          column.disposition.kind === "date-age" ||
+          column.disposition.kind === "free-text")
+    );
+    for (const other of colliding) {
+      const otherLabel = other.header === "" ? "(unnamed column)" : other.header;
+      reasons.push(
+        `Structured export is blocked: Safe header "${STUDY_ID_HEADER}" is already used by another input column "${otherLabel}"; the Study-ID column is never written over it silently.`
+      );
+    }
+  }
+  if (configuration !== undefined) {
+    for (const studyColumn of studyIdColumns) {
+      const label = studyColumn.header === "" ? "(unnamed column)" : studyColumn.header;
+      configuration.grid.rows.forEach((row, rowIndex) => {
+        if (!isBlankCell(row[studyColumn.columnIndex])) return;
+        const hasOtherData = row.some(
+          (cell, cellIndex) => cellIndex !== studyColumn.columnIndex && !isBlankCell(cell)
+        );
+        if (!hasOtherData) return;
+        reasons.push(
+          `Structured export is blocked: data row ${rowIndex + 1} has other data but no value in the patient-ID column "${label}"; an unlinkable Safe row is never produced.`
+        );
+      });
+    }
+  }
+
   if (reviewRequiredCells.length === 1) {
     reasons.push(
       "Structured export is blocked: 1 date/age cell requires review (unparseable or without the required reference)."
@@ -157,6 +250,68 @@ export function structuredBlockReasons(
     );
   }
 
+  reasons.push(...freeTextBlockReasons(plan, configuration, freeText));
+
+  return Object.freeze(reasons);
+}
+
+/**
+ * Fail-closed block reasons for the structured free-text review state
+ * (REC-03 WU-C). Empty when the plan routes no `free-text` column. Reasons
+ * name the column header and 1-based row only — never raw cell text.
+ */
+function freeTextBlockReasons(
+  plan: StructuredTransformPlan,
+  configuration: StructuredConfiguration | undefined,
+  freeText: StructuredFreeTextState | null | undefined
+): readonly string[] {
+  const routed = plan.columns.filter((column) => column.disposition.kind === "free-text");
+  if (routed.length === 0) return Object.freeze([]);
+  // SPEC-2: a routed `process-as-text` column whose CURRENT configured cells
+  // are all blank has zero required sessions. There is nothing to review, so
+  // the absence of a processed state must not block; Safe carries the blanks.
+  if (configuration !== undefined && enumerateFreeTextCells(configuration).length === 0) {
+    return Object.freeze([]);
+  }
+  if (freeText === null || freeText === undefined) {
+    const labels = routed.map((column) => `"${columnLabel(column)}"`).join(", ");
+    return Object.freeze([
+      `Structured export is blocked: free-text column(s) ${labels} have not been processed through the text engine yet; Safe output cannot be produced from unreviewed cells.`,
+    ]);
+  }
+  if (freeText.policyId !== plan.policyId) {
+    return Object.freeze([
+      `Structured export is blocked: the free-text review was processed under policy "${freeText.policyId}" but the current policy is "${plan.policyId}"; reprocess the free-text cells under the current policy.`,
+    ]);
+  }
+  if (
+    configuration !== undefined &&
+    !isFreeTextCellSetCurrent(configuration, freeText, plan.policyId)
+  ) {
+    return Object.freeze([
+      "Structured export is blocked: the free-text review no longer matches the current column configuration; reprocess the free-text cells before export.",
+    ]);
+  }
+  const reasons: string[] = [];
+  for (const cell of freeText.cells) {
+    if (cell.ok) continue;
+    reasons.push(
+      `Structured export is blocked: free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] failed processing (${cell.failure.message}); resolve it instead of keeping the original.`
+    );
+  }
+  const pending = freeText.cells.filter((cell) => cell.ok && !canFinalize(cell.session));
+  if (pending.length === 1) {
+    const cell = pending[0];
+    if (cell.ok) {
+      reasons.push(
+        `Structured export is blocked: free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] still requires review; complete every mandatory decision first.`
+      );
+    }
+  } else if (pending.length > 1) {
+    reasons.push(
+      `Structured export is blocked: ${pending.length} free-text cells still require review; complete every mandatory decision first.`
+    );
+  }
   return Object.freeze(reasons);
 }
 
@@ -164,10 +319,17 @@ export function structuredBlockReasons(
  * Compute the Safe dataset and the separate Confidential correspondence of a
  * structurally-ready plan. Throws when the plan is not structurally ready:
  * callers must go through {@link prepareStructuredOutput}.
+ *
+ * REC-03 WU-C: a `free-text` column's Safe cells come from the canonical
+ * `getFinalText(session)` of the cell's ReviewSession — never a raw engine
+ * proposal. The caller must supply the current `freeText` state (same policy,
+ * same cell set, every session finalizable); otherwise this throws
+ * fail-closed instead of producing Safe bytes from unreviewed content.
  */
 export function computeStructuredOutput(
   configuration: StructuredConfiguration,
-  plan: StructuredTransformPlan
+  plan: StructuredTransformPlan,
+  freeText?: StructuredFreeTextState | null
 ): StructuredOutput {
   if (!plan.dispositionsReady) {
     throw new Error(
@@ -202,12 +364,59 @@ export function computeStructuredOutput(
   const valuesFor = (columnIndex: number): readonly StructuredCell[] =>
     grid.rows.map((row) => row[columnIndex]);
 
+  // Deterministic Study-ID mappings per study-id column, built once and
+  // reused for correspondence and Safe materialization.
+  const studyIdsByColumn = new Map<number, readonly (string | null)[]>();
+
   const dateOutcomesFor = (
     column: StructuredTransformPlanColumn
   ): readonly StructuredDateCellOutcome[] =>
     column.disposition.kind === "date-age" && column.disposition.role === "birth-date"
       ? birthOutcomes
       : visitOutcomes;
+
+  // REC-03 WU-C: index the free-text sessions by cell so Safe reads the
+  // canonical reviewed final text. Blank cells have no session by
+  // construction (they stay blank).
+  const freeTextFinals = new Map<string, { readonly original: string; readonly final: string }>();
+  const freeTextColumns = plan.columns.filter((column) => column.disposition.kind === "free-text");
+  if (freeTextColumns.length > 0) {
+    // SPEC-2: a routed `process-as-text` column whose CURRENT configured cells
+    // are all blank has no required session, so no review state is required
+    // and Safe carries blank cells. Any non-empty current cell set keeps the
+    // full fail-closed review requirement below.
+    if (enumerateFreeTextCells(configuration).length > 0) {
+      if (freeText === null || freeText === undefined) {
+        throw new Error(
+          "computeStructuredOutput requires the current free-text review state for free-text columns; failing closed instead of producing Safe bytes from unreviewed cells."
+        );
+      }
+      if (
+        freeText.policyId !== plan.policyId ||
+        !isFreeTextCellSetCurrent(configuration, freeText, plan.policyId)
+      ) {
+        throw new Error(
+          "computeStructuredOutput received a stale free-text review state (policy or cell set changed); failing closed instead of certifying stale review."
+        );
+      }
+      for (const cell of freeText.cells) {
+        if (!cell.ok) {
+          throw new Error(
+            `computeStructuredOutput found free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] with an unresolved processing failure; failing closed instead of keeping the original.`
+          );
+        }
+        if (!canFinalize(cell.session)) {
+          throw new Error(
+            `computeStructuredOutput found free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] with pending mandatory review; failing closed instead of bypassing review.`
+          );
+        }
+        freeTextFinals.set(`${cell.cell.columnIndex}:${cell.cell.rowIndex}`, {
+          original: cell.cell.original,
+          final: getFinalText(cell.session),
+        });
+      }
+    }
+  }
 
   for (const column of plan.columns) {
     const disposition = column.disposition;
@@ -224,6 +433,44 @@ export function computeStructuredOutput(
           ),
         })
       );
+      continue;
+    }
+
+    if (disposition.kind === "study-id") {
+      // D-021: the selected patient-ID column is replaced in place by
+      // `ID_ESTUDIO`; the original header/values never enter Safe output and
+      // the unique original↔Study-ID mapping is Confidential-only.
+      const mapping = buildStudyIdMapping(valuesFor(column.columnIndex));
+      // Defense in depth: preparation blocks these rows first (see
+      // structuredBlockReasons), but a direct compute call must still never
+      // emit an unlinkable row silently.
+      mapping.studyIds.forEach((studyId, rowIndex) => {
+        if (studyId !== null) return;
+        const row = grid.rows[rowIndex] ?? [];
+        const hasOtherData = row.some(
+          (cell, cellIndex) => cellIndex !== column.columnIndex && !isBlankCell(cell)
+        );
+        if (hasOtherData) {
+          throw new Error(
+            `computeStructuredOutput found data row ${rowIndex + 1} with no value in the patient-ID column "${columnLabel(column)}"; failing closed instead of producing an unlinkable Safe row.`
+          );
+        }
+      });
+      correspondenceColumns.push(
+        Object.freeze({
+          columnIndex: column.columnIndex,
+          header: column.header,
+          disposition: "study-id" as const,
+          entries: Object.freeze(
+            [...mapping.mapping.entries()].map(([original, transformed]) =>
+              Object.freeze({ original, transformed })
+            )
+          ),
+        })
+      );
+      studyIdsByColumn.set(column.columnIndex, mapping.studyIds);
+      safeHeaders.push(STUDY_ID_HEADER);
+      safeColumnIndices.push(column.columnIndex);
       continue;
     }
 
@@ -267,16 +514,19 @@ export function computeStructuredOutput(
       continue;
     }
 
-    if (disposition.kind === "codify") {
-      const result = codifyColumnValues(valuesFor(column.columnIndex));
+    if (disposition.kind === "pseudonymize") {
+      // D-021: deterministic column-local categorical tokenization. Blanks
+      // remain blank and never enter the Confidential mapping; repeated
+      // values reuse the token assigned at first appearance.
+      const tokens = pseudonymizeColumnValues(valuesFor(column.columnIndex));
       const entries: StructuredCorrespondenceEntry[] = [];
       grid.rows.forEach((row, rowIndex) => {
-        const code = result.coded[rowIndex];
-        if (code === null || code === undefined) return;
+        const token = tokens[rowIndex];
+        if (token === "" || token === undefined) return;
         entries.push(
           Object.freeze({
             original: formatCell(row[column.columnIndex]),
-            transformed: String(code),
+            transformed: token,
           })
         );
       });
@@ -284,7 +534,33 @@ export function computeStructuredOutput(
         Object.freeze({
           columnIndex: column.columnIndex,
           header: column.header,
-          disposition: "codify" as const,
+          disposition: "pseudonymize" as const,
+          entries: Object.freeze(entries),
+        })
+      );
+      continue;
+    }
+
+    if (disposition.kind === "free-text") {
+      // REC-03 WU-C: Confidential-only original<->final-reviewed correspondence.
+      // Blanks stay blank and never enter the mapping; originals never enter
+      // Safe output through this path.
+      const entries: StructuredCorrespondenceEntry[] = [];
+      grid.rows.forEach((row, rowIndex) => {
+        if (isBlankCell(row[column.columnIndex])) return;
+        const held = freeTextFinals.get(`${column.columnIndex}:${rowIndex}`);
+        if (held === undefined) {
+          throw new Error(
+            `computeStructuredOutput found no reviewed session for free-text cell ["${columnLabel(column)}", row ${rowIndex + 1}]; failing closed instead of keeping the original.`
+          );
+        }
+        entries.push(Object.freeze({ original: held.original, transformed: held.final }));
+      });
+      correspondenceColumns.push(
+        Object.freeze({
+          columnIndex: column.columnIndex,
+          header: column.header,
+          disposition: "free-text" as const,
           entries: Object.freeze(entries),
         })
       );
@@ -294,7 +570,7 @@ export function computeStructuredOutput(
     // keep: preserved verbatim in the Safe dataset, no correspondence.
   }
 
-  // Materialize the Safe cells per column index (codify needs the whole
+  // Materialize the Safe cells per column index (pseudonymize needs the whole
   // column before per-row output).
   const safeCellsByColumnIndex = new Map<number, readonly string[]>();
   for (const column of plan.columns) {
@@ -311,13 +587,25 @@ export function computeStructuredOutput(
           })
         )
       );
-    } else if (disposition.kind === "codify") {
-      const result = codifyColumnValues(valuesFor(column.columnIndex));
+    } else if (disposition.kind === "pseudonymize") {
+      const tokens = pseudonymizeColumnValues(valuesFor(column.columnIndex));
+      safeCellsByColumnIndex.set(column.columnIndex, Object.freeze([...tokens]));
+    } else if (disposition.kind === "free-text") {
+      // REC-03 WU-C: Safe cells are the canonical reviewed final texts.
       safeCellsByColumnIndex.set(
         column.columnIndex,
         Object.freeze(
-          result.coded.map((code) => (code === null || code === undefined ? "" : String(code)))
+          grid.rows.map((_row, rowIndex) => {
+            const held = freeTextFinals.get(`${column.columnIndex}:${rowIndex}`);
+            return held === undefined ? "" : held.final;
+          })
         )
+      );
+    } else if (disposition.kind === "study-id") {
+      const studyIds = studyIdsByColumn.get(column.columnIndex) ?? [];
+      safeCellsByColumnIndex.set(
+        column.columnIndex,
+        Object.freeze(studyIds.map((studyId) => studyId ?? ""))
       );
     } else {
       safeCellsByColumnIndex.set(
@@ -339,8 +627,11 @@ export function computeStructuredOutput(
 
   const totals: StructuredCorrespondenceTotals = Object.freeze({
     dateAge: correspondenceColumns.filter((column) => column.disposition === "date-age").length,
-    codify: correspondenceColumns.filter((column) => column.disposition === "codify").length,
+    pseudonymize: correspondenceColumns.filter((column) => column.disposition === "pseudonymize")
+      .length,
     remove: correspondenceColumns.filter((column) => column.disposition === "remove").length,
+    studyId: correspondenceColumns.filter((column) => column.disposition === "study-id").length,
+    freeText: correspondenceColumns.filter((column) => column.disposition === "free-text").length,
     transformedCells: correspondenceColumns.reduce(
       (count, column) =>
         count +
@@ -369,21 +660,37 @@ export function computeStructuredOutput(
  * Prepare the structured output of a reviewed configuration: the exact Safe
  * dataset + separate Confidential correspondence, or the fail-closed block
  * reasons. This is the only gate the bridge and the export surface need.
+ *
+ * REC-03 WU-C: when the plan routes `free-text` columns, pass the current
+ * job-scoped `freeText` review state. Without it — or with a stale, failed
+ * or unreviewed state — preparation is `blocked` and no Safe artifact
+ * exists. Callers without free-text columns omit it (no behavior change).
  */
 export function prepareStructuredOutput(
   configuration: StructuredConfiguration,
-  plan: StructuredTransformPlan
+  plan: StructuredTransformPlan,
+  options: { readonly freeText?: StructuredFreeTextState | null } = {}
 ): StructuredOutputPreparation {
-  const structuralReasons = structuredBlockReasons(plan);
+  const structuralReasons = structuredBlockReasons(
+    plan,
+    [],
+    configuration,
+    options.freeText ?? null
+  );
   if (structuralReasons.length > 0) {
     return Object.freeze({ status: "blocked" as const, output: null, reasons: structuralReasons });
   }
-  const output = computeStructuredOutput(configuration, plan);
+  const output = computeStructuredOutput(configuration, plan, options.freeText ?? null);
   if (output.reviewRequiredCells.length > 0) {
     return Object.freeze({
       status: "blocked" as const,
       output: null,
-      reasons: structuredBlockReasons(plan, output.reviewRequiredCells),
+      reasons: structuredBlockReasons(
+        plan,
+        output.reviewRequiredCells,
+        configuration,
+        options.freeText ?? null
+      ),
     });
   }
   return Object.freeze({ status: "ready" as const, output, reasons: Object.freeze([]) });
@@ -392,7 +699,8 @@ export function prepareStructuredOutput(
 /** Convenience predicate over {@link prepareStructuredOutput}. */
 export function isStructuredOutputReady(
   configuration: StructuredConfiguration,
-  plan: StructuredTransformPlan
+  plan: StructuredTransformPlan,
+  options: { readonly freeText?: StructuredFreeTextState | null } = {}
 ): boolean {
-  return prepareStructuredOutput(configuration, plan).status === "ready";
+  return prepareStructuredOutput(configuration, plan, options).status === "ready";
 }

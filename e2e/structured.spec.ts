@@ -22,9 +22,7 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles(CSV);
+  await page.getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
   await page.getByRole("button", { name: "Create job" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
 
@@ -48,9 +46,9 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   await expect(freeColumn).toContainText("Proposed action:Review required");
 
   // Fail-closed gate message: unknown is never kept or exported as-is.
-  await expect(
-    page.getByRole("alert", { name: "Structured export block reasons" })
-  ).toContainText("Structured export is blocked while 1 column requires review.");
+  await expect(page.getByRole("alert", { name: "Structured export block reasons" })).toContainText(
+    "Structured export is blocked while 1 column requires review."
+  );
 
   // Explicit reviewer classification through the domain override control.
   await freeColumn
@@ -64,31 +62,31 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   // HARDEN-01 WU-A: reach the gate and export the Safe CSV + separate Confidential.
   await page.getByRole("button", { name: "3. Review" }).click();
   await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  await expect(
-    page.getByRole("status", { name: "Structured export facts" })
-  ).toContainText("Unsupported columns: 0");
+  await expect(page.getByRole("status", { name: "Structured export facts" })).toContainText(
+    "Unsupported columns: 0"
+  );
   await page.getByRole("button", { name: "5. Export" }).click();
 
   const safeDownloadPromise = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download Safe Structured Output (.csv)" })
-    .click();
+  await page.getByRole("button", { name: "Download Safe Structured Output (.csv)" }).click();
   const safeDownload = await safeDownloadPromise;
   const safeCsv = fs.readFileSync((await safeDownload.path())!, "utf8");
-  // Nombre (identifier) is removed; Diagnostico (sensitive) is codified.
+  // Nombre (identifier) is removed; Diagnostico (sensitive) is kept.
   expect(safeCsv.split("\n")[0]).toBe("CampoLibre1,Diagnostico");
   expect(safeCsv).not.toContain("Ana");
   expect(safeCsv).not.toContain("Luis");
-  expect(safeCsv).not.toContain("Gripe A");
-  expect(safeCsv).not.toContain("Fractura");
+  // D-021: Sensitive defaults to Keep, so the kept clinical attribute stays
+  // in Safe output verbatim; identity never does.
+  expect(safeCsv).toContain("Gripe A");
+  expect(safeCsv).toContain("Fractura");
 
   const auditDownloadPromise = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download Structured Confidential Audit (.txt)" })
-    .click();
+  await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
   const auditDownload = await auditDownloadPromise;
   const audit = fs.readFileSync((await auditDownload.path())!, "utf8");
   expect(audit).toContain("CONFIDENTIAL");
-  expect(audit).toContain("Gripe A");
+  // The removed identifier carries correspondence; the kept diagnosis does
+  // not (kept columns have no correspondence).
   expect(audit).toContain("Ana");
+  expect(audit).not.toContain("Gripe A");
 });

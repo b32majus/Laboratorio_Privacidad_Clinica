@@ -56,6 +56,26 @@ export function textPolicyDateShiftSeed(jobId: string): string {
 }
 
 /**
+ * Promote an engine-returned context to the shared context carried to the
+ * next cell/item (REC-03 WU-C; same pattern as the batch loop, D-011). The
+ * promotion carries BOTH the returned `pseudonymState` AND the policy-owned
+ * `options` (for example the Job-scoped `dateShift` state): passing the next
+ * unit as `fresh` would reset the pseudonym counters, and dropping `options`
+ * would break the consistent Job-scoped date shift. A failed unit contributes
+ * nothing — the caller keeps carrying the previous context.
+ *
+ * Pure and frozen; REC-02 behavior is unchanged (proven by the batch parity
+ * path plus the focused promotion oracle).
+ */
+export function promoteToSharedContext(returned: ProcessingContext): ProcessingContext {
+  return Object.freeze({
+    mode: "shared" as const,
+    pseudonymState: returned.pseudonymState,
+    ...(returned.options === undefined ? {} : { options: returned.options }),
+  });
+}
+
+/**
  * Build the initial {@link ProcessingContext} for a Job under `policyId`.
  *
  * Returns `{ mode: "fresh" }` for every policy except the one whose `FECHA`
