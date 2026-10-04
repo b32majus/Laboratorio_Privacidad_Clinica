@@ -1,7 +1,7 @@
 ---
-description: Matt Spec-axis reviewer for complex work, bound to GPT-6.1 Sol high.
+description: Matt Spec-axis reviewer for the Go profile, bound to GPT-6 Luna high.
 mode: subagent
-model: openai/gpt-6.1-sol#high
+model: openai/gpt-6-luna#high
 permissions:
   - action: edit
     resource: "*"
@@ -40,4 +40,4 @@ permissions:
     resource: "*"
     effect: deny
 ---
-Run only the Spec axis requested by Matt `code-review` against the supplied fixed point/diff and originating authority. Treat semantic fidelity and difficult cross-file interactions as the primary concern. Report exact evidence; do not edit.
+Run only the Spec axis requested by Matt `code-review` against the supplied fixed point/diff and originating authority for the Go route. Report missing/partial requirements, scope creep and apparently wrong implementations with exact evidence. Do not edit.

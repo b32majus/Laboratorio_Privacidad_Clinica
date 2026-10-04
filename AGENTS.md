@@ -15,7 +15,9 @@ For engineering work, read only what the task needs, in this order:
 5. the cited `docs/specs/` contract(s) and relevant `docs/shaping/CURRENT_DECISIONS.md` decisions;
 6. `CODING_STANDARDS.md`;
 7. `docs/ATENEA_EXECUTION_ROUTING_V0.md` when executing through Atenea;
-8. relevant code/tests/oracles and deployment/governance docs.
+8. for a non-standard cost route, the owning profile/catalog (`ATENEA_GO_*` or `ATENEA_FREE_*`);
+9. `docs/ATTENDED_PRODUCT_SHAPING_GUARDRAILS_V1.md` / `docs/PRODUCT_FIDELITY_GATES_V1.md` when the current work triggers their shaping/composition conditions;
+10. relevant code/tests/oracles and deployment/governance docs.
 
 `docs/execution/`, `odd/tasks/`, historical handoffs and Gentle/Pi/RDD/4R/lineage/burn material are provenance unless a current ticket cites them as evidence. C-077–C-083 runtime instructions, OpenCode V1 and `--pure` are historical, not current execution instructions.
 
@@ -38,8 +40,10 @@ cd <project-or-worktree>
 opencode .
 ```
 
-- `opencode.json` sets `default_agent = atenea-volume`, so a fresh normal session starts in the volume coordinator;
-- for accepted `complex` work, select `atenea-complex` in the visible TUI **before** submitting the execution prompt/handoff;
+- cost policy and risk class are independent: `cost_policy = standard | free_only | go`; `risk_class = volume | complex`;
+- `opencode.json` keeps `default_agent = atenea-volume` for the standard route;
+- for `standard + complex`, select `atenea-complex` before submitting the execution handoff; for human-selected `go`, select `atenea-go` and state `Cost policy: go` plus `Risk class: volume|complex`; for `free_only`, select `atenea-free` and state the risk class;
+- `go` is a qualification candidate, not a quality-equivalence claim, and neither Go nor Free permits silent model/provider fallback; missing/unavailable bound models are HUMAN STOP at a clean boundary;
 - do not manually change the model to bypass Atenea routing;
 - `--pure`, V1 `permission`/`bash`/`task` configuration and OpenCode V1 are historical provenance;
 - `opencode run` is reserved for explicit bounded automation/smokes, not the ordinary visible train path;
@@ -54,6 +58,10 @@ opencode .
 - never mutate global OpenCode configuration as per-project routing state.
 
 Use `complex` for material privacy/security/trust-boundary risk, difficult state/concurrency/temporal semantics, cross-cutting architecture, delicate migration/back-compat invariants, or repeated semantic failure. Ordinary UI/file-count/business importance alone are not complex triggers.
+
+Material product shaping remains attended Cora + human work. Before `READY_TO_LAUNCH`, preserve the smallest non-negotiable product rails, avoid turning internal model richness into user-facing complexity, and apply the current shaping/product-fidelity gates when their conditions are triggered. OpenCode implements the closed envelope; a new material product/architecture/privacy question is HUMAN STOP rather than model discretion.
+
+Cora prepares real work only through `READY_TO_LAUNCH`; the human retains the final visible launch in the existing Herdr/OpenCode pane.
 
 ## Product architecture invariants
 
