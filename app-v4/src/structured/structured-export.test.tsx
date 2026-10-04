@@ -1,4 +1,8 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import * as vm from "node:vm";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -13,12 +17,45 @@ import {
 import type { StructuredGrid } from "./grid";
 import { buildStructuredTransformPlan } from "./transform-plan";
 import { prepareStructuredOutput } from "./transformed-dataset";
+import type { XlsxCell, XlsxLib } from "./xlsx-loader";
 
 /**
- * HARDEN-01 WU-A3 oracles for the structured export surface: Safe CSV and
- * Confidential Audit are separate, the blocked state is explicit, and the Safe
- * CSV carries no original identifier/sensitive values.
+ * REC-04 WU-C oracles for the structured export surface: Safe CSV + XLSX
+ * download directly, while every structured Confidential download (TXT and
+ * XLSX) requires the deliberate in-zone confirmation first.
+ *
+ * Seams under test: the ExportStep structured buttons/confirmation (DOM
+ * roles + captured downloads) and the XLSX bytes read back with the
+ * GOVERNED SheetJS runtime (same vm pattern as `excel.test.ts`).
  */
+
+const repoLibPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "lib",
+  "xlsx.full.min.js"
+);
+
+function loadGovernedSheetJs(): XlsxLib {
+  const code = fs.readFileSync(repoLibPath, "utf8");
+  const context: Record<string, unknown> = { window: {}, console };
+  vm.createContext(context);
+  vm.runInContext(`${code}\n;this.__loaded = window.XLSX;`, context);
+  const lib = context.__loaded as XlsxLib;
+  if (!lib || typeof lib.read !== "function") {
+    throw new Error("Governed SheetJS bundle did not load in the test sandbox.");
+  }
+  return lib;
+}
+
+const XLSX = loadGovernedSheetJs();
+
+function seedWindow(): void {
+  window.XLSX = XLSX;
+}
+
 const GRID: StructuredGrid = {
   headers: ["Paciente", "Fecha_Visita", "Fecha_Nacimiento", "Diagnostico", "CampoLibre"],
   rows: [
@@ -41,10 +78,25 @@ function readyInput() {
   return { configuration, plan, preparation: prepareStructuredOutput(configuration, plan) };
 }
 
-function jobFor(ready: boolean, confidentialReady = ready): Job {
+function blockedInput() {
+  const configuration = createStructuredConfiguration(GRID, {
+    selectedPatientIdColumn: "Paciente",
+  });
+  const plan = buildStructuredTransformPlan(configuration, {
+    policyId: "standard",
+    jobSeed: JOB_SEED,
+  });
+  return {
+    configuration,
+    plan,
+    preparation: prepareStructuredOutput(configuration, plan),
+  };
+}
+
+function jobFor(id: string, ready: boolean, confidentialReady = ready): Job {
   return {
     kind: "structured",
-    id: "job-1",
+    id,
     policyId: "standard",
     outputs: { safeOutputReady: ready, confidentialAuditReady: confidentialReady },
     errors: [],
@@ -89,23 +141,55 @@ async function textOf(download: CapturedDownload | undefined): Promise<string> {
   });
 }
 
+async function bytesOf(download: CapturedDownload | undefined): Promise<Uint8Array> {
+  if (!download) throw new Error("expected a captured download");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(download.blob);
+  });
+}
+
+function readWorkbook(bytes: Uint8Array): {
+  readonly sheetNames: readonly string[];
+  flat(name: string): string;
+  cell(name: string, address: string): XlsxCell | undefined;
+} {
+  const workbook = XLSX.read(bytes, { type: "array", cellDates: false });
+  return {
+    sheetNames: workbook.SheetNames,
+    flat(name: string): string {
+      return Object.values(workbook.Sheets[name] ?? {})
+        .map((cell) => String((cell as XlsxCell)?.v ?? ""))
+        .join("\n");
+    },
+    cell(name: string, address: string): XlsxCell | undefined {
+      return workbook.Sheets[name]?.[address] as XlsxCell | undefined;
+    },
+  };
+}
+
+const SAFE_CSV_BUTTON = "Download Safe Structured Output (.csv)";
+const SAFE_XLSX_BUTTON = "Download Safe Structured Output (.xlsx)";
+const CONF_TXT_BUTTON = "Download Structured Confidential Audit (.txt)";
+const CONF_XLSX_BUTTON = "Download Structured Confidential Audit (.xlsx)";
+
 afterEach(() => {
   cleanup();
+  delete window.XLSX;
   vi.restoreAllMocks();
 });
 
 describe("ExportStep — structured", () => {
   it("produces a Safe CSV without originals and a separate marked Confidential Audit", async () => {
+    seedWindow();
     const capture = captureDownloads();
     const structured = readyInput();
-    render(<ExportStep job={jobFor(true)} review={null} structured={structured} />);
+    render(<ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />);
     try {
-      const safeButton = screen.getByRole("button", {
-        name: "Download Safe Structured Output (.csv)",
-      });
-      const auditButton = screen.getByRole("button", {
-        name: "Download Structured Confidential Audit (.txt)",
-      });
+      const safeButton = screen.getByRole("button", { name: SAFE_CSV_BUTTON });
+      const auditButton = screen.getByRole("button", { name: CONF_TXT_BUTTON });
       expect(safeButton).toBeEnabled();
       expect(auditButton).toBeEnabled();
 
@@ -121,7 +205,14 @@ describe("ExportStep — structured", () => {
       expect(safeCsv).toContain("Gripe A");
       expect(safeCsv).not.toContain("1954-03-12");
 
+      // WU-C: the first Confidential click downloads nothing — it opens the
+      // deliberate in-zone confirmation instead.
       fireEvent.click(auditButton);
+      expect(capture.downloads).toHaveLength(1);
+      const confirm = screen.getByRole("button", { name: /confirm confidential download/i });
+      expect(confirm).toBeInTheDocument();
+      fireEvent.click(confirm);
+      await waitFor(() => expect(capture.downloads).toHaveLength(2));
       const audit = await textOf(capture.downloads[1]);
       expect(capture.downloads[1].fileName).toBe("structured-confidential-audit.txt");
       expect(audit.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
@@ -135,40 +226,137 @@ describe("ExportStep — structured", () => {
   });
 
   it("fails closed: both actions are disabled with the exact block reasons", () => {
-    const configuration = createStructuredConfiguration(GRID, {
-      selectedPatientIdColumn: "Paciente",
-    });
-    const plan = buildStructuredTransformPlan(configuration, {
-      policyId: "standard",
-      jobSeed: JOB_SEED,
-    });
-    const structured = {
-      configuration,
-      plan,
-      preparation: prepareStructuredOutput(configuration, plan),
-    };
-    render(<ExportStep job={jobFor(false)} review={null} structured={structured} />);
-    expect(
-      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
-    ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" })
-    ).toBeDisabled();
+    const structured = blockedInput();
+    render(<ExportStep job={jobFor("job-1", false)} review={null} structured={structured} />);
+    expect(screen.getByRole("button", { name: SAFE_CSV_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: SAFE_XLSX_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONF_TXT_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONF_XLSX_BUTTON })).toBeDisabled();
     expect(screen.getByRole("alert")).toHaveTextContent(/requires review/);
   });
 
   it("keeps the Confidential download blocked when only confidentialAuditReady is false", () => {
     const structured = readyInput();
-    render(<ExportStep job={jobFor(true, false)} review={null} structured={structured} />);
-    expect(
-      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
-    ).toBeEnabled();
-    const auditButton = screen.getByRole("button", {
-      name: "Download Structured Confidential Audit (.txt)",
-    });
-    expect(auditButton).toBeDisabled();
+    render(<ExportStep job={jobFor("job-1", true, false)} review={null} structured={structured} />);
+    expect(screen.getByRole("button", { name: SAFE_CSV_BUTTON })).toBeEnabled();
+    expect(screen.getByRole("button", { name: SAFE_XLSX_BUTTON })).toBeEnabled();
+    expect(screen.getByRole("button", { name: CONF_TXT_BUTTON })).toBeDisabled();
+    expect(screen.getByRole("button", { name: CONF_XLSX_BUTTON })).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent(
       "Confidential Audit is not available for this job yet."
     );
+  });
+});
+
+describe("ExportStep — structured Safe XLSX (H-28)", () => {
+  it("downloads Safe XLSX directly when ready, with exact Safe content and no originals", async () => {
+    seedWindow();
+    const capture = captureDownloads();
+    const structured = readyInput();
+    render(<ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      // No confirmation is ever involved for Safe downloads.
+      expect(
+        screen.queryByRole("button", { name: /confirm confidential download/i })
+      ).not.toBeInTheDocument();
+      await waitFor(() => expect(capture.downloads).toHaveLength(1));
+      expect(capture.downloads[0].fileName).toBe("safe-structured-output.xlsx");
+
+      const workbook = readWorkbook(await bytesOf(capture.downloads[0]));
+      expect(workbook.sheetNames[0]).toBe("Data");
+      expect(workbook.cell("Data", "A1")?.v).toBe("ID_ESTUDIO");
+      expect(workbook.cell("Data", "A2")?.v).toBe("PAC_001");
+      const flat = workbook.flat("Data");
+      expect(flat).not.toContain("P-001");
+      expect(flat).not.toContain("1954-03-12");
+      expect(flat).toContain("Gripe A");
+    } finally {
+      capture.restore();
+    }
+  });
+});
+
+describe("ExportStep — structured Confidential confirmation (H-42 slice)", () => {
+  it("first Confidential TXT click downloads nothing; Cancel downloads nothing", async () => {
+    seedWindow();
+    const capture = captureDownloads();
+    const structured = readyInput();
+    render(<ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: CONF_TXT_BUTTON }));
+      expect(capture.downloads).toHaveLength(0);
+      const confirmation = screen.getByRole("group", { name: /confidential download/i });
+      expect(confirmation).toHaveTextContent(/identifiable/i);
+      expect(confirmation).toHaveTextContent(/authorized internal/i);
+
+      fireEvent.click(screen.getByRole("button", { name: /cancel confidential download/i }));
+      expect(capture.downloads).toHaveLength(0);
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("explicit Confirm downloads exactly the selected Confidential format once, then resets", async () => {
+    seedWindow();
+    const capture = captureDownloads();
+    const structured = readyInput();
+    render(<ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
+      expect(capture.downloads).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      await waitFor(() => expect(capture.downloads).toHaveLength(1));
+      expect(capture.downloads[0].fileName).toBe("structured-confidential-audit.xlsx");
+      // The confirmation resets after confirm: no panel, no second download.
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+
+      const workbook = readWorkbook(await bytesOf(capture.downloads[0]));
+      expect(workbook.sheetNames[0]).toBe("READ_FIRST");
+      expect(workbook.flat("READ_FIRST")).toContain(CONFIDENTIAL_AUDIT_WARNING_LINE);
+      expect(workbook.flat("Correspondence")).toContain("P-001");
+      expect(workbook.flat("Correspondence")).not.toContain("Gripe A");
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("confirmation resets on Job change and on blocked/stale preparation", async () => {
+    seedWindow();
+    const capture = captureDownloads();
+    const structured = readyInput();
+    const view = render(
+      <ExportStep job={jobFor("job-1", true)} review={null} structured={structured} />
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: CONF_TXT_BUTTON }));
+      expect(screen.getByRole("group", { name: /confidential download/i })).toBeInTheDocument();
+
+      // Another Job clears the transient confirmation (and downloads nothing).
+      view.rerender(
+        <ExportStep job={jobFor("job-2", true)} review={null} structured={structured} />
+      );
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+      expect(capture.downloads).toHaveLength(0);
+
+      // A newly blocked/stale preparation clears it too.
+      fireEvent.click(screen.getByRole("button", { name: CONF_TXT_BUTTON }));
+      expect(screen.getByRole("group", { name: /confidential download/i })).toBeInTheDocument();
+      const blocked = blockedInput();
+      view.rerender(<ExportStep job={jobFor("job-2", false)} review={null} structured={blocked} />);
+      expect(
+        screen.queryByRole("group", { name: /confidential download/i })
+      ).not.toBeInTheDocument();
+      expect(capture.downloads).toHaveLength(0);
+    } finally {
+      capture.restore();
+    }
   });
 });

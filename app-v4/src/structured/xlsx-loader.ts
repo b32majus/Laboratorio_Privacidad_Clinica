@@ -38,17 +38,34 @@ export type XlsxWorkbook = {
   readonly Sheets: Readonly<Record<string, XlsxWorksheet>>;
 };
 
+/**
+ * Authoring surface of the SAME governed bundle, used only to build
+ * deterministic browser-local workbooks (REC-04 WU-C, D-022). No new
+ * dependency, no network: the bytes come from the already-loaded
+ * same-origin runtime. Serializers construct every string cell explicitly
+ * as `{ t: "s", v }` so source/user text beginning `=`, `+`, `-`, `@`
+ * stays a literal string cell, never a formula.
+ */
+export type XlsxAuthoring = {
+  book_new(): Record<string, unknown>;
+  book_append_sheet(workbook: Record<string, unknown>, sheet: XlsxWorksheet, name: string): void;
+};
+
 export type XlsxLib = {
   readonly version: string;
   read(
     data: ArrayBuffer | Uint8Array,
     options: { type: "array"; cellDates?: boolean; cellNF?: boolean }
   ): XlsxWorkbook;
+  write(
+    workbook: Record<string, unknown>,
+    options: { type: "array"; bookType: "xlsx" }
+  ): ArrayBuffer | Uint8Array | number[];
   readonly SSF: { is_date(fmt: unknown): boolean };
   readonly utils: {
     encode_cell(cell: { r: number; c: number }): string;
     decode_range(range: string): XlsxRange;
-  };
+  } & XlsxAuthoring;
 };
 
 /** Same-origin vendored SheetJS bundle (byte-identical to lib/xlsx.full.min.js). */
