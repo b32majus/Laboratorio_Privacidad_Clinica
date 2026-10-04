@@ -43,9 +43,7 @@ type XlsxAuthoringLib = {
   utils: {
     book_new(): Record<string, unknown>;
     book_append_sheet(workbook: Record<string, unknown>, sheet: unknown, name: string): void;
-    aoa_to_sheet(
-      rows: readonly (string | number | boolean | null)[][]
-    ): Record<string, unknown>;
+    aoa_to_sheet(rows: readonly (string | number | boolean | null)[][]): Record<string, unknown>;
   };
   write(workbook: unknown, options: { type: "array"; bookType: "xlsx" }): ArrayBuffer;
 };
@@ -320,9 +318,10 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   await expect(
     page.getByRole("heading", { name: "Confirm confidential download (.txt)" })
   ).toBeVisible();
-  const missedTxt = await page
-    .waitForEvent("download", { timeout: 1000 })
-    .then(() => false, () => true);
+  const missedTxt = await page.waitForEvent("download", { timeout: 1000 }).then(
+    () => false,
+    () => true
+  );
   expect(missedTxt).toBe(true);
 
   // Cancel downloads nothing and resets the confirmation.
@@ -330,9 +329,10 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   await expect(
     page.getByRole("heading", { name: "Confirm confidential download (.txt)" })
   ).toHaveCount(0);
-  const missedCancel = await page
-    .waitForEvent("download", { timeout: 1000 })
-    .then(() => false, () => true);
+  const missedCancel = await page.waitForEvent("download", { timeout: 1000 }).then(
+    () => false,
+    () => true
+  );
   expect(missedCancel).toBe(true);
 
   // Explicit Confirm downloads exactly the selected TXT format once.
@@ -357,9 +357,10 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   await expect(
     page.getByRole("heading", { name: "Confirm confidential download (.xlsx)" })
   ).toBeVisible();
-  const missedXlsx = await page
-    .waitForEvent("download", { timeout: 1000 })
-    .then(() => false, () => true);
+  const missedXlsx = await page.waitForEvent("download", { timeout: 1000 }).then(
+    () => false,
+    () => true
+  );
   expect(missedXlsx).toBe(true);
 
   const xlsxPromise = page.waitForEvent("download");
@@ -368,7 +369,9 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   const xlsxBytes = new Uint8Array(fs.readFileSync((await xlsxDownload.path())!));
   const workbook = readWorkbook(xlsxBytes);
   expect(workbook.SheetNames[0]).toBe("READ_FIRST");
-  const warning = cellValues(workbook, "READ_FIRST").map((value) => String(value ?? "")).join("\n");
+  const warning = cellValues(workbook, "READ_FIRST")
+    .map((value) => String(value ?? ""))
+    .join("\n");
   expect(warning).toContain("CONFIDENTIAL");
   const table = cellValues(workbook, "Correspondence")
     .map((value) => String(value ?? ""))

@@ -34,11 +34,7 @@ import {
 import { buildStructuredTransformPlan } from "./transform-plan";
 import { prepareStructuredOutput } from "./transformed-dataset";
 import { serializeStructuredSafeCsv } from "./csv-writer";
-import {
-  resetXlsxLoaderForTests,
-  type XlsxCell,
-  type XlsxLib,
-} from "./xlsx-loader";
+import { resetXlsxLoaderForTests, type XlsxCell, type XlsxLib } from "./xlsx-loader";
 
 /**
  * REC-04 WU-D composed oracles: header detection → Configure options →
@@ -359,11 +355,23 @@ describe("WU-D — custom prefix and visit numbering reach Safe CSV consistently
     expect(preparation.output.safe.rows.map((row) => row[visitIndex])).toEqual([1, 2, 1]);
 
     // T19 standard semantics: visit/birth generalize to month.
-    expect(preparation.output.safe.rows.map((row) => row[2])).toEqual(["2023-01", "2023-02", "2023-03"]);
-    expect(preparation.output.safe.rows.map((row) => row[3])).toEqual(["1954-03", "1954-03", "1980-07"]);
+    expect(preparation.output.safe.rows.map((row) => row[2])).toEqual([
+      "2023-01",
+      "2023-02",
+      "2023-03",
+    ]);
+    expect(preparation.output.safe.rows.map((row) => row[3])).toEqual([
+      "1954-03",
+      "1954-03",
+      "1980-07",
+    ]);
 
     // Deterministic column-local QID tokens; kept diagnosis verbatim.
-    expect(preparation.output.safe.rows.map((row) => row[4])).toEqual(["QID_001", "QID_001", "QID_002"]);
+    expect(preparation.output.safe.rows.map((row) => row[4])).toEqual([
+      "QID_001",
+      "QID_001",
+      "QID_002",
+    ]);
     expect(preparation.output.safe.rows[0][5]).toBe("Gripe A");
 
     // Reviewed free text equals canonical getFinalText; the blank stays blank.
@@ -475,7 +483,9 @@ describe("WU-D — Confidential XLSX from the composed hospital output", () => {
     expect(preparation.status).toBe("ready");
     if (preparation.status !== "ready") return;
 
-    const workbook = readWorkbook(buildConfidentialXlsxBytes(XLSX, preparation.output.confidential));
+    const workbook = readWorkbook(
+      buildConfidentialXlsxBytes(XLSX, preparation.output.confidential)
+    );
     expect(workbook.sheetNames[0]).toBe("READ_FIRST");
     const warning = Object.values(workbook.sheet("READ_FIRST").cells)
       .map((cell) => String(cell?.v ?? ""))
