@@ -174,3 +174,16 @@ The frozen UX direction for New Privacy Job required input-driven pipeline infer
 - REC-08 must identify whether legitimate recovery cases require a bounded override;
 - if no safe/legitimate case survives, the requirement must close as `DELIBERATELY_SUPERSEDED` with explicit product/privacy rationale and deterministic evidence;
 - the clause may not be silently treated as already resolved.
+
+## D-020 — REC-02 text/document/batch policy mapping
+
+**Accepted: 2026-10-04 (REC-02 TEXT-POLICY-COMPLETION-01, C-084).**
+
+The accepted per-category behavior for pasted text, single documents and document batch is fixed by REC-02 (`FUNC-005`, `PRODUCT-001`, `PRODUCT-003`, `H-32`, `H-33`):
+
+- Standard and Strict keep the legacy per-category behavior (names pseudonymized, direct identifiers redacted, dates via the legacy date transform, locations/quasi-identifiers generalized, ages banded); Strict uses the stricter location/quasi generalization branch.
+- External AI is local-only preparation and maps `FECHA` to date generalization (reduced precision); it transmits nothing to any external service.
+- Longitudinal Research is local-only preparation and maps `FECHA` to one consistent Job-scoped date shift that preserves order/intervals; it grants no research approval or governance authorization.
+- All four map `EDAD` to age banding; no policy keeps an exact age.
+
+Availability remains derived from the engine/structured authorities, never a second hard-coded table. This text mapping is job-family-specific and deliberately distinct from the structured date/age mapping (structured keeps explicit column roles and the patient-ID/shift authority). REC-10 owns Spanish localization and REC-12 owns recovery closeout. Implementation evidence: `app-v4/src/engine/policy.ts`, `app-v4/src/engine/initial-processing-context.ts`, `app-v4/src/policy-guidance.ts` and their oracles.
