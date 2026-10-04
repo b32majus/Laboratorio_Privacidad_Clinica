@@ -55,6 +55,7 @@ import {
 } from "./structured/configuration";
 import type { ColumnClass } from "./structured/classification";
 import {
+  createEmptyFreeTextState,
   enumerateFreeTextCells,
   isFreeTextCellSetCurrent,
   processStructuredFreeTextCells,
@@ -725,8 +726,19 @@ export function useJobSession() {
       const job = current.job;
       const configuration = structuredState.configuration;
       if (enumerateFreeTextCells(configuration).length === 0) {
-        setFreeText(null);
-        installStructured(configuration, null);
+        // SPEC-2: a routed `process-as-text` column whose current cells are
+        // all blank has no required session. Install a current EMPTY state
+        // (same policy, same cell set) so preparation can reach `ready`
+        // instead of blocking forever; when no column is routed, clearing to
+        // `null` remains the exact behavior.
+        const hasRoutedColumns = configuration.columns.some(
+          (column) => column.effectiveAction === "process-as-text"
+        );
+        const emptyState = hasRoutedColumns ? createEmptyFreeTextState(job.id, job.policyId) : null;
+        setFreeText(
+          emptyState === null ? null : { jobId: job.id, state: emptyState, activeCell: null }
+        );
+        installStructured(configuration, emptyState);
         return null;
       }
       const jobStillCurrent = (): boolean => {

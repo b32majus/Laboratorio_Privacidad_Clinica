@@ -34,7 +34,11 @@ import { codifyColumnValues } from "./codify";
 import type { StructuredConfiguration } from "./configuration";
 import { applyStructuredDateAgePolicy, type StructuredDateAgeApplication } from "./date-age-policy";
 import type { StructuredDateCellOutcome } from "./date-age";
-import { isFreeTextCellSetCurrent, type StructuredFreeTextState } from "./free-text";
+import {
+  enumerateFreeTextCells,
+  isFreeTextCellSetCurrent,
+  type StructuredFreeTextState,
+} from "./free-text";
 import { isBlankCell, type StructuredCell } from "./grid";
 import { buildStudyIdMapping, STUDY_ID_HEADER } from "./study-id";
 import type { StructuredTransformPlan, StructuredTransformPlanColumn } from "./transform-plan";
@@ -126,7 +130,7 @@ export function pseudonymizeColumnValues(values: readonly StructuredCell[]): rea
   );
 }
 
-function formatCell(cell: StructuredCell | undefined): string {
+function formatCell(cell: StructuredCell): string {
   return isBlankCell(cell) ? "" : String(cell);
 }
 
@@ -198,6 +202,10 @@ export function structuredBlockReasons(
   // REC-03 WU-A Study-ID fail-closed checks (D-021): a Safe header collision
   // with another input column, and a blank selected patient-ID cell on a row
   // that carries other data (an unlinkable Safe row is never produced).
+  // SPEC-1: EVERY disposition that emits a Safe column participates —
+  // `keep`, `pseudonymize`, `date-age` and `free-text` (a routed
+  // `process-as-text` column emits its header into Safe output too). `remove`
+  // emits nothing and is never treated as a collision.
   const studyIdColumns = plan.columns.filter((column) => column.disposition.kind === "study-id");
   for (const studyColumn of studyIdColumns) {
     const colliding = plan.columns.filter(
@@ -206,7 +214,8 @@ export function structuredBlockReasons(
         column.header === STUDY_ID_HEADER &&
         (column.disposition.kind === "keep" ||
           column.disposition.kind === "pseudonymize" ||
-          column.disposition.kind === "date-age")
+          column.disposition.kind === "date-age" ||
+          column.disposition.kind === "free-text")
     );
     for (const other of colliding) {
       const otherLabel = other.header === "" ? "(unnamed column)" : other.header;
@@ -258,6 +267,12 @@ function freeTextBlockReasons(
 ): readonly string[] {
   const routed = plan.columns.filter((column) => column.disposition.kind === "free-text");
   if (routed.length === 0) return Object.freeze([]);
+  // SPEC-2: a routed `process-as-text` column whose CURRENT configured cells
+  // are all blank has zero required sessions. There is nothing to review, so
+  // the absence of a processed state must not block; Safe carries the blanks.
+  if (configuration !== undefined && enumerateFreeTextCells(configuration).length === 0) {
+    return Object.freeze([]);
+  }
   if (freeText === null || freeText === undefined) {
     const labels = routed.map((column) => `"${columnLabel(column)}"`).join(", ");
     return Object.freeze([
@@ -366,34 +381,40 @@ export function computeStructuredOutput(
   const freeTextFinals = new Map<string, { readonly original: string; readonly final: string }>();
   const freeTextColumns = plan.columns.filter((column) => column.disposition.kind === "free-text");
   if (freeTextColumns.length > 0) {
-    if (freeText === null || freeText === undefined) {
-      throw new Error(
-        "computeStructuredOutput requires the current free-text review state for free-text columns; failing closed instead of producing Safe bytes from unreviewed cells."
-      );
-    }
-    if (
-      freeText.policyId !== plan.policyId ||
-      !isFreeTextCellSetCurrent(configuration, freeText, plan.policyId)
-    ) {
-      throw new Error(
-        "computeStructuredOutput received a stale free-text review state (policy or cell set changed); failing closed instead of certifying stale review."
-      );
-    }
-    for (const cell of freeText.cells) {
-      if (!cell.ok) {
+    // SPEC-2: a routed `process-as-text` column whose CURRENT configured cells
+    // are all blank has no required session, so no review state is required
+    // and Safe carries blank cells. Any non-empty current cell set keeps the
+    // full fail-closed review requirement below.
+    if (enumerateFreeTextCells(configuration).length > 0) {
+      if (freeText === null || freeText === undefined) {
         throw new Error(
-          `computeStructuredOutput found free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] with an unresolved processing failure; failing closed instead of keeping the original.`
+          "computeStructuredOutput requires the current free-text review state for free-text columns; failing closed instead of producing Safe bytes from unreviewed cells."
         );
       }
-      if (!canFinalize(cell.session)) {
+      if (
+        freeText.policyId !== plan.policyId ||
+        !isFreeTextCellSetCurrent(configuration, freeText, plan.policyId)
+      ) {
         throw new Error(
-          `computeStructuredOutput found free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] with pending mandatory review; failing closed instead of bypassing review.`
+          "computeStructuredOutput received a stale free-text review state (policy or cell set changed); failing closed instead of certifying stale review."
         );
       }
-      freeTextFinals.set(`${cell.cell.columnIndex}:${cell.cell.rowIndex}`, {
-        original: cell.cell.original,
-        final: getFinalText(cell.session),
-      });
+      for (const cell of freeText.cells) {
+        if (!cell.ok) {
+          throw new Error(
+            `computeStructuredOutput found free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] with an unresolved processing failure; failing closed instead of keeping the original.`
+          );
+        }
+        if (!canFinalize(cell.session)) {
+          throw new Error(
+            `computeStructuredOutput found free-text cell ["${cell.cell.header}", row ${cell.cell.rowIndex + 1}] with pending mandatory review; failing closed instead of bypassing review.`
+          );
+        }
+        freeTextFinals.set(`${cell.cell.columnIndex}:${cell.cell.rowIndex}`, {
+          original: cell.cell.original,
+          final: getFinalText(cell.session),
+        });
+      }
     }
   }
 

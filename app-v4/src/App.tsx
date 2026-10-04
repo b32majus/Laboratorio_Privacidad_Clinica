@@ -672,7 +672,7 @@ export function App() {
                   : null
               }
               onRun={runStructuredFreeText}
-              onSelectCell={session.selectFreeTextCell}
+              onSelectFreeTextCell={session.selectFreeTextCell}
               onDecide={session.decide}
               onAddManual={session.addManual}
               onGoToStep={handleGoToStep}

@@ -188,6 +188,26 @@ export function replaceFreeTextCellSession(
 }
 
 /**
+ * A current, empty free-text state for a Job whose routed `process-as-text`
+ * columns currently have zero non-blank cells (SPEC-2). There is no required
+ * cell session, so the explicit run installs this rather than clearing to
+ * `null`; preparation then treats the routed columns as having nothing to
+ * review and Safe output carries their blank cells. Deterministic and frozen
+ * (same shape as a productive run over an empty cell set).
+ */
+export function createEmptyFreeTextState(
+  jobId: string,
+  policyId: PrivacyPolicyId
+): StructuredFreeTextState {
+  return Object.freeze({
+    kind: "structured-free-text-state" as const,
+    jobId,
+    policyId,
+    cells: Object.freeze([] as const),
+  });
+}
+
+/**
  * Whether a stored free-text state still matches the configuration's current
  * cell set (same cells in the same row-major order, same originals, same
  * policy). False after a policy change or any configuration/action/grid

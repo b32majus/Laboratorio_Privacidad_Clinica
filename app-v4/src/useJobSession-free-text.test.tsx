@@ -252,3 +252,63 @@ describe("WU-C bridge — processing failure is visible and blocks", () => {
     expect(reasons).not.toContain("Carmen Sánchez");
   });
 });
+
+/**
+ * SPEC-2 red→green oracle: a routed `process-as-text` column whose current
+ * cells are all blank has no required session, so the explicit run must
+ * install a current EMPTY free-text state (same policy, same cell set) rather
+ * than clearing to `null` and blocking preparation forever.
+ */
+function setupRoutedAllBlank() {
+  const { result } = renderHook(() => useJobSession());
+  act(() => {
+    result.current.create({
+      type: "files",
+      files: [{ name: "tabla.csv", extension: "csv" }],
+    });
+  });
+  const grid: { headers: string[]; rows: (string | null)[][] } = {
+    headers: ["NHC", "Notas"],
+    rows: [
+      ["P-001", "Nota de Carmen Sánchez del lunes"],
+      ["P-002", "Seguimiento de Carmen Sánchez"],
+    ],
+  };
+  act(() => {
+    result.current.installStructuredGrid(grid);
+  });
+  act(() => {
+    // Routed while the column is text-like; the Action survives although the
+    // column's current cells are all blank (no session is required).
+    result.current.overrideStructuredColumnAction(1, "process-as-text");
+  });
+  grid.rows[0][1] = "";
+  grid.rows[1][1] = "";
+  return result;
+}
+
+describe("WU-C bridge — an all-blank routed free-text column has no required session", () => {
+  it("is still fail-closed before the run (companion negative)", () => {
+    const result = setupRoutedAllBlank();
+    expect(result.current.structuredFreeText).toBeNull();
+    expect(result.current.job?.outputs.safeOutputReady).toBe(false);
+    expect(result.current.structured?.preparation.status).toBe("blocked");
+  });
+
+  it("reaches ready with no session created and a blank Safe cell", async () => {
+    const result = setupRoutedAllBlank();
+    await act(async () => {
+      await result.current.runStructuredFreeTextReview({ engineLoader: stubLoader() });
+    });
+    // The run installed a current empty free-text state: no cell session.
+    expect(result.current.structuredFreeText?.cells.length).toBe(0);
+    expect(result.current.job?.outputs.safeOutputReady).toBe(true);
+    expect(result.current.structured?.preparation.status).toBe("ready");
+    if (result.current.structured?.preparation.status !== "ready") return;
+    const safeIndex = result.current.structured.preparation.output.safe.headers.indexOf("Notas");
+    expect(safeIndex).toBeGreaterThanOrEqual(0);
+    expect(
+      result.current.structured.preparation.output.safe.rows.map((row) => row[safeIndex])
+    ).toEqual(["", ""]);
+  });
+});

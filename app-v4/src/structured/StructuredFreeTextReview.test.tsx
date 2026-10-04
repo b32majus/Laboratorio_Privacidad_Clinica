@@ -85,7 +85,7 @@ function renderReview(activeCell: number | null) {
   const preparation = prepareStructuredOutput(configuration, plan, { freeText: state });
   const handlers = {
     onRun: vi.fn(async () => null),
-    onSelectCell: vi.fn(),
+    onSelectFreeTextCell: vi.fn(),
     onDecide: vi.fn(),
     onAddManual: vi.fn(),
     onGoToStep: vi.fn(),
@@ -119,7 +119,7 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
     const handlers = renderReview(0);
     const queue = screen.getByRole("navigation", { name: "Free-text cells" });
     fireEvent.click(within(queue).getByRole("button", { name: /Notas, row 3/i }));
-    expect(handlers.onSelectCell).toHaveBeenCalledWith(1);
+    expect(handlers.onSelectFreeTextCell).toHaveBeenCalledWith(1);
     expect(handlers.onDecide).not.toHaveBeenCalled();
   });
 
@@ -148,7 +148,7 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
         activeCell={null}
         runError={null}
         onRun={onRun}
-        onSelectCell={vi.fn()}
+        onSelectFreeTextCell={vi.fn()}
         onDecide={vi.fn()}
         onAddManual={vi.fn()}
         onGoToStep={vi.fn()}

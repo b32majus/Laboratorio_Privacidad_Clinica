@@ -46,7 +46,7 @@ export type StructuredFreeTextReviewProps = {
   /** Explicit reviewer-triggered processing run (never automatic). */
   readonly onRun: () => Promise<ProcessingFailure | null>;
   /** Bounded cell navigation (position in the row-major queue). */
-  readonly onSelectCell: (position: number) => void;
+  readonly onSelectFreeTextCell: (position: number) => void;
   /** Explicit decision on the active cell's session. */
   readonly onDecide: (
     id: string,
@@ -178,7 +178,7 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
                   <li key={`${cell.cell.columnIndex}:${cell.cell.rowIndex}`}>
                     <button
                       type="button"
-                      onClick={() => props.onSelectCell(position)}
+                      onClick={() => props.onSelectFreeTextCell(position)}
                       aria-current={activeCell === position ? "true" : undefined}
                       className={`w-full rounded border px-2 py-1 text-left text-sm ${
                         activeCell === position

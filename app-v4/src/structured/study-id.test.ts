@@ -4,6 +4,7 @@ import * as StudyId from "./study-id";
 import { buildStudyIdMapping, STUDY_ID_HEADER } from "./study-id";
 import {
   createStructuredConfiguration,
+  overrideColumnAction,
   overrideColumnClass,
   setStructuredDateRole,
 } from "./configuration";
@@ -283,5 +284,36 @@ describe("study-id preparation — fail-closed blocks", () => {
     if (preparation.status !== "blocked") return;
     expect(preparation.output).toBeNull();
     expect(preparation.reasons.join(" ")).toMatch(/ID_ESTUDIO/);
+  });
+
+  it("blocks when a process-as-text column already occupies Safe header ID_ESTUDIO", () => {
+    // SPEC-1 falsification: the colliding ID_ESTUDIO column is routed
+    // `process-as-text`, so its header is emitted into Safe output alongside
+    // the generated Study-ID header. Every disposition that emits a Safe
+    // column must participate in the collision check — not only
+    // keep/pseudonymize/date-age.
+    const grid: StructuredGrid = {
+      headers: ["NHC", "Fecha_Visita", "Fecha_Nacimiento", "Diagnostico", "ID_ESTUDIO"],
+      rows: [["P-001", "2023-01-10", "1954-03-12", "Gripe A", "nota externa"]],
+    };
+    let config = createStructuredConfiguration(grid, { selectedPatientIdColumn: "NHC" });
+    config = setStructuredDateRole(config, 1, "visit");
+    config = setStructuredDateRole(config, 2, "birth");
+    config = overrideColumnClass(config, 3, "insensitive");
+    config = overrideColumnClass(config, 4, "sensitive");
+    config = overrideColumnAction(config, 4, "process-as-text");
+    const plan = buildStructuredTransformPlan(config, { policyId: "standard", jobSeed: JOB_SEED });
+    // The planted condition: the ID_ESTUDIO-named column IS routed free-text
+    // and therefore emits its header into Safe output.
+    expect(plan.columns.find((column) => column.header === "ID_ESTUDIO")?.disposition).toEqual({
+      kind: "free-text",
+    });
+    const preparation = prepareStructuredOutput(config, plan);
+    expect(preparation.status).toBe("blocked");
+    if (preparation.status !== "blocked") return;
+    expect(preparation.output).toBeNull();
+    expect(preparation.reasons.join(" ")).toMatch(
+      /Safe header "ID_ESTUDIO" is already used by another input column/
+    );
   });
 });
