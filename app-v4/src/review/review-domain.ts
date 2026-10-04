@@ -41,6 +41,7 @@ import {
   type ReviewSession,
 } from "../../../js/domain/review-session.js";
 import { loadRegistryEngine, type EngineLoader } from "../engine/engine-seam";
+import { createInitialProcessingContext } from "../engine/initial-processing-context";
 import { classifyProcessingFailure } from "../processing-outcome";
 import type { Job, PrivacyPolicyId, ProcessingFailure } from "../domain/job";
 import type { RegistryEngineInput } from "../engine/registry-engine";
@@ -92,10 +93,17 @@ export type DecisionExtras = {
  * the caller (the Job, via {@link startReviewSessionAsync}) decides it, so
  * the session's proposals are always produced under the job's actual policy.
  * When that policy cannot complete (for example the date-shift policy with no
- * shift state threaded yet) the engine fails typed instead of silently
+ * shift state threaded) the engine fails typed instead of silently
  * falling back to `standard`. T14 #18 WU-B: the returned session
  * also carries the engine's below-threshold candidates as pending
  * `lowConfidence` detections (see the module header).
+ *
+ * REC-02 WU-B: the optional `context` is the caller-owned
+ * {@link ProcessingContext}. It defaults to a bare `{ mode: "fresh" }` with no
+ * date-shift state, which is exactly why a date-shift policy invoked this way
+ * fails closed; the product Job entry ({@link startReviewSessionAsync}) passes
+ * the policy-owned context from
+ * {@link createInitialProcessingContext} instead.
  *
  * T22 #26 WU-D (PERF-002): the heavy engine module graph loads lazily via
  * the async engine seam — the app's initial chunk never includes it.
@@ -103,10 +111,11 @@ export type DecisionExtras = {
 export async function createSessionFromEngineTextAsync(
   text: string,
   policyId: PrivacyPolicyId,
-  load: EngineLoader = loadRegistryEngine
+  load: EngineLoader = loadRegistryEngine,
+  context: ProcessingContext = { mode: "fresh" }
 ): Promise<ReviewSession> {
   const engine = await load();
-  const outcome = await engine.process({ text, context: { mode: "fresh" }, policyId });
+  const outcome = await engine.process({ text, context, policyId });
   // The T01 adapter validates the result shape fail-closed and returns a
   // frozen session; the ambient declaration keeps the structural type.
   return createReviewSessionFromProcessor(outcome.result) as ReviewSession;
@@ -157,10 +166,16 @@ export async function startReviewSessionAsync(
     );
   }
   // PR #40 corrective C1: the job's own policy is the policy the engine
-  // consumes. A policy that cannot complete under the current context (for
-  // example the date-shift policy without a threaded shift state) fails closed
-  // with a typed error — never a session silently produced under `standard`.
-  return createSessionFromEngineTextAsync(text, job.policyId, load);
+  // consumes. REC-02 WU-B: the policy-owned initial context (a Job-scoped
+  // date-shift state only for the `v4.date-shift` policy) is threaded here so
+  // the date-shift policy completes instead of failing closed; a policy with
+  // no shift state still cannot silently fall back to `standard`.
+  return createSessionFromEngineTextAsync(
+    text,
+    job.policyId,
+    load,
+    createInitialProcessingContext(job, job.policyId)
+  );
 }
 
 /**

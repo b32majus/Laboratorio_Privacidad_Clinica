@@ -368,14 +368,66 @@ describe("policy binding: the session is produced under the job's policy (C1)", 
     expect(hospital?.proposed).toBe("Centro Sanitario");
   });
 
-  it("fails a longitudinal-research job with dates closed when no shift state exists (REC-02 WU-A)", async () => {
+  it("runs a longitudinal-research text job with one consistent Job-scoped shift (REC-02 WU-B)", async () => {
     const job = setPolicy(
       createJob({ type: "pasted-text", text: DATED_HOSPITAL_TEXT }),
       "longitudinal-research"
     );
+    const session = await startReviewSessionAsync(job);
+
+    const fecha = session.detections.find(
+      (detection) => detection.type === "FECHA" && detection.original === "12/03/2024"
+    );
+    expect(fecha?.proposed).toBeDefined();
+    // A real shift: not the source date, not the legacy visit label and not the
+    // external-ai month precision.
+    expect(fecha?.proposed).not.toBe("12/03/2024");
+    expect(fecha?.proposed).not.toBe("");
+    expect(fecha?.proposed).not.toMatch(/^Visita/);
+    expect(fecha?.proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+
+    // Deterministic: re-entering the same Job recreates the exact same
+    // Job-scoped shift (handoff contract point 7).
+    const replayed = await startReviewSessionAsync(job);
+    expect(proposalsOf(replayed)).toEqual(proposalsOf(session));
+
+    // The stricter location branch is preserved (REC-02 acceptance 14).
+    const hospital = session.detections.find(
+      (detection) =>
+        detection.type === "UBICACION" && detection.original === "Hospital Virgen del Rocío"
+    );
+    expect(hospital?.proposed).toBe("Centro Sanitario");
+  });
+
+  it("runs a longitudinal-research single-document job through the same Job-scoped shift (REC-02 WU-B)", async () => {
+    const job = setPolicy(
+      createJob({
+        type: "files",
+        files: [
+          {
+            name: "nota.txt",
+            extension: "txt",
+            extraction: { status: "extracted", extractedText: DATED_HOSPITAL_TEXT },
+          },
+        ],
+      }),
+      "longitudinal-research"
+    );
+    const session = await startReviewSessionAsync(job);
+    const fecha = session.detections.find((detection) => detection.type === "FECHA");
+    expect(fecha?.original).toBe("12/03/2024");
+    expect(fecha?.proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(fecha?.proposed).not.toMatch(/^Visita/);
+    expect(fecha?.proposed).not.toBe(fecha?.original);
+  });
+
+  it("keeps a missing date-shift state fail-closed at the low-level text seam (REC-02 ACCEPTANCE 7)", async () => {
+    // The product Job path threads a Job-scoped shift; a caller that supplies
+    // NO shift context still fails closed instead of silently passing the
+    // original date through (never a Standard fallback).
     try {
-      await startReviewSessionAsync(job);
-      throw new Error("expected startReviewSession to fail closed");
+      await createSessionFromEngineTextAsync(DATED_HOSPITAL_TEXT, "longitudinal-research");
+      throw new Error("expected the missing-shift-state path to fail closed");
     } catch (error) {
       expect(error).toBeInstanceOf(DateOperatorError);
       expect((error as DateOperatorError).code).toBe("missing-date-shift-state");

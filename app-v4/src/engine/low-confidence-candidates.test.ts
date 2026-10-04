@@ -9,6 +9,9 @@ import {
   LEGACY_RECOGNIZER_KEY,
   readCandidateReason,
 } from "./legacy-recognizers";
+import { readDateShiftState } from "./date-operator";
+import { shiftDateString } from "./date-shift";
+import { createInitialProcessingContext } from "./initial-processing-context";
 import { PolicyError } from "./policy";
 import { createRegistryEngine } from "./registry-engine";
 import {
@@ -622,5 +625,54 @@ describe("T14 WU-A — fail-closed candidate policy mapping (ORACLE 7)", () => {
     });
     const outcome = engine.process({ text, context: FRESH });
     expect(outcome.result.candidates?.[0].proposed).toBe("");
+  });
+});
+
+/**
+ * REC-02 WU-B — the below-threshold candidate's `proposed` must be resolved
+ * through the SELECTED policy and its policy-owned context, never Standard.
+ * The real pipeline produces no FECHA candidate, so these oracles drive a
+ * labelled candidate double with the exact seam context the product paths
+ * thread. All fixtures are synthetic.
+ */
+describe("REC-02 WU-B — candidate outcome follows the policy-owned context", () => {
+  const TEXT = "Fecha de control: 12/03/2024.";
+
+  function engineWithDateCandidate() {
+    return createRegistryEngine({
+      recognizerRegistry: candidateRegistry(() => ({
+        observations: [],
+        candidates: [candidate("FECHA", TEXT, "12/03/2024", { subtype: "fecha_completa" })],
+      })),
+    });
+  }
+
+  it("proposes the longitudinal date-shift outcome when the seam context is threaded (never Standard visit)", () => {
+    const context = createInitialProcessingContext({ id: "job-rec-02" }, "longitudinal-research");
+    const outcome = engineWithDateCandidate().process({
+      text: TEXT,
+      context,
+      policyId: "longitudinal-research",
+    });
+    const proposed = outcome.result.candidates?.[0].proposed;
+    expect(proposed).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(proposed).not.toMatch(/^Visita/);
+    expect(proposed).not.toBe("12/03/2024");
+
+    // Exactly the value the Job-scoped shared offset predicts.
+    const state = readDateShiftState(context.options);
+    if (state === undefined) throw new Error("expected the seam to thread a shift state");
+    expect(proposed).toBe(shiftDateString("12/03/2024", state.contextOffsetDays));
+  });
+
+  it("proposes date-generalization under external-ai from the same seam (never date-shift)", () => {
+    const context = createInitialProcessingContext({ id: "job-rec-02" }, "external-ai");
+    expect(readDateShiftState(context.options)).toBeUndefined();
+    const outcome = engineWithDateCandidate().process({
+      text: TEXT,
+      context,
+      policyId: "external-ai",
+    });
+    expect(outcome.result.candidates?.[0].proposed).toBe("03/2024");
   });
 });
