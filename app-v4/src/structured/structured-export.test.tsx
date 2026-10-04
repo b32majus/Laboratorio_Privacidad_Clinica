@@ -112,7 +112,9 @@ describe("ExportStep — structured", () => {
       fireEvent.click(safeButton);
       const safeCsv = await textOf(capture.downloads[0]);
       expect(capture.downloads[0].fileName).toBe("safe-structured-output.csv");
-      expect(safeCsv.split("\n")[0]).toBe("Fecha_Visita,Fecha_Nacimiento,Diagnostico,CampoLibre");
+      expect(safeCsv.split("\n")[0]).toBe(
+        "ID_ESTUDIO,Fecha_Visita,Fecha_Nacimiento,Diagnostico,CampoLibre"
+      );
       expect(safeCsv).not.toContain("P-001");
       expect(safeCsv).not.toContain("Gripe A");
       expect(safeCsv).not.toContain("1954-03-12");

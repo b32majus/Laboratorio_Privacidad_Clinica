@@ -190,9 +190,10 @@ function StructuredExport({
         </div>
         <div className="p-4">
           <p className={zoneBody}>
-            The reviewed structured table with date/age and codified columns transformed and
-            identifier columns removed. It contains no original↔transformed mapping and no original
-            identifier or sensitive values.
+            The reviewed structured table with date/age and codified columns transformed, identifier
+            columns removed and the selected patient-ID column replaced with a Study ID
+            (ID_ESTUDIO). It contains no original↔transformed mapping and no original identifier or
+            sensitive values.
           </p>
           {blocked && reasons.length > 0 && (
             <ul
@@ -237,8 +238,8 @@ function StructuredExport({
             {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            The original↔transformed correspondence behind the Safe CSV (date/age, codify and
-            removed columns). It is an internal traceability record and must never be shared or
+            The original↔transformed correspondence behind the Safe CSV (date/age, codify, Study-ID
+            and removed columns). It is an internal traceability record and must never be shared or
             delivered outside the authorized audit trail.
           </p>
           {confidentialReasonVisible && (

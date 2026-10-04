@@ -5,9 +5,12 @@
  * and any productive transformation. It is pure and frozen, and it is the only
  * thing a consumer needs to know exactly what will happen to each column.
  *
- * Hard rules (HARDEN-01 decision, 2026-09-30):
+ * Hard rules (HARDEN-01 decision, 2026-09-30; REC-03 WU-A D-021):
  *  - `dateRole = visit | birth` is the ONLY thing that activates T19; `none`
  *    never does (no inference).
+ *  - the explicitly selected patient-ID column is `study-id` (D-021): it
+ *    takes precedence over any other rule, including a date role, and it is
+ *    the ONLY column that ever receives that disposition (never auto-selected).
  *  - `codify` is activated ONLY by the accepted action of the reviewed
  *    effective class (`sensitive -> codify`); nothing else.
  *  - `keep` preserves; `remove` drops the column from the Safe artifact.
@@ -28,6 +31,7 @@ export type StructuredUnsupportedReason =
 /** The exact disposition of one column in the productive pipeline. */
 export type StructuredColumnDisposition =
   | { readonly kind: "date-age"; readonly role: StructuredDateColumnRole }
+  | { readonly kind: "study-id" }
   | { readonly kind: "codify" }
   | { readonly kind: "keep" }
   | { readonly kind: "remove" }
@@ -70,8 +74,12 @@ export type StructuredTransformPlan = {
 
 function dispositionFor(
   effectiveClass: ColumnClass,
-  role: StructuredDateRole
+  role: StructuredDateRole,
+  isPatientIdColumn: boolean
 ): StructuredColumnDisposition {
+  // D-021 precedence: the explicitly selected patient-ID column is always
+  // `study-id`, never `remove`, and no date role overrides it.
+  if (isPatientIdColumn) return { kind: "study-id" };
   if (role === "visit") return { kind: "date-age", role: "visit-date" };
   if (role === "birth") return { kind: "date-age", role: "birth-date" };
   switch (proposedActionForClass(effectiveClass)) {
@@ -107,12 +115,19 @@ export function buildStructuredTransformPlan(
   }
   const profile = resolveStructuredDateAgePolicy(options.policyId);
 
+  const patientColumnIndex =
+    configuration.patientId.status === "resolved" ? configuration.patientId.columnIndex : null;
+
   const columns: StructuredTransformPlanColumn[] = configuration.columns.map((column) => ({
     columnIndex: column.columnIndex,
     header: column.header,
     effectiveClass: column.effectiveClass,
     dateRole: column.dateRole,
-    disposition: dispositionFor(column.effectiveClass, column.dateRole),
+    disposition: dispositionFor(
+      column.effectiveClass,
+      column.dateRole,
+      column.columnIndex === patientColumnIndex
+    ),
   }));
 
   const blockingColumns = columns

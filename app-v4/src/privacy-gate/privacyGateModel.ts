@@ -74,7 +74,7 @@ export type PrivacyGateStructuredColumn = {
   readonly header: string;
   readonly effectiveClass: ColumnClass;
   readonly dateRole: StructuredDateRole;
-  readonly disposition: "date-age" | "codify" | "keep" | "remove" | "unsupported";
+  readonly disposition: "date-age" | "codify" | "keep" | "remove" | "study-id" | "unsupported";
 };
 
 /** Factual structured gate facts (HARDEN-01 WU-A); never a score. */

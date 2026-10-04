@@ -52,18 +52,27 @@ describe("Windows-1252/structured output — Safe vs Confidential separation", (
     if (preparation.status !== "ready") return;
     const { safe, confidential } = preparation.output;
 
-    // Identifier (including the patient-ID column) is dropped from Safe.
-    expect(safe.headers).toEqual(["Fecha_Visita", "Fecha_Nacimiento", "Diagnostico", "CampoLibre"]);
+    // The selected patient-ID column becomes a Study ID in Safe output (REC-03
+    // D-021), not a dropped identifier.
+    expect(safe.headers).toEqual([
+      "ID_ESTUDIO",
+      "Fecha_Visita",
+      "Fecha_Nacimiento",
+      "Diagnostico",
+      "CampoLibre",
+    ]);
     expect(safe.headers).not.toContain("Paciente");
 
-    const [visit, birth, diagnosis, free] = safe.rows[0];
+    const [studyId, visit, birth, diagnosis, free] = safe.rows[0];
+    expect(studyId).toBe("PAC_001");
+    expect(safe.rows.map((row) => row[0])).toEqual(["PAC_001", "PAC_001", "PAC_002"]);
     expect(visit).toMatch(/^\d{4}-\d{2}$/);
     expect(birth).toMatch(/^\d{4}-\d{2}$/);
     expect(visit).not.toBe("2023-01-10");
     expect(diagnosis).toBe("0");
     expect(free).toBe("nota libre");
     // Codes are stable per distinct value, first appearance order.
-    expect(safe.rows.map((row) => row[2])).toEqual(["0", "1", "0"]);
+    expect(safe.rows.map((row) => row[3])).toEqual(["0", "1", "0"]);
 
     // NO original sensitive values / identity in the Safe dataset.
     const safeJson = JSON.stringify(safe);
@@ -82,7 +91,7 @@ describe("Windows-1252/structured output — Safe vs Confidential separation", (
       "codify",
       "date-age",
       "date-age",
-      "remove",
+      "study-id",
     ]);
   });
 
@@ -93,11 +102,17 @@ describe("Windows-1252/structured output — Safe vs Confidential separation", (
     if (preparation.status !== "ready") return;
     const { safe } = preparation.output;
 
-    expect(safe.headers).toEqual(["Fecha_Visita", "Fecha_Nacimiento", "Diagnostico", "CampoLibre"]);
-    expect(safe.rows[0][0]).not.toBe("2023-01-10");
+    expect(safe.headers).toEqual([
+      "ID_ESTUDIO",
+      "Fecha_Visita",
+      "Fecha_Nacimiento",
+      "Diagnostico",
+      "CampoLibre",
+    ]);
+    expect(safe.rows[0][1]).not.toBe("2023-01-10");
     // Same patient, same shift offset across rows -> interval preserved.
-    expect(safe.rows[0][0]).not.toBe(safe.rows[2][0]);
-    expect(safe.rows[0][1]).toMatch(/años/);
+    expect(safe.rows[0][1]).not.toBe(safe.rows[2][1]);
+    expect(safe.rows[0][2]).toMatch(/años/);
     expect(JSON.stringify(safe)).not.toContain("P-001");
   });
 

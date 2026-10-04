@@ -44,12 +44,13 @@ export function serializeStructuredConfidentialAudit(correspondence: unknown): s
       "serializeStructuredConfidentialAudit requires a structurally valid structured correspondence."
     );
   }
+  const studyIdCount = correspondence.totals.studyId ?? 0;
   const lines: string[] = [
     CONFIDENTIAL_AUDIT_WARNING_LINE,
     "Structured Confidential Audit — original <-> transformed correspondence.",
     "",
     `Policy: ${correspondence.policyId}`,
-    `Columns: ${correspondence.columns.length} (date/age: ${correspondence.totals.dateAge}, codify: ${correspondence.totals.codify}, remove: ${correspondence.totals.remove}) — transformed cells: ${correspondence.totals.transformedCells}`,
+    `Columns: ${correspondence.columns.length} (date/age: ${correspondence.totals.dateAge}, codify: ${correspondence.totals.codify}, remove: ${correspondence.totals.remove}${studyIdCount > 0 ? `, study-id: ${studyIdCount}` : ""}) — transformed cells: ${correspondence.totals.transformedCells}`,
     "",
   ];
   for (const column of correspondence.columns) {

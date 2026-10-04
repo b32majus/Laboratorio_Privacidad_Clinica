@@ -8,10 +8,12 @@
  *
  * Separation (D-005 / PRIV-002, HARDEN-01 §6):
  *  - `safe`: the Safe Structured dataset — transformed/kept cells only. A
- *    `remove` column (Identifier, including the patient-ID column) is dropped
- *    entirely and never appears; there is no correspondence field.
+ *    `remove` column (ordinary Identifier) is dropped entirely and never
+ *    appears; there is no correspondence field. The selected patient-ID
+ *    column is `study-id` (REC-03 D-021): Safe carries `ID_ESTUDIO` in its
+ *    place, never the original header or values.
  *  - `confidential`: the separate original↔transformed correspondence for the
- *    date/age, codify and remove decisions. Never merged with `safe`.
+ *    date/age, codify, study-id and remove decisions. Never merged with `safe`.
  *
  * Fail-closed (D-009): while any column is unsupported, the patient-ID needed
  * by a shift policy is missing, or any date/age cell requires review, the
@@ -26,6 +28,7 @@ import type { StructuredConfiguration } from "./configuration";
 import { applyStructuredDateAgePolicy, type StructuredDateAgeApplication } from "./date-age-policy";
 import type { StructuredDateCellOutcome } from "./date-age";
 import { isBlankCell, type StructuredCell } from "./grid";
+import { buildStudyIdMapping, STUDY_ID_HEADER } from "./study-id";
 import type { StructuredTransformPlan, StructuredTransformPlanColumn } from "./transform-plan";
 
 /** The Safe structured dataset: flattened cells, no correspondence field. */
@@ -45,7 +48,7 @@ export type StructuredCorrespondenceEntry = {
 export type StructuredCorrespondenceColumn = {
   readonly columnIndex: number;
   readonly header: string;
-  readonly disposition: "date-age" | "codify" | "remove";
+  readonly disposition: "date-age" | "codify" | "remove" | "study-id";
   readonly entries: readonly StructuredCorrespondenceEntry[];
 };
 
@@ -54,6 +57,7 @@ export type StructuredCorrespondenceTotals = {
   readonly dateAge: number;
   readonly codify: number;
   readonly remove: number;
+  readonly studyId: number;
   readonly transformedCells: number;
 };
 
@@ -109,10 +113,15 @@ function dateRoleHeader(
 /**
  * Exact fail-closed block reasons of a plan (plus any per-cell date/age
  * reviews). Text-first; never color-only. Empty means the plan is exportable.
+ *
+ * The optional `configuration` carries the grid values needed for the REC-03
+ * Study-ID blank-patient-ID check; without it only the structural Study-ID
+ * header-collision check applies.
  */
 export function structuredBlockReasons(
   plan: StructuredTransformPlan,
-  reviewRequiredCells: readonly StructuredReviewRequiredCell[] = []
+  reviewRequiredCells: readonly StructuredReviewRequiredCell[] = [],
+  configuration?: StructuredConfiguration
 ): readonly string[] {
   const reasons: string[] = [];
   const unsupported = plan.columns.filter((column) => column.disposition.kind === "unsupported");
@@ -145,6 +154,42 @@ export function structuredBlockReasons(
     reasons.push(
       `Structured export is blocked: policy "${plan.policyId}" shifts visit dates per patient and no patient-ID column is selected.`
     );
+  }
+
+  // REC-03 WU-A Study-ID fail-closed checks (D-021): a Safe header collision
+  // with another input column, and a blank selected patient-ID cell on a row
+  // that carries other data (an unlinkable Safe row is never produced).
+  const studyIdColumns = plan.columns.filter((column) => column.disposition.kind === "study-id");
+  for (const studyColumn of studyIdColumns) {
+    const colliding = plan.columns.filter(
+      (column) =>
+        column.columnIndex !== studyColumn.columnIndex &&
+        column.header === STUDY_ID_HEADER &&
+        (column.disposition.kind === "keep" ||
+          column.disposition.kind === "codify" ||
+          column.disposition.kind === "date-age")
+    );
+    for (const other of colliding) {
+      const otherLabel = other.header === "" ? "(unnamed column)" : other.header;
+      reasons.push(
+        `Structured export is blocked: Safe header "${STUDY_ID_HEADER}" is already used by another input column "${otherLabel}"; the Study-ID column is never written over it silently.`
+      );
+    }
+  }
+  if (configuration !== undefined) {
+    for (const studyColumn of studyIdColumns) {
+      const label = studyColumn.header === "" ? "(unnamed column)" : studyColumn.header;
+      configuration.grid.rows.forEach((row, rowIndex) => {
+        if (!isBlankCell(row[studyColumn.columnIndex])) return;
+        const hasOtherData = row.some(
+          (cell, cellIndex) => cellIndex !== studyColumn.columnIndex && !isBlankCell(cell)
+        );
+        if (!hasOtherData) return;
+        reasons.push(
+          `Structured export is blocked: data row ${rowIndex + 1} has other data but no value in the patient-ID column "${label}"; an unlinkable Safe row is never produced.`
+        );
+      });
+    }
   }
 
   if (reviewRequiredCells.length === 1) {
@@ -202,6 +247,10 @@ export function computeStructuredOutput(
   const valuesFor = (columnIndex: number): readonly StructuredCell[] =>
     grid.rows.map((row) => row[columnIndex]);
 
+  // Deterministic Study-ID mappings per study-id column, built once and
+  // reused for correspondence and Safe materialization.
+  const studyIdsByColumn = new Map<number, readonly (string | null)[]>();
+
   const dateOutcomesFor = (
     column: StructuredTransformPlanColumn
   ): readonly StructuredDateCellOutcome[] =>
@@ -224,6 +273,44 @@ export function computeStructuredOutput(
           ),
         })
       );
+      continue;
+    }
+
+    if (disposition.kind === "study-id") {
+      // D-021: the selected patient-ID column is replaced in place by
+      // `ID_ESTUDIO`; the original header/values never enter Safe output and
+      // the unique original↔Study-ID mapping is Confidential-only.
+      const mapping = buildStudyIdMapping(valuesFor(column.columnIndex));
+      // Defense in depth: preparation blocks these rows first (see
+      // structuredBlockReasons), but a direct compute call must still never
+      // emit an unlinkable row silently.
+      mapping.studyIds.forEach((studyId, rowIndex) => {
+        if (studyId !== null) return;
+        const row = grid.rows[rowIndex] ?? [];
+        const hasOtherData = row.some(
+          (cell, cellIndex) => cellIndex !== column.columnIndex && !isBlankCell(cell)
+        );
+        if (hasOtherData) {
+          throw new Error(
+            `computeStructuredOutput found data row ${rowIndex + 1} with no value in the patient-ID column "${columnLabel(column)}"; failing closed instead of producing an unlinkable Safe row.`
+          );
+        }
+      });
+      correspondenceColumns.push(
+        Object.freeze({
+          columnIndex: column.columnIndex,
+          header: column.header,
+          disposition: "study-id" as const,
+          entries: Object.freeze(
+            [...mapping.mapping.entries()].map(([original, transformed]) =>
+              Object.freeze({ original, transformed })
+            )
+          ),
+        })
+      );
+      studyIdsByColumn.set(column.columnIndex, mapping.studyIds);
+      safeHeaders.push(STUDY_ID_HEADER);
+      safeColumnIndices.push(column.columnIndex);
       continue;
     }
 
@@ -319,6 +406,12 @@ export function computeStructuredOutput(
           result.coded.map((code) => (code === null || code === undefined ? "" : String(code)))
         )
       );
+    } else if (disposition.kind === "study-id") {
+      const studyIds = studyIdsByColumn.get(column.columnIndex) ?? [];
+      safeCellsByColumnIndex.set(
+        column.columnIndex,
+        Object.freeze(studyIds.map((studyId) => studyId ?? ""))
+      );
     } else {
       safeCellsByColumnIndex.set(
         column.columnIndex,
@@ -341,6 +434,7 @@ export function computeStructuredOutput(
     dateAge: correspondenceColumns.filter((column) => column.disposition === "date-age").length,
     codify: correspondenceColumns.filter((column) => column.disposition === "codify").length,
     remove: correspondenceColumns.filter((column) => column.disposition === "remove").length,
+    studyId: correspondenceColumns.filter((column) => column.disposition === "study-id").length,
     transformedCells: correspondenceColumns.reduce(
       (count, column) =>
         count +
@@ -374,7 +468,7 @@ export function prepareStructuredOutput(
   configuration: StructuredConfiguration,
   plan: StructuredTransformPlan
 ): StructuredOutputPreparation {
-  const structuralReasons = structuredBlockReasons(plan);
+  const structuralReasons = structuredBlockReasons(plan, [], configuration);
   if (structuralReasons.length > 0) {
     return Object.freeze({ status: "blocked" as const, output: null, reasons: structuralReasons });
   }
@@ -383,7 +477,7 @@ export function prepareStructuredOutput(
     return Object.freeze({
       status: "blocked" as const,
       output: null,
-      reasons: structuredBlockReasons(plan, output.reviewRequiredCells),
+      reasons: structuredBlockReasons(plan, output.reviewRequiredCells, configuration),
     });
   }
   return Object.freeze({ status: "ready" as const, output, reasons: Object.freeze([]) });
