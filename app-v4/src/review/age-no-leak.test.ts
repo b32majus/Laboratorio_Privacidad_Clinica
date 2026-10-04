@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrivacyPolicyId } from "../domain/job";
-import { PolicyError } from "../engine/policy";
+import { DateOperatorError } from "../engine/date-operator";
 import { createRegistryEngine } from "../engine/registry-engine";
 import { buildConfidentialAudit } from "../output/confidential-audit";
 import { buildSafeOutput, serializeSafeOutput } from "../output/safe-output";
@@ -29,8 +29,10 @@ import {
  *  3. ground truth: exactly one EDAD entity per planted age at exact source
  *     offsets; `stats.byType.edades` counts them; the bait yields zero;
  *  4. policy invariance: `standard` and `strict` produce the SAME AGE labels;
- *  5. fail-closed: `external-ai` throws the typed PolicyError and no Safe
- *     Output exists.
+ *  5. REC-02: the newly enabled `external-ai` policy bands the same ages with
+ *     the same no-leak guarantee into Safe Output, while
+ *     `longitudinal-research` still fails closed (no shift state threaded) and
+ *     produces no Safe Output.
  *
  * Determinism/privacy: all fixtures are synthetic; the only clock-dependent
  * transformation (legacy date relativization) is pinned with fake timers so
@@ -188,15 +190,25 @@ describe("T12 WU-C — composed no-leak: ages reach Safe Output only generalized
     expect(leakedText).not.toContain(ADULT_LABEL);
   });
 
-  it("keeps external-ai fail-closed with the typed PolicyError and no Safe Output (ORACLE 5)", async () => {
+  it("bands every planted age under the newly enabled external-ai policy and never leaks the source value (ORACLE 5)", async () => {
+    const session = acceptAll(await createSessionFromEngineTextAsync(FIXTURE, "external-ai"));
+    const safeText = serializeSafeOutput(buildSafeOutput(session));
+
+    for (const [source, label] of EXPECTED_LABELS) {
+      expect(safeText, `external-ai leaked ${source}`).not.toContain(source);
+      expect(safeText).toContain(label);
+    }
+  });
+
+  it("keeps longitudinal-research fail-closed (missing date-shift state) with no Safe Output (ORACLE 5, fail-closed)", async () => {
     try {
-      const session = await createSessionFromEngineTextAsync(FIXTURE, "external-ai");
+      const session = await createSessionFromEngineTextAsync(FIXTURE, "longitudinal-research");
       throw new Error(
-        `expected external-ai to fail closed, got session ${String(session.sessionId)}`
+        `expected longitudinal-research to fail closed, got session ${String(session.sessionId)}`
       );
     } catch (error) {
-      expect(error).toBeInstanceOf(PolicyError);
-      expect((error as PolicyError).code).toBe("policy-operator-mapping-unavailable");
+      expect(error).toBeInstanceOf(DateOperatorError);
+      expect((error as DateOperatorError).code).toBe("missing-date-shift-state");
     }
   });
 });

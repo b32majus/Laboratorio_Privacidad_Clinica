@@ -90,9 +90,10 @@ export type DecisionExtras = {
  * under the EXPLICIT `policyId` and map the result through the T01 adapter
  * into a ReviewSession. PR #40 corrective C1: the policy is never guessed —
  * the caller (the Job, via {@link startReviewSessionAsync}) decides it, so
- * the session's proposals are always produced under the job's actual policy;
- * known-but-unmapped policies fail typed through the engine instead of
- * silently falling back to `standard`. T14 #18 WU-B: the returned session
+ * the session's proposals are always produced under the job's actual policy.
+ * When that policy cannot complete (for example the date-shift policy with no
+ * shift state threaded yet) the engine fails typed instead of silently
+ * falling back to `standard`. T14 #18 WU-B: the returned session
  * also carries the engine's below-threshold candidates as pending
  * `lowConfidence` detections (see the module header).
  *
@@ -156,9 +157,9 @@ export async function startReviewSessionAsync(
     );
   }
   // PR #40 corrective C1: the job's own policy is the policy the engine
-  // consumes. A known-but-unmapped job policy (external-ai,
-  // longitudinal-research) fails closed with the typed PolicyError — never
-  // a session silently produced under `standard`.
+  // consumes. A policy that cannot complete under the current context (for
+  // example the date-shift policy without a threaded shift state) fails closed
+  // with a typed error — never a session silently produced under `standard`.
   return createSessionFromEngineTextAsync(text, job.policyId, load);
 }
 

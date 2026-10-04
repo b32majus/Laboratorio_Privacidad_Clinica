@@ -595,49 +595,43 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(facts).toHaveTextContent("Safe output: Ready");
   });
 
-  it("an unavailable policy cannot be selected through the UI on a text job (C1)", async () => {
+  it("all four policies are selectable through the UI on a text job (REC-02)", async () => {
     render(<App />);
     createTextJob();
 
-    // External AI and Longitudinal Research are visible but non-selectable on a
-    // text job: the option is disabled and a change event for it is a no-op.
-    expect(screen.getByRole("option", { name: "External AI" })).toBeDisabled();
-    expect(screen.getByRole("option", { name: "Longitudinal Research" })).toBeDisabled();
+    // Since REC-02 every accepted policy has a text mapping, so all four
+    // options are enabled and selectable.
+    for (const name of ["Standard", "External AI", "Longitudinal Research", "Strict"]) {
+      expect(screen.getByRole("option", { name })).toBeEnabled();
+    }
 
     const policySelect = screen.getByLabelText("Privacy Policy:") as HTMLSelectElement;
     fireEvent.change(policySelect, { target: { value: "external-ai" } });
-    fireEvent.change(policySelect, { target: { value: "longitudinal-research" } });
-    // The controlled select keeps showing the job's Standard policy, so review
-    // can never start under a known-but-unmapped policy through the UI.
-    expect(policySelect.value).toBe("standard");
-    expect((screen.getByRole("option", { name: "Standard" }) as HTMLOptionElement).selected).toBe(
-      true
-    );
+    expect(policySelect.value).toBe("external-ai");
+    expect(
+      (screen.getByRole("option", { name: "External AI" }) as HTMLOptionElement).selected
+    ).toBe(true);
 
-    // A supported policy still reaches review and never surfaces the typed
-    // external-ai failure. The engine's typed fail-closed backstop is covered
-    // non-UI in useJobSession.test.tsx (typed-failure/retry routes).
+    // The newly enabled text policy reaches Review and never surfaces a
+    // spurious typed failure.
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
     expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("a blocked unavailable-policy selection keeps the app on the current step with no review workspace (T15 #19)", async () => {
+  it("a policy selection is a state change, not a review start: the gate stays fail-closed until Review (REC-02)", async () => {
     render(<App />);
     createTextJob();
     fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
-      target: { value: "external-ai" },
+      target: { value: "longitudinal-research" },
     });
+
+    // Selecting the policy does not start review or open the export gate.
+    expect(stepButton(5, "Export")).toBeDisabled();
     fireEvent.click(stepButton(2, "Configure"));
     expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
-
-    // The unavailable policy was never selected, so there is no failed attempt:
-    // the app stays on Configure, no Review workspace exists and the export
-    // gate stays fail-closed. (The typed PolicyError backstop itself remains
-    // covered at the hook level in useJobSession.test.tsx.)
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
-    expect(stepButton(2, "Configure")).toHaveAttribute("aria-current", "step");
     expect(stepButton(5, "Export")).toBeDisabled();
   });
 });

@@ -363,8 +363,8 @@ export function App() {
       setReviewError(null);
     } catch (error) {
       // PR #40 corrective C1: the typed PolicyError is surfaced alongside the
-      // other typed domain failures so a known-but-unmapped job policy
-      // becomes an actionable message instead of the generic fallback.
+      // other typed domain failures so a policy that cannot complete becomes
+      // an actionable message instead of the generic fallback.
       const message =
         error instanceof JobModelError ||
         error instanceof EngineError ||

@@ -30,17 +30,22 @@
  * slot — and the date operator redacts them; every other observation keeps
  * flowing through the same documented legacy-shape adapter. A caller-supplied
  * `ProcessingContext.options.dateShift` (SPEC §7) is resolved once before any
- * manager mutation and threaded into the date operator context so a future
- * accepted policy can select `v4.date-shift`. The accepted policy mapping is
- * UNCHANGED: `FECHA → legacy.date-transform` (`./policy`).
+ * manager mutation and threaded into the date operator context so the
+ * policies whose FECHA operator is `v4.date-shift` can consume it. The
+ * category→operator mapping is owned by `./policy` (REC-02): standard/strict
+ * keep `FECHA → legacy.date-transform`; `external-ai` selects
+ * `v4.date-generalize`; `longitudinal-research` selects `v4.date-shift` and
+ * fails closed with a typed date-operator error when no shift state is
+ * threaded (never an original-date passthrough).
  *
  * Policy semantics (D-007): the transformation profile resolves through
  * `lookupPolicyProfile` — `standard` by default (the accepted legacy
  * mapping, `modoEstricto=false`); `strict` maps to the legacy strict
- * branches; `external-ai`/`longitudinal-research` and unknown ids fail typed
- * instead of guessing a transformation. Recognition is policy-invariant by
- * construction: observations depend only on the shared legacy detection
- * configuration, never on the chosen policy (ACCEPTANCE 1).
+ * branches; `external-ai` and `longitudinal-research` resolve their own
+ * accepted mappings; unknown ids fail typed instead of guessing a
+ * transformation. Recognition is policy-invariant by construction:
+ * observations depend only on the shared legacy detection configuration,
+ * never on the chosen policy (ACCEPTANCE 1).
  *
  * Fresh/shared context semantics are IDENTICAL to `legacy-engine.ts` by
  * reuse, not duplication: the same exported fail-closed validators
@@ -70,7 +75,7 @@
  *
  * Fail-closed (D-009): the same input/context validation rules as the
  * legacy engine, typed failures for unknown recognizer/operator registry
- * keys and unmapped policy ids, and a typed failure if an observation type
+ * keys and unknown policy ids, and a typed failure if an observation type
  * is missing from the policy profile's mapping (no guessed operator, no
  * silent KEEP).
  *

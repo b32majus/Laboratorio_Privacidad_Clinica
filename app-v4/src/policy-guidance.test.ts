@@ -34,12 +34,17 @@ describe("policy guidance availability derivation", () => {
     expect(POLICY_AVAILABILITY_LABELS.unavailable).toBe("Not available for this job type yet");
   });
 
-  it("makes only Standard and Strict available for text/document/document-batch jobs", () => {
+  it("makes all four policies available for text/document/document-batch jobs (REC-02)", () => {
     for (const jobKind of ["text", "document", "document-batch"] as const) {
-      expect(isPolicyAvailableForJobKind("standard", jobKind)).toBe("available");
-      expect(isPolicyAvailableForJobKind("strict", jobKind)).toBe("available");
-      expect(isPolicyAvailableForJobKind("external-ai", jobKind)).toBe("unavailable");
-      expect(isPolicyAvailableForJobKind("longitudinal-research", jobKind)).toBe("unavailable");
+      for (const policyId of POLICY_IDS) {
+        expect(isPolicyAvailableForJobKind(policyId, jobKind), `${policyId} on ${jobKind}`).toBe(
+          "available"
+        );
+        expect(
+          isPolicySelectableForJobKind(policyId, jobKind),
+          `${policyId} selectable on ${jobKind}`
+        ).toBe(true);
+      }
     }
   });
 

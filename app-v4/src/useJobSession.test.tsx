@@ -27,10 +27,17 @@ import { runBatchReviewAsync, useJobSession } from "./useJobSession";
 const engineControl = vi.hoisted(() => ({
   hold: false,
   pending: [] as Array<{ resolve: () => void; reject: (error: unknown) => void }>,
+  /**
+   * Durable typed-failure producer (REC-02 WU-A): the loader seam rejects with
+   * this error so the typed-failure route depends on no policy-specific
+   * failure condition.
+   */
+  loadError: null as unknown,
 }));
 
 vi.mock("./engine/engine-seam", () => ({
   loadRegistryEngine: async () => {
+    if (engineControl.loadError !== null) throw engineControl.loadError;
     const { createRegistryEngine } = await import("./engine/registry-engine");
     const engine = createRegistryEngine();
     const adapted = {
@@ -61,9 +68,11 @@ function rejectPendingEngine(error: unknown): void {
  * (T15 #19, GitHub #19 acceptance bullet 3).
  *
  * The probe uses the REAL hook and drives the REAL `startReview()`; the engine
- * is never mocked, so the success route runs the composed registry engine and
- * the failure route raises the real typed `PolicyError` for the
- * known-but-unmapped `external-ai` policy. The observed state is rendered as
+ * is never mocked for the success route, so it runs the composed registry
+ * engine. The typed-failure route injects a typed error through the file's
+ * controllable engine-loader seam, which keeps the failure producer durable
+ * and independent of any single policy mapping (REC-02 collapsed the
+ * known-but-unmapped policies). The observed state is rendered as
  * text in a `role="status"` region so the assertions derive from what the hook
  * actually exposes.
  *
@@ -124,6 +133,7 @@ function ProcessingProbe() {
 afterEach(() => {
   engineControl.hold = false;
   engineControl.pending = [];
+  engineControl.loadError = null;
   cleanup();
 });
 
@@ -143,10 +153,29 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).toHaveTextContent("returned: null");
   });
 
-  it("typed-failure route: records failed, appends the typed error and installs no session", async () => {
+  it("newly enabled policy route: an external-ai text job processes successfully (REC-02 WU-A)", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
     fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "start review" }));
+    });
+
+    const probe = screen.getByRole("status", { name: "processing probe" });
+    expect(probe).toHaveTextContent("processing: succeeded");
+    expect(probe).toHaveTextContent("errors: none");
+    expect(probe).toHaveTextContent("session: installed");
+    expect(probe).toHaveTextContent("returned: null");
+  });
+
+  it("typed-failure route: records failed, appends the typed error and installs no session", async () => {
+    render(<ProcessingProbe />);
+    fireEvent.click(screen.getByRole("button", { name: "create job" }));
+    // Durable producer: a typed error through the controllable loader seam.
+    engineControl.loadError = new PolicyError(
+      "unknown-policy",
+      "Injected loader failure: no such privacy policy in this deterministic test."
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "start review" }));
     });
@@ -156,15 +185,17 @@ describe("useJobSession.startReview (T15 #19)", () => {
     expect(probe).toHaveTextContent("errors: policy-unsupported");
     expect(probe).toHaveTextContent("session: none");
     expect(probe).toHaveTextContent("returned: policy-unsupported /");
-    expect(probe).toHaveTextContent(/no accepted per-category operator mapping/i);
-    // The failure is never mistaken for a successful review.
+    // The typed failure is never mistaken for a successful review.
     expect(probe).not.toHaveTextContent("processing: succeeded");
   });
 
   it("retry route: a failed attempt can start again and reach a terminal success", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
-    fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
+    engineControl.loadError = new PolicyError(
+      "unknown-policy",
+      "Injected loader failure: no such privacy policy in this deterministic test."
+    );
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "start review" }));
     });
@@ -172,8 +203,8 @@ describe("useJobSession.startReview (T15 #19)", () => {
       "processing: failed"
     );
 
-    // Fix the policy back to a mapped one, then retry the same job.
-    fireEvent.click(screen.getByRole("button", { name: "policy standard" }));
+    // The transient loader failure clears, then retry the same job.
+    engineControl.loadError = null;
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "start review" }));
     });
@@ -187,7 +218,10 @@ describe("useJobSession.startReview (T15 #19)", () => {
   it("never-success-never-thrown contract: a typed failure is returned, not thrown", async () => {
     render(<ProcessingProbe />);
     fireEvent.click(screen.getByRole("button", { name: "create job" }));
-    fireEvent.click(screen.getByRole("button", { name: "policy external-ai" }));
+    engineControl.loadError = new PolicyError(
+      "unknown-policy",
+      "Injected loader failure: no such privacy policy in this deterministic test."
+    );
 
     // The click handler calls the real startReview(); a throw would escape it.
     await act(async () => {

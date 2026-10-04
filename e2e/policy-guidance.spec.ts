@@ -3,11 +3,11 @@
  *
  * Deterministic, locally runnable browser evidence for the POLICY-01 contract:
  *
- *  1. user-visible availability by job kind in a real browser: on a text job
- *     the External AI / Longitudinal Research options are disabled and their
- *     guidance reads "Not available for this job type yet", while Standard /
- *     Strict are enabled and read "Available"; on a structured job all four
- *     options are enabled and all four read "Available";
+ *  1. user-visible availability by job kind in a real browser: since REC-02
+ *     every accepted policy has a text/document/batch mapping, so on a text job
+ *     the External AI / Longitudinal Research options are enabled and all four
+ *     guidance entries read "Available"; on a structured job all four options
+ *     are enabled and all four read "Available";
  *  2. normal-text WCAG AA (>= 4.5:1) contrast on the changed policy guidance
  *     surfaces, measured against the ACTUAL composited background with the
  *     shared `e2e/harness/contrast.ts` helper (never re-implemented here);
@@ -27,7 +27,7 @@ const STRUCTURED_CSV = path.resolve(__dirname, "fixtures/policy-structured.csv")
 
 const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
 
-test("text job: unavailable policies are disabled and shown unavailable, Standard / Strict available", async ({
+test("text job: all four policies are selectable and shown available (REC-02)", async ({
   page,
 }) => {
   await createTextJob(page);
@@ -35,19 +35,10 @@ test("text job: unavailable policies are disabled and shown unavailable, Standar
   const select = page.getByLabel("Privacy Policy:");
   const option = (name: string) => select.getByRole("option", { name });
   // Assert the reflected DOM property, the actual selectability contract.
-  await expect(option("Standard")).toHaveJSProperty("disabled", false);
-  await expect(option("Strict")).toHaveJSProperty("disabled", false);
-  await expect(option("External AI")).toHaveJSProperty("disabled", true);
-  await expect(option("Longitudinal Research")).toHaveJSProperty("disabled", true);
-
-  await expect(guidanceItem(page, "Standard")).toContainText("Available");
-  await expect(guidanceItem(page, "Strict")).toContainText("Available");
-  await expect(guidanceItem(page, "External AI")).toContainText(
-    "Not available for this job type yet"
-  );
-  await expect(guidanceItem(page, "Longitudinal Research")).toContainText(
-    "Not available for this job type yet"
-  );
+  for (const name of POLICY_NAMES) {
+    await expect(option(name)).toHaveJSProperty("disabled", false);
+    await expect(guidanceItem(page, name)).toContainText("Available");
+  }
 });
 
 test("structured job: all four policies are selectable and shown available", async ({ page }) => {
@@ -88,7 +79,7 @@ test("changed policy guidance normal text meets WCAG AA against the rendered com
       locator: guidanceItem(page, "Standard").locator("p").last(),
     },
     {
-      label: "Unavailable guidance body",
+      label: "External AI guidance body",
       locator: guidanceItem(page, "External AI").locator("p").last(),
     },
   ];
@@ -110,7 +101,7 @@ for (const width of [375, 768, 1280]) {
     await page.goto("/");
     await assertNoHorizontalOverflow(page, `no-job policy workspace @${width}px`);
 
-    // Text job (all four guidance cards, two of them unavailable).
+    // Text job (all four guidance cards).
     await createTextJob(page);
     await assertNoHorizontalOverflow(page, `text-job policy workspace @${width}px`);
 

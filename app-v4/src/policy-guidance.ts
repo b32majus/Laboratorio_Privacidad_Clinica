@@ -7,9 +7,10 @@
  * (the "no second policy engine" boundary):
  *
  * - text / document / document-batch → {@link lookupPolicyProfile}: the policy
- *   resolves ⇒ available; a typed {@link PolicyError} ⇒ not available. Only
- *   `standard`/`strict` have accepted category→operator mappings today, so
- *   `external-ai`/`longitudinal-research` fail typed and stay non-selectable.
+ *   resolves ⇒ available; a typed {@link PolicyError} ⇒ not available. Since
+ *   REC-02 every accepted policy resolves its own category→operator mapping,
+ *   so all four are selectable. Availability stays DERIVED from this authority
+ *   (never a second hard-coded table).
  * - structured → {@link resolveStructuredDateAgePolicy}: every accepted policy
  *   resolves, so all four are selectable.
  *
