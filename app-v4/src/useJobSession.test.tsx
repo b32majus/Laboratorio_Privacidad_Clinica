@@ -582,6 +582,27 @@ describe("useJobSession batch processing isolation (T17 #21 WU-B)", () => {
  * fixtures are synthetic; no real content anywhere.
  */
 describe("useJobSession batch longitudinal date shift (REC-02 WU-B)", () => {
+  it.each(["standard", "strict", "external-ai", "longitudinal-research"] as const)(
+    "processes a document batch successfully under the %s policy (ACCEPTANCE 10)",
+    async (policyId) => {
+      const job = setPolicy(
+        domainBatchJob([
+          { name: "a.txt", read: { ok: true, extractedText: LONG_DOC_A } },
+          { name: "b.txt", read: { ok: true, extractedText: LONG_DOC_B } },
+        ]),
+        policyId
+      );
+      const real = createRegistryEngine();
+      const run = await runBatchReviewAsync(beginProcessing(job), {
+        engineLoader: async () => ({ process: async (input) => real.process(input) }),
+      });
+      if (!run.ok) throw new Error(`expected ok: true, received failure ${run.failure.code}`);
+      for (const index of [0, 1]) {
+        expect(batchItemStatus(run.job, index)).toBe("review-required");
+      }
+    }
+  );
+
   it("threads ONE Job-scoped shift across successful items and preserves intervals/order (ACCEPTANCE 11)", async () => {
     const job = setPolicy(
       domainBatchJob([
