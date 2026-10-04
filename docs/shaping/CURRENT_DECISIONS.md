@@ -250,3 +250,51 @@ Structured `pseudonymize` is deterministic, column-local categorical tokenizatio
 - When `process-as-text` is configured, the existing Review step shows a bounded queue of those cells and reuses the existing ReviewWorkspace semantics. When none are configured, the existing structured review summary remains.
 - Do not expose internal mappings/context objects as user concepts.
 - ARX/risk scoring, configurable prefix/`Visita_Num`, smart workbook headers, XLSX exports, Confidential-download confirmation, Spanish localization and visual redesign remain owned by later REC Work Orders.
+
+
+## D-022 — REC-04 structured I/O and output parity
+
+**Accepted: 2026-10-04 (REC-04 STRUCTURED-IO-OUTPUT-PARITY-01 shaping, before implementation).**
+
+REC-04 restores useful workbook intake and structured export ergonomics on top of the canonical REC-03 structured semantics. It does not reintroduce the legacy structured app or let file/export code become a second privacy authority.
+
+### Workbook header-row authority
+
+- CSV keeps its accepted first-record-as-header semantics. Smart-header recovery applies only to XLS/XLSX.
+- Multi-sheet workbooks keep explicit sheet selection before header-row resolution; never silently select the first sheet.
+- For the selected worksheet, inspect at most the first 10 used rows using a deterministic v3-derived header heuristic: a candidate has at least three non-empty textual cells and either a known clinical/header token (`nhc`, `nombre`, `apellido`, `fecha`, `dni`, `paciente`, `id`, `codigo`, `edad`, `sexo`, `telefono`, `email`, `direccion`, `centro`, `medico`, `diagnostico`, `procedimiento`, `visita`) or more textual than numeric cells.
+- Exactly one candidate may be auto-selected. Zero or multiple candidates require explicit user header-row selection from the inspected rows. Do not silently fall back to row 1 when detection is uncertain.
+- Rows before the selected header are explanatory metadata and are not data rows. The chosen row becomes the normalized header; row order after it is preserved.
+- Detection/selection stays inside the existing Input/Configure flow; no new route or standalone import wizard.
+
+### Study-ID output options
+
+- The selected patient-ID column remains the REC-03 identity authority. REC-04 may configure only how its generated Safe Study ID is formatted; it may not introduce another patient identity source.
+- Default prefix is `PAC`. A blank prefix resolves to the default. A non-blank prefix is trimmed, upper-cased and must match `[A-Z][A-Z0-9]{0,9}`. Invalid values block/reject the option explicitly; never silently sanitize arbitrary punctuation/formula-like input into an accepted token.
+- Generated IDs remain deterministic first-appearance mappings: `<PREFIX>_001`, `<PREFIX>_002`, …; changing the prefix changes only generated token text, not patient grouping/order.
+- `Visita_Num` is an optional derived Safe column. To preserve the useful heritage default it starts enabled when a patient-ID authority exists, but is unavailable/effectively absent without one.
+- `Visita_Num` means **1-based occurrence sequence per patient in current input row order**. It does not sort rows and must not claim chronological visit ordering.
+- When enabled, `Visita_Num` is inserted immediately after `ID_ESTUDIO`. A conflicting Safe header `Visita_Num` blocks rather than being overwritten or duplicated silently.
+
+### Structured Safe data and factual summary
+
+- The canonical `StructuredOutput.safe` remains the only source for Safe CSV/XLSX. Exporters never rerun privacy transformations or inspect Confidential correspondence to reconstruct Safe values.
+- Preserve scalar types where practical in the Safe domain: unchanged `keep` numbers/booleans stay typed, absence stays `null`, transformed/pseudonymized/reviewed values remain their canonical transformed strings. CSV stringifies/escapes deterministically; XLSX writes typed scalars/blank cells.
+- A factual summary may expose total rows and, only when a patient-ID authority exists, unique patients, linked rows/visits and average linked rows per patient. These are descriptive counts, not a privacy/risk score and not proof of chronology.
+- No ARX/equivalence-class/risk claim is added in REC-04.
+
+### XLSX Safe / Confidential artifacts
+
+- Reuse the governed same-origin SheetJS runtime already present; no new spreadsheet dependency or remote runtime.
+- Safe XLSX is generated from canonical `StructuredOutput.safe`, preserves row order/blanks/typed scalars where practical, and contains no original↔transformed mapping or Confidential-only values. CSV remains an additional Safe format.
+- Confidential XLSX is generated only from canonical `StructuredOutput.confidential` plus non-sensitive factual metadata needed to understand the artifact. It may contain the authorized correspondence but must not pull `keep` clinical content into the audit merely because it exists in the Safe table.
+- Spreadsheet string cells that begin with formula-triggering characters remain literal strings; exporters must not create formula cells from user/source text.
+- Structured Confidential TXT may remain as an additional current format, but **every identifiable structured Confidential download (TXT or XLSX) requires a second deliberate confirmation immediately before the actual download**.
+- The confirmation is transient interaction state only: it grants no readiness, is cleared after confirm/cancel and cannot carry across another Job or newly blocked/stale preparation.
+- Safe and Confidential remain visually/conceptually separate zones inside the existing Export step.
+
+### Product-fidelity boundary
+
+- Keep `Input → Configure → Review → Privacy Gate → Export` and the REC-03 Class→Action/ReviewSession authorities unchanged.
+- No new structured app, import route, export page, privacy class, policy meaning, patient identity authority, remote processing, persistence, HMAC/global identity or risk-analysis layer.
+- REC-10 owns Spanish localization; REC-11 owns visual redesign. REC-04 may add only the bounded controls/status needed for header resolution, Study-ID options, factual summary and output-format/confirmation recovery.
