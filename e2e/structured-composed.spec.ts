@@ -133,12 +133,20 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   const safeDownload = await safeDownloadPromise;
   const safeCsv = fs.readFileSync((await safeDownload.path())!, "utf8");
   const lines = safeCsv.split("\n");
-  expect(lines[0]).toBe("ID_ESTUDIO,Fecha_Visita,Fecha_Nacimiento,Centro,Diagnostico,Notas");
+  // REC-04 D-022: the patient-ID heritage default enables row-order
+  // Visita_Num immediately after ID_ESTUDIO.
+  expect(lines[0]).toBe(
+    "ID_ESTUDIO,Visita_Num,Fecha_Visita,Fecha_Nacimiento,Centro,Diagnostico,Notas"
+  );
   expect(lines).toHaveLength(4);
   // Repeated patients reuse the same Study ID (row linkage preserved).
   expect(lines[1].split(",")[0]).toBe("PAC_001");
   expect(lines[2].split(",")[0]).toBe("PAC_001");
   expect(lines[3].split(",")[0]).toBe("PAC_002");
+  // 1-based occurrence per patient in input row order (not chronology).
+  expect(lines[1].split(",")[1]).toBe("1");
+  expect(lines[2].split(",")[1]).toBe("2");
+  expect(lines[3].split(",")[1]).toBe("1");
   // Transformed dates/ages (T19 month precision under Standard), QID tokens,
   // kept diagnosis as configured.
   expect(safeCsv).toContain("2023-01");
@@ -163,6 +171,9 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
 
   const auditDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
+  // REC-04 D-022 (H-42 structured slice): the identifiable Confidential
+  // artifact requires the additional deliberate in-zone confirmation.
+  await page.getByRole("button", { name: "Confirm confidential download (.txt)" }).click();
   const auditDownload = await auditDownloadPromise;
   const audit = fs.readFileSync((await auditDownload.path())!, "utf8");
   expect(audit).toContain("CONFIDENTIAL");
