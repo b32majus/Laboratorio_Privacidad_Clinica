@@ -5,12 +5,14 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "Pediatric month age after an explicit age cue -> the <1 año band.",
+  "style_slices": ["short_prose"],
   "text": "Lactante de 8 meses con fiebre.",
   "annotations": [
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "8 meses",
+      "slice": "pediatric",
       "expectedTransformed": "<1 año"
     }
   ]

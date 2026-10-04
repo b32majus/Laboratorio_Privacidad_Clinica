@@ -21,7 +21,8 @@
     { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Albarracín", "note": "Small municipality: high re-identification risk." },
     { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "síndrome de Wolfram", "note": "Rare disease: quasi-identifier requiring review." },
     { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "Alcalde del municipio", "note": "Public office: quasi-identifier requiring review." },
-    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "Hermano gemelo", "note": "Twin relationship: quasi-identifier requiring review." }
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "Hermano gemelo", "note": "Twin relationship: quasi-identifier requiring review." },
+    { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "único paciente", "note": "Singularity/unique-case cue: quasi-identifier requiring review. Previously a documented known gap (the engine missed it); REC-01 corrected the sentence-initial/lowercase accented cue so it is now surfaced and applied to this gated case." }
   ],
-  "notes": "The quasi-identifier phrase 'único paciente' from the source example is NOT annotated here because the current engine does not surface it; it is tracked in the adversarial corpus notes and its promotion to the gated tier is a privacy-engine decision (fail-closed, not silently omitted)."
+  "notes": "The quasi-identifier phrase 'único paciente' is now annotated: REC-01 corrected the singularity cue boundary so the engine surfaces the accented/lowercase form, and the expectation is applied to this gated case (no longer a known gap)."
 }

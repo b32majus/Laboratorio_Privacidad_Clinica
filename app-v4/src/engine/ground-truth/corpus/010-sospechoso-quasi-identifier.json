@@ -5,12 +5,14 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "A specific profession is a contextual quasi-identifier surfaced for review (SOSPECHOSO taxonomy).",
+  "style_slices": ["accents", "short_prose"],
   "text": "Profesión: maestra de educación primaria.",
   "annotations": [
     {
       "label": "MUST_FLAG_FOR_REVIEW",
       "entity_type": "SOSPECHOSO",
-      "value": "maestra de educación primaria"
+      "value": "maestra de educación primaria",
+      "slice": "profession"
     }
   ]
 }

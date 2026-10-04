@@ -22,12 +22,23 @@ export function detectCuasiIdentificadores(text) {
         });
     };
 
-    const singularidadRegex = /\b(?:únic[oa]s?\s+pacientes?|caso\s+[úu]nico|único\s+caso)\b/gi;
+    // REC-01 correction: the singular-cue alternatives that begin with an
+    // accented letter ("único paciente", "único caso") were silently missed
+    // because an ASCII `\b` never matches before `ú`/`Ú`. Use an explicit
+    // letter boundary so a sentence-initial capitalized accented cue is
+    // detected, while ordinary words that merely start with an accented
+    // capital ("Ácido úrico") stay untouched.
+    const singularidadRegex = /(?<![A-Za-zÁÉÍÓÚÑáéíóúñ])(?:únic[oa]s?\s+pacientes?|caso\s+[úu]nico|único\s+caso)(?![A-Za-zÁÉÍÓÚÑáéíóúñ])/gi;
     while ((match = singularidadRegex.exec(text)) !== null) {
         addEntity('singularidad', match[0], match.index, 0.90);
     }
 
-    const enfermedadRaraRegex = /\b(?:s[ií]ndrome|enfermedad)\s+de\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2}\b/g;
+    // REC-01 WU-B: the cue word is case-insensitive (sentence-initial
+    // "Síndrome de X" / "Enfermedad de X" are ordinary Spanish), while the
+    // proper-noun slot after "de" stays uppercase-anchored so ordinary terms
+    // ("síndrome de abstinencia", "enfermedad de transmisión sexual") are not
+    // misread as eponym rare diseases.
+    const enfermedadRaraRegex = /\b(?:[sS][ií]ndrome|[eE]nfermedad)\s+de\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2}\b/g;
     while ((match = enfermedadRaraRegex.exec(text)) !== null) {
         addEntity('enfermedad_rara', match[0], match.index, 0.88);
     }

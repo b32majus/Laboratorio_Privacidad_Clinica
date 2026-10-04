@@ -425,6 +425,66 @@ describe("mergeRecognizedObservations — documented deterministic conflict rule
   });
 });
 
+/**
+ * REC-01 WU-B bounded correction: the rare-disease cue (`síndrome de` /
+ * `enfermedad de`) is intended to be case-insensitive in its cue word while
+ * still requiring a proper-noun slot after `de`. Before the correction a
+ * sentence-initial capitalized cue ("Síndrome de Marfan") was silently
+ * missed while the lowercase form was detected. These tests pin both the
+ * positive (capitalized cue now caught) and the negative (ordinary clinical
+ * lowercase terms still not flagged) sides of the same seam.
+ */
+describe("SOSPECHOSO rare-disease cue casing (REC-01 WU-B)", () => {
+  const rareDiseases = (text: string): string[] =>
+    createLegacyRecognizerRegistry()
+      .get(LEGACY_CATEGORY_RECOGNIZER_KEYS.SOSPECHOSO)
+      .observe(text)
+      .filter((observation) => observation.subtype === "enfermedad_rara")
+      .map((observation) => observation.text);
+
+  it("positive: a sentence-initial capitalized rare-disease cue is detected", () => {
+    expect(rareDiseases("Síndrome de Marfan. Antecedentes de enfermedad de Crohn.")).toEqual([
+      "Síndrome de Marfan",
+      "enfermedad de Crohn",
+    ]);
+  });
+
+  it("negative: ordinary clinical 'síndrome/enfermedad de <lowercase>' is not flagged", () => {
+    expect(
+      rareDiseases("No refiere síndrome de abstinencia ni enfermedad de transmisión sexual.")
+    ).toEqual([]);
+  });
+});
+
+/**
+ * REC-01 correction: an ASCII word boundary never matched before an accented
+ * leading "ú"/"Ú", so the sentence-initial singularity cue "Único paciente"
+ * was silently missed. These tests pin both the positive (defect now measured)
+ * and the negative (ordinary clinical text is not newly detected) sides of the
+ * seam. (The companion professional over-capture defect is retained as a
+ * report-only known gap: correcting it would change the accepted T14
+ * low-confidence candidate contract, which is outside REC-01's boundary.)
+ */
+describe("REC-01 recognizer boundary correction (initial singularity cue)", () => {
+  const singularidades = (text: string): string[] =>
+    createLegacyRecognizerRegistry()
+      .get(LEGACY_CATEGORY_RECOGNIZER_KEYS.SOSPECHOSO)
+      .observe(text)
+      .filter((observation) => observation.subtype === "singularidad")
+      .map((observation) => observation.text);
+
+  it("positive: sentence-initial and lowercase accented singularity cues are detected", () => {
+    expect(singularidades("Único paciente en la unidad.")).toEqual(["Único paciente"]);
+    expect(singularidades("Único caso registrado.")).toEqual(["Único caso"]);
+    expect(singularidades("Se trata de un único paciente.")).toEqual(["único paciente"]);
+  });
+
+  it("negative: ordinary accented clinical text is not newly detected as a singularity cue", () => {
+    expect(singularidades("Ácido úrico elevado; última revisión sin incidencias.")).toEqual([]);
+    expect(singularidades("Tratamiento único para este paciente.")).toEqual([]);
+  });
+});
+
 afterEach(() => {
   // Leave the shared legacy singletons clean for other suites.
   AsignadorSustitutos.reset();

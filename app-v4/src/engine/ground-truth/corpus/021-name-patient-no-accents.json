@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-021-name-patient-no-accents",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Patient name written without accents ('Lucia Marquez') after the clinical 'Paciente' context.",
+  "style_slices": ["no_accents", "short_prose"],
+  "text": "Paciente Lucia Marquez, de 28 años.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "NOMBRE",
+      "value": "Lucia Marquez",
+      "slice": "patient",
+      "note": "Unaccented spelling; the recognizer claims accent-normalized context support."
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "28 años",
+      "slice": "adult",
+      "expectedTransformed": "20–29 años"
+    }
+  ]
+}

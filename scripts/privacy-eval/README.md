@@ -33,6 +33,23 @@ The evaluator prints a deterministic JSON report (no timestamps, session ids or
 random values) plus a one-line summary. Exit code `0` = gate pass; `1` = gate
 fail **or** invalid corpus/config (fail-closed, D-009).
 
+### Coverage contract (REC-01 WU-A)
+
+`coverage.json` declares, per top-level type, the meaningful slices that must
+have machine-visible support plus a minimum distinct-case floor, and the
+language/style slices the corpus as a whole must exhibit. `evaluateV4GroundTruth`
+reports per-type/per-slice support (derived F1 included) and fails closed
+(`report.pass === false`) when a declared unit has zero support or a type
+collapses below the floor; unknown slices/styles and malformed manifests raise
+the typed `V4GroundTruthError`. Coverage is not a precision/recall threshold and
+does not modify `config.json`.
+
+The REC-01 WU-B expanded corpus declares every required unit, so the coverage
+dimension is green (`failures: [] / pass: true`). Narrowing the manifest is
+fail-closed: a type/slice/style that the corpus still exercises but
+`coverage.json` no longer declares is a coverage failure, so a required
+declaration cannot disappear silently (REC-01 F1).
+
 Options: `--corpus-dir=<dir>` (default `scripts/privacy-eval/corpus`),
 `--config=<file>` (default `scripts/privacy-eval/config.json`),
 `--report=<file>` (also write the JSON report to a file).
@@ -114,10 +131,12 @@ privacy-engine decision under a separate ticket, not a harness decision.
 Case `100` is the false-positive guard in the gated tier: clinical content with
 no identifiers, where any detection fails CI.
 
-## Known gap tracked explicitly
+## Resolved gap
 
-The quasi-identifier phrase `único paciente` in the mapped example 004 is not
-surfaced by the current engine. Per fail-closed discipline it is neither
-annotated into the gated tier (which would require recognizer semantics changes
-— out of scope for T02) nor marked `MUST_KEEP` (which would contradict its
-privacy meaning). It is recorded in the notes of cases `004` and `902`.
+The quasi-identifier phrase `único paciente` in the mapped example 004 is now
+surfaced. REC-01 corrected the singularity cue boundary so the accented /
+sentence-initial form matches, so case `004` now carries the
+`MUST_FLAG_FOR_REVIEW` expectation in the gated tier and case `902` records
+the resolution. The cue detection was narrowed, not weakened: ordinary
+accented clinical text (`Ácido úrico…`, `Tratamiento único…`) is still not
+flagged.

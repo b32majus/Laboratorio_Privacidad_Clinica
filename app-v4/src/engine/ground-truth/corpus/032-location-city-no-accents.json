@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-032-location-city-no-accents",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Province/city dictionary matches written without accents ('Malaga', 'Cadiz').",
+  "style_slices": ["no_accents", "short_prose"],
+  "text": "Procedente de Malaga, reside en Cadiz.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "UBICACION",
+      "value": "Malaga",
+      "slice": "dictionary_city"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "UBICACION",
+      "value": "Cadiz",
+      "slice": "dictionary_city"
+    }
+  ]
+}

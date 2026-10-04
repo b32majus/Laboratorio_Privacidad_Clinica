@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-041-dense-mixed-prose",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Denser mixed-entity clinical prose: age, rare disease, hospital, date and DNI in one sentence.",
+  "style_slices": ["dense_prose", "accents", "punctuation"],
+  "text": "Paciente de 67 años con síndrome de Marfan; ingresa en el Hospital de Getafe el 12/03/2023 con DNI: 12345678Z",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "67 años",
+      "slice": "adult",
+      "expectedTransformed": "60–69 años"
+    },
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "síndrome de Marfan",
+      "slice": "rare_disease"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "UBICACION",
+      "value": "Hospital de Getafe",
+      "slice": "hospital"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "FECHA",
+      "value": "12/03/2023",
+      "slice": "numeric"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "12345678Z",
+      "slice": "dni"
+    }
+  ]
+}

@@ -5,30 +5,35 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "Decade band boundaries: 9 and 10, 19 and 20 must not collapse into one band.",
+  "style_slices": ["short_prose", "punctuation"],
   "text": "Paciente de 9 años, 10 años, 19 años y 20 años.",
   "annotations": [
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "9 años",
+      "slice": "boundary",
       "expectedTransformed": "0–9 años"
     },
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "10 años",
+      "slice": "boundary",
       "expectedTransformed": "10–19 años"
     },
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "19 años",
+      "slice": "boundary",
       "expectedTransformed": "10–19 años"
     },
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "20 años",
+      "slice": "adult",
       "expectedTransformed": "20–29 años"
     }
   ]

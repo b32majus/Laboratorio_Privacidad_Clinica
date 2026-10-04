@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-040-age-abbreviated-and-pediatric",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Abbreviated adult years next to an explicitly cued pediatric age.",
+  "style_slices": ["abbreviations", "short_prose"],
+  "text": "Paciente de 62 a. Lactante de 9 meses.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "62 a.",
+      "slice": "abbreviated",
+      "expectedTransformed": "60–69 años"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "9 meses",
+      "slice": "pediatric",
+      "expectedTransformed": "<1 año"
+    }
+  ]
+}

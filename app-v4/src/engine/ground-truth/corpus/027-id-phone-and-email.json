@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-027-id-phone-and-email",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Spanish phone with the +34 country prefix and a labelled email address.",
+  "style_slices": ["accents", "punctuation"],
+  "text": "Teléfono: +34 654 321 987. Correo: ana.lopez@example.com.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "654 321 987",
+      "slice": "phone",
+      "note": "+34 prefix variant; the national number is the removed span."
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "ana.lopez@example.com",
+      "slice": "email"
+    }
+  ]
+}

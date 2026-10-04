@@ -5,12 +5,14 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "Zero completed years is a valid lower-bound age and is banded, never kept exact.",
+  "style_slices": ["short_prose"],
   "text": "El paciente tiene 0 años.",
   "annotations": [
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "0 años",
+      "slice": "boundary",
       "expectedTransformed": "0–9 años"
     }
   ]

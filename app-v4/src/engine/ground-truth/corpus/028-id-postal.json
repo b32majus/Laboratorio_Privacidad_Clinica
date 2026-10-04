@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-028-id-postal",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Postal-code/label context the productive detector treats as an identifier.",
+  "style_slices": ["telegraphic"],
+  "text": "C.P.: 28001.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "C.P.: 28001",
+      "slice": "postal",
+      "note": "Label + postal code form detected as one identifier span."
+    }
+  ]
+}

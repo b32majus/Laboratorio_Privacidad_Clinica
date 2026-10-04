@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-035-sospechoso-profession-and-public-role",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "A specific profession and a public-office cue surfaced for review.",
+  "style_slices": ["punctuation", "short_prose"],
+  "text": "Profesión: bombero. Además, es concejal del ayuntamiento.",
+  "annotations": [
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "bombero",
+      "slice": "profession"
+    },
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "concejal del ayuntamiento",
+      "slice": "public_role"
+    }
+  ]
+}

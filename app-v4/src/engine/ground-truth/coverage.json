@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "rationale": "REC-01 (SPANISH-ENGINE-ASSURANCE-01) WU-A coverage contract. Declares, per productive top-level type, the meaningful slices that must have machine-visible support plus a minimum distinct-case floor so a category cannot collapse to a single-example pseudo-grade, and the language/style slices the corpus as a whole must exhibit. Support counts every committed annotation (core + adversarial) because coverage measures corpus breadth; the gated precision/recall/FNR regression thresholds remain a separate authority in config.json and are not touched. The REC-01 WU-B corpus declares every required unit, so the coverage dimension is green; a type/slice/style that the corpus still exercises but this manifest no longer declares fails closed, so a required declaration cannot disappear silently.",
+  "types": {
+    "NOMBRE": {
+      "min_distinct_cases": 2,
+      "slices": {
+        "patient": { "min_support": 1 },
+        "professional": { "min_support": 1 },
+        "family": { "min_support": 1 },
+        "compound": { "min_support": 1 }
+      }
+    },
+    "IDENTIFICADOR": {
+      "min_distinct_cases": 2,
+      "slices": {
+        "dni": { "min_support": 1 },
+        "nie": { "min_support": 1 },
+        "nuss": { "min_support": 1 },
+        "nhc": { "min_support": 1 },
+        "health_card": { "min_support": 1 },
+        "phone": { "min_support": 1 },
+        "email": { "min_support": 1 },
+        "postal": { "min_support": 1 }
+      }
+    },
+    "FECHA": {
+      "min_distinct_cases": 2,
+      "slices": {
+        "numeric": { "min_support": 1 },
+        "textual": { "min_support": 1 },
+        "month_year": { "min_support": 1 },
+        "year": { "min_support": 1 },
+        "measurement_negative": { "min_support": 1 }
+      }
+    },
+    "UBICACION": {
+      "min_distinct_cases": 2,
+      "slices": {
+        "dictionary_city": { "min_support": 1 },
+        "hospital": { "min_support": 1 },
+        "address": { "min_support": 1 },
+        "barrio": { "min_support": 1 }
+      }
+    },
+    "SOSPECHOSO": {
+      "min_distinct_cases": 2,
+      "slices": {
+        "profession": { "min_support": 1 },
+        "singularity": { "min_support": 1 },
+        "public_role": { "min_support": 1 },
+        "kinship": { "min_support": 1 },
+        "rare_disease": { "min_support": 1 },
+        "rare_disease_negative": { "min_support": 1 }
+      }
+    },
+    "EDAD": {
+      "min_distinct_cases": 2,
+      "slices": {
+        "adult": { "min_support": 1 },
+        "abbreviated": { "min_support": 1 },
+        "pediatric": { "min_support": 1 },
+        "boundary": { "min_support": 1 },
+        "age_vs_duration": { "min_support": 1 },
+        "implausible_control": { "min_support": 1 }
+      }
+    }
+  },
+  "styles": {
+    "accents": { "min_support": 1 },
+    "no_accents": { "min_support": 1 },
+    "abbreviations": { "min_support": 1 },
+    "telegraphic": { "min_support": 1 },
+    "punctuation": { "min_support": 1 },
+    "multiline": { "min_support": 1 },
+    "short_prose": { "min_support": 1 },
+    "dense_prose": { "min_support": 1 },
+    "negatives": { "min_support": 1 }
+  }
+}
