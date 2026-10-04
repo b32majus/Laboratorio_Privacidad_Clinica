@@ -27,7 +27,12 @@ export function detectCuasiIdentificadores(text) {
         addEntity('singularidad', match[0], match.index, 0.90);
     }
 
-    const enfermedadRaraRegex = /\b(?:s[ií]ndrome|enfermedad)\s+de\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2}\b/g;
+    // REC-01 WU-B: the cue word is case-insensitive (sentence-initial
+    // "Síndrome de X" / "Enfermedad de X" are ordinary Spanish), while the
+    // proper-noun slot after "de" stays uppercase-anchored so ordinary terms
+    // ("síndrome de abstinencia", "enfermedad de transmisión sexual") are not
+    // misread as eponym rare diseases.
+    const enfermedadRaraRegex = /\b(?:[sS][ií]ndrome|[eE]nfermedad)\s+de\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){0,2}\b/g;
     while ((match = enfermedadRaraRegex.exec(text)) !== null) {
         addEntity('enfermedad_rara', match[0], match.index, 0.88);
     }
