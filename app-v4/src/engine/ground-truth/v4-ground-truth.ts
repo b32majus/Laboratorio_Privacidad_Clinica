@@ -27,8 +27,18 @@
  *   top-level type and by declared slice/subtype, and `coverage.json` declares
  *   the required slices, a minimum distinct-case floor per type and the
  *   language/style slices the corpus must exhibit. A declared unit with zero
- *   support (or a collapsed type) makes `report.pass === false`; coverage is
- *   not a precision/recall threshold and never touches `config.json`.
+ *   support (or a collapsed type) makes `report.pass === false`, and so does
+ *   narrowing the manifest: a type/slice/style that the corpus still exercises
+ *   but the manifest no longer declares is a coverage failure (REC-01 F1), so
+ *   a required declaration cannot disappear silently. Coverage is not a
+ *   precision/recall threshold and never touches `config.json`.
+ * - Per-slice metrics (REC-01 F2): `slice_metrics` exposes deterministic
+ *   precision/recall/FNR (and F1) per declared slice over the gated core
+ *   corpus, reusing the shared `metrics.mjs` definitions. Slice-tagged gold
+ *   annotations carry tp/fn and a detection violating a slice-tagged
+ *   MUST_KEEP is that slice's fp; detections matching no gold annotation stay
+ *   type-level fp and remain gated at type level. Slice metrics are evidence,
+ *   not a threshold: no slice is gated and `gate`/`config.json` are unchanged.
  * - Fail-closed (D-009): malformed corpus/config/coverage-manifest, an
  *   annotation whose value does not occur in its case text, an unknown slice
  *   or style, or a gated entity type missing from the threshold config all
@@ -227,12 +237,16 @@ export type V4CoverageManifest = {
 
 /** One deterministic coverage failure, with a stable machine-readable key. */
 export type V4CoverageFailure = {
-  /** Stable id, e.g. `"NOMBRE:patient"`, `"style:accents"`, `"EDAD:min_distinct_cases"`. */
+  /**
+   * Stable id, e.g. `"NOMBRE:patient"`, `"style:accents"`,
+   * `"EDAD:min_distinct_cases"`, or `"UBICACION:declaration"` /
+   * `"NOMBRE:professional:declaration"` for a narrowed manifest.
+   */
   readonly key: string;
-  readonly kind: "slice" | "style" | "distinct_cases";
+  readonly kind: "slice" | "style" | "distinct_cases" | "declaration";
   /** Top-level type, or `"styles"` for a style requirement. */
   readonly scope: string;
-  /** Slice/style name, or `"min_distinct_cases"` for a case-floor failure. */
+  /** Slice/style name, `"min_distinct_cases"` for a case floor, or `"type"` for a type declaration. */
   readonly slice: string;
   readonly required: number;
   readonly actual: number;
@@ -314,7 +328,20 @@ export type V4GroundTruthReport = {
   readonly f1: {
     readonly overall: number;
     readonly per_type: Readonly<Record<string, number>>;
+    /** REC-01 F2: F1 per declared slice, keyed `"TYPE:slice"`. */
+    readonly per_slice: Readonly<Record<string, number>>;
   };
+  /**
+   * REC-01 F2: deterministic precision/recall/FNR per declared slice
+   * (keyed `"TYPE:slice"`), computed with the reused `computeMetrics`
+   * semantics. Core-tier only, exactly like `gate.per_type`. Attribution:
+   * slice-tagged gold annotations carry tp/fn; a detection violating a
+   * slice-tagged MUST_KEEP additionally becomes that slice's fp; detections
+   * matching no gold annotation stay type-level fp and remain gated at type
+   * level (this map never replaces the type-level gate). These are evidence,
+   * not a new threshold: no slice is gated and `config.json` is unchanged.
+   */
+  readonly slice_metrics: Readonly<Record<string, PrivacyEvalMetrics>>;
   /** REC-01 WU-A coverage dimension: declared-vs-supported breadth. */
   readonly coverage: V4CoverageReport;
   readonly adversarial: ReadonlyArray<{
@@ -815,7 +842,22 @@ function computeCoverage(
   const failures: V4CoverageFailure[] = [];
   for (const type of TAXONOMY) {
     const declared = manifest.types[type] as V4CoverageTypeRequirement | undefined;
-    if (declared === undefined) continue;
+    if (declared === undefined) {
+      // REC-01 F1: a type the corpus exercises but the manifest no longer
+      // declares must fail closed, instead of silently dropping its
+      // requirement.
+      if (types[type].support > 0) {
+        failures.push({
+          key: `${type}:declaration`,
+          kind: "declaration",
+          scope: type,
+          slice: "type",
+          required: 1,
+          actual: 0,
+        });
+      }
+      continue;
+    }
     if (types[type].distinct_cases < declared.min_distinct_cases) {
       failures.push({
         key: `${type}:min_distinct_cases`,
@@ -828,8 +870,22 @@ function computeCoverage(
     }
     for (const slice of V4_SLICE_TAXONOMY[type as RecognizerCategory]) {
       const requirement = declared.slices[slice] as V4CoverageSliceRequirement | undefined;
-      if (requirement === undefined) continue;
       const actual = types[type].slices[slice].support;
+      if (requirement === undefined) {
+        // REC-01 F1: a corpus-used slice without a declaration is a silently
+        // removed requirement; fail closed.
+        if (actual > 0) {
+          failures.push({
+            key: `${type}:${slice}:declaration`,
+            kind: "declaration",
+            scope: type,
+            slice,
+            required: 1,
+            actual: 0,
+          });
+        }
+        continue;
+      }
       if (actual < requirement.min_support) {
         failures.push({
           key: `${type}:${slice}`,
@@ -844,8 +900,22 @@ function computeCoverage(
   }
   for (const style of V4_STYLE_SLICES) {
     const requirement = manifest.styles[style] as V4CoverageSliceRequirement | undefined;
-    if (requirement === undefined) continue;
     const actual = styles[style].case_count;
+    if (requirement === undefined) {
+      // REC-01 F1: a corpus-declared style without a manifest declaration is
+      // a silently removed requirement; fail closed.
+      if (actual > 0) {
+        failures.push({
+          key: `style:${style}:declaration`,
+          kind: "declaration",
+          scope: "styles",
+          slice: style,
+          required: 1,
+          actual: 0,
+        });
+      }
+      continue;
+    }
     if (actual < requirement.min_support) {
       failures.push({
         key: `style:${style}`,
@@ -881,6 +951,7 @@ export function evaluateV4GroundTruth(
   }
 
   const coreEntries: Array<{ type: string; tp: number; fn: number; fp: number }> = [];
+  const coreSliceEntries: Array<{ type: string; tp: number; fn: number; fp: number }> = [];
   const caseResults: V4CaseResult[] = [];
   const allGoldenFailures: string[] = [];
 
@@ -899,14 +970,39 @@ export function evaluateV4GroundTruth(
     const assignment = assignDetections(caseData.annotations, detections, flaggedItems);
 
     const perTypeCounts = new Map<string, { tp: number; fn: number; fp: number }>();
-    const bump = (type: string, key: "tp" | "fn" | "fp") => {
-      const current = perTypeCounts.get(type) ?? { tp: 0, fn: 0, fp: 0 };
-      current[key] += 1;
-      perTypeCounts.set(type, current);
+    const perSliceCounts = new Map<string, { tp: number; fn: number; fp: number }>();
+    const bump = (
+      store: Map<string, { tp: number; fn: number; fp: number }>,
+      key: string,
+      field: "tp" | "fn" | "fp"
+    ) => {
+      const current = store.get(key) ?? { tp: 0, fn: 0, fp: 0 };
+      current[field] += 1;
+      store.set(key, current);
     };
-    for (const { annotation } of assignment.matched) bump(annotation.entity_type, "tp");
-    for (const annotation of assignment.missed) bump(annotation.entity_type, "fn");
-    for (const { detection } of assignment.false_positives) bump(detection.type, "fp");
+    // REC-01 F2 slice attribution: slice-tagged gold annotations carry tp/fn;
+    // a detection violating a slice-tagged MUST_KEEP is additionally that
+    // slice's fp. Every unmatched detection still bumps its type-level fp
+    // (unchanged gate semantics); detections matching no gold annotation are
+    // therefore never hidden from the type-level gate.
+    for (const { annotation } of assignment.matched) {
+      bump(perTypeCounts, annotation.entity_type, "tp");
+      if (annotation.slice !== undefined) {
+        bump(perSliceCounts, `${annotation.entity_type}:${annotation.slice}`, "tp");
+      }
+    }
+    for (const annotation of assignment.missed) {
+      bump(perTypeCounts, annotation.entity_type, "fn");
+      if (annotation.slice !== undefined) {
+        bump(perSliceCounts, `${annotation.entity_type}:${annotation.slice}`, "fn");
+      }
+    }
+    for (const { detection, annotation } of assignment.false_positives) {
+      bump(perTypeCounts, detection.type, "fp");
+      if (annotation?.slice !== undefined) {
+        bump(perSliceCounts, `${annotation.entity_type}:${annotation.slice}`, "fp");
+      }
+    }
 
     const goldenFailures = collectGoldenFailures(caseData, entities, assignment.matched);
     // Adversarial cases are REPORT-ONLY (documented tier contract, identical
@@ -918,6 +1014,11 @@ export function evaluateV4GroundTruth(
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([type, counts]) => ({ type, ...counts }));
     if (caseData.tier === "core") coreEntries.push(...entries);
+
+    const sliceEntries = [...perSliceCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, counts]) => ({ type: key, ...counts }));
+    if (caseData.tier === "core") coreSliceEntries.push(...sliceEntries);
 
     caseResults.push({
       case_id: caseData.case_id,
@@ -943,6 +1044,35 @@ export function evaluateV4GroundTruth(
   const gatedMetrics = aggregateMetrics(coreEntries);
   const thresholdGate = evaluateThresholds(config.gate, gatedMetrics);
   const coverage = computeCoverage(corpus.cases, coverageManifest);
+
+  // REC-01 F2: per-declared-slice metrics over the SAME gated (core) entries,
+  // reusing the shared computeMetrics semantics through aggregateMetrics (no
+  // forked formula). Slices declared by the manifest but with no core entry
+  // are reported with the shared empty-count conventions (precision/recall 1,
+  // FNR 0) instead of being silently omitted.
+  const declaredSliceKeys = new Set<string>();
+  for (const type of TAXONOMY) {
+    const requirement = coverageManifest.types[type] as V4CoverageTypeRequirement | undefined;
+    for (const slice of Object.keys(requirement?.slices ?? {})) {
+      declaredSliceKeys.add(`${type}:${slice}`);
+    }
+  }
+  const sliceCountTotals = new Map<string, { tp: number; fn: number; fp: number }>();
+  for (const entry of coreSliceEntries) {
+    const current = sliceCountTotals.get(entry.type) ?? { tp: 0, fn: 0, fp: 0 };
+    current.tp += entry.tp;
+    current.fn += entry.fn;
+    current.fp += entry.fp;
+    sliceCountTotals.set(entry.type, current);
+  }
+  for (const key of declaredSliceKeys) {
+    if (!sliceCountTotals.has(key)) sliceCountTotals.set(key, { tp: 0, fn: 0, fp: 0 });
+  }
+  const sliceMetrics = aggregateMetrics(
+    [...sliceCountTotals.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([type, counts]) => ({ type, ...counts }))
+  ).per_type;
 
   // Fail-closed taxonomy coverage: a gated type present in the corpus but
   // missing from the thresholds could hide a regression; never pass silently.
@@ -978,7 +1108,14 @@ export function evaluateV4GroundTruth(
           f1FromPrecisionRecall(metrics.precision, metrics.recall),
         ])
       ),
+      per_slice: Object.fromEntries(
+        Object.entries(sliceMetrics).map(([slice, metrics]) => [
+          slice,
+          f1FromPrecisionRecall(metrics.precision, metrics.recall),
+        ])
+      ),
     },
+    slice_metrics: sliceMetrics,
     coverage,
     adversarial: caseResults
       .filter((result) => result.tier === "adversarial")

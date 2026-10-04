@@ -219,6 +219,32 @@ describe("V4 ground-truth gate (FUNC-008 + QA-001)", () => {
     expect(report.gate.pass).toBe(true);
   });
 
+  it("F3(a) — the professional over-capture is a machine-visible, non-gating known gap", () => {
+    const report = evaluate(corpus.cases);
+    const knownGap = report.cases.find(
+      (result) => result.case_id === "v4-043-name-professional-overcapture"
+    );
+    expect(knownGap?.tier).toBe("adversarial");
+    // The independently authored name expectation is surfaced as a golden
+    // failure (the engine over-captures past "Dr. Ramírez")...
+    expect(knownGap?.golden_failures.join(" ")).toMatch(/no exact .* detection/);
+    // ...but it never gates: adversarial goldens are excluded from `pass`.
+    expect(report.golden_failures).toEqual([]);
+    expect(report.pass).toBe(true);
+  });
+
+  it("F3(b) — the sentence-initial singularity cue case is measured in the gated corpus", () => {
+    const report = evaluate(corpus.cases);
+    const result = report.cases.find(
+      (item) => item.case_id === "v4-044-sospechoso-singularity-initial"
+    );
+    expect(result?.tier).toBe("core");
+    expect(result?.matched).toBe(1);
+    expect(result?.missed).toEqual([]);
+    expect(result?.golden_failures).toEqual([]);
+    expect(report.slice_metrics["SOSPECHOSO:singularity"].tp).toBeGreaterThan(0);
+  });
+
   it("fail-closed: a gated entity type without thresholds is rejected, not silently skipped", () => {
     const incomplete: V4GateConfig = {
       ...config,
@@ -483,5 +509,158 @@ describe("V4 coverage contract (REC-01 WU-A)", () => {
     expect(failing.coverage.failures.map((failure) => failure.key)).toEqual(["EDAD:pediatric"]);
     expect(failing.coverage.pass).toBe(false);
     expect(failing.pass).toBe(false);
+  });
+
+  it("FALSATION — removing a declared type, slice or style turns the coverage oracle red (F1)", () => {
+    // Narrowing `coverage.json` must fail closed: a declaration that the
+    // corpus still exercises cannot disappear silently.
+    const withoutType: V4CoverageManifest = {
+      ...coverageContract,
+      types: Object.fromEntries(
+        Object.entries(coverageContract.types).filter(([type]) => type !== "UBICACION")
+      ),
+    };
+    const typeReport = evaluate(corpus.cases, config, withoutType);
+    expect(typeReport.coverage.failures.map((failure) => failure.key)).toContain(
+      "UBICACION:declaration"
+    );
+    expect(typeReport.coverage.pass).toBe(false);
+    expect(typeReport.pass).toBe(false);
+
+    const nombreRequirement = coverageContract.types.NOMBRE;
+    const withoutSlice: V4CoverageManifest = {
+      ...coverageContract,
+      types: {
+        ...coverageContract.types,
+        NOMBRE: {
+          ...nombreRequirement,
+          slices: Object.fromEntries(
+            Object.entries(nombreRequirement.slices).filter(([slice]) => slice !== "professional")
+          ),
+        },
+      },
+    };
+    const sliceReport = evaluate(corpus.cases, config, withoutSlice);
+    expect(sliceReport.coverage.failures.map((failure) => failure.key)).toContain(
+      "NOMBRE:professional:declaration"
+    );
+    expect(sliceReport.coverage.pass).toBe(false);
+    expect(sliceReport.pass).toBe(false);
+
+    const withoutStyle: V4CoverageManifest = {
+      ...coverageContract,
+      styles: Object.fromEntries(
+        Object.entries(coverageContract.styles).filter(([style]) => style !== "accents")
+      ),
+    };
+    const styleReport = evaluate(corpus.cases, config, withoutStyle);
+    expect(styleReport.coverage.failures.map((failure) => failure.key)).toContain(
+      "style:accents:declaration"
+    );
+    expect(styleReport.coverage.pass).toBe(false);
+    expect(styleReport.pass).toBe(false);
+  });
+});
+
+/**
+ * REC-01 F2 — per-declared-slice precision/recall/FNR/F1 over the gated core
+ * corpus. Slice metrics reuse the shared `metrics.mjs` definitions through
+ * `aggregateMetrics`; they are additional evidence and never replace or relax
+ * the type-level gate (`gate.per_type`, `config.json` untouched).
+ */
+describe("V4 per-slice metrics (REC-01 F2)", () => {
+  it("exposes precision/recall/FNR and F1 for every declared slice", () => {
+    const report = evaluate(corpus.cases);
+    const manifest = loadV4CoverageManifest(V4_COVERAGE_PATH);
+    for (const [type, requirement] of Object.entries(manifest.types)) {
+      for (const slice of Object.keys(requirement.slices)) {
+        const metrics = report.slice_metrics[`${type}:${slice}`];
+        expect(metrics, `${type}:${slice}`).toBeDefined();
+        expect(metrics.precision).toBe(1);
+        expect(metrics.recall).toBe(1);
+        expect(metrics.false_negative_rate).toBe(0);
+        expect(report.f1.per_slice[`${type}:${slice}`]).toBe(1);
+      }
+    }
+    expect(report.slice_metrics["NOMBRE:professional"].tp).toBeGreaterThan(0);
+    expect(report.slice_metrics["SOSPECHOSO:singularity"].tp).toBeGreaterThan(0);
+    // The type-level gate is computed exactly as before.
+    expect(report.gate.per_type.NOMBRE.precision).toBe(1);
+    expect(report.gate.pass).toBe(true);
+  });
+
+  it("FALSATION — a planted slice false positive drives that slice's precision below 1", () => {
+    // MUST_KEEP with a slice on a span the engine DOES detect: the tolerant
+    // matcher records a must_keep_violation, which is additionally attributed
+    // to the slice. The detection stays a type-level fp (unchanged semantics).
+    const planted: GroundTruthCase = {
+      schema_version: 1,
+      corpus_version: corpus.manifest.corpus_version,
+      case_id: "v4-planted-slice-fp",
+      tier: "core",
+      text: "Paciente de 45 años.",
+      annotations: [{ label: "MUST_KEEP", entity_type: "EDAD", value: "45 años", slice: "adult" }],
+    };
+    const report = evaluate([planted]);
+    expect(report.slice_metrics["EDAD:adult"].fp).toBe(1);
+    expect(report.slice_metrics["EDAD:adult"].precision).toBe(0);
+    expect(report.slice_metrics["EDAD:adult"].precision).toBeLessThan(1);
+    // Type-level gate semantics are unchanged: the same detection is still a
+    // type-level fp and remains gated there.
+    expect(report.gate.per_type.EDAD.fp).toBe(1);
+    expect(report.gate.per_type.EDAD.precision).toBe(0);
+  });
+
+  it("FALSATION — a planted slice false negative drives that slice's recall below 1", () => {
+    // The engine deliberately produces no detection for an implausible
+    // magnitude, so a slice-tagged positive expectation becomes a slice fn.
+    const planted: GroundTruthCase = {
+      schema_version: 1,
+      corpus_version: corpus.manifest.corpus_version,
+      case_id: "v4-planted-slice-fn",
+      tier: "core",
+      text: "Paciente de 300 años.",
+      annotations: [
+        {
+          label: "MUST_REMOVE",
+          entity_type: "EDAD",
+          value: "300 años",
+          slice: "implausible_control",
+        },
+      ],
+    };
+    const report = evaluate([planted]);
+    expect(report.slice_metrics["EDAD:implausible_control"].fn).toBe(1);
+    expect(report.slice_metrics["EDAD:implausible_control"].recall).toBe(0);
+    expect(report.slice_metrics["EDAD:implausible_control"].recall).toBeLessThan(1);
+    // Type-level gate semantics are unchanged: the same miss is still a
+    // type-level fn and remains gated there.
+    expect(report.gate.per_type.EDAD.fn).toBe(1);
+    expect(report.gate.per_type.EDAD.recall).toBe(0);
+  });
+
+  it("REGRESSION — adding a slice tag does not change type-level metrics", () => {
+    const withoutSlice: GroundTruthCase = {
+      schema_version: 1,
+      corpus_version: corpus.manifest.corpus_version,
+      case_id: "v4-slice-invariance-plain",
+      tier: "core",
+      text: "Paciente de 45 años.",
+      annotations: [{ label: "MUST_REMOVE", entity_type: "EDAD", value: "45 años" }],
+    };
+    const withSlice: GroundTruthCase = {
+      ...withoutSlice,
+      case_id: "v4-slice-invariance-tagged",
+      annotations: [
+        { label: "MUST_REMOVE", entity_type: "EDAD", value: "45 años", slice: "adult" },
+      ],
+    };
+    const plain = evaluate([withoutSlice]);
+    const tagged = evaluate([withSlice]);
+    expect(tagged.gate.overall).toEqual(plain.gate.overall);
+    expect(tagged.gate.per_type).toEqual(plain.gate.per_type);
+    // The slice dimension is populated only on the tagged variant.
+    expect(plain.slice_metrics["EDAD:adult"].tp).toBe(0);
+    expect(tagged.slice_metrics["EDAD:adult"].tp).toBe(1);
   });
 });

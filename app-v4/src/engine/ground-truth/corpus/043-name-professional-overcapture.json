@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-043-name-professional-overcapture",
+  "tier": "adversarial",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "classification": "inherited_known_gap",
+  "description": "Known gap (report-only): the legacy professional detector over-captures a lowercase clinical clause after the honorific ('Dr. Ramírez indica tratamiento con ibuprofeno'). The independently authored expectation is the name span 'Dr. Ramírez' only, never the engine's wider span. The over-captured trailing words are load-bearing for the accepted T14 low-confidence candidate contract ('Fisioterapeuta Nélida Otxoa realizó' is its verified below-threshold fixture), so a bounded correction would change accepted candidate semantics outside REC-01's authority. The fail direction is over-removal (extra generalization), not a missed direct identifier. Reported, not gated.",
+  "style_slices": ["accents", "short_prose"],
+  "text": "El Dr. Ramírez indica tratamiento con ibuprofeno y reposo.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "NOMBRE",
+      "value": "Dr. Ramírez",
+      "slice": "professional",
+      "note": "Independent name expectation; the engine currently over-captures past this span (documented report-only known gap)."
+    }
+  ]
+}

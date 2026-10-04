@@ -14,6 +14,8 @@ declare module "*/privacy-eval/lib/matching.mjs" {
     label: string;
     entity_type: string;
     value: string;
+    /** REC-01 slice tag, when the annotation declares one. */
+    slice?: string;
   };
   export type PrivacyEvalDetection = {
     text: string;

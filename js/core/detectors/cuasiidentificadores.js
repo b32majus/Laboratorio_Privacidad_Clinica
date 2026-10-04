@@ -22,7 +22,13 @@ export function detectCuasiIdentificadores(text) {
         });
     };
 
-    const singularidadRegex = /\b(?:únic[oa]s?\s+pacientes?|caso\s+[úu]nico|único\s+caso)\b/gi;
+    // REC-01 correction: the singular-cue alternatives that begin with an
+    // accented letter ("único paciente", "único caso") were silently missed
+    // because an ASCII `\b` never matches before `ú`/`Ú`. Use an explicit
+    // letter boundary so a sentence-initial capitalized accented cue is
+    // detected, while ordinary words that merely start with an accented
+    // capital ("Ácido úrico") stay untouched.
+    const singularidadRegex = /(?<![A-Za-zÁÉÍÓÚÑáéíóúñ])(?:únic[oa]s?\s+pacientes?|caso\s+[úu]nico|único\s+caso)(?![A-Za-zÁÉÍÓÚÑáéíóúñ])/gi;
     while ((match = singularidadRegex.exec(text)) !== null) {
         addEntity('singularidad', match[0], match.index, 0.90);
     }

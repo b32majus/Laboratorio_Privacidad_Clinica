@@ -10,5 +10,5 @@
     { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "vecina", "note": "Contact/cohabitation quasi-identifier with no lexical marker." },
     { "label": "MUST_FLAG_FOR_REVIEW", "entity_type": "SOSPECHOSO", "value": "mismo portal", "note": "Shared-building quasi-identifier." }
   ],
-  "notes": "Related known gap: the quasi-identifier phrase 'único paciente' from ejemplos/04 is not surfaced by the current engine either. Promotion of any adversarial annotation to the gated core tier is a privacy-engine decision, not a harness decision."
+  "notes": "Related gap resolved by REC-01: the singularity cue 'único paciente' from ejemplos/04 is now surfaced by the corrected cue boundary and is annotated in the gated case 004. Promotion of the remaining adversarial annotations to the gated core tier remains a privacy-engine decision, not a harness decision."
 }

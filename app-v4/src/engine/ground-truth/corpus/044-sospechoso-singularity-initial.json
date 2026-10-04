@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-044-sospechoso-singularity-initial",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Sentence-initial accented singularity cue 'Único paciente', which the pre-correction ASCII word boundary silently missed.",
+  "style_slices": ["accents", "short_prose"],
+  "text": "Único paciente en la unidad de cuidados intensivos.",
+  "annotations": [
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "Único paciente",
+      "slice": "singularity"
+    }
+  ]
+}

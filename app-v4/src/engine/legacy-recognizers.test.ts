@@ -456,6 +456,35 @@ describe("SOSPECHOSO rare-disease cue casing (REC-01 WU-B)", () => {
   });
 });
 
+/**
+ * REC-01 correction: an ASCII word boundary never matched before an accented
+ * leading "ú"/"Ú", so the sentence-initial singularity cue "Único paciente"
+ * was silently missed. These tests pin both the positive (defect now measured)
+ * and the negative (ordinary clinical text is not newly detected) sides of the
+ * seam. (The companion professional over-capture defect is retained as a
+ * report-only known gap: correcting it would change the accepted T14
+ * low-confidence candidate contract, which is outside REC-01's boundary.)
+ */
+describe("REC-01 recognizer boundary correction (initial singularity cue)", () => {
+  const singularidades = (text: string): string[] =>
+    createLegacyRecognizerRegistry()
+      .get(LEGACY_CATEGORY_RECOGNIZER_KEYS.SOSPECHOSO)
+      .observe(text)
+      .filter((observation) => observation.subtype === "singularidad")
+      .map((observation) => observation.text);
+
+  it("positive: sentence-initial and lowercase accented singularity cues are detected", () => {
+    expect(singularidades("Único paciente en la unidad.")).toEqual(["Único paciente"]);
+    expect(singularidades("Único caso registrado.")).toEqual(["Único caso"]);
+    expect(singularidades("Se trata de un único paciente.")).toEqual(["único paciente"]);
+  });
+
+  it("negative: ordinary accented clinical text is not newly detected as a singularity cue", () => {
+    expect(singularidades("Ácido úrico elevado; última revisión sin incidencias.")).toEqual([]);
+    expect(singularidades("Tratamiento único para este paciente.")).toEqual([]);
+  });
+});
+
 afterEach(() => {
   // Leave the shared legacy singletons clean for other suites.
   AsignadorSustitutos.reset();
