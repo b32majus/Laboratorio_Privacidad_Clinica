@@ -67,6 +67,15 @@ describe("study-id primitive — deterministic in-Job mapping", () => {
     expect([...result.mapping.values()]).toEqual(["PAC_001", "PAC_002"]);
   });
 
+  it("is Job-scoped and stateless: another Job built in between changes nothing", () => {
+    const jobA = buildStudyIdMapping(["P-001", "P-001", "P-002"]);
+    buildStudyIdMapping(["X-9", "Y-8", "X-9"]);
+    const jobAAgain = buildStudyIdMapping(["P-001", "P-001", "P-002"]);
+    expect(jobAAgain).toEqual(jobA);
+    expect(jobAAgain.studyIds).toEqual(["PAC_001", "PAC_001", "PAC_002"]);
+    expect(jobAAgain.mapping.size).toBe(2);
+  });
+
   it("introduces no configurable prefix and no visit-number option", () => {
     expect(STUDY_ID_HEADER).toBe("ID_ESTUDIO");
     const exportNames = Object.keys(StudyId);
@@ -102,6 +111,30 @@ describe("study-id plan — productive disposition", () => {
     });
     expect(plan.patientIdColumn).toBeNull();
     expect(plan.columns.some((column) => column.disposition.kind === "study-id")).toBe(false);
+  });
+
+  it("invents no universal mandatory selection: a Job with no selection keeps policy-specific readiness", () => {
+    const grid: StructuredGrid = {
+      headers: ["Codigo", "Nota"],
+      rows: [
+        ["C-1", "nota a"],
+        ["C-2", "nota b"],
+      ],
+    };
+    let config = createStructuredConfiguration(grid);
+    config = overrideColumnClass(config, 0, "insensitive");
+    config = overrideColumnClass(config, 1, "insensitive");
+    const plan = buildStructuredTransformPlan(config, { policyId: "standard", jobSeed: JOB_SEED });
+    expect(plan.patientIdColumn).toBeNull();
+    expect(plan.missingPatientId).toBe(false);
+    const preparation = prepareStructuredOutput(config, plan);
+    expect(preparation.status).toBe("ready");
+    if (preparation.status !== "ready") return;
+    expect(preparation.output.safe.headers).toEqual(["Codigo", "Nota"]);
+    expect(preparation.output.safe.headers).not.toContain(STUDY_ID_HEADER);
+    expect(
+      preparation.output.confidential.columns.some((column) => column.disposition === "study-id")
+    ).toBe(false);
   });
 });
 
@@ -140,6 +173,38 @@ describe("study-id preparation — Safe linkage and Confidential correspondence"
     expect(safeJson).not.toContain("NHC");
     expect(safeJson).not.toContain("P-001");
     expect(safeJson).not.toContain("P-002");
+  });
+
+  it("adversarial mimic: an original ID shaped like a Study ID never leaks identity into Safe output", () => {
+    const grid: StructuredGrid = {
+      headers: ["NHC", "Nota"],
+      rows: [
+        ["PAC_002", "nota a"],
+        ["PAC_002", "nota b"],
+        ["P-007", "nota c"],
+      ],
+    };
+    let config = createStructuredConfiguration(grid, { selectedPatientIdColumn: "NHC" });
+    config = overrideColumnClass(config, 1, "insensitive");
+    const preparation = prepareStructuredOutput(
+      config,
+      buildStructuredTransformPlan(config, { policyId: "standard", jobSeed: JOB_SEED })
+    );
+    expect(preparation.status).toBe("ready");
+    if (preparation.status !== "ready") return;
+    const { safe, confidential } = preparation.output;
+    expect(safe.headers).toEqual([STUDY_ID_HEADER, "Nota"]);
+    // Exact deterministic assignment in first-appearance order: the mimic
+    // "PAC_002" becomes PAC_001, so the "PAC_002" in Safe output is the
+    // generated token for P-007, never a leaked original.
+    expect(safe.rows.map((row) => row[0])).toEqual(["PAC_001", "PAC_001", "PAC_002"]);
+    expect(JSON.stringify(safe)).not.toContain("NHC");
+    expect(JSON.stringify(safe)).not.toContain("P-007");
+    const studyColumn = confidential.columns.find((column) => column.disposition === "study-id");
+    expect([...(studyColumn?.entries ?? [])]).toEqual([
+      { original: "PAC_002", transformed: "PAC_001" },
+      { original: "P-007", transformed: "PAC_002" },
+    ]);
   });
 
   it("confidential correspondence carries the unique original<->Study-ID mapping", () => {
