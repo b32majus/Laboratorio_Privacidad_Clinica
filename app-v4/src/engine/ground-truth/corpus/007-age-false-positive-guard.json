@@ -5,6 +5,7 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "Adversarial numeric clinical context: vitals and measurements must never be flagged as an age.",
+  "style_slices": ["negatives", "telegraphic"],
   "text": "Tensión 130/85 mmHg. Peso 82 kg. Temperatura 38,5 grados.",
   "annotations": [
     {

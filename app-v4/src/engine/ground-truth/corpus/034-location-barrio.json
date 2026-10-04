@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-034-location-barrio",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Neighbourhood context ('barrio de X').",
+  "style_slices": ["short_prose"],
+  "text": "Vive en el barrio de La Latina.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "UBICACION",
+      "value": "La Latina",
+      "slice": "barrio"
+    }
+  ]
+}

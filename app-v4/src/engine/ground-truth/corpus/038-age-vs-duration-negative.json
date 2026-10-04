@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-038-age-vs-duration-negative",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Clinical durations (weeks/months) without an explicit age cue must never become ages.",
+  "style_slices": ["negatives"],
+  "text": "Tratamiento durante 3 semanas. Seguimiento de 6 meses.",
+  "annotations": [
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "EDAD",
+      "value": "3 semanas",
+      "slice": "age_vs_duration",
+      "note": "Treatment duration, not a patient age."
+    },
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "EDAD",
+      "value": "6 meses",
+      "slice": "age_vs_duration",
+      "note": "Follow-up duration, not a patient age."
+    }
+  ]
+}

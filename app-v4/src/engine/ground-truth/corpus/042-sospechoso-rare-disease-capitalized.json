@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-042-sospechoso-rare-disease-capitalized",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Sentence-initial capitalized rare-disease cue ('Síndrome de ...', 'Enfermedad de ...') that the rare-disease contract claims must be flagged.",
+  "style_slices": ["accents", "punctuation"],
+  "text": "Síndrome de Marfan. Antecedentes de enfermedad de Crohn.",
+  "annotations": [
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "Síndrome de Marfan",
+      "slice": "rare_disease",
+      "note": "Sentence-initial capitalized cue; same rare-disease contract."
+    },
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "enfermedad de Crohn",
+      "slice": "rare_disease"
+    }
+  ]
+}

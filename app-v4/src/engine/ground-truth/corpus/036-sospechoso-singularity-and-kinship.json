@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-036-sospechoso-singularity-and-kinship",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Unique-case singularity cue and a special-kinship cue.",
+  "style_slices": ["short_prose"],
+  "text": "Caso único en la unidad. Tiene un hermano gemelo.",
+  "annotations": [
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "Caso único",
+      "slice": "singularity"
+    },
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "hermano gemelo",
+      "slice": "kinship"
+    }
+  ]
+}

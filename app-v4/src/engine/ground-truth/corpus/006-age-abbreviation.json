@@ -5,12 +5,14 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "Abbreviated completed-year form (45 a.) is recognized and banded.",
+  "style_slices": ["abbreviations", "short_prose"],
   "text": "Paciente de 45 a. con tos.",
   "annotations": [
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "45 a.",
+      "slice": "abbreviated",
       "expectedTransformed": "40–49 años"
     }
   ]

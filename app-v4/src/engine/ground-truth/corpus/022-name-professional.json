@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-022-name-professional",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Healthcare professional after an honorific, closed by a comma.",
+  "style_slices": ["no_accents", "abbreviations"],
+  "text": "La Dra. Fernandez, cardiologa, valoro al paciente.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "NOMBRE",
+      "value": "Dra. Fernandez",
+      "slice": "professional"
+    }
+  ]
+}

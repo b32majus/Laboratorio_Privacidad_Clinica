@@ -5,14 +5,21 @@
   "tier": "core",
   "source": "original synthetic text authored for this corpus (no real PHI)",
   "description": "Recognizer overlap: an age and a city in one sentence.",
+  "style_slices": ["accents", "short_prose"],
   "text": "La paciente, de 78 años, reside en Madrid.",
   "annotations": [
     {
       "label": "MUST_REMOVE",
       "entity_type": "EDAD",
       "value": "78 años",
+      "slice": "adult",
       "expectedTransformed": "70–79 años"
     },
-    { "label": "MUST_REMOVE", "entity_type": "UBICACION", "value": "Madrid" }
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "UBICACION",
+      "value": "Madrid",
+      "slice": "dictionary_city"
+    }
   ]
 }

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-039-age-measurement-negative",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Implausible/mass-unit numbers (dose, weight) that must never become ages.",
+  "style_slices": ["negatives", "telegraphic"],
+  "text": "Peso 82 kg. Dosis 300 mg.",
+  "annotations": [
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "EDAD",
+      "value": "82 kg",
+      "slice": "implausible_control"
+    },
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "EDAD",
+      "value": "300 mg",
+      "slice": "implausible_control"
+    }
+  ]
+}

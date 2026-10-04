@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-023-name-family-and-phone",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Multiline charting: a family contact and a contact phone on separate labelled lines.",
+  "style_slices": ["accents", "multiline", "punctuation"],
+  "text": "Acompañante: María González.\nTeléfono de contacto: 654 321 987.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "NOMBRE",
+      "value": "María González",
+      "slice": "family"
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "654 321 987",
+      "slice": "phone"
+    }
+  ]
+}

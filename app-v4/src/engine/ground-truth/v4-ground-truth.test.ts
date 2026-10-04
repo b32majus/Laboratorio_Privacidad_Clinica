@@ -355,11 +355,11 @@ describe("V4 coverage contract (REC-01 WU-A)", () => {
     const report = evaluate(corpus.cases);
     expect(report.coverage.types.EDAD.support).toBeGreaterThan(0);
     expect(report.coverage.types.EDAD.distinct_cases).toBeGreaterThan(0);
-    // No committed annotation declares a slice yet (WU-B's job): support for
-    // every declared slice is zero and is reported, not silently omitted.
-    expect(report.coverage.types.EDAD.slices.adult.support).toBe(0);
+    // Every declared slice now has real, machine-visible support (WU-B
+    // expanded the corpus against the WU-A contract).
+    expect(report.coverage.types.EDAD.slices.adult.support).toBeGreaterThan(0);
     expect(report.coverage.types.NOMBRE.slices.patient.min_support).toBe(1);
-    expect(report.coverage.styles.accents.case_count).toBe(0);
+    expect(report.coverage.styles.accents.case_count).toBeGreaterThan(0);
     // F1 is derived from the reused precision/recall without touching the
     // shared metric definitions.
     expect(report.f1.overall).toBe(1);
@@ -367,51 +367,42 @@ describe("V4 coverage contract (REC-01 WU-A)", () => {
   });
 
   /**
-   * INTERIM (REC-01 WU-A → WU-B): the committed corpus cannot yet satisfy the
-   * declared coverage contract. This pins the exact red state so WU-B can flip
-   * it to `failures: [] / pass: true`; the gate/metrics/slice-support
-   * assertions above are unaffected. Delete the failure-list equality only
-   * when the expanded corpus genuinely supports every declared unit.
+   * WU-B end state (REC-01): the expanded corpus satisfies the declared
+   * coverage contract, so the threshold/golden gate, the coverage dimension
+   * and the report-level `pass` are all green. The WU-A falsation below
+   * still proves the coverage oracle can disagree when a required slice
+   * loses support.
    */
-  it("INTERIM — the committed corpus fails closed on the declared coverage contract", () => {
+  it("the expanded corpus satisfies the declared coverage contract (WU-B end state)", () => {
     const report = evaluate(corpus.cases);
     // Threshold + golden dimensions remain green...
     expect(report.gate.pass).toBe(true);
     expect(report.golden_failures).toEqual([]);
-    // ...but the report-level pass is false because coverage is red.
-    expect(report.coverage.pass).toBe(false);
-    expect(report.pass).toBe(false);
+    // ...and the coverage dimension is now green too.
+    expect(report.coverage.failures).toEqual([]);
+    expect(report.coverage.pass).toBe(true);
+    expect(report.pass).toBe(true);
 
-    const manifest = JSON.parse(fs.readFileSync(V4_COVERAGE_PATH, "utf8")) as V4CoverageManifest;
-    const expectedKeys = [
-      // Every declared slice is unsupported today, so every declared unit is
-      // an exact zero-support failure.
-      ...Object.entries(manifest.types).flatMap(([type, requirement]) =>
-        Object.keys(requirement.slices).map((slice) => `${type}:${slice}`)
-      ),
-      ...Object.keys(manifest.styles).map((style) => `style:${style}`),
-      // These four top-level types are still represented by a single case and
-      // fail the declared distinct-case floor (QA-001 sparsity); IDENTIFICADOR
-      // (cases 007+008) and EDAD (many cases) clear the floor.
-      "NOMBRE:min_distinct_cases",
-      "FECHA:min_distinct_cases",
-      "UBICACION:min_distinct_cases",
-      "SOSPECHOSO:min_distinct_cases",
-    ].sort();
-    expect(report.coverage.failures.map((failure) => failure.key).sort()).toEqual(expectedKeys);
     // Guard against coverage silently disappearing: representative declared
-    // units must still be reported as failures.
-    expect(report.coverage.failures.map((failure) => failure.key)).toEqual(
-      expect.arrayContaining([
-        "NOMBRE:patient",
-        "IDENTIFICADOR:dni",
-        "FECHA:numeric",
-        "UBICACION:dictionary_city",
-        "SOSPECHOSO:profession",
-        "EDAD:adult",
-        "style:accents",
-      ])
-    );
+    // units must be reported with real support rather than omitted.
+    const manifest = JSON.parse(fs.readFileSync(V4_COVERAGE_PATH, "utf8")) as V4CoverageManifest;
+    for (const [type, requirement] of Object.entries(manifest.types)) {
+      const typeSupport = report.coverage.types[type];
+      expect(typeSupport.distinct_cases).toBeGreaterThanOrEqual(requirement.min_distinct_cases);
+      for (const slice of Object.keys(requirement.slices)) {
+        expect(typeSupport.slices[slice].support).toBeGreaterThan(0);
+      }
+    }
+    for (const style of Object.keys(manifest.styles)) {
+      expect(report.coverage.styles[style].case_count).toBeGreaterThan(0);
+    }
+    expect(report.coverage.types.NOMBRE.slices.patient.support).toBeGreaterThan(0);
+    expect(report.coverage.types.IDENTIFICADOR.slices.dni.support).toBeGreaterThan(0);
+    expect(report.coverage.types.FECHA.slices.numeric.support).toBeGreaterThan(0);
+    expect(report.coverage.types.UBICACION.slices.dictionary_city.support).toBeGreaterThan(0);
+    expect(report.coverage.types.SOSPECHOSO.slices.profession.support).toBeGreaterThan(0);
+    expect(report.coverage.types.EDAD.slices.adult.support).toBeGreaterThan(0);
+    expect(report.coverage.styles.accents.case_count).toBeGreaterThan(0);
   });
 
   it("FALSATION — removing a required slice's support turns the coverage oracle red", () => {

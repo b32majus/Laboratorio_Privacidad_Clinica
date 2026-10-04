@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-025-id-nuss-nhc",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Formatted social-security number (NUSS) and a labelled clinical-record number (NHC).",
+  "style_slices": ["telegraphic", "punctuation"],
+  "text": "NUSS: 12/12345678/90. NHC: 2024/089756.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "12/12345678/90",
+      "slice": "nuss",
+      "note": "Formatted NUSS XX/XXXXXXXX/XX."
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "IDENTIFICADOR",
+      "value": "2024/089756",
+      "slice": "nhc",
+      "note": "Labelled structured clinical-record number."
+    }
+  ]
+}

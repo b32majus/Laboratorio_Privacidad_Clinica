@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-037-sospechoso-rare-disease-and-negative",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Rare-disease cue with clinically ordinary 'síndrome de X' / 'enfermedad de X' negative controls (lowercase proper-noun slot).",
+  "style_slices": ["accents", "negatives"],
+  "text": "Presenta síndrome de Marfan. No refiere síndrome de abstinencia ni enfermedad de transmisión sexual.",
+  "annotations": [
+    {
+      "label": "MUST_FLAG_FOR_REVIEW",
+      "entity_type": "SOSPECHOSO",
+      "value": "síndrome de Marfan",
+      "slice": "rare_disease"
+    },
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "SOSPECHOSO",
+      "value": "síndrome de abstinencia",
+      "slice": "rare_disease_negative",
+      "note": "Ordinary clinical term; not a proper-noun eponym."
+    },
+    {
+      "label": "MUST_KEEP",
+      "entity_type": "SOSPECHOSO",
+      "value": "enfermedad de transmisión sexual",
+      "slice": "rare_disease_negative",
+      "note": "Ordinary clinical term; not a proper-noun eponym."
+    }
+  ]
+}

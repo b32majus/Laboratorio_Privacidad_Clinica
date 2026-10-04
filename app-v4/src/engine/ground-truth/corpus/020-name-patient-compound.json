@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_version": "v4-1.0.0",
+  "case_id": "v4-020-name-patient-compound",
+  "tier": "core",
+  "source": "original synthetic text authored for this corpus (no real PHI)",
+  "description": "Patient with a compound given name and a surname joined by a Spanish particle ('de la').",
+  "style_slices": ["accents", "punctuation"],
+  "text": "Paciente: Juan de la Cruz, de 40 años.",
+  "annotations": [
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "NOMBRE",
+      "value": "Juan de la Cruz",
+      "slice": "compound",
+      "note": "Compound name + 'de la' particle; the full identity span is removed."
+    },
+    {
+      "label": "MUST_REMOVE",
+      "entity_type": "EDAD",
+      "value": "40 años",
+      "slice": "adult",
+      "expectedTransformed": "40–49 años"
+    }
+  ]
+}
