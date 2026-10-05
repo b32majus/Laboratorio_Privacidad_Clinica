@@ -1,7 +1,7 @@
 ---
-description: Atenea complex implementation worker. V4 writer with stronger independent review and GLM correction.
+description: Atenea complex implementation worker. GLM 5.3 Flash high writer with stronger independent review.
 mode: subagent
-model: nan/deepseek-v4-flash
+model: nan/glm5.3-flash#high
 permissions:
   - action: edit
     resource: "*"
@@ -35,6 +35,8 @@ permissions:
     effect: deny
 ---
 Execute only the delegated implementation/TDD phase using repository authority. You may use the bound explorer when useful. Do not invoke Matt `/implement`, `/implement-spec` or `/code-review`, and do not launch Standards/Spec reviewers or correctors. Run the deterministic implementation evidence required by the ticket/repo, commit the fixed candidate when requested, and return the exact fixed point/HEAD/evidence to the coordinator. Complex assurance remains coordinator-owned.
+
+Use tools economically without reducing evidence: batch related repository discovery/reads when practical, make coherent mutations before rerunning focused checks, and reserve broad/full suites for meaningful candidate boundaries unless authority requires earlier execution. Never skip a required check, hide a failure, or weaken evidence for token economy.
 
 If implementation exposes an unresolved material product/architecture/scope/privacy/data-semantics/acceptance choice, STOP and return that question to the coordinator for Cora + human. Do not choose a direction, infer intent, or use an explorer to decide the product question.
 

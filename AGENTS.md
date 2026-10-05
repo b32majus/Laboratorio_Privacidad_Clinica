@@ -1,8 +1,8 @@
 # Agent instructions — Laboratorio de Privacidad Clínica
 
-Status: **CURRENT — Atenea C-084 local policy**
+Status: **CURRENT — Atenea C-085/C-084 local policy**
 
-This repository is the V4 brownfield privacy application. Product/domain authority is local to this repo; execution uses Atenea C-084 through project-local native OpenCode V2 agents and upstream Matt Pocock skills.
+This repository is the V4 brownfield privacy application. Product/domain authority is local to this repo; execution uses Atenea C-085 over the C-084 native OpenCode V2 lifecycle through project-local agents and upstream Matt Pocock skills.
 
 ## Read first
 
@@ -30,7 +30,7 @@ For engineering work, read only what the task needs, in this order:
 - Do not force-push, rewrite history, auto-merge, delete remote branches, or mutate repository settings without explicit human authority.
 - A PR/review approval never grants merge or deploy authority.
 
-## C-084 execution boundary
+## C-085/C-084 execution boundary
 
 Herdr is user-owned persistent operator infrastructure and is already running. Do not launch, restart, replace or stop Herdr per ticket/train.
 
@@ -57,6 +57,7 @@ opencode .
 - allow at most two fresh finding-scoped correction attempts for the same authorized finding envelope; persistence after attempt #2, a new material finding or scope expansion => HUMAN STOP;
 - correctors remain single-pass per session; the coordinator, not the corrector, owns whether a second fresh correction session is authorized;
 - no quota-driven or silent model fallback inside a work unit;
+- under standard cost, routing changes only at clean work-unit boundaries: Volume writer = DeepSeek V4 Flash; Complex writer = GLM 5.3 Flash high; an already-started pre-C-085 unit keeps its original route until it closes;
 - never mutate global OpenCode configuration as per-project routing state.
 
 Use `complex` for material privacy/security/trust-boundary risk, difficult state/concurrency/temporal semantics, cross-cutting architecture, delicate migration/back-compat invariants, or repeated semantic failure. Ordinary UI/file-count/business importance alone are not complex triggers.
