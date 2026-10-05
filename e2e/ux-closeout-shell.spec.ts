@@ -90,7 +90,7 @@ test.describe("canonical flow traversal by Job kind", () => {
     await expectNoMigrationCopy(page, "text Privacy Gate");
 
     await page.getByRole("button", { name: "5. Export" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await expectNoMigrationCopy(page, "text Export");
   });
 
@@ -112,7 +112,7 @@ test.describe("canonical flow traversal by Job kind", () => {
       "Review complete"
     );
     await page.getByRole("button", { name: "5. Export" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   });
 
   test("document-batch job: honest Configure, Review and a fail-closed Gate", async ({ page }) => {
@@ -191,7 +191,7 @@ for (const width of [375, 768, 1280]) {
     await page.getByRole("button", { name: "4. Privacy Gate" }).click();
     await assertNoHorizontalOverflow(page, `completed Gate @${width}px`);
     await page.getByRole("button", { name: "5. Export" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `Export @${width}px`);
 
     // Structured Review notice.

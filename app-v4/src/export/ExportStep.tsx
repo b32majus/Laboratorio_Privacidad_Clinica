@@ -1,56 +1,55 @@
 /**
  * Export step (Work Order T08 U4; SPEC_V4_APP_AND_REVIEW.md §7, D-005).
  *
- * Two SEPARATE, independently triggered download surfaces — never a
- * combined artifact:
- *   - Safe Output: the reviewed final text of the session, derived ONLY
- *     from the completed domain ReviewSession. It carries no original↔
- *     replacement mapping, no reviewer notes and no original values kept
- *     for traceability. Fail-closed (D-009): while any mandatory review
- *     decision is pending the action is disabled and the explicit typed
- *     blocked reason is rendered as text.
- *   - Confidential Audit: the internal traceability artifact (original
- *     values, mapping, notes). It is visually and semantically separate,
- *     always marked with CONFIDENTIAL_AUDIT_WARNING_LINE, and for a
- *     single/text job stays available while review is pending (U2 contract)
- *     because it is the internal record, never a deliverable.
+ * REC-05 WU-B (D-024) — single-item Result. For a `text` (pasted) or single
+ * `document` Job the ordinary human ending is a **Resultado**: readiness
+ * (`ready` / `needs attention` / `blocked`) plus the prepared/shareable action,
+ * all derived from the existing review/Job authorities. Copy, Safe TXT, Safe
+ * DOCX and Safe PDF are four representations of ONE canonical Safe payload
+ * (`getFinalText` via the reviewed output service); no representation re-runs a
+ * privacy transformation or adds correspondence/reviewer notes/audit metadata.
+ * The Confidential Audit stays a separate, deliberately sensitive zone (its
+ * deliberate confirmation is WU-C).
  *
- * UX-PILOT-02 (#55) presentation reframe ONLY: the two artifacts are shown as
- * unmistakably different zones — Safe Output as the primary deliverable and
- * Confidential Audit as an internal/sensitive record with its own dark header
- * band. Readiness rules, reasons, filenames, serializers and availability
- * semantics are byte-unchanged.
+ * The structured and document-batch branches are byte-unchanged in behavior:
+ *   - Structured (REC-04 WU-C/D-022): Safe CSV/XLSX + Confidential TXT/XLSX.
+ *   - Document batch (T17 #21 SD-7/CORR-B): no batch Safe Output / batch audit;
+ *     BOTH actions stay disabled with the existing typed reasons and the single
+ *     Result surface is never rendered for a batch.
  *
- * Both downloads are client-side only (Blob + object URL + anchor click;
- * the object URL is revoked afterwards): no network, no persistence
- * (D-013). Status is always conveyed as text, never by color alone; all
- * controls are keyboard-operable buttons with visible focus.
+ * Both Safe and Confidential downloads are client-side only (Blob + object URL
+ * + anchor click; the object URL is revoked afterwards): no network, no
+ * persistence (D-013). Status is always conveyed as text, never by color alone;
+ * every control is a keyboard-operable button with visible focus.
  *
- * Document-batch jobs (T17 #21 SD-7, output authority corrected by CORR-B):
- * the accepted specification defines no batch Safe Output format and no
- * batch-wide Confidential Audit, so BOTH actions stay DISABLED with explicit
- * typed reasons — review pending, failed items (naming each file and the
- * matching remedy) or the not-yet-defined batch format, in that order. The
- * active document's session is never presented as a batch-wide audit.
- * Single-job behavior is byte-unchanged.
+ * Async/current-authority safety (D-024 §4.6): DOCX/PDF generation is
+ * asynchronous. The requested Job id, ReviewSession identity and canonical
+ * `safeText` are captured before the awaited step and revalidated after the
+ * last await and immediately before bytes/download. Any stale mismatch produces
+ * zero download and a visible non-PHI failure, never a false success.
  *
  * Single review authority (D-004): no pending/final-text logic is
- * re-implemented here; the blocked reason reuses the reviewed gate
- * wording and the artifacts are built exclusively through the reviewed
- * output services. No anonymity, compliance or certification wording
- * anywhere (D-006).
+ * re-implemented here; the Result state and payload come from the existing
+ * authorities through `singleResultModel`. No anonymity, compliance or
+ * certification wording anywhere (D-006).
  */
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { getProgress, type ReviewSession } from "../review/review-domain";
+import { type ReviewSession } from "../review/review-domain";
 import type { Job } from "../domain/job";
-import { buildSafeOutput, serializeSafeOutput } from "../output/safe-output";
-import { buildConfidentialAudit } from "../output/confidential-audit";
 import {
-  CONFIDENTIAL_AUDIT_WARNING_LINE,
   serializeConfidentialAudit,
+  CONFIDENTIAL_AUDIT_WARNING_LINE,
 } from "../output/confidential-audit-serializer";
+import { buildConfidentialAudit } from "../output/confidential-audit";
+import { copyTextToClipboard, ClipboardError } from "../output/clipboard";
+import { DocxBuildError, SAFE_DOCX_FILENAME, buildSafeDocxBytes } from "../output/docx-builder";
+import {
+  PdfRepresentationError,
+  SAFE_PDF_FILENAME,
+  buildSafePdfBytes,
+} from "../output/pdf-builder";
 import { serializeStructuredSafeCsv } from "../structured/csv-writer";
 import { serializeStructuredConfidentialAudit } from "../structured/structured-confidential-audit";
 import {
@@ -73,14 +72,19 @@ import {
   deriveBatchFacts,
   pendingDecisionMessage,
 } from "../privacy-gate/privacyGateModel";
+import { deriveSingleResultView, type SingleResultMaterial } from "./singleResultModel";
 
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
-const SAFE_OUTPUT_FILE_NAME = "safe-output.txt";
+/** D-024 single-item Safe TXT filename. */
+const SAFE_TXT_FILE_NAME = "texto-preparado.txt";
 const CONFIDENTIAL_AUDIT_FILE_NAME = "confidential-audit.txt";
 const SAFE_STRUCTURED_FILE_NAME = "safe-structured-output.csv";
 const CONFIDENTIAL_STRUCTURED_FILE_NAME = "structured-confidential-audit.txt";
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const PDF_MIME = "application/pdf";
 
 /** Shared presentation atoms for the two unmistakably separate artifact zones. */
 const zoneCard = "mt-6 rounded-xl border border-primary/40 bg-white shadow-sm";
@@ -90,6 +94,8 @@ const zoneHeading = "font-display text-lg font-bold text-neutral-800";
 const zoneBody = "max-w-2xl text-sm leading-relaxed text-neutral-700";
 const blockedNote =
   "mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800";
+const primaryButton = `mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
+const secondaryButton = `mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-primary-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
 
 /**
  * Client-side, network-free download of a UTF-8 text artifact. Extracted
@@ -98,6 +104,26 @@ const blockedNote =
  */
 export function downloadTextFile(fileName: string, content: string): void {
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Client-side, network-free download of a binary artifact (REC-05 WU-B Safe
+ * DOCX/PDF). Same seam as {@link downloadTextFile} (Blob + object URL + anchor
+ * click, revoked afterwards): no network, no persistence (D-013: memory-only).
+ * Deliberately a separate helper: the text helper's `text/plain;charset=utf-8`
+ * contract is relied upon elsewhere and is never generalized.
+ */
+export function downloadBinaryFile(fileName: string, bytes: Uint8Array, mimeType: string): void {
+  const copy = new Uint8Array(bytes);
+  const blob = new Blob([copy.buffer as ArrayBuffer], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -146,6 +172,12 @@ export type ExportStepProps = {
     readonly plan: StructuredTransformPlan;
     readonly preparation: StructuredOutputPreparation;
   } | null;
+  /**
+   * REC-05 WU-B: the return/correction path from the single-item Result back to
+   * the unresolved Review work, without rebuilding the Job. Optional so pure
+   * render oracles can exercise the surface without the shell.
+   */
+  readonly onReturnToReview?: (() => void) | undefined;
 };
 
 /**
@@ -525,66 +557,36 @@ function StructuredExport({
   );
 }
 
-export function ExportStep(props: ExportStepProps): ReactElement {
-  const { job, review } = props;
-  if (job.kind === "structured") {
-    return <StructuredExport job={job} structured={props.structured ?? null} />;
-  }
-  const isBatch = job.kind === "document-batch";
-  const safeOutputReady = job.outputs.safeOutputReady;
-  const batchFacts = isBatch ? deriveBatchFacts(job) : null;
-  // Single/text behavior is unchanged: pending count comes from the session.
-  const pendingCount = batchFacts
-    ? batchFacts.pendingCount
-    : review === null
-      ? 0
-      : getProgress(review).pending;
+/**
+ * Document-batch export surface (T17 #21 WU-C1/CORR-B, unchanged by REC-05):
+ * the accepted specification defines no batch Safe Output format and no
+ * batch-wide Confidential Audit, so BOTH actions stay DISABLED with explicit
+ * typed reasons — review pending, failed items (naming each file and the
+ * matching remedy) or the not-yet-defined batch format, in that order. The
+ * active document's session is never presented as a batch-wide audit. A batch
+ * gains NO single-item Result surface (D-024 protected sibling).
+ */
+function BatchExport({ job }: { job: Job }): ReactElement {
+  const batchFacts = deriveBatchFacts(job);
 
   // A batch Safe Output is never available in the accepted spec (SD-7), so the
   // action is disabled for every batch regardless of derived readiness.
-  const safeOutputBlocked = isBatch || !safeOutputReady;
+  const safeOutputBlocked = true;
 
-  let safeOutputReason: string | null = null;
-  if (batchFacts !== null) {
-    if (!job.review.complete && batchFacts.pendingCount > 0) {
-      // Review-incomplete keeps priority (same order as the domain guard).
-      safeOutputReason = pendingDecisionMessage(batchFacts.pendingCount);
-    } else if (batchFacts.failedCount > 0) {
-      safeOutputReason = batchFailedItemsMessage(batchFacts.items);
-    } else {
-      safeOutputReason = batchSafeOutputUnavailableMessage();
-    }
-  } else if (!safeOutputReady) {
-    safeOutputReason = pendingDecisionMessage(pendingCount);
+  let safeOutputReason: string;
+  if (!job.review.complete && batchFacts.pendingCount > 0) {
+    // Review-incomplete keeps priority (same order as the domain guard).
+    safeOutputReason = pendingDecisionMessage(batchFacts.pendingCount);
+  } else if (batchFacts.failedCount > 0) {
+    safeOutputReason = batchFailedItemsMessage(batchFacts.items);
+  } else {
+    safeOutputReason = batchSafeOutputUnavailableMessage();
   }
 
   // Batch Confidential Audit authority (CORR-B): no accepted batch-wide audit
   // exists, so the ACTIVE document's ReviewSession is never presented as one.
-  // Single-document/text behavior is unchanged (the bridge always marks it
-  // ready once a session exists).
-  const confidentialAuditBlocked = isBatch || !job.outputs.confidentialAuditReady;
-  const confidentialAuditReason = isBatch
-    ? batchConfidentialAuditUnavailableMessage()
-    : !job.outputs.confidentialAuditReady
-      ? "Confidential Audit is not available for this job yet."
-      : null;
-
-  const handleDownloadSafeOutput = () => {
-    // Fail-closed guard (D-009): the disabled button already prevents this,
-    // but the artifact is never built from a blocked or batch state.
-    if (safeOutputBlocked || review === null) return;
-    downloadTextFile(SAFE_OUTPUT_FILE_NAME, serializeSafeOutput(buildSafeOutput(review)));
-  };
-
-  const handleDownloadConfidentialAudit = () => {
-    // Available while review is pending for a single job (internal
-    // traceability); never built from a blocked batch state (CORR-B).
-    if (confidentialAuditBlocked || review === null) return;
-    downloadTextFile(
-      CONFIDENTIAL_AUDIT_FILE_NAME,
-      serializeConfidentialAudit(buildConfidentialAudit(review))
-    );
-  };
+  const confidentialAuditBlocked = true;
+  const confidentialAuditReason = batchConfidentialAuditUnavailableMessage();
 
   return (
     <section aria-labelledby="export-step-heading">
@@ -616,19 +618,493 @@ export function ExportStep(props: ExportStepProps): ReactElement {
             The final reviewed text of this session. It contains no original↔replacement mapping, no
             reviewer notes and no original values kept for traceability.
           </p>
-          {safeOutputBlocked && safeOutputReason !== null && (
+          {safeOutputBlocked && (
             <p role="alert" id="safe-output-blocked-reason" className={blockedNote}>
               {safeOutputReason}
             </p>
           )}
           <button
             type="button"
-            onClick={handleDownloadSafeOutput}
             disabled={safeOutputBlocked}
             aria-describedby={safeOutputBlocked ? "safe-output-blocked-reason" : undefined}
             className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
             Download Safe Output (.txt)
+          </button>
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="confidential-audit-heading"
+        className="mt-6 overflow-hidden rounded-xl border-2 border-surface-dark bg-white shadow-sm"
+      >
+        <div className="bg-surface-dark px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className={`${zoneBadge} border border-white/70`}>Internal</span>
+            <h3
+              id="confidential-audit-heading"
+              className="font-display text-lg font-bold text-white"
+            >
+              Confidential Audit
+            </h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-sm font-semibold text-neutral-800">
+            {CONFIDENTIAL_AUDIT_WARNING_LINE}
+          </p>
+          <p className={`mt-2 ${zoneBody}`}>
+            This artifact contains original sensitive values, their replacements and reviewer notes.
+            It is an internal traceability record and must never be shared or delivered outside the
+            authorized audit trail.
+          </p>
+          <p role="status" id="confidential-audit-blocked-reason" className={blockedNote}>
+            {confidentialAuditReason}
+          </p>
+          <button
+            type="button"
+            disabled={confidentialAuditBlocked}
+            aria-describedby="confidential-audit-blocked-reason"
+            className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+          >
+            Download Confidential Audit (.txt)
+          </button>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+/** Which action produced the current Result feedback (D-024 §Action feedback). */
+type SingleResultAction = "copy" | "txt" | "docx" | "pdf";
+
+type SingleResultFeedback =
+  | { readonly action: SingleResultAction; readonly status: "pending"; readonly message: string }
+  | { readonly action: SingleResultAction; readonly status: "success"; readonly message: string }
+  | { readonly action: SingleResultAction; readonly status: "error"; readonly message: string };
+
+/**
+ * Single-item Result (REC-05 WU-B). Composes the readiness + prepared/shareable
+ * actions + factual kept-original warning + return path; the Confidential Audit
+ * zone is preserved below as a separate sensitive zone.
+ */
+function SingleItemResult({
+  job,
+  review,
+  onReturnToReview,
+}: {
+  job: Job;
+  review: ReviewSession | null;
+  onReturnToReview: (() => void) | undefined;
+}): ReactElement {
+  const view = deriveSingleResultView(job, review);
+  const material: SingleResultMaterial = view.material;
+  const safeText = view.safeText;
+
+  const [feedback, setFeedback] = useState<SingleResultFeedback | null>(null);
+
+  // CURRENT authorization snapshot: the latest render's Job id, review
+  // identity and canonical payload. A download is only requested against one
+  // frozen snapshot; because the ref carries the latest render it observes a
+  // Job/review/payload change that arrives during an async generation window.
+  const authorityRef = useRef<{
+    readonly jobId: string;
+    readonly review: ReviewSession | null;
+    readonly safeText: string | null;
+    readonly ready: boolean;
+  }>({ jobId: job.id, review, safeText, ready: view.state === "ready" });
+  authorityRef.current = { jobId: job.id, review, safeText, ready: view.state === "ready" };
+
+  // Just-in-time guard: true only while the requested Job + review + canonical
+  // payload are still current and still ready. Evaluated immediately before
+  // any bytes are produced and any download begins.
+  const isAuthorityCurrent = (requested: {
+    readonly jobId: string;
+    readonly review: ReviewSession;
+    readonly safeText: string;
+  }): boolean => {
+    const current = authorityRef.current;
+    return (
+      current.ready &&
+      current.jobId === requested.jobId &&
+      current.review === requested.review &&
+      current.safeText === requested.safeText
+    );
+  };
+
+  // Any new Job, review mutation or payload change invalidates the transient
+  // feedback and never survives into the next Result state.
+  useEffect(() => {
+    setFeedback(null);
+  }, [job, review, safeText]);
+
+  const handleCopy = async () => {
+    if (view.state !== "ready" || safeText === null || review === null) return;
+    const requested = { jobId: job.id, review, safeText };
+    setFeedback({
+      action: "copy",
+      status: "pending",
+      message: "Copiando el texto preparado…",
+    });
+    try {
+      await copyTextToClipboard(requested.safeText);
+      if (!isAuthorityCurrent(requested)) {
+        setFeedback({
+          action: "copy",
+          status: "error",
+          message: "La revisión cambió; no se copió ningún texto.",
+        });
+        return;
+      }
+      setFeedback({
+        action: "copy",
+        status: "success",
+        message: "Texto preparado copiado al portapapeles.",
+      });
+    } catch (error) {
+      setFeedback({
+        action: "copy",
+        status: "error",
+        message:
+          error instanceof ClipboardError
+            ? error.message
+            : "No se pudo copiar el texto al portapapeles.",
+      });
+    }
+  };
+
+  const handleTextDownload = () => {
+    if (view.state !== "ready" || safeText === null || review === null) return;
+    // Synchronous, so the guard holds at the moment of the download too.
+    if (!isAuthorityCurrent({ jobId: job.id, review, safeText })) return;
+    downloadTextFile(SAFE_TXT_FILE_NAME, safeText);
+    setFeedback({
+      action: "txt",
+      status: "success",
+      message: "Descarga del texto preparado (.txt) iniciada.",
+    });
+  };
+
+  const handleDocxDownload = async () => {
+    if (view.state !== "ready" || safeText === null || review === null) return;
+    const requested = { jobId: job.id, review, safeText };
+    setFeedback({
+      action: "docx",
+      status: "pending",
+      message: "Preparando el documento (.docx)…",
+    });
+    try {
+      const bytes = await buildSafeDocxBytes(requested.safeText);
+      // Re-check AFTER the awaited generation and immediately before download.
+      if (!isAuthorityCurrent(requested)) {
+        setFeedback({
+          action: "docx",
+          status: "error",
+          message: "La revisión cambió; no se descargó ningún documento.",
+        });
+        return;
+      }
+      downloadBinaryFile(SAFE_DOCX_FILENAME, bytes, DOCX_MIME);
+      setFeedback({
+        action: "docx",
+        status: "success",
+        message: "Descarga del documento preparado (.docx) iniciada.",
+      });
+    } catch (error) {
+      setFeedback({
+        action: "docx",
+        status: "error",
+        message:
+          error instanceof DocxBuildError
+            ? error.message
+            : "No se pudo generar el documento (.docx).",
+      });
+    }
+  };
+
+  const handlePdfDownload = async () => {
+    if (view.state !== "ready" || safeText === null || review === null) return;
+    const requested = { jobId: job.id, review, safeText };
+    setFeedback({
+      action: "pdf",
+      status: "pending",
+      message: "Preparando el archivo PDF…",
+    });
+    try {
+      const bytes = await buildSafePdfBytes(requested.safeText);
+      // Re-check AFTER the awaited generation and immediately before download.
+      if (!isAuthorityCurrent(requested)) {
+        setFeedback({
+          action: "pdf",
+          status: "error",
+          message: "La revisión cambió; no se descargó ningún archivo.",
+        });
+        return;
+      }
+      downloadBinaryFile(SAFE_PDF_FILENAME, bytes, PDF_MIME);
+      setFeedback({
+        action: "pdf",
+        status: "success",
+        message: "Descarga del archivo PDF iniciada.",
+      });
+    } catch (error) {
+      setFeedback({
+        action: "pdf",
+        status: "error",
+        message:
+          error instanceof PdfRepresentationError
+            ? `No se pudo generar el PDF. ${error.message}`
+            : "No se pudo generar el archivo PDF.",
+      });
+    }
+  };
+
+  const confidentialAuditBlocked = !job.outputs.confidentialAuditReady;
+  const confidentialAuditReason = confidentialAuditBlocked
+    ? "Confidential Audit is not available for this job yet."
+    : null;
+
+  const handleConfidentialDownload = () => {
+    if (confidentialAuditBlocked || review === null) return;
+    downloadTextFile(
+      CONFIDENTIAL_AUDIT_FILE_NAME,
+      serializeConfidentialAudit(buildConfidentialAudit(review))
+    );
+  };
+
+  const stateLabel =
+    view.state === "ready"
+      ? "Listo para usar"
+      : view.state === "needs-attention"
+        ? "Requiere tu atención"
+        : "Bloqueado";
+
+  const intro =
+    material === "text"
+      ? "Revisa el estado del resultado y usa el texto preparado cuando esté listo. Las descargas se generan en tu navegador."
+      : "Revisa el estado del resultado y descarga el documento preparado cuando esté listo. Las descargas se generan en tu navegador.";
+
+  const copyButton = (
+    <button
+      type="button"
+      key="copy"
+      onClick={() => void handleCopy()}
+      data-variant="secondary"
+      className={secondaryButton}
+    >
+      Copiar texto preparado
+    </button>
+  );
+  const txtButton = (
+    <button
+      type="button"
+      key="txt"
+      onClick={handleTextDownload}
+      data-variant="secondary"
+      className={secondaryButton}
+    >
+      Descargar como TXT (.txt)
+    </button>
+  );
+  const docxButton = (variant: "primary" | "secondary") => (
+    <button
+      type="button"
+      key="docx"
+      onClick={() => void handleDocxDownload()}
+      data-variant={variant}
+      className={variant === "primary" ? primaryButton : secondaryButton}
+    >
+      Descargar documento preparado (.docx)
+    </button>
+  );
+  const pdfButton = (
+    <button
+      type="button"
+      key="pdf"
+      onClick={() => void handlePdfDownload()}
+      data-variant="secondary"
+      className={secondaryButton}
+    >
+      Descargar como PDF (.pdf)
+    </button>
+  );
+
+  const feedbackNode = feedback !== null && (
+    <p
+      role={feedback.status === "error" ? "alert" : "status"}
+      id="result-action-feedback"
+      className={feedback.status === "error" ? blockedNote : "mt-3 text-sm text-neutral-700"}
+    >
+      {feedback.message}
+    </p>
+  );
+
+  // Factual kept-original warning: rendered in every Result state (a restored
+  // original can coexist with still-pending decisions) from the exact
+  // ReviewSession facts, never as correspondence leakage.
+  const keptOriginalsNode = view.keptOriginals.length > 0 && (
+    <section
+      aria-labelledby="result-kept-originals-heading"
+      className="mt-3 rounded border border-amber-500 bg-amber-50 px-3 py-2"
+    >
+      <h4 id="result-kept-originals-heading" className="text-sm font-bold text-neutral-800">
+        Originales conservados deliberadamente
+      </h4>
+      <ul className="mt-1 list-disc space-y-0.5 pl-6 text-sm text-neutral-800">
+        {view.keptOriginals.map((kept, index) => (
+          <li key={index}>
+            Se conservó el texto original de tipo «{kept.type}» por una decisión de revisión.
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+
+  return (
+    <section aria-labelledby="export-step-heading" data-result-state={view.state}>
+      <header className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
+          Resultado
+        </p>
+        <h2
+          id="export-step-heading"
+          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
+        >
+          Resultado
+        </h2>
+        <p className="mt-2 text-base leading-relaxed text-neutral-700">{intro}</p>
+      </header>
+
+      <section aria-labelledby="result-state-heading" className={zoneCard}>
+        <div className="border-b border-primary/30 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className={`${zoneBadge} bg-primary-dark`}>Resultado</span>
+            <h3 id="result-state-heading" className={zoneHeading}>
+              {stateLabel}
+            </h3>
+          </div>
+        </div>
+        <div className="p-4">
+          {view.state === "needs-attention" && view.attentionMessage !== null && (
+            <p role="status" id="result-attention-reason" className={blockedNote}>
+              {view.attentionMessage}
+            </p>
+          )}
+          {view.state === "blocked" && view.blockedMessage !== null && (
+            <p role="alert" id="result-blocked-reason" className={blockedNote}>
+              {view.blockedMessage}
+            </p>
+          )}
+
+          {keptOriginalsNode}
+
+          {view.state === "ready" && safeText !== null ? (
+            <>
+              <section aria-labelledby="result-primary-heading" className="mt-4">
+                <h4
+                  id="result-primary-heading"
+                  className="text-sm font-bold uppercase tracking-wide text-neutral-700"
+                >
+                  {material === "text" ? "Texto preparado" : "Documento preparado"}
+                </h4>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                  {material === "text"
+                    ? "El texto revisado listo para copiar y usar en tu destino."
+                    : "La versión preparada del documento, lista para descargar."}
+                </p>
+                <div className="mt-1">
+                  {material === "text" ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleCopy()}
+                      data-variant="primary"
+                      className={primaryButton}
+                    >
+                      Copiar texto preparado
+                    </button>
+                  ) : (
+                    docxButton("primary")
+                  )}
+                </div>
+              </section>
+
+              <section aria-labelledby="result-secondary-heading" className="mt-4">
+                <h4
+                  id="result-secondary-heading"
+                  className="text-sm font-bold uppercase tracking-wide text-neutral-700"
+                >
+                  Otros formatos
+                </h4>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                  El mismo resultado preparado en otros formatos. Son alternativas, no la acción
+                  principal.
+                </p>
+                <div
+                  role="group"
+                  aria-label="Otros formatos disponibles"
+                  className="mt-1 flex flex-wrap gap-2"
+                >
+                  {material === "text" ? (
+                    <>
+                      {txtButton}
+                      {docxButton("secondary")}
+                      {pdfButton}
+                    </>
+                  ) : (
+                    <>
+                      {copyButton}
+                      {txtButton}
+                      {pdfButton}
+                    </>
+                  )}
+                </div>
+              </section>
+            </>
+          ) : (
+            <div className="mt-1">
+              <div>
+                {material === "text" ? (
+                  <button
+                    type="button"
+                    disabled
+                    data-variant="primary"
+                    aria-describedby={
+                      view.state === "needs-attention"
+                        ? "result-attention-reason"
+                        : "result-blocked-reason"
+                    }
+                    className={primaryButton}
+                  >
+                    Copiar texto preparado
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    data-variant="primary"
+                    aria-describedby={
+                      view.state === "needs-attention"
+                        ? "result-attention-reason"
+                        : "result-blocked-reason"
+                    }
+                    className={primaryButton}
+                  >
+                    Descargar documento preparado (.docx)
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {feedbackNode}
+
+          <button
+            type="button"
+            onClick={() => onReturnToReview?.()}
+            data-variant="return"
+            className={secondaryButton}
+          >
+            Volver a la revisión
           </button>
         </div>
       </section>
@@ -664,7 +1140,7 @@ export function ExportStep(props: ExportStepProps): ReactElement {
           )}
           <button
             type="button"
-            onClick={handleDownloadConfidentialAudit}
+            onClick={handleConfidentialDownload}
             disabled={confidentialAuditBlocked}
             aria-describedby={
               confidentialAuditBlocked ? "confidential-audit-blocked-reason" : undefined
@@ -677,4 +1153,15 @@ export function ExportStep(props: ExportStepProps): ReactElement {
       </section>
     </section>
   );
+}
+
+export function ExportStep(props: ExportStepProps): ReactElement {
+  const { job, review } = props;
+  if (job.kind === "structured") {
+    return <StructuredExport job={job} structured={props.structured ?? null} />;
+  }
+  if (job.kind === "document-batch") {
+    return <BatchExport job={job} />;
+  }
+  return <SingleItemResult job={job} review={review} onReturnToReview={props.onReturnToReview} />;
 }

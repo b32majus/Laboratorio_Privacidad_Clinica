@@ -103,7 +103,7 @@ describe("network invariant monitor", () => {
       // (domain authority, D-004) and Export unlocks. Entering it — still an
       // honest placeholder until T08 — records no network attempt.
       fireEvent.click(stepButton(5, "Export"));
-      expect(screen.getByRole("heading", { level: 2, name: "Export" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
       // Session reset via New Job returns to a fresh Input.

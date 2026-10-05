@@ -115,7 +115,7 @@ test("review decisions drive the export gate and the canonical Safe Output", asy
 
   // --- Export: two separate artifacts -------------------------------------
   await page.getByRole("button", { name: "5. Export" }).click();
-  const safeButton = page.getByRole("button", { name: "Download Safe Output (.txt)" });
+  const safeButton = page.getByRole("button", { name: "Descargar como TXT (.txt)" });
   await expect(safeButton).toBeEnabled();
   await expect(
     page.getByRole("button", { name: "Download Confidential Audit (.txt)" })
@@ -126,7 +126,7 @@ test("review decisions drive the export gate and the canonical Safe Output", asy
     page.waitForEvent("download"),
     safeButton.click(),
   ]);
-  expect(safeDownload.suggestedFilename()).toBe("safe-output.txt");
+  expect(safeDownload.suggestedFilename()).toBe("texto-preparado.txt");
   const safeOutput = readFileSync(await safeDownload.path(), "utf8");
 
   // Byte-exact derivation from the final review state: modified and manual

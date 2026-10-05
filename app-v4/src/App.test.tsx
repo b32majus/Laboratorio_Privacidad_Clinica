@@ -734,7 +734,7 @@ describe("App export step (T08 U4)", () => {
   const JOB2_NOTE =
     "Paciente: Roberto Díaz\nRevisado por la Dra. Elena Vidal el 03/07/2025. Contacto: 654321987.";
 
-  const SAFE_BUTTON = "Download Safe Output (.txt)";
+  const SAFE_BUTTON = "Descargar como TXT (.txt)";
   const AUDIT_BUTTON = "Download Confidential Audit (.txt)";
 
   type CapturedDownload = { readonly fileName: string; readonly blob: Blob };
@@ -800,7 +800,7 @@ describe("App export step (T08 U4)", () => {
     acceptAllDetections();
     fireEvent.click(stepButton(4, "Privacy Gate"));
     fireEvent.click(stepButton(5, "Export"));
-    expect(screen.getByRole("heading", { level: 2, name: "Export" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
   }
 
   /** Pure-domain replica: the same engine, text and decisions as the App flow. */
@@ -902,7 +902,7 @@ describe("App export step (T08 U4)", () => {
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
       const after = await textOf(captured.downloads[1]);
       expect(after).toBe(before);
-      expect(captured.downloads[1].fileName).toBe("safe-output.txt");
+      expect(captured.downloads[1].fileName).toBe("texto-preparado.txt");
     } finally {
       captured.restore();
     }

@@ -117,5 +117,5 @@ export async function gotoExportComplete(page: Page): Promise<void> {
   const exportButton = page.getByRole("button", { name: "5. Export" });
   await expect(exportButton).toBeEnabled();
   await exportButton.click();
-  await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
 }

@@ -790,7 +790,12 @@ export function App() {
         ) : currentStep === "export" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
-          <ExportStep job={job} review={activeReview} structured={structuredGateInput} />
+          <ExportStep
+            job={job}
+            review={activeReview}
+            structured={structuredGateInput}
+            onReturnToReview={() => void handleGoToStep("review")}
+          />
         ) : (
           <StepUnavailableState step={currentStep} reviewError={reviewError} />
         )}
