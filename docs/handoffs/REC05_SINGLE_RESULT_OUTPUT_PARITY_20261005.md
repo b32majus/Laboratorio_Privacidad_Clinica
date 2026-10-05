@@ -347,6 +347,12 @@ Claims must be calibrated to actual adversarial evidence. Minimum planted cases:
 
 Use synthetic/no-PHI fixtures only.
 
+### Pre-implementation dependency-audit baseline
+
+At the clean prepared preflight on 2026-10-05, before REC-05 adds `pdf-lib`, `npm audit --omit=dev` reports **12 pre-existing production findings (1 low, 10 high, 1 critical)** from the canonical dependency graph. The REC-05 preparation commits do not change `package.json` or `package-lock.json`; this is baseline debt, not a REC-05 regression.
+
+REC-05 must **not** run `npm audit fix`, upgrade unrelated dependencies or broaden scope to repair this baseline. After the authorized `pdf-lib@1.17.1` change, compare the production audit against this baseline and prove that REC-05 introduced **no new unresolved production vulnerability**. Any new/material finding attributable to the authorized dependency delta is HUMAN STOP. Report the inherited baseline factually rather than claiming the global production audit is green.
+
 ## 10. Exact C-084 lifecycle
 
 Route: **standard + complex**.
@@ -389,7 +395,7 @@ Before human launch, Cora must verify and record:
 - project Gate 0 maps every REC-05 obligation in §2;
 - D-024 and this handoff are committed;
 - bound standard/complex agents/models are visible to OpenCode;
-- deterministic pre-implementation baseline is green enough to distinguish new regressions;
+- deterministic pre-implementation baseline is green enough to distinguish new regressions; the known `npm audit --omit=dev` baseline red is recorded above and is judged by dependency delta, not by pretending it is green;
 - fixed review anchor is resolved to this clean prepared HEAD.
 
 Any mismatch => HUMAN STOP, do not ask OpenCode to repair launch state.
