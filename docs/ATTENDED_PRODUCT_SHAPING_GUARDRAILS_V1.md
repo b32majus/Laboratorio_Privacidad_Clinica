@@ -9,6 +9,20 @@ Product-shaping methods may be intentionally exhaustive. Exhaustiveness is usefu
 
 Atenea therefore separates clarification from expansion. Material shaping remains attended Cora + human work, and expansive methods such as `grilling → to-spec → to-tickets` operate inside explicit product boundaries rather than defining those boundaries themselves.
 
+For material human-facing work, this document is downstream of `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`. First establish the human task and accepted interaction hypothesis; distinguish material human-work claims as `OBSERVED` / `REPORTED` / `ASSUMED` when provenance matters; use `/research`, `/to-questionnaire` or equivalent discovery only when they materially reduce uncertainty; then use Matt/spec grilling to harden ambiguity, contracts and edge cases. Matt is the **second filter**, not the primary author of navigation, representation or interaction hierarchy. Material unresolved spatial/interaction questions use the conditional prototype gate from the human-product authority rather than being closed by prose alone.
+
+Canonical sequence:
+
+```text
+PRODUCT INTENT
+→ HUMAN WORK FRAME / interaction hypothesis
+→ conditional research/questionnaire/prototype evidence
+→ MATT / SPEC GRILLING
+→ composed human-product grill
+→ HUMAN PRODUCT RECHECK
+→ FREEZE / BUILD
+```
+
 ## Before expansive shaping: freeze the product rails
 
 Before a material grill or equivalent shaping session, Cora + human record the smallest useful set of **NON-NEGOTIABLE PRODUCT BOUNDARIES**. These are constraints, not preference questions.
@@ -44,11 +58,11 @@ Report only:
 
 No grill answer becomes spec authority merely because the user answered the question.
 
-### 2. Post-spec fidelity audit
+### 2. Post-spec fidelity + human-product recheck
 
-Before `to-tickets`, compare **original brief + non-negotiables + reconciled shaping authority** against the generated spec.
+Before `to-tickets`, compare **original brief + non-negotiables + reconciled shaping authority** against the generated spec. For material human-facing work, also compare it with the accepted interaction hypothesis from `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`.
 
-Ask: does the spec preserve the intended product, or did synthesis turn optional/internal richness into required product surface? Remove unsupported expansion before ticketization.
+Ask: does the spec preserve the intended product and ordinary human workflow, or did synthesis turn optional/internal richness into required product surface? Did technical completeness add navigation, equal-weight choices, concepts or friction that the interaction hypothesis did not authorize? Remove/reconcile unsupported expansion before ticketization.
 
 ### 3. Post-ticket product-composition audit
 
