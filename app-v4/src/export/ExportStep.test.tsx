@@ -276,7 +276,7 @@ describe("REC-05 WU-B single-item Result — ready state", () => {
     // Return/correction path is always present.
     expect(screen.getByRole("button", { name: "Volver a la revisión" })).toBeInTheDocument();
     // Confidential stays a separate sensitive zone.
-    expect(screen.getByRole("region", { name: "Confidential Audit" })).toHaveTextContent(
+    expect(screen.getByRole("region", { name: "Auditoría confidencial" })).toHaveTextContent(
       CONFIDENTIAL_AUDIT_WARNING_LINE
     );
   });
@@ -542,6 +542,158 @@ describe("REC-05 WU-B single-item Result — async stale guard", () => {
         expect(screen.getByText(/no se descargó ningún archivo/i)).toBeInTheDocument()
       );
       expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// REC-05 WU-C single-item Confidential confirmation (H-42 single slice, D-024)
+// ---------------------------------------------------------------------------
+const CONF_BUTTON = "Descargar auditoría confidencial (.txt)";
+const CONF_CONFIRM = "Confirmar descarga confidencial";
+const CONF_CANCEL = "Cancelar descarga confidencial";
+const CONF_GROUP = "Confirmación de descarga confidencial";
+
+describe("REC-05 WU-C single-item Confidential confirmation", () => {
+  beforeEach(CLIPBOARD_OK);
+
+  it("first Confidential action downloads nothing; Cancel downloads nothing; a new first action is required", () => {
+    const captured = captureDownloads();
+    const session = completedSession();
+    render(<ExportStep job={bridgeJob(session)} review={session} />);
+    try {
+      clickButton(CONF_BUTTON);
+      // First action: zero bytes, only the clearly marked Spanish warning.
+      expect(captured.downloads).toHaveLength(0);
+      const confirmation = screen.getByRole("group", { name: CONF_GROUP });
+      expect(confirmation).toHaveTextContent(/identificable/i);
+      expect(confirmation).toHaveTextContent(/reversible/i);
+      expect(confirmation).toHaveTextContent(/manejo interno autorizado/i);
+
+      clickButton(CONF_CANCEL);
+      expect(captured.downloads).toHaveLength(0);
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+
+      // No sticky confirmation: a fresh first action re-opens it and still
+      // downloads nothing.
+      clickButton(CONF_BUTTON);
+      expect(captured.downloads).toHaveLength(0);
+      expect(screen.getByRole("group", { name: CONF_GROUP })).toBeInTheDocument();
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("explicit Confirm downloads exactly one Confidential TXT, then resets", async () => {
+    const captured = captureDownloads();
+    const session = completedSession();
+    render(<ExportStep job={bridgeJob(session)} review={session} />);
+    try {
+      clickButton(CONF_BUTTON);
+      expect(captured.downloads).toHaveLength(0);
+      clickButton(CONF_CONFIRM);
+      expect(captured.downloads).toHaveLength(1);
+      expect(captured.downloads[0].fileName).toBe("auditoria-confidencial.txt");
+
+      // Canonical Confidential payload byte-semantics unchanged: the warning
+      // line still starts the artifact and the mapping is still present.
+      const audit = await textOf(captured.downloads[0]);
+      expect(audit.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
+      expect(audit).toContain("Carmen Sánchez");
+
+      // Reset after confirm: no panel, no second download, and a new first
+      // action is required for another download.
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+      clickButton(CONF_BUTTON);
+      expect(captured.downloads).toHaveLength(1);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("pending confirmation cannot survive a Job change", () => {
+    const captured = captureDownloads();
+    const session = completedSession();
+    const view = render(<ExportStep job={bridgeJob(session)} review={session} />);
+    try {
+      clickButton(CONF_BUTTON);
+      expect(screen.getByRole("group", { name: CONF_GROUP })).toBeInTheDocument();
+
+      // A different Job arrives between first action and confirm.
+      view.rerender(<ExportStep job={documentBridgeJob(session)} review={session} />);
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("pending confirmation cannot survive a review mutation", () => {
+    const captured = captureDownloads();
+    const session = completedSession();
+    const view = render(<ExportStep job={bridgeJob(session)} review={session} />);
+    try {
+      clickButton(CONF_BUTTON);
+      expect(screen.getByRole("group", { name: CONF_GROUP })).toBeInTheDocument();
+
+      // A mutated review identity (new frozen session object) arrives.
+      const other = completedSession();
+      view.rerender(<ExportStep job={bridgeJob(other)} review={other} />);
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("pending confirmation cannot survive the audit becoming unavailable (fail-closed)", () => {
+    const captured = captureDownloads();
+    const session = completedSession();
+    const ready = bridgeJob(session);
+    const view = render(<ExportStep job={ready} review={session} />);
+    try {
+      clickButton(CONF_BUTTON);
+      expect(screen.getByRole("group", { name: CONF_GROUP })).toBeInTheDocument();
+
+      const auditUnavailable = Object.freeze({
+        ...ready,
+        outputs: Object.freeze({ safeOutputReady: true, confidentialAuditReady: false }),
+      }) as Job;
+      view.rerender(<ExportStep job={auditUnavailable} review={session} />);
+
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+      expect(screen.getByRole("button", { name: CONF_BUTTON })).toBeDisabled();
+      expect(screen.getByRole("button", { name: CONF_BUTTON })).toHaveAttribute(
+        "aria-describedby",
+        "confidential-audit-blocked-reason"
+      );
+      expect(screen.getByRole("status")).toHaveTextContent(/no está disponible/i);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("never gates a Safe action behind the Confidential confirmation", async () => {
+    const captured = captureDownloads();
+    const session = completedSession();
+    render(<ExportStep job={bridgeJob(session)} review={session} />);
+    try {
+      // Copy downloads/copies directly.
+      clickButton("Copiar texto preparado");
+      await flushAsyncWork();
+      expect(screen.getByRole("status")).toHaveTextContent(/copiado al portapapeles/i);
+
+      // TXT / DOCX / PDF download directly on a single click; no confirmation.
+      clickButton("Descargar como TXT (.txt)");
+      await waitFor(() => expect(captured.downloads).toHaveLength(1));
+      clickButton("Descargar documento preparado (.docx)");
+      await waitFor(() => expect(captured.downloads).toHaveLength(2));
+      clickButton("Descargar como PDF (.pdf)");
+      await waitFor(() => expect(captured.downloads).toHaveLength(3));
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
     } finally {
       captured.restore();
     }

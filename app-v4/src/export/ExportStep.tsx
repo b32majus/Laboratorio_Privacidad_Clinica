@@ -8,8 +8,14 @@
  * DOCX and Safe PDF are four representations of ONE canonical Safe payload
  * (`getFinalText` via the reviewed output service); no representation re-runs a
  * privacy transformation or adds correspondence/reviewer notes/audit metadata.
- * The Confidential Audit stays a separate, deliberately sensitive zone (its
- * deliberate confirmation is WU-C).
+ * The Confidential Audit stays a separate, deliberately sensitive zone. REC-05
+ * WU-C adds the deliberate confirmation for the single-item slice: the first
+ * action reveals a Spanish identifiable/reversible-data warning and downloads
+ * nothing; explicit Confirm downloads exactly once; Cancel downloads nothing;
+ * the pending confirmation cannot cross a Job, a review mutation or a newly
+ * unavailable audit state, and Confirm revalidates the current Job + review
+ * authority immediately before download (H-42 single text/document slice,
+ * D-024).
  *
  * The structured and document-batch branches are byte-unchanged in behavior:
  *   - Structured (REC-04 WU-C/D-022): Safe CSV/XLSX + Confidential TXT/XLSX.
@@ -79,7 +85,8 @@ const focusRing =
 
 /** D-024 single-item Safe TXT filename. */
 const SAFE_TXT_FILE_NAME = "texto-preparado.txt";
-const CONFIDENTIAL_AUDIT_FILE_NAME = "confidential-audit.txt";
+/** REC-05 WU-C D-024 single-item Confidential Audit TXT filename (Spanish). */
+const CONFIDENTIAL_AUDIT_FILE_NAME = "auditoria-confidencial.txt";
 const SAFE_STRUCTURED_FILE_NAME = "safe-structured-output.csv";
 const CONFIDENTIAL_STRUCTURED_FILE_NAME = "structured-confidential-audit.txt";
 
@@ -701,19 +708,43 @@ function SingleItemResult({
   const material: SingleResultMaterial = view.material;
   const safeText = view.safeText;
 
+  // Fail-closed Confidential readiness: the audit honors its OWN output flag
+  // (same authority as the document/structured paths), independent of whether
+  // the prepared Safe result is ready — the audit is buildable during review.
+  const confidentialAuditBlocked = !job.outputs.confidentialAuditReady;
+
   const [feedback, setFeedback] = useState<SingleResultFeedback | null>(null);
+  // REC-05 WU-C deliberate confirmation (H-42 single text/document slice,
+  // D-024): the first Confidential action only reveals the warning and
+  // downloads nothing; one explicit Confirm performs exactly one download.
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const [confidentialError, setConfidentialError] = useState<string | null>(null);
 
   // CURRENT authorization snapshot: the latest render's Job id, review
-  // identity and canonical payload. A download is only requested against one
-  // frozen snapshot; because the ref carries the latest render it observes a
-  // Job/review/payload change that arrives during an async generation window.
+  // identity, canonical payload and both readiness facts. A download is only
+  // requested against one frozen snapshot; because the ref carries the latest
+  // render it observes a Job/review/payload/readiness change that arrives
+  // during an async generation window.
   const authorityRef = useRef<{
     readonly jobId: string;
     readonly review: ReviewSession | null;
     readonly safeText: string | null;
     readonly ready: boolean;
-  }>({ jobId: job.id, review, safeText, ready: view.state === "ready" });
-  authorityRef.current = { jobId: job.id, review, safeText, ready: view.state === "ready" };
+    readonly confidentialBlocked: boolean;
+  }>({
+    jobId: job.id,
+    review,
+    safeText,
+    ready: view.state === "ready",
+    confidentialBlocked: confidentialAuditBlocked,
+  });
+  authorityRef.current = {
+    jobId: job.id,
+    review,
+    safeText,
+    ready: view.state === "ready",
+    confidentialBlocked: confidentialAuditBlocked,
+  };
 
   // Just-in-time guard: true only while the requested Job + review + canonical
   // payload are still current and still ready. Evaluated immediately before
@@ -732,11 +763,43 @@ function SingleItemResult({
     );
   };
 
+  // Confidential counterpart of the guard above (cloned from the structured
+  // REC-04 pattern): true only while the requested Job + review identity are
+  // still current and the audit is still available. Evaluated at the exact
+  // moment bytes would be produced, after the confirmation was accepted.
+  const isConfidentialAuthorityCurrent = (requested: {
+    readonly jobId: string;
+    readonly review: ReviewSession;
+  }): boolean => {
+    const current = authorityRef.current;
+    return (
+      !current.confidentialBlocked &&
+      current.jobId === requested.jobId &&
+      current.review === requested.review
+    );
+  };
+
   // Any new Job, review mutation or payload change invalidates the transient
   // feedback and never survives into the next Result state.
   useEffect(() => {
     setFeedback(null);
   }, [job, review, safeText]);
+
+  // The Confidential confirmation grants no readiness and never outlives the
+  // Job or the review it was requested against: a new Job or a mutated review
+  // clears it. The domain inputs are frozen, so a changed review always
+  // arrives as a new reference.
+  useEffect(() => {
+    setPendingConfirmation(false);
+    setConfidentialError(null);
+  }, [job, review]);
+  // Defense in depth: a newly unavailable audit state clears a pending
+  // confirmation even if the references above were somehow reused.
+  useEffect(() => {
+    if (confidentialAuditBlocked) {
+      setPendingConfirmation(false);
+    }
+  }, [confidentialAuditBlocked]);
 
   const handleCopy = async () => {
     if (view.state !== "ready" || safeText === null || review === null) return;
@@ -859,17 +922,43 @@ function SingleItemResult({
     }
   };
 
-  const confidentialAuditBlocked = !job.outputs.confidentialAuditReady;
   const confidentialAuditReason = confidentialAuditBlocked
-    ? "Confidential Audit is not available for this job yet."
+    ? "La auditoría confidencial todavía no está disponible para este trabajo."
     : null;
 
-  const handleConfidentialDownload = () => {
+  // First action: reveal the warning only, download ZERO bytes.
+  const handleRequestConfidentialDownload = () => {
     if (confidentialAuditBlocked || review === null) return;
-    downloadTextFile(
-      CONFIDENTIAL_AUDIT_FILE_NAME,
-      serializeConfidentialAudit(buildConfidentialAudit(review))
-    );
+    setConfidentialError(null);
+    setPendingConfirmation(true);
+  };
+
+  // Explicit Confirm: reset first (one Confirm = exactly one download; the
+  // confirmation never survives either way) and revalidate the CURRENT Job +
+  // review/audit authority at the exact moment bytes would be produced. Any
+  // stale mismatch produces zero download and a visible non-PHI failure.
+  const handleConfirmConfidentialDownload = () => {
+    if (!pendingConfirmation || confidentialAuditBlocked || review === null) return;
+    const requested = { jobId: job.id, review };
+    setPendingConfirmation(false);
+    if (!isConfidentialAuthorityCurrent(requested)) {
+      setConfidentialError("La revisión cambió; no se descargó ninguna auditoría.");
+      return;
+    }
+    try {
+      downloadTextFile(
+        CONFIDENTIAL_AUDIT_FILE_NAME,
+        serializeConfidentialAudit(buildConfidentialAudit(requested.review))
+      );
+    } catch {
+      setConfidentialError("No se pudo generar la auditoría confidencial.");
+    }
+  };
+
+  // Cancel: reset, download ZERO bytes.
+  const handleCancelConfidentialDownload = () => {
+    setConfidentialError(null);
+    setPendingConfirmation(false);
   };
 
   const stateLabel =
@@ -1115,12 +1204,12 @@ function SingleItemResult({
       >
         <div className="bg-surface-dark px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className={`${zoneBadge} border border-white/70`}>Internal</span>
+            <span className={`${zoneBadge} border border-white/70`}>Interno</span>
             <h3
               id="confidential-audit-heading"
               className="font-display text-lg font-bold text-white"
             >
-              Confidential Audit
+              Auditoría confidencial
             </h3>
           </div>
         </div>
@@ -1129,9 +1218,9 @@ function SingleItemResult({
             {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            This artifact contains original sensitive values, their replacements and reviewer notes.
-            It is an internal traceability record and must never be shared or delivered outside the
-            authorized audit trail.
+            Este archivo contiene los valores originales sensibles, sus reemplazos y las notas de
+            revisión. Es un registro de trazabilidad interno y nunca debe compartirse ni entregarse
+            fuera de la pista de auditoría autorizada.
           </p>
           {confidentialAuditBlocked && confidentialAuditReason !== null && (
             <p role="status" id="confidential-audit-blocked-reason" className={blockedNote}>
@@ -1140,15 +1229,55 @@ function SingleItemResult({
           )}
           <button
             type="button"
-            onClick={handleConfidentialDownload}
+            onClick={handleRequestConfidentialDownload}
             disabled={confidentialAuditBlocked}
             aria-describedby={
               confidentialAuditBlocked ? "confidential-audit-blocked-reason" : undefined
             }
             className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            Download Confidential Audit (.txt)
+            Descargar auditoría confidencial (.txt)
           </button>
+          {pendingConfirmation && !confidentialAuditBlocked && (
+            <div
+              role="group"
+              aria-labelledby="confidential-audit-confirm-heading"
+              className="mt-3 rounded border-2 border-surface-dark bg-surface-light px-3 py-2"
+            >
+              <h4
+                id="confidential-audit-confirm-heading"
+                className="text-sm font-bold text-neutral-800"
+              >
+                Confirmación de descarga confidencial
+              </h4>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-800">
+                Este archivo contiene correspondencia identificable y reversible entre los valores
+                originales y sus reemplazos, y es solo para manejo interno autorizado. Confirma para
+                descargarlo una vez ahora, o cancela para no descargar nada.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmConfidentialDownload}
+                  className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+                >
+                  Confirmar descarga confidencial
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelConfidentialDownload}
+                  className={`rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white ${focusRing}`}
+                >
+                  Cancelar descarga confidencial
+                </button>
+              </div>
+            </div>
+          )}
+          {confidentialError !== null && (
+            <p role="alert" className={blockedNote}>
+              {confidentialError}
+            </p>
+          )}
         </div>
       </section>
     </section>

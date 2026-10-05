@@ -118,7 +118,7 @@ test("review decisions drive the export gate and the canonical Safe Output", asy
   const safeButton = page.getByRole("button", { name: "Descargar como TXT (.txt)" });
   await expect(safeButton).toBeEnabled();
   await expect(
-    page.getByRole("button", { name: "Download Confidential Audit (.txt)" })
+    page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" })
   ).toBeEnabled();
   await expect(page.getByText("CONFIDENTIAL — INTERNAL AUDIT ARTIFACT")).toBeVisible();
 
@@ -142,11 +142,18 @@ test("review decisions drive the export gate and the canonical Safe Output", asy
   // No audit artifact content may ride along on the safe artifact.
   expect(safeOutput).not.toContain("CONFIDENTIAL");
 
+  // H-42 single slice (REC-05 WU-C): the first Confidential click reveals the
+  // deliberate Spanish warning and downloads NOTHING; explicit Confirm then
+  // produces exactly one artifact.
+  await page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" }).click();
+  await expect(
+    page.getByRole("group", { name: "Confirmación de descarga confidencial" })
+  ).toBeVisible();
   const [auditDownload] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Download Confidential Audit (.txt)" }).click(),
+    page.getByRole("button", { name: "Confirmar descarga confidencial" }).click(),
   ]);
-  expect(auditDownload.suggestedFilename()).toBe("confidential-audit.txt");
+  expect(auditDownload.suggestedFilename()).toBe("auditoria-confidencial.txt");
   const audit = readFileSync(await auditDownload.path(), "utf8");
 
   // Distinctly labelled, carries the original↔replacement mapping.

@@ -73,7 +73,7 @@ async function gatePairs(page: Page): Promise<MeasuredPair[]> {
 
 async function exportPairs(page: Page): Promise<MeasuredPair[]> {
   const primaryRegion = page.getByRole("region", { name: "Texto preparado" });
-  const auditRegion = page.getByRole("region", { name: "Confidential Audit" });
+  const auditRegion = page.getByRole("region", { name: "Auditoría confidencial" });
   return [
     { label: "Result eyebrow", locator: page.locator("main header p").first() },
     {
@@ -87,7 +87,7 @@ async function exportPairs(page: Page): Promise<MeasuredPair[]> {
     },
     {
       label: "Confidential Audit heading (dark band)",
-      locator: page.getByRole("heading", { name: "Confidential Audit", exact: true }),
+      locator: page.getByRole("heading", { name: "Auditoría confidencial", exact: true }),
     },
     {
       label: "Confidential Audit warning line",
@@ -99,7 +99,7 @@ async function exportPairs(page: Page): Promise<MeasuredPair[]> {
     },
     {
       label: "Confidential Audit secondary button",
-      locator: page.getByRole("button", { name: "Download Confidential Audit (.txt)" }),
+      locator: page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" }),
     },
   ];
 }
@@ -180,7 +180,7 @@ test("Gate and Export primary controls are keyboard reachable with visible focus
   ]);
   expect(download.suggestedFilename()).toBe("texto-preparado.txt");
 
-  const auditFocus = await tabTo(/Download Confidential Audit \(\.txt\)/);
+  const auditFocus = await tabTo(/Descargar auditoría confidencial \(\.txt\)/);
   expect(hasVisibleFocus(auditFocus), `no visible focus on Confidential Audit button: ${JSON.stringify(auditFocus)}`).toBe(true);
 });
 

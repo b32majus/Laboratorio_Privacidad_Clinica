@@ -33,7 +33,10 @@ import {
 } from "../review/review-domain";
 import { createJob, withReviewState, type Job } from "../domain/job";
 import { buildConfidentialAudit } from "../output/confidential-audit";
-import { serializeConfidentialAudit } from "../output/confidential-audit-serializer";
+import {
+  serializeConfidentialAudit,
+  CONFIDENTIAL_AUDIT_WARNING_LINE,
+} from "../output/confidential-audit-serializer";
 import { buildSafeDocxBytes } from "../output/docx-builder";
 import { buildSafePdfBytes } from "../output/pdf-builder";
 
@@ -52,6 +55,10 @@ const NHC_START = SOURCE.indexOf("2024/089756");
 const NHC_END = NHC_START + "2024/089756".length;
 
 const REVIEWER_NOTE = "nota interna de revisión: verificar apellidos";
+/** The Confidential artifact's own header line (payload marker, never Safe). */
+const AUDIT_HEADER = CONFIDENTIAL_AUDIT_WARNING_LINE;
+/** A Confidential mapping-section row heading (never Safe). */
+const AUDIT_MAPPING_ROW = "Original ↔ replacement mapping";
 
 function readySession(): ReviewSession {
   const base = createReviewSession({
@@ -207,6 +214,8 @@ describe("REC-05 WU-B — four Safe representations share one canonical payload"
     const confidentialText = serializeConfidentialAudit(buildConfidentialAudit(session));
     expect(confidentialText).toContain("Carmen Sánchez");
     expect(confidentialText).toContain(REVIEWER_NOTE);
+    expect(confidentialText).toContain(AUDIT_HEADER);
+    expect(confidentialText).toContain(AUDIT_MAPPING_ROW);
 
     let clipboardText = "";
     stubClipboard((text) => {
@@ -245,6 +254,10 @@ describe("REC-05 WU-B — four Safe representations share one canonical payload"
           "Carmen Sánchez"
         );
         expect(value, `${label} must not carry the reviewer note`).not.toContain(REVIEWER_NOTE);
+        expect(value, `${label} must not carry the audit header`).not.toContain(AUDIT_HEADER);
+        expect(value, `${label} must not carry the audit mapping row`).not.toContain(
+          AUDIT_MAPPING_ROW
+        );
       }
     } finally {
       captured.restore();
