@@ -511,6 +511,26 @@ describe("App privacy gate (T08 U3)", () => {
     expect(screen.queryByText("Ready")).not.toBeInTheDocument();
     expect(stepButton(5, "Export")).toBeDisabled();
   });
+
+  it("reaches the single-item Result directly from Review without a mandatory Gate stop (REC-05 WU-B2)", async () => {
+    render(<App />);
+    await createReviewJob();
+    acceptAllDetections();
+    expect(pendingCount()).toBe(0);
+
+    // Ordinary single-item journey: the last review decision -> Result in ONE
+    // transition. The Privacy Gate stop is no longer mandatory.
+    expect(stepButton(5, "Export")).toBeEnabled();
+    fireEvent.click(stepButton(5, "Export"));
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+
+    // The Privacy Gate is not hidden, deleted or disabled: it stays an enabled,
+    // optional destination reachable from Review (G-HP2: no new destination).
+    fireEvent.click(stepButton(3, "Review"));
+    expect(stepButton(4, "Privacy Gate")).toBeEnabled();
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+  });
 });
 
 describe("App policy change vs an existing review (PR #40 corrective C1+C2)", () => {
@@ -734,8 +754,9 @@ describe("App export step (T08 U4)", () => {
   const JOB2_NOTE =
     "Paciente: Roberto Díaz\nRevisado por la Dra. Elena Vidal el 03/07/2025. Contacto: 654321987.";
 
-  const SAFE_BUTTON = "Download Safe Output (.txt)";
-  const AUDIT_BUTTON = "Download Confidential Audit (.txt)";
+  const SAFE_BUTTON = "Descargar como TXT (.txt)";
+  const AUDIT_BUTTON = "Descargar auditoría confidencial (.txt)";
+  const AUDIT_CONFIRM = "Confirmar descarga confidencial";
 
   type CapturedDownload = { readonly fileName: string; readonly blob: Blob };
 
@@ -800,7 +821,7 @@ describe("App export step (T08 U4)", () => {
     acceptAllDetections();
     fireEvent.click(stepButton(4, "Privacy Gate"));
     fireEvent.click(stepButton(5, "Export"));
-    expect(screen.getByRole("heading", { level: 2, name: "Export" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
   }
 
   /** Pure-domain replica: the same engine, text and decisions as the App flow. */
@@ -826,8 +847,11 @@ describe("App export step (T08 U4)", () => {
     const auditButton = screen.getByRole("button", { name: AUDIT_BUTTON });
     expect(safeButton).toBeEnabled();
     expect(auditButton).toBeEnabled();
-    expect(screen.getByText(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBeInTheDocument();
-    expect(screen.getByText(/must never be shared/i)).toBeInTheDocument();
+    // PDR-08: the single-item zone copy is Spanish; the English marker is the
+    // serialized-payload authority, not UI copy.
+    expect(screen.getByText("Confidencial — artefacto interno de auditoría")).toBeInTheDocument();
+    expect(screen.queryByText("INTERNAL AUDIT ARTIFACT")).not.toBeInTheDocument();
+    expect(screen.getByText(/nunca debe compartirse/i)).toBeInTheDocument();
     // Fail-closed gate passed: no blocked reason remains on the surface.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     // Claims gate (D-006): no anonymity/compliance wording anywhere.
@@ -843,8 +867,9 @@ describe("App export step (T08 U4)", () => {
       // Job 1: complete review and download its confidential audit.
       await completeReviewToExport(JOB1_NOTE);
       fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: AUDIT_CONFIRM }));
       const audit1 = await textOf(captured.downloads[0]);
-      expect(captured.downloads[0].fileName).toBe("confidential-audit.txt");
+      expect(captured.downloads[0].fileName).toBe("auditoria-confidencial.txt");
       expect(audit1.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
       expect(audit1).toContain("Carmen Sánchez");
       expect(audit1).toContain("612345678");
@@ -854,6 +879,7 @@ describe("App export step (T08 U4)", () => {
       expect(screen.getByText("No job yet")).toBeInTheDocument();
       await completeReviewToExport(JOB2_NOTE);
       fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: AUDIT_CONFIRM }));
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
 
       const audit2 = await textOf(captured.downloads[1]);
@@ -902,7 +928,7 @@ describe("App export step (T08 U4)", () => {
       fireEvent.click(screen.getByRole("button", { name: SAFE_BUTTON }));
       const after = await textOf(captured.downloads[1]);
       expect(after).toBe(before);
-      expect(captured.downloads[1].fileName).toBe("safe-output.txt");
+      expect(captured.downloads[1].fileName).toBe("texto-preparado.txt");
     } finally {
       captured.restore();
     }

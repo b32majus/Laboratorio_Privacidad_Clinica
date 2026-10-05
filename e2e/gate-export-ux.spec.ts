@@ -36,7 +36,10 @@ const BATCH_DOCS = [
   path.resolve(__dirname, "fixtures/batch-doc-2.txt"),
 ];
 
-const CONFIDENTIAL_WARNING_LINE = "CONFIDENTIAL — INTERNAL AUDIT ARTIFACT";
+// PDR-08: the single-item zone warning line is Spanish UI copy; the English
+// `CONFIDENTIAL — INTERNAL AUDIT ARTIFACT` marker is the serialized-payload
+// authority and is asserted against downloaded artifacts, not this surface.
+const CONFIDENTIAL_WARNING_LINE = "Confidencial — artefacto interno de auditoría";
 
 /** The changed Gate + Export surfaces and the pairs UX-PILOT-02 actually styles. */
 type MeasuredPair = { readonly label: string; readonly locator: Locator };
@@ -72,19 +75,22 @@ async function gatePairs(page: Page): Promise<MeasuredPair[]> {
 }
 
 async function exportPairs(page: Page): Promise<MeasuredPair[]> {
-  const safeRegion = page.getByRole("region", { name: "Safe Output" });
-  const auditRegion = page.getByRole("region", { name: "Confidential Audit" });
+  const primaryRegion = page.getByRole("region", { name: "Texto preparado" });
+  const auditRegion = page.getByRole("region", { name: "Auditoría confidencial" });
   return [
-    { label: "Export eyebrow", locator: page.locator("main header p").first() },
-    { label: "Safe Output heading", locator: page.getByRole("heading", { name: "Safe Output", exact: true }) },
-    { label: "Safe Output description", locator: safeRegion.locator("p").first() },
+    { label: "Result eyebrow", locator: page.locator("main header p").first() },
     {
-      label: "Safe Output primary button",
-      locator: page.getByRole("button", { name: "Download Safe Output (.txt)" }),
+      label: "Result state heading",
+      locator: page.getByRole("heading", { name: "Listo para usar" }),
+    },
+    { label: "Result primary description", locator: primaryRegion.locator("p").first() },
+    {
+      label: "Result primary button",
+      locator: page.getByRole("button", { name: "Copiar texto preparado" }),
     },
     {
       label: "Confidential Audit heading (dark band)",
-      locator: page.getByRole("heading", { name: "Confidential Audit", exact: true }),
+      locator: page.getByRole("heading", { name: "Auditoría confidencial", exact: true }),
     },
     {
       label: "Confidential Audit warning line",
@@ -96,7 +102,7 @@ async function exportPairs(page: Page): Promise<MeasuredPair[]> {
     },
     {
       label: "Confidential Audit secondary button",
-      locator: page.getByRole("button", { name: "Download Confidential Audit (.txt)" }),
+      locator: page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" }),
     },
   ];
 }
@@ -121,7 +127,7 @@ for (const width of [375, 768, 1280]) {
     await assertNoHorizontalOverflow(page, `completed Gate @${width}px`);
 
     await page.getByRole("button", { name: "5. Export" }).click();
-    await expect(page.getByRole("heading", { level: 2, name: "Export" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `Export @${width}px`);
   });
 }
@@ -164,17 +170,20 @@ test("Gate and Export primary controls are keyboard reachable with visible focus
   // Focus the document body without using the mouse on a control first.
   await page.locator("body").click({ position: { x: 2, y: 2 } });
 
-  const safeFocus = await tabTo(/Download Safe Output \(\.txt\)/);
-  expect(hasVisibleFocus(safeFocus), `no visible focus on Safe Output button: ${JSON.stringify(safeFocus)}`).toBe(true);
+  const safeFocus = await tabTo(/Copiar texto preparado/);
+  expect(hasVisibleFocus(safeFocus), `no visible focus on Result primary button: ${JSON.stringify(safeFocus)}`).toBe(true);
 
-  // Keyboard activation produces the real artifact (proves the control is operable, not decorative).
+  // Keyboard activation of a real download control produces the artifact
+  // (proves the control is operable, not decorative).
+  const txtFocus = await tabTo(/Descargar como TXT \(\.txt\)/);
+  expect(hasVisibleFocus(txtFocus), `no visible focus on Safe TXT button: ${JSON.stringify(txtFocus)}`).toBe(true);
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.keyboard.press("Enter"),
   ]);
-  expect(download.suggestedFilename()).toBe("safe-output.txt");
+  expect(download.suggestedFilename()).toBe("texto-preparado.txt");
 
-  const auditFocus = await tabTo(/Download Confidential Audit \(\.txt\)/);
+  const auditFocus = await tabTo(/Descargar auditoría confidencial \(\.txt\)/);
   expect(hasVisibleFocus(auditFocus), `no visible focus on Confidential Audit button: ${JSON.stringify(auditFocus)}`).toBe(true);
 });
 
@@ -205,7 +214,7 @@ test("changed normal-text pairs meet WCAG AA against the rendered composited bac
 
   // Export: both artifact zones, including the dark confidential band and the buttons.
   await page.getByRole("button", { name: "5. Export" }).click();
-  await expect(page.getByRole("button", { name: "Download Safe Output (.txt)" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Copiar texto preparado" })).toBeEnabled();
   for (const pair of await exportPairs(page)) {
     measured.push(await expectContrast(pair.locator, `Export ${pair.label}`));
   }

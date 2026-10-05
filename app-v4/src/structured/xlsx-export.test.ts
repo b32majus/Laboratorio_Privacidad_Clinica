@@ -312,7 +312,19 @@ describe("xlsx-export privacy boundary — no content logging/storage/network", 
     expect(typeof buildSafeXlsxBytes).toBe("function");
     expect(typeof buildConfidentialXlsxBytes).toBe("function");
 
-    const TOUCHED = ["xlsx-export.ts", "xlsx-loader.ts", "../export/ExportStep.tsx"];
+    // File list extended by REC-05 WU-C to cover the single-item/new modules
+    // whose artifacts must share the same memory-only (D-013) boundary: the
+    // Safe TXT/DOCX/PDF builders, the clipboard helper, the Result readiness
+    // model and the shared ExportStep surface.
+    const TOUCHED = [
+      "xlsx-export.ts",
+      "xlsx-loader.ts",
+      "../export/ExportStep.tsx",
+      "../export/singleResultModel.ts",
+      "../output/docx-builder.ts",
+      "../output/pdf-builder.ts",
+      "../output/clipboard.ts",
+    ];
     const FORBIDDEN_CALLS = [
       /console\.(log|info|warn|error|debug|trace|table)\s*\(/,
       /localStorage/,

@@ -331,3 +331,90 @@ The exact pane count, shell geometry, next/previous mechanics, bulk-review inter
 A UI improvement that would weaken privacy semantics, ReviewSession authority, structured linkage, fail-closed behavior, Safe/Confidential separation or current-state output safety requires a HUMAN PRODUCT DECISION / HUMAN STOP.
 
 The unpublished pre-reconciliation REC-05 shaping decision that used the identifier `D-023` is not canonical authority and must not be replayed by number; its still-valid technical output semantics must be re-shaped under a fresh decision identifier when REC-05 is re-issued.
+
+## D-024 — REC-05 single Result / output contract
+
+**Accepted: 2026-10-05 (fresh post-PDR REC-05 shaping).**
+
+REC-05 restores useful pasted-text / single-document outputs without reopening privacy transformation semantics. It also establishes the accepted **Result** interaction for the single-item path under D-023 and `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`.
+
+### Canonical Safe payload
+
+For a current `pasted-text` or single `document` Job, one canonical `safeText` may exist only when the current Job and ReviewSession still correspond, `job.outputs.safeOutputReady === true`, `canFinalize(review) === true`, and `getFinalText(review)` succeeds.
+
+Every Safe representation derives only from that canonical final reviewed string:
+
+- clipboard: exact `safeText`;
+- TXT: UTF-8 `safeText`;
+- DOCX: generated local OOXML text document preserving the accepted Safe text/line semantics;
+- PDF: generated local paginated text representation of that same Safe text.
+
+No representation may rerun privacy transformations, infer a new decision, or add correspondence, reviewer notes, source originals or other Confidential-only content. An original deliberately kept by ReviewSession remains in Safe representations exactly because the canonical reviewed state contains it; the factual warning remains visible.
+
+### Result interaction
+
+For pasted text and single documents, the ordinary human ending is **Result**, not a requirement to understand separate `Privacy Gate` / serializer concepts.
+
+- Result immediately communicates `ready`, `needs attention` or `blocked` from existing factual readiness authority.
+- If not ready, prepared/shareable actions remain unavailable and the useful next action returns the person to unresolved review work.
+- If ready, the prepared/shareable zone is visually primary and the Confidential Audit remains a separate sensitive zone.
+- Pasted text may make **Copy** the primary result action.
+- Single-document work must make one useful document-download action primary; exact DOCX/PDF visual ordering is an implementation-level presentation choice only while it preserves this hierarchy and does not make all formats equal-weight.
+- Secondary Safe formats remain discoverable without becoming equal-weight chrome.
+- A user can return to review/correct decisions without rebuilding the Job or losing unrelated accepted decisions.
+- The existing Privacy Gate remains internal/factual authority and may be reused in implementation; D-024 does not require a second user-facing Gate-only destination for the single-item ordinary path.
+- Global shell/stepper cleanup across every Job kind remains REC-09. REC-05 must not opportunistically redesign unrelated Input/Review/Structured/Batch navigation.
+
+### Human-work / friction envelope
+
+Accepted project authority frames the actor as a healthcare professional who has already supplied clinical information and needs a prepared result for an intended use outside its original context.
+
+Default ready path:
+
+`finish required review → understand Result readiness → take the useful prepared action`.
+
+The ordinary ready path must not require reselecting Job kind/policy, reading policy documentation, visiting a no-op phase, or learning `Safe Output`, `Privacy Gate`, serializer or ReviewSession vocabulary. From the last required review decision to the ordinary prepared action, allow at most one necessary context transition and the output action itself unless a factual warning/representation failure requires intervention.
+
+### TXT / clipboard
+
+- Clipboard uses the platform Clipboard API; unavailable/rejected access is visible failure, not silent success; no hidden `execCommand` fallback.
+- Safe TXT filename: `texto-preparado.txt`.
+- UTF-8 decoding of emitted TXT bytes equals canonical `safeText`; no required BOM and no audit header/footer.
+
+### DOCX
+
+- Safe DOCX filename: `texto-preparado.docx`.
+- Use the existing direct `jszip` dependency; no new DOCX library.
+- Generate the minimum valid OOXML package for a text document; XML escaping, Unicode and logical line semantics are preserved within an explicitly documented round-trip normalization.
+- No source layout/style/image/table preservation claim and no source filename/mapping/notes.
+- Governed `mammoth.extractRawText()` read-back is the semantic oracle.
+
+### PDF
+
+- Use exact direct dependency `pdf-lib@1.17.1`; do not reactivate retired `lib/jspdf.umd.min.js`.
+- Safe PDF filename: `texto-preparado.pdf`.
+- Reflow/pagination is allowed; source-PDF layout redaction/reconstruction is not part of REC-05.
+- Every character sent to the chosen bundled standard font/encoder must be representable. Unsupported content fails the PDF action visibly and produces zero PDF download; no substitution/drop/mojibake.
+- Long content paginates rather than truncates.
+- Final candidate must run `npm audit --omit=dev`; a material production dependency finding is HUMAN STOP rather than permission to switch libraries silently.
+
+### Confidential Audit
+
+Keep the existing canonical single-item Confidential TXT payload; REC-05 does not add Confidential DOCX/PDF.
+
+Filename: `auditoria-confidencial.txt`.
+
+The first download action reveals a clearly marked Spanish warning and downloads nothing. Explicit Confirm downloads exactly once; Cancel downloads zero. Pending confirmation cannot survive confirm/cancel, Job change, review mutation or newly unavailable audit state. Confirm revalidates the current Job + current review/audit authority immediately before download. Safe actions never require this confirmation.
+
+### Async/current-state safety
+
+DOCX/PDF generation or lazy load is asynchronous. Capture the requested Job id, ReviewSession identity and canonical `safeText`; after the last awaited generation/load step and immediately before download, revalidate current Job, review identity/Safe text, readiness and finalizability. Stale work produces zero download and no false success.
+
+### Protected siblings / non-goals
+
+- Structured REC-03/04 semantics and existing CSV/XLSX + Confidential confirmation remain unchanged; shared-surface parity evidence is mandatory if REC-05 touches shared Export/Result code.
+- Batch gains no fabricated single-item output; REC-06/07 own batch workflow/result.
+- REC-08 owns input conveniences; REC-09 owns global IA/no-op cleanup, Review productivity/manual marking and Structured comparative interaction; REC-10/11 own exhaustive language/visual closeout while their foundations apply immediately.
+- No new policy/operator/recognizer/review authority, remote generation, persistence, source-layout redaction, new app/route/mode or product concept is authorized.
+
+A material conflict with D-023/HPD authority, a representation narrowing, or a materially affected supported sibling outside this envelope is a **HUMAN STOP**.

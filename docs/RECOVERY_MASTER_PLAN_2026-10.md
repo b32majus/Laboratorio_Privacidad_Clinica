@@ -191,7 +191,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - the primary output action is justified by the material/use rather than globally hard-coded to Copy;
 - Safe and Confidential pass `G-HP8`/`G-HP9` from the Human Product Design Authority.
 
-**Status:** **RESHAPED / NEW HANDOFF REQUIRED.** Previous REC-05 pre-implementation anchor/handoff is historical provenance only after product-design reconciliation.
+**Status:** **AUDITED PUBLICATION CANDIDATE — PR #76 OPEN (2026-10-05).** The reshaped REC-05 is implemented on `work/rec-05-single-result-output-parity-20261005` across WU-A→WU-D (Safe DOCX/PDF/clipboard primitives; single-item Result; direct Review→Result transition without a new flow destination; deliberate single-item Confidential confirmation; composed rendered journeys + friction measurement). Audited product candidate: `6748379ea5e73f9b30cebb5867264e4bb6342971`. Cora integrated candidate audit returned **GO** with no correction #2: focused Vitest 224/224, focused Playwright 19/19, privacy-eval 28/28, typecheck/lint/format/build/full `npm test` and `git diff --check` all pass. Production `npm audit --omit=dev` is unchanged from the fixed anchor at 12 findings (1 low, 10 high, 1 critical) over the same package set, so REC-05 introduced no new unresolved production vulnerability. WU-D evidence commit remains `c489e26`; canonical review correction #1 is `6748379`. Human publication is authorized through PR #76, but REC-05 is **not canonical until merge**. The global `H-42` blocker stays OPEN until REC-07 closes batch Confidential output.
 
 ---
 
@@ -457,7 +457,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                           REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-04 are complete. REC-05 remains the next numbered recovery Work Order, but only after a **fresh post-reconciliation handoff/review anchor**. REC-07 still waits for REC-05 safe single-output primitives and REC-06 batch workflow authority. REC-08 and REC-09 may be scheduled where their touched authorities do not collide with the active Work Order. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every surface touched from REC-05 onward, while their exhaustive closeouts remain late so transient surfaces are not polished twice.
+REC-01 through REC-04 are complete. REC-05 execution is closed at audited product candidate `6748379`; Cora integrated audit is **GO** and publication is authorized through PR #76, but it is not canonical until merge. REC-07 still waits for canonical REC-05 safe single-output primitives and REC-06 batch workflow authority. REC-08 and REC-09 may be scheduled where their touched authorities do not collide with the active Work Order. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every surface touched from REC-05 onward, while their exhaustive closeouts remain late so transient surfaces are not polished twice.
 
 ## 6. Fixed authorities that survive recovery
 

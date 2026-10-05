@@ -93,7 +93,14 @@ ATENEA_GO_MODEL_CATALOG_V0.md  replaceable snapshot
 .opencode/agents/*go*.md       current bindings
 ```
 
-Before a Go train, `node tools/check-go-models.mjs` verifies that the exact bound model IDs are still visible to the installed OpenCode runtime. A missing binding is STOP, not permission to improvise a fallback. The checker must not inspect credentials and does not infer quota availability from model presence.
+Before a Go train, run the model-presence checker **from the canonical Atenea authority checkout**, not by assuming the target project/worktree contains Atenea tooling:
+
+```bash
+cd <canonical-Atenea-checkout>
+node tools/check-go-models.mjs
+```
+
+The target project does not need to carry its own copy of `tools/check-go-models.mjs`. The checker verifies that the exact bound model IDs are still visible to the installed OpenCode runtime. A missing binding is STOP, not permission to improvise a fallback. The checker must not inspect credentials and does not infer quota availability from model presence.
 
 When the Go inventory changes, Cora may propose a new catalog/binding at a clean work boundary. Update and validate the snapshot before the next train; do not mutate routing mid-unit.
 
