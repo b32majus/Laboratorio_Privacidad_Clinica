@@ -102,6 +102,44 @@ async function currentStep(page: Page): Promise<string> {
 }
 
 /**
+ * Observe the rendered step navigation and record each DISTINCT step the shell
+ * actually shows from now on. This is a real rendered measurement (a
+ * MutationObserver on the `aria-current` attribute), not a re-derivation: it
+ * counts the context transitions a human performs.
+ */
+async function installStepObserver(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      __rec05Steps?: string[];
+      __rec05StepObserver?: MutationObserver;
+    };
+    const read = () => document.querySelector('[aria-current="step"]')?.textContent?.trim() ?? "";
+    w.__rec05Steps = [];
+    const nav = document.querySelector('nav[aria-label="Job steps"]');
+    if (nav === null) return;
+    const observer = new MutationObserver(() => {
+      const step = read();
+      const seen = w.__rec05Steps as string[];
+      if (step !== "" && seen[seen.length - 1] !== step) seen.push(step);
+    });
+    observer.observe(nav, { subtree: true, attributes: true, attributeFilter: ["aria-current"] });
+    w.__rec05StepObserver = observer;
+  });
+}
+
+/** Distinct rendered step transitions observed since {@link installStepObserver}. */
+async function readStepTransitions(page: Page): Promise<readonly string[]> {
+  return page.evaluate(() => {
+    const w = window as unknown as {
+      __rec05Steps?: string[];
+      __rec05StepObserver?: MutationObserver;
+    };
+    w.__rec05StepObserver?.disconnect();
+    return w.__rec05Steps ?? [];
+  });
+}
+
+/**
  * Decide EVERY pending detection through the real review controls: narrow to
  * the pending filter, select the first pending detection, and accept its
  * engine proposal (falling back to an explicit keep-original for a detection
@@ -109,7 +147,10 @@ async function currentStep(page: Page): Promise<string> {
  * it never re-implements pending logic.
  */
 async function decideAllPendingThroughUi(page: Page): Promise<void> {
-  await page.getByRole("group", { name: "Filter by status" }).getByRole("button", { name: "Pending" }).click();
+  await page
+    .getByRole("group", { name: "Filter by status" })
+    .getByRole("button", { name: "Pending" })
+    .click();
   const detections = page.getByRole("list", { name: "Detections" }).getByRole("button");
   const progress = page.getByRole("status", { name: "Review progress" });
 
@@ -165,11 +206,13 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
 
   // --- Friction witness: last decision → Result is ONE context transition ----
   expect(await currentStep(page)).toBe("3. Review");
+  await installStepObserver(page);
   await page.getByRole("button", { name: "5. Export" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   expect(await currentStep(page)).toBe("5. Export");
-  // context transitions performed by this journey from the last decision: 1.
-  const contextTransitions = 1;
+  // Measured rendered step transitions from the last decision: exactly ONE.
+  const stepTransitions = await readStepTransitions(page);
+  expect(stepTransitions).toEqual(["5. Export"]);
 
   // --- Ready Result with a single visually primary prepared action ----------
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
@@ -182,6 +225,8 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
 
   // --- Copy is the primary prepared action and reports success --------------
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  let preparedActions = 0;
+  preparedActions += 1;
   await primary.click();
   const feedback = page.locator("#result-action-feedback");
   await expect(feedback).toHaveText("Texto preparado copiado al portapapeles.");
@@ -200,8 +245,9 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
     expect(txt).not.toContain(raw);
   }
 
-  // ordinary ready-path friction: 1 context transition + 1 prepared action.
-  expect(contextTransitions).toBe(1);
+  // ordinary ready-path friction: 1 rendered context transition + 1 prepared action.
+  expect(stepTransitions).toHaveLength(1);
+  expect(preparedActions).toBe(1);
 });
 
 // ---------------------------------------------------------------------------
@@ -223,9 +269,12 @@ test("a supported single document reaches a ready Result whose primary action do
 
   // --- Friction witness: last decision → Result is ONE context transition ----
   expect(await currentStep(page)).toBe("3. Review");
+  await installStepObserver(page);
   await page.getByRole("button", { name: "5. Export" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   expect(await currentStep(page)).toBe("5. Export");
+  const stepTransitions = await readStepTransitions(page);
+  expect(stepTransitions).toEqual(["5. Export"]);
 
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
   // Document material: the prepared-document download is primary; the other
@@ -235,8 +284,12 @@ test("a supported single document reaches a ready Result whose primary action do
   await expect(primary).toHaveText("Descargar documento preparado (.docx)");
   const secondaryZone = page.getByRole("group", { name: "Otros formatos disponibles" });
   await expect(secondaryZone.getByRole("button", { name: "Copiar texto preparado" })).toBeVisible();
-  await expect(secondaryZone.getByRole("button", { name: "Descargar como TXT (.txt)" })).toBeVisible();
-  await expect(secondaryZone.getByRole("button", { name: "Descargar como PDF (.pdf)" })).toBeVisible();
+  await expect(
+    secondaryZone.getByRole("button", { name: "Descargar como TXT (.txt)" })
+  ).toBeVisible();
+  await expect(
+    secondaryZone.getByRole("button", { name: "Descargar como PDF (.pdf)" })
+  ).toBeVisible();
 
   // --- The primary action captures a real DOCX artifact ---------------------
   const [docxDownload] = await Promise.all([page.waitForEvent("download"), primary.click()]);
@@ -248,6 +301,10 @@ test("a supported single document reaches a ready Result whose primary action do
   expect(docx.length).toBeGreaterThan(0);
   // Minimum valid OOXML/ZIP container signature ("PK").
   expect(docx.subarray(0, 2).toString("latin1")).toBe("PK");
+
+  // ordinary ready-path friction: 1 rendered context transition + the ONE
+  // primary prepared action whose single DOCX download was captured above.
+  expect(stepTransitions).toHaveLength(1);
 });
 
 // ---------------------------------------------------------------------------
@@ -279,6 +336,7 @@ test("a needs-attention Result states what remains, returns to the pending revie
   await expect(progress).toContainText("Pending: 1");
 
   // The Result remains reachable (already visited) but is now needs-attention.
+  await installStepObserver(page);
   await page.getByRole("button", { name: "5. Export" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.locator("[data-result-state]")).toHaveAttribute(
@@ -297,6 +355,11 @@ test("a needs-attention Result states what remains, returns to the pending revie
   expect(await currentStep(page)).toBe("3. Review");
   await expect(progress).toContainText("Pending: 1");
   await expect(progress).toContainText("Accepted: 2");
+
+  // Measured not-ready friction: ONE transition into the not-ready Result, ZERO
+  // prepared actions (both unavailable), and ONE transition back to review.
+  const stepTransitions = await readStepTransitions(page);
+  expect(stepTransitions).toEqual(["5. Export", "3. Review"]);
 });
 
 // ---------------------------------------------------------------------------
