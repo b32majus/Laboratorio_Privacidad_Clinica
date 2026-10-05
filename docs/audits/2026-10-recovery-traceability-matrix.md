@@ -180,3 +180,9 @@ These rows protect **newly accepted human-product obligations** that were not fu
 ## D. Recovery blockers and execution ownership
 
 The blocker set remains intentionally narrower than every OPEN/P3 debt row. Advanced OCR/NER/FHIR/ARX/DICOM/layout-preserving PDF work remains future capability unless separately accepted. The original 17 blocker-marked rows at the REC-04 checkpoint remain traceable, with `H-36` now deliberately superseded and `H-10` correctly reopened as a human-product blocker; the PDR rows add cross-cutting accepted obligations rather than new feature tickets. All blocking obligations map into the same twelve Recovery Work Orders defined in `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
+
+## E. Post-review discovered recovery debt
+
+| Ref | Discovery | Current risk | Recovery blocker | Owner | Required evidence |
+|---|---|---|:---:|---|---|
+| `DISC-01` | REC-05 canonical review/integrated audit exposed a sibling async-lifecycle gap outside the REC-05 fixed envelope: Structured XLSX revalidates Job/preparation after `await`, but its Structured Export surface has no unmount-disposal guard equivalent to the canonical single Result guard. | A Structured XLSX generation that starts while authoritative and resolves only after the Structured Result/Export surface unmounts can still satisfy its closure-based current-authority snapshot and attempt a stale download. Batch has no accepted async outputs yet, so REC-07 is the correct place to close the shared output-lifecycle invariant before adding them. | Yes | REC-07 | Plant an actual awaited Structured XLSX completion-after-unmount witness that produces zero download; then require the same disposal + current-authority invariant for every async batch output REC-07 introduces. This debt is pre-existing relative to REC-05 and must not rewrite REC-05 candidate history. |

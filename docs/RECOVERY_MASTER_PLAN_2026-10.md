@@ -232,7 +232,8 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - separate batch Confidential Audit/correspondence artifact with the same deliberate-download confirmation contract;
 - compose the single-document safe output primitives established by REC-05 instead of creating a second serializer authority;
 - deterministic naming/indexing and explicit handling of removed/failed items;
-- human output hierarchy appropriate to batch work rather than copying the single-text layout mechanically.
+- human output hierarchy appropriate to batch work rather than copying the single-text layout mechanically;
+- before adding new async batch downloads, close the pre-existing Structured async-unmount stale-download sibling gap discovered during REC-05 review: async Structured XLSX completion after its Result/Export surface unmounts must produce zero download, and the same disposal/current-authority invariant must govern any new batch async output path.
 
 **Acceptance**
 - no batch-wide artifact is fabricated while any mandatory review/failure blocker remains;
@@ -241,7 +242,8 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - Confidential batch artifacts require a distinct deliberate confirmation;
 - output manifest accounts for every original batch item;
 - Result communicates ready / needs attention / blocked from authoritative batch state;
-- the user can understand which batch deliverable is the normal next action without treating Confidential Audit as an equivalent format choice.
+- the user can understand which batch deliverable is the normal next action without treating Confidential Audit as an equivalent format choice;
+- an async Structured XLSX started before unmount and completed after unmount downloads nothing; any async batch deliverable introduced by REC-07 proves the same disposal/current-authority invariant.
 
 ---
 
