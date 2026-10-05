@@ -51,7 +51,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 2. `REC-02 — TEXT-POLICY-COMPLETION-01` — **COMPLETED**, merged by PR #68 at `3.0-main@4984040722f55062778b97e7351d2b8b43fe7ce7`
 3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **COMPLETED**, merged by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`
 4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #72 at `3.0-main@7f7de6b5bf4c0692850b4e3c5de6987bcdef18f0`
-5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **AUDITED PUBLICATION CANDIDATE — PR #76**
+5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #76 at `3.0-main@96e53ee9f390026eff2ff44cb405634517ffbe09`
 6. `REC-06 — BATCH-WORKFLOW-PARITY-01`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01`
 8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01`
@@ -60,7 +60,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-REC-05 execution is closed at product candidate `6748379ea5e73f9b30cebb5867264e4bb6342971`; Cora integrated candidate audit is **GO** and human publication is authorized through PR #76. It is not canonical until merge. **REC-06 — BATCH-WORKFLOW-PARITY-01** is the next numbered recovery frontier after REC-05 canonicalization and frontier decomposition under the current Atenea authority. The pre-reconciliation REC-05 launch packet and stopped sessions remain provenance only.
+REC-05 is canonical at `3.0-main@96e53ee9f390026eff2ff44cb405634517ffbe09` after PR #76. **REC-06 — BATCH-WORKFLOW-PARITY-01** is the next numbered recovery frontier, but it must not be launched from the pre-C-085 coarse Work Order as-is: first re-decompose the remaining REC-06→REC-12 frontier through the current C-085 context-economy rule and Matt `/to-tickets`, then review the proposed tracer-bullet tickets for fidelity, dependencies and one-fresh-context fit before any ticket becomes `EXECUTION_READY`. The pre-reconciliation REC-05 launch packet and stopped sessions remain provenance only.
 
 No new recovery ticket should be invented from memory. First locate the capability in the traceability matrix and either map it to the owning REC Work Order or explicitly amend the master plan.
 
@@ -71,7 +71,7 @@ No new recovery ticket should be invented from memory. First locate the capabili
 - REC-02 completed all four accepted Privacy Policies for pasted text, single documents and document batches: External AI reduces date precision; Longitudinal Research applies one deterministic Job-scoped date shift while preserving ordering/intervals; Standard/Strict retain their accepted semantics. REC-03 then reused that same authority for structured `process-as-text` cells rather than inventing a second text-policy system.
 - REC-03 restored structured semantics: the selected patient-ID becomes deterministic in-Job `ID_ESTUDIO` / `PAC_001…` in Safe output with Confidential-only correspondence; structured Class and productive Action are separate authorities; unresolved Unknown/quasi states remain fail-closed; and configured text-like cells route through the same REC-02 text engine + ReviewSession path. REC-04 then restored configurable Study-ID prefix/row-order `Visita_Num`, bounded smart workbook-header resolution, typed Safe structured values, factual structured summary, Safe XLSX and separate Confidential XLSX with deliberate confirmation.
 - Batch V4 currently has no accepted batch-wide Safe Output/Confidential Audit format. Recovery belongs to REC-07.
-- Structured output now provides Safe CSV + Safe XLSX and separate Confidential TXT/XLSX; the structured Confidential slice has the frozen additional-confirmation safeguard. Single text/document output parity (including Safe DOCX/PDF where retained) belongs to REC-05, batch-wide output parity belongs to REC-07, and the global Confidential-download safeguard remains open until those two surfaces also require deliberate confirmation.
+- Structured output provides Safe CSV + Safe XLSX and separate Confidential TXT/XLSX with deliberate confirmation. REC-05 has now canonically restored single text/document Copy/TXT/DOCX/PDF plus deliberate Confidential confirmation. Batch-wide output parity remains REC-07, and the global Confidential-download safeguard (`H-42`) is open only for that batch surface.
 - `Keep original` exists, but direct identifiers currently lack the frozen UX contextual confirmation/explanation before the original is kept in Safe Output; REC-09 owns that safeguard.
 - New Privacy Job inference exists, but the frozen “allow override when necessary” clause is unresolved. REC-08 must either implement a bounded legitimate override or explicitly supersede it with deterministic/fail-closed routing rationale.
 - V4 retains Sophilux ingredients (rose/warm surface tokens, Inter and Cormorant), but the original visual composition/design contract was not preserved as acceptance criteria. **Baseline hierarchy/density is now foundational for every touched surface**; REC-11 owns exhaustive visual-system closeout rather than postponing all visual correctness until the end.
