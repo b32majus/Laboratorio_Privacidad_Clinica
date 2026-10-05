@@ -2,15 +2,15 @@
 
 Status: **CURRENT PRODUCT / RECOVERY AUTHORITY**
 
-Last reconciled: 2026-10-04
+Last reconciled: 2026-10-05
 
 ## 1. Where we are
 
-The canonical clinical application is the V4 SPA on branch `3.0-main`. The accepted product architecture remains:
+The canonical clinical application is the V4 SPA on branch `3.0-main`. Its technical/domain pipeline may continue to use `Input → Configure → Review → Privacy Gate → Export`, but **that sequence is no longer accepted as mandatory human-product topology**.
 
-`Input → Configure → Review → Privacy Gate → Export`
+From 2026-10-05 the binding human-product authority is `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`. The ordinary mental model is **Add information → prepare/review what needs attention → Result**, interpreted as mental states rather than a fixed three-screen stepper. Visible phases exist only when they contain real human work.
 
-V4 materially improves the original v3 in review authority, privacy-state integrity, fail-closed behavior, local-only runtime, structured hardening, testing and deployment security. However, the 2026-10-04 recovery traceability audit proved that **T25 legacy retirement established workflow/security parity, not full product parity**. Several v3 product capabilities and original UX-audit requirements were narrowed or lost while translating audit → specs → Work Orders.
+V4 materially improves the original v3 in review authority, privacy-state integrity, fail-closed behavior, local-only runtime, structured hardening, testing and deployment security. However, the 2026-10-04 recovery traceability audit proved that **T25 legacy retirement established workflow/security parity, not full product parity**. Several v3 product capabilities and original UX-audit requirements were narrowed or lost while translating audit → specs → Work Orders. The 2026-10-05 product-design reconciliation additionally proved that some technically correct V4 composition exposes too much pipeline/domain structure to the user.
 
 Do not interpret “V4”, “T25 complete”, a green E2E suite, or a historical `DONE` debt row as proof of full product recovery.
 
@@ -19,15 +19,17 @@ Do not interpret “V4”, “T25 complete”, a green E2E suite, or a historica
 For any new product/recovery work, use this precedence:
 
 1. `docs/START_HERE.md` — current position and authority map;
-2. `docs/RECOVERY_MASTER_PLAN_2026-10.md` — **single current recovery plan and execution order**;
-3. `docs/audits/2026-10-recovery-traceability-matrix.md` — current traceability index: 88 frozen debt rows + 42 product/heritage capabilities after external falsification;
-4. `docs/audits/2026-10-recovery-traceability-audit.md` — root-cause analysis and internal evidence narrative;
-5. `docs/audits/2026-10-recovery-plan-external-adversarial-audit-sol61.md` — independent Sol 6.1 adversarial falsification and required-change evidence;
-6. `docs/shaping/CURRENT_DECISIONS.md` — accepted architecture/product decisions, as amended by the recovery authority below;
-7. relevant `docs/specs/SPEC_V4_*.md` — implementation contracts where they do not narrow the recovery contract;
-8. accepted GitHub Work Order for the current REC ticket;
-9. code + deterministic tests/oracles;
-10. historical roadmap, T01–T25 task docs and legacy-retirement evidence — provenance only unless explicitly cited.
+2. `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` — **binding human-product model, interaction invariants and product acceptance gates for REC-05→REC-11**;
+3. `docs/RECOVERY_MASTER_PLAN_2026-10.md` — **single current recovery plan and execution order**, reshaped by the human-product authority;
+4. `docs/audits/2026-10-product-design-reconciliation-final.md` — accepted decision record reconciling Cora + independent adversarial product review;
+5. `docs/audits/2026-10-recovery-traceability-matrix.md` — current traceability index: 88 frozen debt rows + 42 product/heritage capabilities after external falsification;
+6. `docs/audits/2026-10-recovery-traceability-audit.md` — root-cause analysis and internal evidence narrative;
+7. `docs/audits/2026-10-recovery-plan-external-adversarial-audit-sol61.md` — independent Sol 6.1 adversarial falsification and required-change evidence;
+8. `docs/shaping/CURRENT_DECISIONS.md` — accepted architecture/product decisions, including the 2026-10-05 human-product supersession of D-001's visible five-step implication;
+9. relevant `docs/specs/SPEC_V4_*.md` — implementation contracts where they do not narrow recovery or human-product authority;
+10. accepted GitHub Work Order for the current REC ticket;
+11. code + deterministic tests/oracles;
+12. historical roadmap, T01–T25 task docs, pre-reconciliation REC-05 handoff and legacy-retirement evidence — provenance only unless explicitly cited.
 
 If an older spec/ticket is narrower than the recovery matrix for a capability being recovered, **the recovery plan/matrix wins for scope discovery**; implementation still requires a shaped Work Order with explicit acceptance criteria.
 
@@ -39,7 +41,7 @@ Recovery was reconstructed from:
 - frozen pre-refactor authority: `e164ca2`;
 - V4 checkpoint audited on 2026-10-04: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a`.
 
-After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**. After REC-04, **17 rows remain recovery-blocking**, all owned by the same 12 Recovery Work Orders. These counts are an index, not a completeness proof: REC-12 must re-check the frozen source audits + v3 heritage against the matrix before row-level closeout.
+After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**, plus a 2026-10-05 **post-reconciliation human-product overlay** (`PDR-01…PDR-12`). At the REC-04 checkpoint the pre-reconciliation matrix had 17 blocker-marked rows; the PDR overlay adds cross-cutting accepted obligations without creating new REC ticket IDs. Counts are an index, not proof: every remaining handoff must map its owned matrix/PDR obligations, and REC-12 must re-check all source layers before closeout.
 
 ## 4. Current recovery train
 
@@ -49,7 +51,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 2. `REC-02 — TEXT-POLICY-COMPLETION-01` — **COMPLETED**, merged by PR #68 at `3.0-main@4984040722f55062778b97e7351d2b8b43fe7ce7`
 3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **COMPLETED**, merged by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`
 4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #72 at `3.0-main@7f7de6b5bf4c0692850b4e3c5de6987bcdef18f0`
-5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **NEXT**
+5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **RESHAPED / NEXT AFTER FRESH HANDOFF**
 6. `REC-06 — BATCH-WORKFLOW-PARITY-01`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01`
 8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01`
@@ -58,7 +60,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-Current next Work Order: **REC-05 — SINGLE-OUTPUT-PARITY-01**.
+Current next Work Order: **REC-05 — SINGLE-OUTPUT-PARITY-01**, but only through a **fresh post-reconciliation handoff/review anchor**. The pre-reconciliation REC-05 launch packet is retired as execution authority; its stopped sessions remain provenance only.
 
 No new recovery ticket should be invented from memory. First locate the capability in the traceability matrix and either map it to the owning REC Work Order or explicitly amend the master plan.
 
@@ -72,8 +74,8 @@ No new recovery ticket should be invented from memory. First locate the capabili
 - Structured output now provides Safe CSV + Safe XLSX and separate Confidential TXT/XLSX; the structured Confidential slice has the frozen additional-confirmation safeguard. Single text/document output parity (including Safe DOCX/PDF where retained) belongs to REC-05, batch-wide output parity belongs to REC-07, and the global Confidential-download safeguard remains open until those two surfaces also require deliberate confirmation.
 - `Keep original` exists, but direct identifiers currently lack the frozen UX contextual confirmation/explanation before the original is kept in Safe Output; REC-09 owns that safeguard.
 - New Privacy Job inference exists, but the frozen “allow override when necessary” clause is unresolved. REC-08 must either implement a bounded legitimate override or explicitly supersede it with deterministic/fail-closed routing rationale.
-- V4 retains Sophilux ingredients (rose/warm surface tokens, Inter and Cormorant), but the original visual composition/design contract was not preserved as acceptance criteria. REC-11 owns recovery of the clinical-workstation visual system.
-- The current product UI is predominantly English despite `lang=es`; REC-10 owns complete Spanish localization after semantic/product surfaces stabilize.
+- V4 retains Sophilux ingredients (rose/warm surface tokens, Inter and Cormorant), but the original visual composition/design contract was not preserved as acceptance criteria. **Baseline hierarchy/density is now foundational for every touched surface**; REC-11 owns exhaustive visual-system closeout rather than postponing all visual correctness until the end.
+- The current product UI is predominantly English despite `lang=es`. **Spanish human vocabulary is now foundational for every touched surface**; REC-10 owns exhaustive localization closeout rather than postponing all user-facing Spanish until the end.
 
 ## 6. What is NOT recovery scope
 
@@ -90,8 +92,10 @@ Do not inflate the recovery train with capabilities the original audits explicit
 Before implementing a REC Work Order:
 
 1. shape the Work Order from the exact matrix rows it owns;
-2. preserve the current V4 safety/domain architecture unless the Work Order explicitly changes an authority;
-3. define acceptance criteria for **product capability + safety semantics + deterministic evidence**, not only route existence;
-4. use the current Atenea execution model in `AGENTS.md`;
-5. after each REC ticket, update the matrix/plan disposition so context cannot silently narrow again;
-6. REC-12 must first prove **source → matrix completeness** against both frozen audits + material v3 heritage, then re-audit all 88+42 (or explicitly reconciled later count) rows against the final product before recovery can be called complete.
+2. for any user-facing REC-05→REC-11 work, read and enforce `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` and the matrix `PDR-01…PDR-12` overlay before deriving UI from domain/spec topology;
+3. preserve the current V4 safety/domain architecture unless the Work Order explicitly changes an authority;
+4. define acceptance criteria for **product capability + safety semantics + deterministic evidence + proportional human-product evidence**, not only route/component existence;
+5. resolve material spatial/interaction choices in the **real application on bounded branches** with synthetic/no-PHI realistic-density fixtures by default; do not invent detached prototype products unless genuinely necessary;
+6. use the current Atenea execution model in `AGENTS.md`;
+7. after each REC ticket, update the matrix/plan disposition so context cannot silently narrow again;
+8. REC-12 must first prove **source → matrix completeness** against both frozen audits + material v3 heritage, then re-audit all 88+42 (or explicitly reconciled later count) rows against the final product before recovery can be called complete.

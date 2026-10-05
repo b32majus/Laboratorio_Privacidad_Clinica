@@ -1,11 +1,11 @@
 # Atenea — Product fidelity gates v1
 
 Status: **CURRENT C-084 PRODUCT-FIDELITY BOUNDARY**
-Date: 2026-10-04
+Date: 2026-10-05
 
 ## Purpose
 
-A product can drift even when shaping documents still contain the right principles and every implementation ticket passes locally. Atenea therefore protects product intent across **decomposition and composition**, not only during the initial shaping conversation.
+A product can drift even when shaping documents still contain the right principles and every implementation ticket passes locally. For Laboratorio, `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` is the binding human-product rail for REC-05→REC-11. Atenea therefore protects product intent across **decomposition and composition**, not only during the initial shaping conversation.
 
 The recurring failure mode is:
 
@@ -27,6 +27,17 @@ No single step is necessarily incorrect in isolation. The defect is loss of **co
 3. **Lossless/exact model representation is not product fidelity by itself.** Accessibility, validation, type safety, exact shape and complete CRUD can make the wrong surface technically excellent.
 4. **A locally correct ticket does not prove the composed product.** Several faithful slices can accumulate into a product that violates its original simplicity, workflow or conceptual-load constraints.
 5. **Product non-negotiables survive every transformation.** They remain authority through spec synthesis, ticketization, implementation, hardening and promotion.
+
+## Gate 0 — source-to-ticket completeness
+
+Before a material user-facing ticket becomes execution authority, prove that accepted product obligations have not fallen between documents:
+
+- trace frozen audit/debt rows, product/heritage rows and any later accepted reconciliation rows to an explicit owner;
+- for Laboratorio, include the matrix `PDR-01…PDR-12` overlay and the applicable HPD gates;
+- an accepted requirement with no owner, contradictory owners or a dependency that has not landed is a HUMAN STOP;
+- later product authority may deliberately supersede an older UI prescription, but the supersession must be explicit and must preserve/map the underlying human need where it still applies.
+
+This gate prevents a polished ticket set from being incomplete before implementation even starts.
 
 ## Gate 1 — ticketization fidelity
 

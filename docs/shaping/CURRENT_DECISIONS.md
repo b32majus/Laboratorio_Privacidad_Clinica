@@ -13,6 +13,8 @@ The Laboratorio becomes a single professional application/workspace, not a set o
 SPA/app shell with one continuous job flow:
 `Input → Configure → Review → Privacy Gate → Export`.
 
+**2026-10-05 presentation amendment:** D-023 supersedes this sequence as mandatory visible product topology. The single-SPA / one-Job architectural decision survives; the five named phases may remain internal/domain pipeline states and appear visibly only where there is real human work.
+
 ## D-002 — Frontend stack
 
 **Decision**
@@ -244,7 +246,7 @@ Structured `pseudonymize` is deterministic, column-local categorical tokenizatio
 
 ### Product-fidelity boundary
 
-- Keep the existing `Input → Configure → Review → Privacy Gate → Export` shell.
+- **Presentation clause superseded by D-023:** the internal/domain `Input → Configure → Review → Privacy Gate → Export` pipeline may remain, but the visible human product is no longer required to expose every phase.
 - Do not add a new privacy class, route, app, mode or standalone structured-review product.
 - Configure gains/restores the explicit effective **Action** control/fact inside the existing column cards; action choices are constrained by the rules above rather than exposing an unconstrained expert editor.
 - When `process-as-text` is configured, the existing Review step shows a bounded queue of those cells and reuses the existing ReviewWorkspace semantics. When none are configured, the existing structured review summary remains.
@@ -295,6 +297,37 @@ REC-04 restores useful workbook intake and structured export ergonomics on top o
 
 ### Product-fidelity boundary
 
-- Keep `Input → Configure → Review → Privacy Gate → Export` and the REC-03 Class→Action/ReviewSession authorities unchanged.
+- **Presentation clause superseded by D-023:** retain the REC-03 Class→Action/ReviewSession authorities and the internal/domain pipeline, but do not require every `Input → Configure → Review → Privacy Gate → Export` phase to remain a visible destination.
 - No new structured app, import route, export page, privacy class, policy meaning, patient identity authority, remote processing, persistence, HMAC/global identity or risk-analysis layer.
 - REC-10 owns Spanish localization; REC-11 owns visual redesign. REC-04 may add only the bounded controls/status needed for header resolution, Study-ID options, factual summary and output-format/confirmation recovery.
+
+
+## D-023 — Human product design reconciliation
+
+**Accepted: 2026-10-05 (Product Design Reconciliation before REC-05 execution).**
+
+The V4 SPA, one in-memory Job and accepted domain/privacy authorities remain. D-001 is superseded only in one respect: its `Input → Configure → Review → Privacy Gate → Export` sequence remains available as internal/domain pipeline structure but is **not** mandatory human-product topology.
+
+Binding human-product authority is `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`. The ordinary human mental model is:
+
+`Add information → prepare/review what needs attention → Result`
+
+These are mental states, not a fixed replacement stepper. A domain phase with no real human task must not become a ceremonial screen. Privacy Gate remains a factual readiness authority but need not be user vocabulary or a standalone destination.
+
+User-facing REC-05→REC-11 work must therefore preserve the V4 safety/domain foundation while satisfying the human-product invariants and gates in the authority document, including:
+
+- task before topology and no visible no-op phase;
+- quiet automation and no requirement to learn routing/internal mechanics;
+- document, batch and structured representations fitted to their material;
+- Review as decision work with realistic-density productivity and no silent acceptance;
+- source offsets/internal enums kept out of ordinary UI;
+- `Result` communicating readiness, remaining attention and contextual next action;
+- deliberate Safe/Confidential asymmetry;
+- Spanish human vocabulary and baseline visual hierarchy as foundations, not late reskin/localization;
+- rendered task-realistic evidence for material spatial decisions.
+
+The exact pane count, shell geometry, next/previous mechanics, bulk-review interaction, structured table geometry and final result-format layout are implementation decisions. They are tested by default in the real application on bounded branches using synthetic/no-PHI realistic-density fixtures; a parallel throwaway prototype train is not required.
+
+A UI improvement that would weaken privacy semantics, ReviewSession authority, structured linkage, fail-closed behavior, Safe/Confidential separation or current-state output safety requires a HUMAN PRODUCT DECISION / HUMAN STOP.
+
+The unpublished pre-reconciliation REC-05 shaping decision that used the identifier `D-023` is not canonical authority and must not be replayed by number; its still-valid technical output semantics must be re-shaped under a fresh decision identifier when REC-05 is re-issued.

@@ -1,6 +1,7 @@
-# Recovery traceability matrix — frozen 88 + product heritage
+# Recovery traceability matrix — frozen 88 + product heritage + human-product reconciliation
 
-> Audit date: 2026-10-04
+> Recovery audit date: 2026-10-04
+> Human-product reconciliation overlay: 2026-10-05
 > Original audited product: `3.0-main@331bcaf4a624659c77823a0c4b427d46347ea104`
 > Frozen pre-refactor authority: `e164ca2`
 > V4 recovery-reconstruction checkpoint: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a`
@@ -14,6 +15,7 @@
 - **OPEN_RECOVERY** — known work required before product recovery can close.
 - **OPEN_GOVERNANCE / OPEN_OPERATIONS** — real work, but not itself a user-facing recovery feature.
 - **FUTURE_NOT_RECOVERY** — explicitly later capability; must not inflate the recovery ticket count.
+- **DELIBERATELY_SUPERSEDED** — an older product prescription is intentionally replaced by a later accepted product decision; its underlying user need must remain mapped where still applicable.
 
 ## A. Frozen 88 debt/hallazgo rows reconciled against current V4
 
@@ -86,7 +88,7 @@
 | `UX-013` | P2 | Añadir shortcuts de revisión y navegación de pendientes | OPEN | **OPEN_RECOVERY** | Yes | REC-09 | Review is keyboard-operable but dedicated A/M/K/F + next/previous shortcuts were never implemented. |
 | `UX-014` | P1 | Convertir low-confidence/descartados en workflow visible | DONE | **VERIFIED_IMPROVED** | No | — | Low-confidence candidates are a first-class review queue/filter and gate fact. |
 | `UX-015` | P1 | Rediseñar configuración de columnas como classification workspace | DONE | **VERIFIED_IMPROVED** | No | REC-03 | Classification workspace exists; productive structured semantics (Study ID/free text/generalize) remain incomplete under REC-03. |
-| `UX-016` | P1 | Mostrar job/policy/local-only/clear session persistentemente en app shell | OPEN | **STALE_REGISTER_RESOLVED** | No | — | Job, policy, local-only fact and clear-session action are persistent in current shell. |
+| `UX-016` | P1 | Mostrar job/policy/local-only/clear session persistentemente en app shell | OPEN | **DELIBERATELY_SUPERSEDED** | No | REC-09 | The 2026-10-05 Human Product Design Authority keeps current use/policy and local-processing facts discoverable and keeps destructive session clearing distinct, but no longer requires Job/Type or every fact/action to remain permanently visible. REC-09 owns the quiet-shell composition without losing these functions. |
 | `ARCH-009` | P1 | Migración incremental a SPA Vite + TypeScript + React | PLANNED | **STALE_REGISTER_RESOLVED** | No | — | V4 SPA is Vite + TypeScript + React. |
 | `ARCH-010` | P1 | Mantener core detrás de adapter durante migración; no big-bang rewrite | PLANNED | **STALE_REGISTER_RESOLVED** | No | — | Core was wrapped/adapted rather than big-bang rewritten. |
 | `HOST-001` | P0 | Separar marketing/docs y aplicación clínica en orígenes distintos | OPEN | **PARTIAL** | No | REC-12 | Clinical Render dist is third-party-free and distinct from repo-root marketing surface; final external-origin topology should be recorded explicitly. |
@@ -98,7 +100,7 @@
 | `PRODUCT-002` | P3 | Pseudónimos deterministas sin inferir género | DONE | **VERIFIED_IMPROVED** | No | — | Patient pseudonyms are deterministic and gender-free within context. |
 | `PRODUCT-003` | P3 | Perfiles de política de privacidad | OPEN | **VERIFIED_RESOLVED** | No | — | All four accepted policies now have deterministic text/document/batch mappings (plus structured); availability derives from the engine/structured authorities and guidance states the actual behavior. Evidence: `engine/policy.ts`, `policy-guidance.ts` + oracles; canonicalized by PR #68 at `3.0-main@4984040722f55062778b97e7351d2b8b43fe7ce7`. |
 | `PRODUCT-004` | P3 | Bandeja de candidatos low-confidence/descartados | DONE | **VERIFIED_RESOLVED** | No | — | Low-confidence queue delivered. |
-| `PRODUCT-005` | P3 | Privacy Gate final | OPEN | **STALE_REGISTER_RESOLVED** | No | — | Privacy Gate exists and was UX-closed in #63/#64. |
+| `PRODUCT-005` | P3 | Privacy Gate final | OPEN | **VERIFIED_RESOLVED** | No | PDR-06 | Privacy Gate exists as the authoritative readiness computation. Its former standalone-screen implication is deliberately superseded by the reconciled Result model; PDR-06 owns the human representation without weakening the gate. |
 | `PRODUCT-006` | P3 | Clasificación Identifier/Quasi/Sensitive/Insensitive | DONE | **VERIFIED_RESOLVED** | No | REC-03 | Five-class taxonomy remains unchanged, and REC-03 now ships the separate D-021 Class→Action authority. Published by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`; bounded action semantics are covered by `structured/configuration.ts`, `structured/action-authority.test.ts` and the composed structured E2E/oracles. |
 | `PRODUCT-007` | P3 | ARX-lite: unicidad/equivalence classes | OPEN | **FUTURE_NOT_RECOVERY** | No | Future | ARX-lite risk analysis was explicitly a later capability, not v3 parity. |
 | `PRODUCT-008` | P3 | Recognizer plugins y diccionarios institucionales | OPEN | **FUTURE_NOT_RECOVERY** | No | Future | Institutional dictionaries/plugin recognizers are future extensibility, not baseline recovery. |
@@ -121,7 +123,7 @@
 | `H-07` | TXT/PDF/DOCX input | Single clinical document extraction. | Preserved and improved with typed failures/no-text-layer handling. | **IMPROVED** | No | — |
 | `H-08` | Legacy .doc claim | UI claimed .doc though parser was DOCX-only. | Removed from supported formats; correct intentional non-parity. | **CORRECTLY_REMOVED** | No | — |
 | `H-09` | Review highlights + accept/modify/restore | Human review actions over detected spans. | Preserved and moved into authoritative ReviewSession/Entity Inspector. | **IMPROVED** | No | — |
-| `H-10` | Manual missed-entity marking | Select missed PHI and categorize it. | Preserved through selection + Add manual detection; mobile route improved. | **IMPROVED** | No | — |
+| `H-10` | Manual missed-entity marking | Select missed PHI and categorize it. | Domain capability is preserved, but the current ordinary manual-detection form still exposes source `Start offset` / `End offset`, which the reconciled human-product authority forbids as user vocabulary. | **PARTIAL** | Yes | REC-09 |
 | `H-11` | Copy reviewed text | `Copiar Texto` action in review. | No clipboard copy of canonical Safe Output in V4. | **LOST** | Yes | REC-05 |
 | `H-12` | Single-document PDF report | `Informe de Seudonimización` via jsPDF. | No PDF generation in V4. Old report was unsafe because it mixed originals/mappings, so format must be restored with Safe/Audit separation. | **LOST_NEEDS_SAFE_REDESIGN** | Yes | REC-05 |
 | `H-13` | Safe TXT | Text result export/shareable text. | V4 Safe Output `.txt` exists and is stricter. | **IMPROVED** | No | — |
@@ -146,8 +148,8 @@
 | `H-32` | Four Privacy Policies | Audit target Standard / External AI / Longitudinal Research / Strict. | All four are visible and work in structured; after REC-02 all four also resolve text/document/batch mappings, and guidance explains the actual per-family behavior. | **IMPROVED** | No | — |
 | `H-33` | Text date shifting | Audit/product candidate required consistent date shifting for longitudinal use. | Longitudinal Research text/document/batch now selects the consistent Job-scoped date-shift operator; ordering/intervals are preserved across documents (unit + browser evidence). | **IMPROVED** | No | — |
 | `H-34` | Low-confidence workflow | Target improvement, not v3 parity. | Delivered as visible queue/filter and gate fact. | **NEW_IMPROVEMENT** | No | — |
-| `H-35` | Privacy Gate | Target improvement, not v3 parity. | Delivered and UX-closed. | **NEW_IMPROVEMENT** | No | — |
-| `H-36` | App IA: Workspace / Policies / Help | Target audit/spec minimal nav. | No dedicated Workspace/Policies/Help navigation; only New Job/Clear session + step nav. | **TARGET_GAP** | Yes | REC-09 |
+| `H-35` | Privacy Gate | Target improvement, not v3 parity. | Delivered as a factual readiness authority. The 2026-10-05 reconciliation preserves that authority but supersedes the requirement that `Privacy Gate` be a standalone user concept/destination; human presentation is tracked by `PDR-06`. | **NEW_IMPROVEMENT** | No | PDR-06 |
+| `H-36` | App IA: Workspace / Policies / Help | Target audit/spec proposed minimal nav. | The 2026-10-05 reconciliation rejects those destinations as mandatory equal-weight navigation. Their underlying functions remain required: work stays directly accessible, policy/help detail stays discoverable and New work remains available. Exact shell/navigation is intentionally open under HPD V1. | **DELIBERATELY_SUPERSEDED** | No | REC-09 / PDR-07 |
 | `H-37` | Review productivity shortcuts | Target A/M/K/F and next/previous shortcuts. | Native controls keyboard-operable; no dedicated shortcuts found. | **TARGET_GAP** | Yes | REC-09 |
 | `H-38` | Responsive app | Original v3 weak; target required desktop/tablet/mobile. | V4 is materially improved and tested at 375/768/1280. | **NEW_IMPROVEMENT** | No | — |
 | `H-39` | Local-first clinical runtime | v3 principle existed but marketing script shared origin risk. | V4 clinical dist is static, same-origin-only, CSP/no-network guarded, Worker-based. | **NEW_IMPROVEMENT** | No | — |
@@ -155,6 +157,25 @@
 | `H-41` | Keep-original direct-identifier safeguard | Frozen UX-10 requires `Mantener original` plus contextual confirmation for a direct identifier and an explanation that the original will remain in Safe Output. | V4 has the `Keep original` decision and a later Privacy Gate warning, but the review action itself executes without the required contextual confirmation/explanation. | **TARGET_GAP** | Yes | REC-09 |
 | `H-42` | Deliberate Confidential Audit download | Frozen Export UX requires the identifiable Confidential Audit to be separate, clearly marked and require an additional confirmation before download. | V4 separates Safe and Confidential artifacts. After REC-04 merged by PR #72 at `3.0-main@7f7de6b5bf4c0692850b4e3c5de6987bcdef18f0`, the structured slice is implemented: every structured Confidential download (TXT and XLSX) requires the additional deliberate in-zone confirmation (first click reveals it and downloads nothing; explicit Confirm downloads once; Cancel downloads nothing; the confirmation resets after confirm/cancel and cannot cross Jobs or blocked preparations). Single-text/document (REC-05) and batch (REC-07) Confidential surfaces still download directly, so the global blocker stays open. | **TARGET_GAP** | Yes | REC-05/REC-07 |
 
-## C. Recovery blockers derived from the two matrices
+## C. Post-reconciliation human-product obligations — accepted 2026-10-05
 
-The blocker set is intentionally narrower than every OPEN/P3 debt row. Advanced OCR/NER/FHIR/ARX/DICOM/layout-preserving PDF work remains future capability unless it is separately accepted. Known recovery blockers cluster into twelve bounded work orders defined in `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
+These rows protect **newly accepted human-product obligations** that were not fully expressible in the frozen 88 or the 42-row heritage matrix. They may overlap an older heritage capability; overlap is intentional because the new row protects the reconciled interaction requirement, not a new feature count. They do **not** create a parallel ticket train. Every row maps into the existing REC-05→REC-12 plan.
+
+| Ref | Accepted obligation | Current V4 / gap | Recovery blocker | Owner | Dependency / evidence rule |
+|---|---|---|:---:|---|---|
+| `PDR-01` | Visible flow follows human work; no ceremonial/no-op phase. | Text/document `Configure` can be no-op; structured can reach a no-op Review summary; universal stepper exposes pipeline topology. | Yes | REC-09 | Preserve internal pipeline; rendered composed journey must prove no no-op destination. |
+| `PDR-02` | Review is decision work and remains productive at realistic detection volume. | Current Review is metric/filter heavy and enters without an immediately active decision; high-volume explicit workflow is not yet proven. | Yes | REC-09 | Realistic synthetic long document / dozens of detections; no silent acceptance; correction/undo preserved. |
+| `PDR-03` | Manual missed-entity marking uses human selection/category, never source offsets. | Current manual form exposes start/end offsets. | Yes | REC-09 | ReviewSession/source offsets remain internal authority. |
+| `PDR-04` | Structured uses a comparative column × interpretation/treatment/state workspace rather than repeated equal-weight cards. | Current card wall does not scale and hides cross-column comparison. | Yes | REC-09 | REC-03/04 structured semantics stay unchanged; test with dozens of columns and visible blockers/effective treatment. |
+| `PDR-05` | Batch behaves as a coherent work queue with local recovery and orientation at realistic batch size. | State model exists; retry/remove/disposition and large-batch orientation are incomplete. | Yes | REC-06 | REC-06 must complete before REC-07 batch Result closeout. |
+| `PDR-06` | Human ending is `Result`: readiness, remaining attention and contextual next action; Privacy Gate remains authority underneath. | Current Gate and Export are separate visible destinations; single/batch output parity is incomplete. | Yes | REC-05 / REC-07 | REC-05 establishes single Result/output model; REC-07 composes batch Result after REC-05 + REC-06. |
+| `PDR-07` | Shell/policy guidance stay quiet and contextual; exact `Workspace / Policies / Help` nav is not mandatory. | Current shell exposes persistent diagnostic facts and full policy cards below operational work. | Yes | REC-09 | Preserve discoverability/current use/local-processing fact and destructive clear-session separation. |
+| `PDR-08` | Spanish professional language is a foundation from the first reworked surface. | Current UI remains predominantly English. | Yes | REC-05→REC-11; closeout REC-10 | Every touched user surface uses Spanish human vocabulary; REC-10 proves exhaustive closeout. |
+| `PDR-09` | Visual hierarchy/density are functional: primary task outranks evidence/help/chrome. | Current V4 remains a homogeneous implementation scaffold in important surfaces. | Yes | REC-05→REC-11; closeout REC-11 | Every touched surface satisfies baseline hierarchy; REC-11 proves coherent final system. |
+| `PDR-10` | Realistic-density rendered evidence is required for material UI claims. | Existing small fixtures can pass while representations fail at real scale. | Yes | Each user-facing REC; closeout REC-12 | Evidence must be capable of falsifying the claim: dozens of detections/columns, multi-doc batch with failure, long text where relevant. |
+| `PDR-11` | Ordinary actions provide perceptible feedback and decisions remain correctable/orientable. | Current product does not yet prove this consistently across all remaining reworked journeys. | Yes | REC-05/06/08/09/11; closeout REC-12 | Candidate must show pending/success/failure where relevant and return/correction without losing unrelated work. |
+| `PDR-12` | Prepared/shareable Result and identifiable Confidential Audit are deliberately asymmetric. | Semantic separation exists, but single/batch deliberate-confirmation and final visual hierarchy remain incomplete. | Yes | REC-05 / REC-07 / REC-11 | H-42 safety contract plus visual discrimination; REC-12 composed test. |
+
+## D. Recovery blockers and execution ownership
+
+The blocker set remains intentionally narrower than every OPEN/P3 debt row. Advanced OCR/NER/FHIR/ARX/DICOM/layout-preserving PDF work remains future capability unless separately accepted. The original 17 blocker-marked rows at the REC-04 checkpoint remain traceable, with `H-36` now deliberately superseded and `H-10` correctly reopened as a human-product blocker; the PDR rows add cross-cutting accepted obligations rather than new feature tickets. All blocking obligations map into the same twelve Recovery Work Orders defined in `docs/RECOVERY_MASTER_PLAN_2026-10.md`.
