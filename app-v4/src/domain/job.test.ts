@@ -384,6 +384,113 @@ describe("step transitions", () => {
     expect(atExport.currentStep).toBe("export");
     expect(canAdvanceStep(atExport)).toBe(false);
   });
+
+  /**
+   * REC-05 WU-B2 (D-023/D-024 + HPD-02 + G-HP2). For a pasted-text or single
+   * document Job the Result (`export`) step is directly reachable from Review in
+   * ONE transition; the Privacy Gate stays a visible, enabled, OPTIONAL
+   * destination (never deleted, and never a new ceremonial no-op screen). Every
+   * other Job kind keeps the canonical `review → privacy-gate → export` order.
+   */
+  describe("D-024 single-item direct Result (REC-05 WU-B2)", () => {
+    function documentJob(): Job {
+      return createJob({
+        type: "files",
+        files: [
+          {
+            name: "note.txt",
+            extension: "txt",
+            extraction: { status: "extracted" as const, extractedText: "Synthetic note." },
+          },
+        ],
+      });
+    }
+    function structuredJob(): Job {
+      return createJob({ type: "files", files: [file("labs.csv", "csv")] });
+    }
+    function batchJob(): Job {
+      return createJob({
+        type: "files",
+        files: [file("a.txt", "txt"), file("b.txt", "txt")],
+      });
+    }
+    function atReview(job: Job): Job {
+      return goToStep(goToStep(job, "configure"), "review");
+    }
+
+    const singleItemKinds = [
+      ["pasted-text", () => createJob(TEXT_INPUT)] as const,
+      ["single-document", documentJob] as const,
+    ];
+
+    for (const [label, makeJob] of singleItemKinds) {
+      it(`makes Result directly reachable from Review for a ${label} job once review is complete`, () => {
+        const review = withReviewState(atReview(makeJob()), { complete: true });
+        // The Privacy Gate remains visible, enabled and visitable (optional).
+        expect(isStepAccessible(review, "privacy-gate")).toBe(true);
+        // Result is directly reachable in ONE transition, without the Gate stop.
+        expect(isStepAccessible(review, "export")).toBe(true);
+        const exported = goToStep(review, "export");
+        expect(exported.currentStep).toBe("export");
+        expect(exported.visitedSteps).toEqual(["input", "configure", "review", "export"]);
+        expect(exported.visitedSteps).not.toContain("privacy-gate");
+        // The Gate route is still valid when chosen explicitly.
+        const viaGate = goToStep(review, "privacy-gate");
+        expect(viaGate.currentStep).toBe("privacy-gate");
+        expect(goToStep(viaGate, "export").currentStep).toBe("export");
+      });
+
+      it(`keeps Result fail-closed from Review for a ${label} job while mandatory review is pending`, () => {
+        const review = atReview(makeJob());
+        expect(isStepAccessible(review, "export")).toBe(false);
+        try {
+          goToStep(review, "export");
+          throw new Error("expected goToStep to throw");
+        } catch (error) {
+          expect(error).toBeInstanceOf(JobModelError);
+          expect((error as JobModelError).code).toBe("review-incomplete");
+        }
+        // The Gate is still visitable so the user can see what blocks Safe output.
+        expect(isStepAccessible(review, "privacy-gate")).toBe(true);
+        expect(goToStep(review, "privacy-gate").currentStep).toBe("privacy-gate");
+      });
+    }
+
+    it("keeps the document-batch Gate stop mandatory and its transition behavior unchanged", () => {
+      const review = withReviewState(atReview(batchJob()), { complete: true });
+      expect(isStepAccessible(review, "export")).toBe(false);
+      try {
+        goToStep(review, "export");
+        throw new Error("expected goToStep to throw");
+      } catch (error) {
+        expect(error).toBeInstanceOf(JobModelError);
+        expect((error as JobModelError).code).toBe("invalid-step");
+      }
+      // Canonical order is unchanged: review -> privacy-gate -> export.
+      expect(advanceStep(review).currentStep).toBe("privacy-gate");
+      const gate = goToStep(review, "privacy-gate");
+      expect(gate.currentStep).toBe("privacy-gate");
+      expect(goToStep(gate, "export").currentStep).toBe("export");
+    });
+
+    it("keeps the structured Gate stop mandatory and its transition behavior unchanged", () => {
+      const review = atReview(structuredJob());
+      expect(isStepAccessible(review, "export")).toBe(false);
+      expect(() => goToStep(review, "export")).toThrowError(JobModelError);
+      expect(advanceStep(review).currentStep).toBe("privacy-gate");
+      expect(goToStep(review, "privacy-gate").currentStep).toBe("privacy-gate");
+    });
+
+    it("introduces no new flow destination/step for the single-item Result (G-HP2)", () => {
+      // Exactly the five canonical steps remain: WU-B2 reuses the existing
+      // export destination instead of adding a Gate-only ceremonial screen.
+      expect(FLOW_STEPS).toEqual(["input", "configure", "review", "privacy-gate", "export"]);
+      const review = withReviewState(atReview(createJob(TEXT_INPUT)), { complete: true });
+      const exported = goToStep(review, "export");
+      expect(exported.visitedSteps).not.toContain("privacy-gate");
+      expect(FLOW_STEPS).toHaveLength(5);
+    });
+  });
 });
 
 describe("processing outcome (T15 #19)", () => {

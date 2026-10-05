@@ -852,6 +852,45 @@ export type Job = {
 };
 
 /**
+ * Whether the export transition guard is satisfied. Export is gated on review
+ * completeness (D-004) and, for a document-batch, on the absence of failed
+ * items (T17 #21 SD-7); review-incomplete keeps priority over the batch item
+ * guard. Shared by every path INTO export so one fail-closed rule cannot drift
+ * between {@link canAdvanceStep}, {@link advanceStep}, the canonical
+ * `privacy-gate → export` transition and the D-024 direct `review → export`
+ * transition.
+ */
+function exportTransitionAllowed(job: Job): boolean {
+  if (!job.review.complete) return false;
+  return !(job.kind === "document-batch" && batchHasErrorItems(job));
+}
+
+/** Throwing form of {@link exportTransitionAllowed} for transition functions. */
+function assertExportTransitionAllowed(job: Job): void {
+  if (!job.review.complete) {
+    throw new JobModelError(
+      "review-incomplete",
+      "Export is blocked while mandatory review is incomplete."
+    );
+  }
+  assertBatchExportable(job);
+}
+
+/**
+ * D-023/D-024 + HPD-02 (REC-05 WU-B2): for a pasted-text (`text`) or single
+ * `document` Job the Result (`export`) step is the ordinary destination after
+ * the last required review decision, so the Privacy Gate is an OPTIONAL detour
+ * rather than a mandatory intermediate stop. Every other Job kind keeps the
+ * canonical `review → privacy-gate → export` order byte-for-byte. The Gate is
+ * never hidden, deleted or disabled: at Review it stays visible, enabled and
+ * visitable (an optional destination containing real facts, not a ceremonial
+ * no-op screen).
+ */
+function resultReachableFromReview(job: Job): boolean {
+  return (job.kind === "text" || job.kind === "document") && job.currentStep === "review";
+}
+
+/**
  * Whether the immediate forward transition out of the current step is
  * allowed. Export is gated on review completeness (D-004) and, for a
  * document-batch, on the absence of failed items (T17 #21 SD-7); every other
@@ -862,8 +901,7 @@ export function canAdvanceStep(job: Job): boolean {
   if (index < 0 || index === FLOW_STEPS.length - 1) return false;
   const next = FLOW_STEPS[index + 1];
   if (next !== "export") return true;
-  if (!job.review.complete) return false;
-  return !(job.kind === "document-batch" && batchHasErrorItems(job));
+  return exportTransitionAllowed(job);
 }
 
 /**
@@ -876,23 +914,16 @@ export function advanceStep(job: Job): Job {
     throw new JobModelError("invalid-step", `Cannot advance from step "${job.currentStep}".`);
   }
   const next = FLOW_STEPS[index + 1];
-  if (next === "export") {
-    // Review-incomplete keeps priority over the batch item guard (SD-7).
-    if (!job.review.complete) {
-      throw new JobModelError(
-        "review-incomplete",
-        "Export is blocked while mandatory review is incomplete."
-      );
-    }
-    assertBatchExportable(job);
-  }
+  if (next === "export") assertExportTransitionAllowed(job);
   return moveToStep(job, next);
 }
 
 /**
  * Move to a step. Allowed: the current step (no-op), any already-visited
- * step (backward), or the immediate next forward step when its guard passes.
- * Any other jump throws (fail-closed; SPEC §2 canonical order).
+ * step (backward), the immediate next forward step when its guard passes, or —
+ * for a pasted-text/single-document Job — the Result (`export`) step directly
+ * from Review (D-024; {@link resultReachableFromReview}). Any other jump throws
+ * (fail-closed; SPEC §2 canonical order).
  */
 export function goToStep(job: Job, target: FlowStep): Job {
   if (!FLOW_STEPS.includes(target)) {
@@ -902,17 +933,16 @@ export function goToStep(job: Job, target: FlowStep): Job {
   if (job.visitedSteps.includes(target)) return moveToStep(job, target);
 
   const isImmediateNext = stepIndex(target) === stepIndex(job.currentStep) + 1;
-  if (isImmediateNext && target === "export") {
-    // Review-incomplete keeps priority over the batch item guard (SD-7).
-    if (!job.review.complete) {
-      throw new JobModelError(
-        "review-incomplete",
-        "Export is blocked while mandatory review is incomplete."
-      );
-    }
-    assertBatchExportable(job);
-  }
+  if (isImmediateNext && target === "export") assertExportTransitionAllowed(job);
   if (isImmediateNext) return moveToStep(job, target);
+
+  // D-024 (REC-05 WU-B2): the single-item Result is directly reachable from
+  // Review in one ordinary advance; the Privacy Gate stays an OPTIONAL
+  // destination rather than a mandatory stop.
+  if (resultReachableFromReview(job) && target === "export") {
+    assertExportTransitionAllowed(job);
+    return moveToStep(job, target);
+  }
 
   throw new JobModelError(
     "invalid-step",
@@ -927,10 +957,19 @@ function moveToStep(job: Job, target: FlowStep): Job {
   return freezeDeep({ ...job, currentStep: target, visitedSteps });
 }
 
-/** Whether the step nav may offer this step for the current job. */
+/**
+ * Whether the step nav may offer this step for the current job. In addition to
+ * the canonical visited/immediate-next rules, a pasted-text/single-document Job
+ * at Review may go straight to Result (D-024; {@link resultReachableFromReview})
+ * whenever the export guard is satisfied, so the Privacy Gate is never a
+ * mandatory stop on the ordinary path.
+ */
 export function isStepAccessible(job: Job, target: FlowStep): boolean {
   if (target === job.currentStep) return true;
   if (job.visitedSteps.includes(target)) return true;
+  if (resultReachableFromReview(job) && target === "export") {
+    return exportTransitionAllowed(job);
+  }
   return stepIndex(target) === stepIndex(job.currentStep) + 1 && canAdvanceStep(job);
 }
 

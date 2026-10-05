@@ -511,6 +511,26 @@ describe("App privacy gate (T08 U3)", () => {
     expect(screen.queryByText("Ready")).not.toBeInTheDocument();
     expect(stepButton(5, "Export")).toBeDisabled();
   });
+
+  it("reaches the single-item Result directly from Review without a mandatory Gate stop (REC-05 WU-B2)", async () => {
+    render(<App />);
+    await createReviewJob();
+    acceptAllDetections();
+    expect(pendingCount()).toBe(0);
+
+    // Ordinary single-item journey: the last review decision -> Result in ONE
+    // transition. The Privacy Gate stop is no longer mandatory.
+    expect(stepButton(5, "Export")).toBeEnabled();
+    fireEvent.click(stepButton(5, "Export"));
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+
+    // The Privacy Gate is not hidden, deleted or disabled: it stays an enabled,
+    // optional destination reachable from Review (G-HP2: no new destination).
+    fireEvent.click(stepButton(3, "Review"));
+    expect(stepButton(4, "Privacy Gate")).toBeEnabled();
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+  });
 });
 
 describe("App policy change vs an existing review (PR #40 corrective C1+C2)", () => {
