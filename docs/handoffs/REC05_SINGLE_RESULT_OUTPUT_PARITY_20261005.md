@@ -1,6 +1,6 @@
-# REC-05 — SINGLE-OUTPUT-PARITY-01 — fresh post-PDR C-084 standard/complex execution handoff
+# REC-05 — SINGLE-OUTPUT-PARITY-01 — executed post-PDR standard/complex handoff
 
-Status: **READY_TO_LAUNCH after §12 preflight passes**
+Status: **EXECUTION COMPLETE — HISTORICAL HANDOFF; Cora integrated audit GO; publication PR #76**
 Date: 2026-10-05
 Recovery Work Order: **REC-05 — SINGLE-OUTPUT-PARITY-01**
 Human-product shape: **Single Result + output parity**
@@ -8,14 +8,15 @@ Cost policy: **standard**
 Risk class: **complex**
 Visible primary: **`atenea-complex`**
 Matt entry: **`/implement-spec`**
-Publication boundary: **LOCAL_ONLY**
+Publication boundary: **LOCAL_ONLY during Matt execution; human publication authorized post-audit via PR #76**
 
 ## 0. Fixed execution identity
 
 - Repository: `b32majus/Laboratorio_Privacidad_Clinica`
 - Canonical product base: `3.0-main@3bbbf13f1a187af8087d7911f06d6057b6aa6d93`
 - Product-design reconciliation merge: PR `#74`, merge `3bbbf13f1a187af8087d7911f06d6057b6aa6d93`
-- Atenea authority: `b32majus/Atenea@502f6d4e3e635f6a3ed5b94e8d577f7d653ecc77`
+- Launch-time Atenea authority: `b32majus/Atenea@502f6d4e3e635f6a3ed5b94e8d577f7d653ecc77`
+- Post-execution current Atenea authority: `b32majus/Atenea@9c6be73527c1b4ff8a661d29582bb6317b8e45f7` (C-085; harness-only reconciliation, no product-candidate reopen)
 - Workspace authority-sync commit: `ed3f062a7be59b3de4266e7bb2e174e352d4e67c`
 - Execution branch: `work/rec-05-single-result-output-parity-20261005`
 - Execution worktree: `/srv/kairos-lab/qualification/laboratorio-rec05-single-result-output-20261005`
@@ -27,6 +28,8 @@ If canonical base, Atenea authority, cost policy, risk class, branch/worktree or
 This is a fresh lineage. The pre-reconciliation REC-05 worktree/branch and its stopped Go launches are historical provenance only. Do not reuse its `6dcb6b5…` anchor, old handoff, old D-023 identifier or session lineage.
 
 The run uses project/default `cost_policy: standard`. Do not switch to Go/Free because of quota or convenience. Because prior visible attempts accidentally entered `atenea-go`, the human must start a **fresh OpenCode session** and visibly select **`atenea-complex` before the first execution prompt**.
+
+> **Closeout note (2026-10-05):** execution closed at product candidate `6748379ea5e73f9b30cebb5867264e4bb6342971`; correction #1 closed the canonical review findings; correction #2 was not opened. Later C-085 commits are execution-harness only. Cora integrated candidate audit returned **GO** and human publication is authorized through PR #76. Sections below preserve the launch-time contract and preflight as provenance; they are not a new launch instruction.
 
 ## 1. Authority to read — in order
 
@@ -353,7 +356,7 @@ At the clean prepared preflight on 2026-10-05, before REC-05 adds `pdf-lib`, `np
 
 REC-05 must **not** run `npm audit fix`, upgrade unrelated dependencies or broaden scope to repair this baseline. After the authorized `pdf-lib@1.17.1` change, compare the production audit against this baseline and prove that REC-05 introduced **no new unresolved production vulnerability**. Any new/material finding attributable to the authorized dependency delta is HUMAN STOP. Report the inherited baseline factually rather than claiming the global production audit is green.
 
-## 10. Exact C-084 lifecycle
+## 10. Exact launch lifecycle — C-084 at launch; C-085 reconciled after execution
 
 Route: **standard + complex**.
 

@@ -51,7 +51,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 2. `REC-02 — TEXT-POLICY-COMPLETION-01` — **COMPLETED**, merged by PR #68 at `3.0-main@4984040722f55062778b97e7351d2b8b43fe7ce7`
 3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **COMPLETED**, merged by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`
 4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #72 at `3.0-main@7f7de6b5bf4c0692850b4e3c5de6987bcdef18f0`
-5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **RESHAPED / NEXT AFTER FRESH HANDOFF**
+5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **AUDITED PUBLICATION CANDIDATE — PR #76**
 6. `REC-06 — BATCH-WORKFLOW-PARITY-01`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01`
 8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01`
@@ -60,7 +60,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-Current next Work Order: **REC-05 — SINGLE-OUTPUT-PARITY-01**, but only through a **fresh post-reconciliation handoff/review anchor**. The pre-reconciliation REC-05 launch packet is retired as execution authority; its stopped sessions remain provenance only.
+REC-05 execution is closed at product candidate `6748379ea5e73f9b30cebb5867264e4bb6342971`; Cora integrated candidate audit is **GO** and human publication is authorized through PR #76. It is not canonical until merge. **REC-06 — BATCH-WORKFLOW-PARITY-01** is the next numbered recovery frontier after REC-05 canonicalization and frontier decomposition under the current Atenea authority. The pre-reconciliation REC-05 launch packet and stopped sessions remain provenance only.
 
 No new recovery ticket should be invented from memory. First locate the capability in the traceability matrix and either map it to the owning REC Work Order or explicitly amend the master plan.
 
