@@ -41,7 +41,7 @@ Recovery was reconstructed from:
 - frozen pre-refactor authority: `e164ca2`;
 - V4 checkpoint audited on 2026-10-04: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a`.
 
-After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**. After REC-04, **17 rows remain recovery-blocking**, all owned by the same 12 Recovery Work Orders. These counts are an index, not a completeness proof: REC-12 must re-check the frozen source audits + v3 heritage against the matrix before row-level closeout.
+After independent adversarial reconciliation, the matrix contains **88 original debt/audit rows + 42 product/heritage rows**, plus a 2026-10-05 **post-reconciliation human-product overlay** (`PDR-01…PDR-12`). At the REC-04 checkpoint the pre-reconciliation matrix had 17 blocker-marked rows; the PDR overlay adds cross-cutting accepted obligations without creating new REC ticket IDs. Counts are an index, not proof: every remaining handoff must map its owned matrix/PDR obligations, and REC-12 must re-check all source layers before closeout.
 
 ## 4. Current recovery train
 
@@ -92,7 +92,7 @@ Do not inflate the recovery train with capabilities the original audits explicit
 Before implementing a REC Work Order:
 
 1. shape the Work Order from the exact matrix rows it owns;
-2. for any user-facing REC-05→REC-11 work, read and enforce `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` before deriving UI from domain/spec topology;
+2. for any user-facing REC-05→REC-11 work, read and enforce `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` and the matrix `PDR-01…PDR-12` overlay before deriving UI from domain/spec topology;
 3. preserve the current V4 safety/domain architecture unless the Work Order explicitly changes an authority;
 4. define acceptance criteria for **product capability + safety semantics + deterministic evidence + proportional human-product evidence**, not only route/component existence;
 5. resolve material spatial/interaction choices in the **real application on bounded branches** with synthetic/no-PHI realistic-density fixtures by default; do not invent detached prototype products unless genuinely necessary;

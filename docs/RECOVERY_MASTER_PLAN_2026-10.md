@@ -282,6 +282,8 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - evaluate explicit grouped/bulk confirmation only if useful, with scope clarity, no silent acceptance and appropriate treatment of low-confidence/exceptional items;
 - `Keep original` safety affordance: direct identifiers require contextual explanation/confirmation before the original remains in prepared output;
 - manual missed-entity marking through text selection + human category/confirmation; source offsets remain internal and never become an ordinary form field;
+- reshape Structured Configure into the accepted comparative column × interpretation/treatment/state workspace while preserving REC-03/04 semantics; effective treatment and blockers remain visible, with evidence/confidence/override detail contextual;
+- remove the no-op Structured Review destination when no free-text cell review exists; free-text cell review remains a concrete subtask when it does exist;
 - shortcut discovery/help and disablement while typing/editing where shortcuts are retained;
 - no PHI-bearing job history.
 
@@ -292,6 +294,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - manual marking can be completed without entering offsets or other internal representation details;
 - a direct identifier cannot be kept original through ordinary Review without the contextual confirmation/explanation;
 - a realistic synthetic document with dozens of detections remains navigable/reviewable without turning the default UI into a metrics dashboard;
+- a realistic synthetic structured dataset with dozens of columns remains scannable/comparable without a repeated-card wall, while current Study-ID/class→action/date/free-text semantics remain unchanged;
 - any grouped/bulk review remains explicit, correctable and incapable of silently accepting low-confidence/exceptional work;
 - representative decisions can be revisited/corrected without losing unrelated accepted decisions;
 - rendered/task evidence satisfies `G-HP1` through `G-HP7` as applicable.
@@ -380,7 +383,49 @@ Recovery may be declared complete only when every matrix row is one of:
 
 No material source obligation may be silently absent from the matrix, no matrix row may be silently absent from closeout, and “workflow exists” is not sufficient evidence for output-format, language, visual or feature parity.
 
-## 4. Dependency graph
+## 4. Completeness and execution sequencing
+
+### 4.1 Source → obligation → owner completeness
+
+Before any remaining Work Order becomes `READY_TO_LAUNCH`, its shaping must be checked against all four current source layers:
+
+| Source layer | Traceability location | Rule |
+|---|---|---|
+| Frozen privacy/functional/code audit | Matrix §A (88 frozen rows) | No blocker or owned follow-up may disappear because product design changed. |
+| V3 heritage + frozen September UX/product audit | Matrix §B (`H-01…H-42` plus UX rows in §A) | Preserve useful capability or record an explicit later accepted supersession. |
+| 2026-10-05 product-design reconciliation | Matrix §C (`PDR-01…PDR-12`) | Every accepted human-product obligation must have an owner and evidence rule. |
+| Protected domain/privacy decisions | `CURRENT_DECISIONS.md` + HPD §2 | Human-product work may change representation, not silently weaken semantics. |
+
+An accepted obligation with **no owner**, an owner outside the dependency graph, or a conflict between two owners is a **HUMAN STOP before implementation**.
+
+### 4.2 Recommended serial order
+
+For this project, prefer the following serial order unless there is a concrete reason to parallelize. This minimizes shared-surface churn and makes each composed-product checkpoint legible:
+
+1. **Publish/audit/merge this product-design reconciliation.** No remaining user-facing REC launches from branch-local authority.
+2. **REC-05 — Single Result/output parity.** Establish the single text/document Result model and reusable safe output primitives.
+3. **REC-06 — Batch workflow/recovery parity.** Complete the batch work queue and local recovery.
+4. **REC-07 — Batch Result/output parity.** Hard-blocked by both REC-05 and REC-06.
+5. **REC-08 — Human input/productivity parity.** Technically independent of 05–07, but serial execution is preferred to avoid simultaneous shell/job-flow churn.
+6. **REC-09 — Dynamic IA + Review + Structured interaction productivity.** Composition pass after the capabilities above exist; owns no-op removal, shell/policy simplification, high-volume Review, manual marking without offsets and the Structured comparative workspace.
+7. **REC-10 — Spanish localization closeout.** Spanish foundation already applies to every earlier touched surface; this closes all remaining language gaps.
+8. **REC-11 — Visual-system closeout.** Visual hierarchy foundation already applies earlier; this closes coherence, density, responsive and visual regression.
+9. **REC-12 — Recovery closeout/governance.** Final source→matrix completeness, composed human journeys, technical gates and publication smoke.
+
+Hard dependency edges are narrower than this recommended serial order: REC-07 requires REC-05 + REC-06; REC-09 should not close until REC-05→08 capabilities it composes are present; REC-10/11 closeouts follow the stable post-REC-09 surfaces; REC-12 requires every recovery blocker/accepted PDR obligation to be resolved or deliberately superseded with evidence. REC-06 and REC-08 could technically start earlier, but parallelism is not the default.
+
+### 4.3 Launch gate for each remaining REC
+
+A remaining REC is launchable only when:
+
+1. its prerequisite REC edges above are satisfied;
+2. every matrix row / PDR obligation it owns is quoted or linked in the handoff;
+3. the handoff states which HPD gates are applicable and what realistic-density witness can falsify them;
+4. touched older specs/decisions are classified as `PRESERVED`, `SUPERSEDED FOR PRESENTATION`, or `HUMAN STOP` rather than silently inherited;
+5. Spanish and baseline visual hierarchy requirements are included for any touched user-facing surface;
+6. the branch/review anchor is fresh from the current canonical base.
+
+## 5. Dependency graph
 
 ```text
 REC-01 Spanish engine assurance
@@ -414,7 +459,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
 
 REC-01 through REC-04 are complete. REC-05 remains the next numbered recovery Work Order, but only after a **fresh post-reconciliation handoff/review anchor**. REC-07 still waits for REC-05 safe single-output primitives and REC-06 batch workflow authority. REC-08 and REC-09 may be scheduled where their touched authorities do not collide with the active Work Order. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every surface touched from REC-05 onward, while their exhaustive closeouts remain late so transient surfaces are not polished twice.
 
-## 5. Fixed authorities that survive recovery
+## 6. Fixed authorities that survive recovery
 
 Unless a recovery Work Order explicitly supersedes them with an accepted decision, preserve:
 
@@ -432,7 +477,7 @@ Unless a recovery Work Order explicitly supersedes them with an accepted decisio
 - explicit sheet selection and robust Excel date/null behavior;
 - responsive/accessibility improvements already landed.
 
-## 6. How ticket count is interpreted
+## 7. How ticket count is interpreted
 
 The **known recovery plan is 12 Work Orders**. REC-01 owns benchmark-driven bounded recognizer corrections so routine Spanish-engine findings do not create an open-ended stream of microtickets. If REC-01 discovers a defect that requires a new privacy doctrine, external NER architecture or another change outside the frozen authority, that is a real HUMAN STOP and must be shaped separately rather than hidden inside the count.
 
