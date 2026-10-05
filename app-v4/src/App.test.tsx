@@ -847,7 +847,10 @@ describe("App export step (T08 U4)", () => {
     const auditButton = screen.getByRole("button", { name: AUDIT_BUTTON });
     expect(safeButton).toBeEnabled();
     expect(auditButton).toBeEnabled();
-    expect(screen.getByText(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBeInTheDocument();
+    // PDR-08: the single-item zone copy is Spanish; the English marker is the
+    // serialized-payload authority, not UI copy.
+    expect(screen.getByText("Confidencial — artefacto interno de auditoría")).toBeInTheDocument();
+    expect(screen.queryByText("INTERNAL AUDIT ARTIFACT")).not.toBeInTheDocument();
     expect(screen.getByText(/nunca debe compartirse/i)).toBeInTheDocument();
     // Fail-closed gate passed: no blocked reason remains on the surface.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();

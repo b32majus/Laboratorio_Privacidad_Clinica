@@ -275,10 +275,15 @@ describe("REC-05 WU-B single-item Result — ready state", () => {
 
     // Return/correction path is always present.
     expect(screen.getByRole("button", { name: "Volver a la revisión" })).toBeInTheDocument();
-    // Confidential stays a separate sensitive zone.
+    // Confidential stays a separate sensitive zone; PDR-08: the zone copy is
+    // Spanish professional language (the English payload marker
+    // `CONFIDENTIAL — INTERNAL AUDIT ARTIFACT` is serialized-artifact
+    // authority, never rendered as UI copy here — see the Confirm witness).
     expect(screen.getByRole("region", { name: "Auditoría confidencial" })).toHaveTextContent(
-      CONFIDENTIAL_AUDIT_WARNING_LINE
+      "Confidencial — artefacto interno de auditoría"
     );
+    const zone = screen.getByRole("region", { name: "Auditoría confidencial" });
+    expect(zone).not.toHaveTextContent("INTERNAL AUDIT ARTIFACT");
   });
 
   it("presents a ready Result for a single document with ONE primary prepared download", () => {
@@ -549,6 +554,70 @@ describe("REC-05 WU-B single-item Result — async stale guard", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Truthful copy feedback (handoff §3): never a false success AND never a
+// false failure. The pre-fix code checked the authority only AFTER the
+// clipboard write; when the review changed during that window it claimed
+// "no se copió ningún texto" although the platform write had already
+// succeeded — an untrue message.
+// ---------------------------------------------------------------------------
+describe("REC-05 truthful copy feedback — stale-at-write window", () => {
+  it("reports a truthful success when the write succeeded even though the review changed during the write", async () => {
+    CLIPBOARD_OK();
+    // Defer the platform write so the authority can move mid-write, exactly
+    // as the review mutation window does in the real app.
+    let resolveWrite!: () => void;
+    const writeSpy = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveWrite = resolve;
+        })
+    );
+    stubClipboard(writeSpy);
+
+    const session = completedSession();
+    const view = render(<ExportStep job={bridgeJob(session)} review={session} />);
+    clickButton("Copiar texto preparado");
+    expect(screen.getByRole("status")).toHaveTextContent("Copiando el texto preparado…");
+
+    // The authority moves to a different review + Job while the write is
+    // in flight (the pre-fix red window).
+    const other = completedSession();
+    view.rerender(<ExportStep job={bridgeJob(other)} review={other} />);
+    resolveWrite();
+    await flushAsyncWork();
+
+    // The text IS on the clipboard: the message must say so.
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Texto preparado copiado al portapapeles."
+    );
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    // The pre-fix falsehood must never be shown.
+    expect(screen.queryByText(/no se copió ningún texto/i)).not.toBeInTheDocument();
+  });
+
+  it("refuses before the write when the Result authority is not ready at the action", async () => {
+    let writeCalls = 0;
+    stubClipboard(() => {
+      writeCalls += 1;
+      return Promise.resolve();
+    });
+
+    const pending = adversarialSession(); // mandatory review still open
+    render(<ExportStep job={bridgeJob(pending)} review={pending} />);
+
+    // The prepared action is unavailable; a click attempt on the disabled
+    // control must never reach the platform clipboard.
+    const primary = screen.getByRole("button", { name: "Copiar texto preparado" });
+    expect(primary).toBeDisabled();
+    fireEvent.click(primary);
+    await flushAsyncWork();
+
+    expect(writeCalls).toBe(0);
+    expect(screen.queryByText(/copiado al portapapeles/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // REC-05 WU-C single-item Confidential confirmation (H-42 single slice, D-024)
 // ---------------------------------------------------------------------------
 const CONF_BUTTON = "Descargar auditoría confidencial (.txt)";
@@ -598,9 +667,14 @@ describe("REC-05 WU-C single-item Confidential confirmation", () => {
       expect(captured.downloads[0].fileName).toBe("auditoria-confidencial.txt");
 
       // Canonical Confidential payload byte-semantics unchanged: the warning
-      // line still starts the artifact and the mapping is still present.
+      // line still starts the artifact exactly (byte-identical marker) and
+      // the mapping is still present, even though the zone's UI copy is now
+      // Spanish (PDR-08 — UI presentation only, never the serialized payload).
       const audit = await textOf(captured.downloads[0]);
       expect(audit.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
+      expect(audit.slice(0, CONFIDENTIAL_AUDIT_WARNING_LINE.length)).toBe(
+        "CONFIDENTIAL — INTERNAL AUDIT ARTIFACT"
+      );
       expect(audit).toContain("Carmen Sánchez");
 
       // Reset after confirm: no panel, no second download, and a new first

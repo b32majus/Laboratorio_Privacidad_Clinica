@@ -120,7 +120,9 @@ test("review decisions drive the export gate and the canonical Safe Output", asy
   await expect(
     page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" })
   ).toBeEnabled();
-  await expect(page.getByText("CONFIDENTIAL — INTERNAL AUDIT ARTIFACT")).toBeVisible();
+  // PDR-08: Spanish zone copy; the English marker is the payload authority
+  // (asserted below against the downloaded audit artifact).
+  await expect(page.getByText("Confidencial — artefacto interno de auditoría")).toBeVisible();
 
   const [safeDownload] = await Promise.all([
     page.waitForEvent("download"),

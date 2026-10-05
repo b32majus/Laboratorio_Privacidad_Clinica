@@ -16,6 +16,12 @@
  * silently substituted, dropped or mojibake'd as a visible deterministic
  * PDF-only failure.
  *
+ * Whitespace is content (D-024: the PDF representation must not narrow the
+ * canonical Safe string): leading, repeated and trailing spaces of a logical
+ * line survive. The single permitted normalization is the documented reflow
+ * rule on {@link wrapLine}: one space at a rendered wrap point becomes the
+ * line break.
+ *
  * Privacy: memory-only local generation, no logging of content, no network,
  * no persistence.
  */
@@ -67,9 +73,16 @@ function assertRepresentable(font: PDFFont, line: string): void {
 }
 
 /**
- * Wrap one logical line to the text column width. Words are kept whole while
- * they fit; a single word wider than the column is split by code point so no
- * content is ever truncated or clipped off the page.
+ * Wrap one logical line to the text column width, preserving the line's
+ * whitespace exactly: leading spaces, consecutive internal spaces and
+ * trailing spaces are content and survive into the rendered segments. The
+ * ONLY normalization is the one D-024 authorizes for reflow: when a rendered
+ * line break occurs at a run of spaces, exactly ONE space of that run is
+ * consumed as the wrap point (it becomes the line break); the remaining
+ * spaces of the run are rendered at the start of the next segment. Words are
+ * kept whole while they fit; a single word or space run wider than the
+ * column is split by code point so no content is ever truncated or clipped
+ * off the page.
  */
 function wrapLine(font: PDFFont, line: string): string[] {
   if (line === "") {
@@ -78,17 +91,16 @@ function wrapLine(font: PDFFont, line: string): string[] {
   const maxWidth = PAGE_SIZE[0] - MARGIN * 2;
   const segments: string[] = [];
   let current = "";
-  for (const word of line.split(" ")) {
-    const candidate = current === "" ? word : `${current} ${word}`;
-    if (font.widthOfTextAtSize(candidate, FONT_SIZE) <= maxWidth) {
-      current = candidate;
-      continue;
-    }
-    if (current !== "") {
-      segments.push(current);
-    }
+  // Spaces seen since the last rendered word: they belong to the content and
+  // are only committed once the word they precede is placed (or at the end
+  // of the line, as trailing spaces).
+  let pendingSpaces = "";
+
+  // Split content wider than the column by code point (spaces included) so
+  // nothing is ever truncated; leaves the tail in `current`.
+  const splitOverflow = (content: string): void => {
     let chunk = "";
-    for (const char of word) {
+    for (const char of content) {
       if (font.widthOfTextAtSize(chunk + char, FONT_SIZE) <= maxWidth) {
         chunk += char;
       } else {
@@ -97,8 +109,46 @@ function wrapLine(font: PDFFont, line: string): string[] {
       }
     }
     current = chunk;
+  };
+
+  // Tokenize into maximal space runs and words. Splitting on single spaces
+  // (the previous implementation) made empty tokens indistinguishable from
+  // "no content" and silently dropped leading/trailing/repeated spaces.
+  const tokens = line.match(/ +|[^ ]+/g) ?? [];
+  for (const token of tokens) {
+    if (token[0] === " ") {
+      pendingSpaces += token;
+      // A space run can overflow on its own (line start / continuation).
+      if (font.widthOfTextAtSize(current + pendingSpaces, FONT_SIZE) > maxWidth) {
+        if (current !== "") {
+          segments.push(current);
+          // D-024 reflow normalization: exactly one space of the run
+          // becomes the break; the rest stays visible content.
+          pendingSpaces = pendingSpaces.slice(1);
+        }
+        const spaces = pendingSpaces;
+        pendingSpaces = "";
+        splitOverflow(spaces);
+      }
+      continue;
+    }
+    const candidate = current + pendingSpaces + token;
+    if (font.widthOfTextAtSize(candidate, FONT_SIZE) <= maxWidth) {
+      current = candidate;
+      pendingSpaces = "";
+      continue;
+    }
+    if (current !== "") {
+      segments.push(current);
+      // D-024 reflow normalization: exactly one space of the run between
+      // the two rendered segments becomes the line break.
+      pendingSpaces = pendingSpaces.slice(1);
+    }
+    const content = pendingSpaces + token;
+    pendingSpaces = "";
+    splitOverflow(content);
   }
-  segments.push(current);
+  segments.push(current + pendingSpaces);
   return segments;
 }
 

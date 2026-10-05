@@ -10,9 +10,15 @@
  *     content but not purely cosmetic re-wrapping.
  *   - a word longer than the text column is split by the builder, so the
  *     long-token case compares with all whitespace removed.
+ *   - pdf.js itself normalizes spaces (it synthesizes items from glyph gaps
+ *     and trims item-boundary spaces), so it CANNOT falsify space
+ *     preservation. The whitespace witnesses below therefore read the exact
+ *     drawn strings back from the PDF content streams (`<hex> Tj`, inflated
+ *     and decoded) — the artifact-level truth of what the builder rendered.
  *
  * Synthetic/no-PHI fixtures only.
  */
+import { inflateSync } from "node:zlib";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PdfRepresentationError, SAFE_PDF_FILENAME, buildSafePdfBytes } from "./pdf-builder";
@@ -67,6 +73,38 @@ async function extractPdfText(bytes: Uint8Array): Promise<Extracted> {
 const collapse = (value: string): string => value.replace(/\s+/g, " ").trim();
 const despace = (value: string): string => value.replace(/\s+/g, "");
 
+/**
+ * Read back the EXACT strings the builder drew: inflate every content stream
+ * and decode every `<hex> Tj` text-showing operator (pdf-lib writes text as
+ * hex strings; WinAnsi/ASCII fixtures decode 1:1). Unlike the pdf.js joined
+ * extraction, this cannot be fooled by pdf.js's own space normalization.
+ */
+function drawnSegments(bytes: Uint8Array): string[] {
+  const raw = Buffer.from(bytes).toString("latin1");
+  const segments: string[] = [];
+  const streamRe = /stream\r?\n([\s\S]*?)endstream/g;
+  let stream: RegExpExecArray | null;
+  while ((stream = streamRe.exec(raw)) !== null) {
+    let content: string;
+    try {
+      content = inflateSync(Buffer.from(stream[1], "latin1")).toString("latin1");
+    } catch {
+      continue;
+    }
+    const tjRe = /<([0-9A-Fa-f\s]*)>\s*Tj/g;
+    let tj: RegExpExecArray | null;
+    while ((tj = tjRe.exec(content)) !== null) {
+      const hex = tj[1].replace(/\s/g, "");
+      let text = "";
+      for (let i = 0; i < hex.length; i += 2) {
+        text += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16));
+      }
+      segments.push(text);
+    }
+  }
+  return segments;
+}
+
 describe("filename constant", () => {
   it("is the D-024 Safe PDF filename", () => {
     expect(SAFE_PDF_FILENAME).toBe("texto-preparado.pdf");
@@ -98,6 +136,47 @@ describe("representable Spanish text reads back without corruption", () => {
     for (const char of supported) {
       expect(extracted, `missing supported character ${JSON.stringify(char)}`).toContain(char);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Whitespace is content (D-024: the PDF must not narrow the Safe string).
+// These witnesses read the exact drawn strings back from the content streams.
+// Red pre-fix (verified against the uncorrected builder): the leading-space
+// and all-space fixtures drew `["Encabezado con sangría"]` and `[]` because
+// `split(" ")` + the `current === ""` sentinel dropped empty tokens.
+// The internal/trailing fixtures were already preserved pre-fix; they are
+// boundary preservation witnesses against regression.
+// ---------------------------------------------------------------------------
+describe("whitespace preservation — leading, repeated, trailing spaces survive", () => {
+  const preservationCases: ReadonlyArray<{ label: string; line: string }> = [
+    { label: "leading spaces", line: "   Encabezado con sangría" },
+    { label: "consecutive internal spaces", line: "Campo:    valor" },
+    { label: "trailing space", line: "Línea final " },
+    { label: "a line made only of spaces", line: "   " },
+  ];
+
+  for (const { label, line } of preservationCases) {
+    it(`draws ${label} exactly as sent`, async () => {
+      const bytes = await buildSafePdfBytes(line);
+      expect(drawnSegments(bytes)).toEqual([line]);
+    });
+  }
+
+  it("keeps the wrap-point normalization to exactly one space of a space run", async () => {
+    // 45+45 glyph column overflow forces one wrap inside the 3-space run:
+    // one space becomes the line break, the other two stay visible content
+    // (rendered as the leading spaces of the continuation segment).
+    const line = "x".repeat(45) + "   " + "y".repeat(45);
+    const bytes = await buildSafePdfBytes(line);
+    expect(drawnSegments(bytes)).toEqual(["x".repeat(45), "  " + "y".repeat(45)]);
+  });
+
+  it("never truncates a space run wider than the text column", async () => {
+    const spaces = " ".repeat(600);
+    const bytes = await buildSafePdfBytes(spaces);
+    const drawn = drawnSegments(bytes);
+    expect(drawn.join("")).toBe(spaces);
   });
 });
 

@@ -36,7 +36,10 @@ const BATCH_DOCS = [
   path.resolve(__dirname, "fixtures/batch-doc-2.txt"),
 ];
 
-const CONFIDENTIAL_WARNING_LINE = "CONFIDENTIAL — INTERNAL AUDIT ARTIFACT";
+// PDR-08: the single-item zone warning line is Spanish UI copy; the English
+// `CONFIDENTIAL — INTERNAL AUDIT ARTIFACT` marker is the serialized-payload
+// authority and is asserted against downloaded artifacts, not this surface.
+const CONFIDENTIAL_WARNING_LINE = "Confidencial — artefacto interno de auditoría";
 
 /** The changed Gate + Export surfaces and the pairs UX-PILOT-02 actually styles. */
 type MeasuredPair = { readonly label: string; readonly locator: Locator };

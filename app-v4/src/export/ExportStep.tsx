@@ -746,14 +746,32 @@ function SingleItemResult({
     confidentialBlocked: confidentialAuditBlocked,
   };
 
+  // Unmount disposal (handoff §4.6, D-024 async safeguard): the snapshot
+  // above stays SELF-CONSISTENT after the Result is removed (New Job / Clear
+  // session unmounts <ExportStep>), so the just-in-time guard alone would
+  // still pass and a completed generation would download a stale artifact.
+  // The disposal flag set in the effect cleanup closes that gap: completion
+  // after unmount produces ZERO download and zero false success.
+  const disposedRef = useRef(false);
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  }, []);
+
   // Just-in-time guard: true only while the requested Job + review + canonical
-  // payload are still current and still ready. Evaluated immediately before
-  // any bytes are produced and any download begins.
+  // payload are still current and still ready, and the Result has not been
+  // disposed by unmount. Evaluated immediately before any bytes are produced
+  // and any download begins.
   const isAuthorityCurrent = (requested: {
     readonly jobId: string;
     readonly review: ReviewSession;
     readonly safeText: string;
   }): boolean => {
+    if (disposedRef.current) {
+      return false;
+    }
     const current = authorityRef.current;
     return (
       current.ready &&
@@ -804,6 +822,18 @@ function SingleItemResult({
   const handleCopy = async () => {
     if (view.state !== "ready" || safeText === null || review === null) return;
     const requested = { jobId: job.id, review, safeText };
+    // Revalidate BEFORE the clipboard write: a stale authority (or a disposed
+    // Result) refuses with the truthful "nothing was copied" message and
+    // never reaches the platform clipboard.
+    if (!isAuthorityCurrent(requested)) {
+      if (disposedRef.current) return; // unmounted: no visible surface to report to
+      setFeedback({
+        action: "copy",
+        status: "error",
+        message: "La revisión cambió; no se copió ningún texto.",
+      });
+      return;
+    }
     setFeedback({
       action: "copy",
       status: "pending",
@@ -811,14 +841,10 @@ function SingleItemResult({
     });
     try {
       await copyTextToClipboard(requested.safeText);
-      if (!isAuthorityCurrent(requested)) {
-        setFeedback({
-          action: "copy",
-          status: "error",
-          message: "La revisión cambió; no se copió ningún texto.",
-        });
-        return;
-      }
+      // The platform accepted the write: report success factually. The
+      // clipboard now holds the text, so a post-write authority change must
+      // not produce a message that misstates what happened (no false failure
+      // and no false success — handoff §3).
       setFeedback({
         action: "copy",
         status: "success",
@@ -859,7 +885,10 @@ function SingleItemResult({
     try {
       const bytes = await buildSafeDocxBytes(requested.safeText);
       // Re-check AFTER the awaited generation and immediately before download.
+      // The guard also fails after unmount (disposal), so completion of a
+      // removed Result downloads nothing.
       if (!isAuthorityCurrent(requested)) {
+        if (disposedRef.current) return; // unmounted: no visible surface to report to
         setFeedback({
           action: "docx",
           status: "error",
@@ -896,7 +925,10 @@ function SingleItemResult({
     try {
       const bytes = await buildSafePdfBytes(requested.safeText);
       // Re-check AFTER the awaited generation and immediately before download.
+      // The guard also fails after unmount (disposal), so completion of a
+      // removed Result downloads nothing.
       if (!isAuthorityCurrent(requested)) {
+        if (disposedRef.current) return; // unmounted: no visible surface to report to
         setFeedback({
           action: "pdf",
           status: "error",
@@ -1215,7 +1247,7 @@ function SingleItemResult({
         </div>
         <div className="p-4">
           <p className="text-sm font-semibold text-neutral-800">
-            {CONFIDENTIAL_AUDIT_WARNING_LINE}
+            Confidencial — artefacto interno de auditoría
           </p>
           <p className={`mt-2 ${zoneBody}`}>
             Este archivo contiene los valores originales sensibles, sus reemplazos y las notas de
