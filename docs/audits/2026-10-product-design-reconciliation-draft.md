@@ -7,6 +7,8 @@ Canonical V4 inspected: `3.0-main@f6e1a0cdd638bb25a7341ec15cd3735ed586ae9b`
 V3 product reference inspected: `331bcaf4a624659c77823a0c4b427d46347ea104`
 Purpose: reconcile the product as a human clinical tool before resuming user-facing recovery work REC-05→REC-11.
 
+> **Superseded as decision input on 2026-10-05.** This draft remains provenance only. The reconciled decision is `docs/audits/2026-10-product-design-reconciliation-final.md`; binding authority is `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`.
+>
 > This document is deliberately provisional. It records Cora's first product-design reconciliation so it can be challenged by an independent adversarial product/UX review before any Human Product Design Authority, REC-05 reshape, Recovery Plan change or product freeze is accepted.
 
 ## 0. Executive verdict

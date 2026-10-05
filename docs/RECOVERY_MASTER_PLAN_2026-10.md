@@ -6,12 +6,16 @@
 > Frozen pre-refactor authority: `e164ca2`
 > Current V4 reference at shaping: `3.0-main@6fb5eb1fb867e022acc68dd2be39b16bd531f27a`
 > Companion matrix: `docs/audits/2026-10-recovery-traceability-matrix.md`
+> Human product authority: `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` (accepted 2026-10-05; governs REC-05→REC-11)
+> Product-design reconciliation: `docs/audits/2026-10-product-design-reconciliation-final.md`
 
 ## 1. Recovery doctrine
 
 Recovery does **not** mean reverting to v3. The V4 platform is retained: ReviewSession, RegistryEngine, ProcessingContext, fail-closed behavior, Safe Output / Confidential Audit separation, low-confidence review, Privacy Gate, structured hardening, Web Worker, local-only runtime, Vite/React/TypeScript and the deterministic test/CI foundation.
 
 Recovery means restoring or deliberately replacing the product capabilities and product contract that were lost when “parity” was reduced to workflow existence. No legacy behavior is copied back when the audit identified it as unsafe. The useful capability is recovered on top of the V4 safety/domain model.
+
+From 2026-10-05, recovery also distinguishes **domain/technical topology from human product topology**. The V4 state machine may remain internally intact while user-facing phases/navigation are simplified or recomposed under `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`.
 
 A Work Order may not claim parity merely because a workflow or component exists. Its acceptance must cover the exact capability, language/output format and user action it owns. The matrix is a traceability index, not self-proving completeness: REC-12 must first reconcile the frozen source audits + v3 product heritage against the matrix and require every material source obligation to have a row or an explicit `DELIBERATELY_SUPERSEDED` decision.
 
@@ -135,147 +139,219 @@ A safe generated PDF report/export **is** recovery; layout-preserving redaction 
 
 ---
 
+### Product-design reconciliation overlay — effective for REC-05→REC-11
+
+Before REC-05 execution, the human product layer was independently re-audited and reconciled. `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` is now binding for every user-facing recovery ticket.
+
+The recovery IDs remain unchanged for traceability; this is **not** a new parallel train. However, REC-05→REC-11 may no longer be executed literally from their pre-reconciliation UI implications.
+
+Cross-cutting rules effective immediately:
+
+- the former universal `Input → Configure → Review → Privacy Gate → Export` presentation is not product authority;
+- no visible no-op phase;
+- Spanish human vocabulary applies to every newly built/reworked surface from now on, while REC-10 retains exhaustive localization closeout;
+- task prominence, density and visual hierarchy apply to every newly built/reworked surface from now on, while REC-11 retains exhaustive visual-system closeout;
+- realistic-density rendered/task evidence is required for interaction claims;
+- unresolved layout mechanics are tested in the real product on bounded branches by default, not by creating a separate mini-application train;
+- any apparent need to weaken accepted privacy/domain/security semantics is a HUMAN STOP.
+
+The REC-05 handoff prepared before this reconciliation is retired as execution authority. It stopped before WU-A with zero product mutation; a fresh handoff/review anchor is required.
+
+---
+
 ### REC-05 — SINGLE-OUTPUT-PARITY-01
 
-**Goal:** restore useful text/single-document output actions on top of canonical reviewed state.
+**Reshaped goal:** restore useful text/single-document output capabilities inside the accepted human **Result** model, on top of canonical reviewed state.
 
 **Owns**
-- `Copiar texto preparado` / clipboard action derived exclusively from Safe Output;
-- retain Safe TXT;
-- Safe DOCX if retained from the accepted target capability;
-- Safe generated PDF report/export;
-- separate Confidential Audit download/report with an additional deliberate-download confirmation; originals/mappings must never appear in Safe formats merely because the old jsPDF report did;
-- Spanish file names/copy and content-zone distinction.
+- canonical `Copiar resultado preparado` capability derived exclusively from Safe Output;
+- Safe TXT;
+- Safe DOCX if retained from accepted target capability;
+- Safe generated PDF output/report;
+- separate Confidential Audit download/report with an additional deliberate-download confirmation;
+- human Result states driven by existing authority: ready / needs attention / blocked, with factual warnings;
+- contextual output hierarchy: copy may be primary for pasted text, while document-oriented work may prioritize the useful document download;
+- Spanish file names and user-facing copy for this reworked surface;
+- visual asymmetry between prepared/shareable Result and identifiable Confidential Audit.
+
+**Must not**
+- turn Copy/TXT/DOCX/PDF/Confidential into five equal-weight actions merely because five capabilities exist;
+- require the user to understand `Safe Output`, serializer architecture or `Privacy Gate` as internal concepts;
+- merge original↔replacement mapping/reviewer notes into Safe formats;
+- claim layout-preserving redaction of uploaded PDFs.
 
 **Acceptance**
-- copy/TXT/DOCX/PDF all derive byte-semantically from canonical final reviewed state;
+- copy/TXT/DOCX/PDF derive byte-semantically from canonical final reviewed state;
 - pending review blocks every Safe format;
 - planted original↔replacement mapping/reviewer notes cannot cross into Safe files;
 - Confidential Audit requires a distinct deliberate confirmation immediately before download;
-- a deliberately kept original behaves exactly as ReviewSession says and remains warned at Gate;
-- PDF recovery does not claim layout-preserving redaction of source PDFs.
+- a deliberately kept original behaves exactly as ReviewSession says and remains a factual warning in Result;
+- PDF recovery does not claim source-layout preservation;
+- the Result surface makes readiness, remaining attention and the appropriate next action understandable without requiring `Privacy Gate` vocabulary;
+- the primary output action is justified by the material/use rather than globally hard-coded to Copy;
+- Safe and Confidential pass `G-HP8`/`G-HP9` from the Human Product Design Authority.
+
+**Status:** **RESHAPED / NEW HANDOFF REQUIRED.** Previous REC-05 pre-implementation anchor/handoff is historical provenance only after product-design reconciliation.
 
 ---
 
 ### REC-06 — BATCH-WORKFLOW-PARITY-01
 
-**Goal:** finish batch as a usable professional workflow, not only a correct state machine.
+**Reshaped goal:** finish batch as a professional multi-document work queue with local recovery, not only a correct state machine.
 
 **Owns**
 - explicit retry action for retryable failed items;
-- remove-from-batch action with clear consequences;
+- remove/dispose-from-batch action with clear consequences;
 - explicit failure/error acknowledgement where appropriate;
-- process/review-required/completed/error actions/states that match the domain authority;
+- process/review-required/completed/error actions/states that match domain authority;
 - clear shared-consistency fact/control if product choice allows disabling it;
-- preserve per-document ReviewSession and failure visibility.
+- preserve per-document ReviewSession and failure visibility;
+- attention-oriented batch navigation: pending / error / ready facts remain easy to locate at realistic batch size;
+- Spanish human-language status/action copy on reworked batch surfaces.
 
 **Acceptance**
-- failed item can be acted upon without starting a new entire job;
+- a failed item can be acted upon without starting a new entire job;
 - removing/retrying cannot fabricate completion or lose unrelated document decisions;
+- selecting/navigating documents never fabricates review completion;
 - every state/action is keyboard/touch accessible and factual;
-- batch Gate uses the same authoritative item state.
+- the same authoritative batch item state drives Result readiness;
+- a synthetic batch with multiple documents including at least one local read/process failure remains orientable and recoverable without destroying unrelated successful work;
+- the ordinary user need not understand `ProcessingContext` to benefit from cross-document consistency.
 
 ---
 
 ### REC-07 — BATCH-OUTPUT-PARITY-01
 
-**Goal:** recover batch deliverables safely.
+**Reshaped goal:** recover useful batch **Result** deliverables safely and coherently with the single-result model.
 
 **Owns**
-- batch Safe Output contract after every required item is completed and failures resolved/explicitly disposed;
+- batch prepared-result contract after every required item is completed and failures resolved/explicitly disposed;
 - consolidated safe PDF where useful;
 - individual safe outputs packaged as ZIP;
-- batch summary CSV (or a deliberately accepted safer equivalent);
-- separate batch Confidential Audit/correspondence artifact with the same deliberate-download confirmation contract as other Confidential outputs;
-- compose the safe single-document output primitives established by REC-05 instead of creating a second PDF/document serialization authority;
-- deterministic naming/indexing and explicit handling of removed/failed items.
+- batch summary CSV (or a deliberately accepted safer/more useful equivalent);
+- separate batch Confidential Audit/correspondence artifact with the same deliberate-download confirmation contract;
+- compose the single-document safe output primitives established by REC-05 instead of creating a second serializer authority;
+- deterministic naming/indexing and explicit handling of removed/failed items;
+- human output hierarchy appropriate to batch work rather than copying the single-text layout mechanically.
 
 **Acceptance**
 - no batch-wide artifact is fabricated while any mandatory review/failure blocker remains;
 - individual/consolidated Safe outputs contain only canonical reviewed safe content;
 - Confidential mapping never leaks into individual/consolidated Safe PDF/ZIP/summary;
 - Confidential batch artifacts require a distinct deliberate confirmation;
-- output manifest accounts for every original batch item.
+- output manifest accounts for every original batch item;
+- Result communicates ready / needs attention / blocked from authoritative batch state;
+- the user can understand which batch deliverable is the normal next action without treating Confidential Audit as an equivalent format choice.
 
 ---
 
 ### REC-08 — INPUT-PRODUCTIVITY-PARITY-01
 
-**Goal:** recover low-risk input conveniences that made the original practical.
+**Reshaped goal:** make starting work direct and human, recovering useful input conveniences while keeping routing deterministic/fail-closed underneath.
 
 **Owns**
 - Spanish synthetic preloaded examples (Urgencias, Quirúrgico, Historia Clínica or improved equivalents);
 - explicit `Pegar` clipboard convenience with graceful fallback to Ctrl+V;
-- clearer drag/drop/select-file affordance and format explanation;
-- preserve automatic Job inference and fail-closed format handling;
-- close the frozen UX requirement that inference “allow override when necessary”: either define a bounded legitimate override without weakening fail-closed format authority, or record an explicit `DELIBERATELY_SUPERSEDED` decision explaining why deterministic/fail-closed routing replaces it;
+- clear drag/drop/select-file affordance and concise format help;
+- preserve automatic input-family inference and fail-closed format handling;
+- remove permanent ordinary-path explanation of internal job routing when the product has already inferred it safely;
+- human-purpose/intended-use wording for policy selection only where it maps unambiguously to the canonical policy authority;
+- close the frozen UX requirement that inference “allow override when necessary”: either define a bounded legitimate override without weakening fail-closed authority, or record an explicit `DELIBERATELY_SUPERSEDED` decision;
 - never reintroduce false `.doc` support.
 
 **Acceptance**
 - one action loads each synthetic example without PHI;
 - Paste never sends content anywhere and handles denied clipboard permission cleanly;
 - example/paste/file pathways converge on the same Job creation authority;
-- pipeline override is not allowed to disappear silently: the accepted outcome is either tested bounded override or explicit `DELIBERATELY_SUPERSEDED` evidence.
+- the ordinary start state prioritizes adding information rather than teaching `Text job / Document job / Structured job / Batch` routing;
+- pipeline override is either a tested bounded capability or explicitly superseded with rationale;
+- mixed/unsupported selections fail with actionable Spanish explanation rather than silent guessing.
 
 ---
 
 ### REC-09 — APP-IA-REVIEW-PRODUCTIVITY-01
 
-**Goal:** finish the application information architecture and expert review productivity promised by the UX audit.
+**Reshaped goal:** finish dynamic human IA and Review productivity without making domain phases, metrics or technical anchors the product.
 
 **Owns**
-- minimal app IA: New Job / Workspace / Policies / Help, or a documented equivalent that preserves those functions;
-- dedicated Policies/Help content without duplicating policy-engine authority;
-- review shortcuts: Accept, Modify, Keep original, manual mark, next/previous pending (candidate vocabulary from frozen audit: A/M/K/F + J/K or arrows, subject to collision-safe implementation);
-- `Keep original` safety affordance from frozen UX-10: when the entity is a direct identifier, require contextual confirmation and explain before the decision that the original will remain in Safe Output;
-- shortcut discovery/help and disablement while typing/editing;
+- remove the universal-stepper assumption and any visible no-op Configure/Review destination from ordinary journeys;
+- a quiet application shell in which the current task outranks persistent metadata/help;
+- Policies/Help remain discoverable without repeating full policy documentation below every operational surface;
+- high-volume Review interaction: content/current decision/remaining work dominate; exact pane count is not frozen;
+- efficient next/previous attention flow and correction/undo behavior;
+- evaluate explicit grouped/bulk confirmation only if useful, with scope clarity, no silent acceptance and appropriate treatment of low-confidence/exceptional items;
+- `Keep original` safety affordance: direct identifiers require contextual explanation/confirmation before the original remains in prepared output;
+- manual missed-entity marking through text selection + human category/confirmation; source offsets remain internal and never become an ordinary form field;
+- shortcut discovery/help and disablement while typing/editing where shortcuts are retained;
 - no PHI-bearing job history.
 
 **Acceptance**
-- every IA destination has a distinct useful purpose;
-- shortcuts mutate only ReviewSession and are impossible while focus is in an editable field where they would conflict;
-- keyboard workflow can move through pending review without hidden state changes;
-- a direct identifier cannot be kept original through the ordinary Review UI without the contextual confirmation/explanation; REC-12 has an explicit E2E for this path.
+- every visible destination/phase has a distinct human purpose;
+- no ordinary text/document path must visit a screen that says no configuration is required;
+- no structured path must visit an empty/no-op Review surface merely for pipeline symmetry;
+- manual marking can be completed without entering offsets or other internal representation details;
+- a direct identifier cannot be kept original through ordinary Review without the contextual confirmation/explanation;
+- a realistic synthetic document with dozens of detections remains navigable/reviewable without turning the default UI into a metrics dashboard;
+- any grouped/bulk review remains explicit, correctable and incapable of silently accepting low-confidence/exceptional work;
+- representative decisions can be revisited/corrected without losing unrelated accepted decisions;
+- rendered/task evidence satisfies `G-HP1` through `G-HP7` as applicable.
 
 ---
 
 ### REC-10 — SPANISH-LOCALIZATION-01
 
-**Goal:** make the clinical product Spanish end-to-end without altering engine/domain semantics.
+**Reshaped goal:** enforce Spanish human language as a foundation for every newly touched user surface and close the remaining product localization end-to-end once surfaces stabilize.
 
-**Owns**
-- all visible app copy, buttons, headings, status labels, empty states, policy guidance and actionable errors;
+**Foundation effective immediately**
+- all newly built/reworked ordinary UI uses Spanish professional/user language;
+- user-facing terms describe intent (`Resultado preparado`, `Necesita revisión`, `Mantener original`, etc.) rather than internal enums/classes;
+- policy/use wording remains factual and derived from canonical semantics;
+- internal IDs/status enums need not be translated when not user-facing.
+
+**Closeout owns**
+- all remaining visible app copy, buttons, headings, status labels, empty states, policy guidance and actionable errors;
 - `aria-label`/accessible names and screen-reader text;
 - generated Safe/Confidential artifact labels where user-facing;
 - filenames where appropriate;
 - terminology consistent with seudonimización/preparación, never unsupported anonymity/compliance claims;
-- `lang="es"` must match actual content.
+- `lang="es"` matching actual content.
 
 **Acceptance**
 - no ordinary production UI surface is English except unavoidable technical/file vocabulary deliberately retained;
-- tests/E2E assert Spanish user-facing contract without translating internal IDs/status enums;
-- error/remedy text is actionable Spanish.
+- tests/E2E assert Spanish user-facing contract without translating invisible internal IDs/status enums;
+- error/remedy text is actionable Spanish;
+- a healthcare professional can complete representative ordinary journeys without translating internal product terminology mentally.
 
 ---
 
 ### REC-11 — VISUAL-SYSTEM-RECOVERY-01
 
-**Goal:** deliver the visual product defined by the UX audit: a professional clinical privacy workstation with Sophilux identity, not a legacy microsite and not a generic neutral scaffold.
+**Reshaped goal:** enforce functional hierarchy/density from the next user-facing change onward and close with one coherent professional clinical privacy workstation.
 
-**Owns**
-- formal V4 design tokens/components using the already-preserved rose/primary/surface primitives;
-- warm stone/rose Sophilux identity with darker accessible operational rose;
-- Inter operational typography; JetBrains Mono (or explicitly accepted equivalent) for technical IDs/values; Cormorant only as restrained brand accent if retained;
-- professional density and hierarchy for Review/Structured/Batch/Gate/Export;
-- consistent states: success emerald, needs-review amber, blocking red, info blue, neutral stone/slate;
-- responsive/mobile/tablet behavior must remain functional;
-- visual regression/reference evidence for the main states.
+**Foundation effective immediately**
+- primary human task must visually dominate documentation/evidence/chrome;
+- avoid equal-weight card walls when comparison/scanning is the work;
+- professional desktop density is intentional; more whitespace is not automatically better;
+- state, pending/success/failure and destructive/sensitive actions are visually distinguishable without color-only meaning;
+- Safe/prepared Result and Confidential Audit are deliberately asymmetric;
+- current rose/warm-surface identity may be reused, but branding never outranks operational clarity.
+
+**Closeout owns**
+- formal V4 design tokens/components using accepted product identity;
+- warm stone/rose Sophilux identity with darker accessible operational rose where retained;
+- Inter operational typography; mono only where technical values genuinely benefit; Cormorant only as restrained brand accent if retained;
+- professional density and hierarchy across Input/Review/Structured/Batch/Result;
+- consistent semantic states: success, needs review, blocking, info, neutral;
+- responsive/mobile/tablet behavior remains functional while desktop remains the primary professional surface;
+- visual regression/reference evidence for main states.
 
 **Acceptance**
 - text/document/batch/structured unmistakably look like one finished application;
 - no reintroduction of giant marketing cards/heroes inside clinical workflow;
 - WCAG contrast/focus and no-color-only status remain green;
-- screenshots/reference states are part of acceptance, so visual identity cannot disappear from future “parity” definitions.
+- screenshots/reference states are acceptance evidence;
+- realistic-density review/structured/batch surfaces remain legible and task-oriented rather than degenerating into repeated equivalent cards or long explanatory documents;
+- user-facing actions provide perceptible pending/success/failure feedback where latency exists.
 
 ---
 
@@ -314,25 +390,29 @@ REC-01 Spanish engine assurance
 REC-03 core Study-ID / structured class semantics
    └──> REC-04 Structured I/O + output parity
 
-REC-05 Single text/document output parity ─┐
-                                           ├──> REC-07 Batch output parity
-REC-06 Batch workflow parity ──────────────┘
+HUMAN_PRODUCT_DESIGN_AUTHORITY_V1 (effective across all remaining UI work)
 
-REC-08 Input productivity parity
+REC-05 Single Result/output parity ─────────┐
+                                            ├──> REC-07 Batch Result/output parity
+REC-06 Batch workflow/recovery parity ──────┘
 
-REC-02 + REC-03 + REC-04 + REC-05 + REC-06 + REC-07 + REC-08
-                         └───────────────┐
-                                         v
-                         REC-09 App IA/review productivity
-                                         v
-                         REC-10 Spanish localization
-                                         v
-                         REC-11 Visual system recovery
-                                         v
-                         REC-12 Recovery closeout + governance
+REC-08 Human input/productivity parity
+REC-09 Dynamic IA + Review productivity
+
+REC-10 Spanish foundation ───────── effective from first reworked surface
+REC-11 Visual hierarchy foundation ─ effective from first reworked surface
+
+REC-05 + REC-06 + REC-07 + REC-08 + REC-09
+                 └──────────────────────────┐
+                                            v
+                          REC-10 localization closeout
+                                            v
+                          REC-11 visual-system closeout
+                                            v
+                          REC-12 recovery closeout + governance
 ```
 
-REC-01 should begin first. After it, REC-02, REC-03 core Study-ID/class work, REC-05 and REC-06 may progress in parallel when Work Unit boundaries do not touch the same authority. The REC-03 free-text routing work unit waits for REC-02 final mappings. REC-07 waits for both REC-05 safe single-output primitives and REC-06 batch workflow authority. REC-10 and REC-11 intentionally come late so we do not translate/style transient surfaces twice.
+REC-01 through REC-04 are complete. REC-05 remains the next numbered recovery Work Order, but only after a **fresh post-reconciliation handoff/review anchor**. REC-07 still waits for REC-05 safe single-output primitives and REC-06 batch workflow authority. REC-08 and REC-09 may be scheduled where their touched authorities do not collide with the active Work Order. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every surface touched from REC-05 onward, while their exhaustive closeouts remain late so transient surfaces are not polished twice.
 
 ## 5. Fixed authorities that survive recovery
 
