@@ -1,9 +1,9 @@
 # Atenea Execution Routing v0
 
-Status: **CURRENT C-084 ROUTING AUTHORITY**
+Status: **CURRENT C-085 ROUTING AUTHORITY**
 Date: 2026-10-03
 
-This file maps engineering roles to project-local native OpenCode V2 agents. It does not duplicate Matt skill procedures. C-084 keeps role/model policy project-local; the active global OpenCode config contains provider/MCP capability plus the Herdr observability integration, and no Gentle execution agents/plugins.
+This file maps engineering roles to project-local native OpenCode V2 agents. It does not duplicate Matt skill procedures. C-085 keeps role/model policy project-local and inherits C-084 native V2 lifecycle authority; the active global OpenCode config contains provider/MCP capability plus the Herdr observability integration, and no Gentle execution agents/plugins.
 
 ## Profiles
 
@@ -11,7 +11,7 @@ This file maps engineering roles to project-local native OpenCode V2 agents. It 
 | --- | --- | --- |
 | coordinator | `atenea-volume` → MiMo 2.6 Flash | `atenea-complex` → MiMo 2.6 Flash |
 | explorer | `atenea-explorer` → Qwen 3.8 Flash | same |
-| implementer | `atenea-implementer-volume` → DeepSeek V4 Flash | `atenea-implementer-complex` → DeepSeek V4 Flash |
+| implementer | `atenea-implementer-volume` → DeepSeek V4 Flash | `atenea-implementer-complex` → GLM 5.3 Flash high |
 | merger | `atenea-merger` → MiMo 2.6 Flash | same |
 | Standards review | `atenea-review-standards` → GPT-6 Luna high | same |
 | Spec review | `atenea-review-spec-volume` → GPT-6 Luna high | `atenea-review-spec-complex` → GPT-6.1 Sol high |
@@ -83,9 +83,11 @@ Deterministic evidence remains first line. Semgrep is added when relevant static
 
 Deep OCR is not routine. Trigger it for material auth/privacy/tenancy, concurrency/state, difficult cross-file/module contracts, unusually high criticality or a material feature/train where an additional semantic pass is justified.
 
-## Exceptional first-writer escalation
+## Standard writer and context economy
 
-If shaping shows the implementation itself is unusually open, architecture-heavy or reasoning-coupled, Cora/human may explicitly choose GLM 5.3 Flash high as first writer. Record that exception in the ticket/run; do not reinterpret every `complex` ticket as GLM-first.
+Standard writer routing is fixed at a clean work-unit boundary: `volume` uses DeepSeek V4 Flash; `complex` uses GLM 5.3 Flash high. Do not switch either route mid-unit merely because quota is inconvenient.
+
+The active OpenCode 2.0.22 user/runtime config declares a 220k effective context budget for both long-running NaN writer models with automatic compaction and ~15k recent verbatim retention. This makes compaction due around ~198k instead of waiting near the physical provider window. It is an execution-economy guard only: required tests/evidence remain authoritative and may not be weakened to save tokens.
 
 ## No quota router
 
