@@ -3,6 +3,8 @@
 Status: **CURRENT EXECUTION DECISION**
 Date: 2026-10-06
 
+> **SUPERSEDED AS CURRENT EXECUTION AUTHORITY BY C-087.** C-086 remains the thin-execution baseline retained by C-087.
+
 ## Decision
 
 C-086 restores Atenea's thin execution architecture after a regression audit against known-good `Atenea@50122a13f1d1e191e659a21ad6445267e4e354e6`.

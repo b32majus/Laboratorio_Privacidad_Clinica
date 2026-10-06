@@ -96,6 +96,6 @@ Before implementing a REC Work Order:
 3. preserve the current V4 safety/domain architecture unless the Work Order explicitly changes an authority;
 4. define acceptance criteria for **product capability + safety semantics + deterministic evidence + proportional human-product evidence**, not only route/component existence;
 5. resolve material spatial/interaction choices in the **real application on bounded branches** with synthetic/no-PHI realistic-density fixtures by default; do not invent detached prototype products unless genuinely necessary;
-6. use the current Atenea C-086 thin execution model in `AGENTS.md`;
+6. use the current Atenea C-087 execution model in `AGENTS.md`;
 7. after each REC ticket, update the matrix/plan disposition so context cannot silently narrow again;
 8. REC-12 must first prove **source → matrix completeness** against both frozen audits + material v3 heritage, then re-audit all 88+42 (or explicitly reconciled later count) rows against the final product before recovery can be called complete.
