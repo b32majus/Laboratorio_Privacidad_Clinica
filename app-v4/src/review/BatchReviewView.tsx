@@ -156,6 +156,16 @@ type RecoveryFeedback = RecoveryScope & {
 /** Open remove confirmation (#78): scoped to the job it was opened for. */
 type RemoveConfirmation = RecoveryScope & { readonly index: number };
 
+/**
+ * Confirmed removal awaiting its authoritative outcome (#86 correction). The
+ * `onRemoveBatchItem` bridge entry point returns `void`, so the component can
+ * never assume the guarded transition applied. This notice records the
+ * confirmation; the outcome is read back from the authoritative job on the
+ * next render, so a guarded no-op reports that nothing was applied instead of
+ * a false success.
+ */
+type RemovalNotice = RecoveryScope & { readonly index: number; readonly name: string };
+
 export type BatchReviewViewProps = {
   /** The frozen batch job: the single authority for per-item state. */
   readonly job: Job;
@@ -224,6 +234,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
   const [retrying, setRetrying] = useState<RetryAttempt | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState<RemoveConfirmation | null>(null);
   const [feedback, setFeedback] = useState<RecoveryFeedback | null>(null);
+  const [removalNotice, setRemovalNotice] = useState<RemovalNotice | null>(null);
   const attemptInFlight = retrying !== null && retrying.jobId === job.id;
 
   // #86 orientation. An explicit filter choice is pinned to the job it was
@@ -269,6 +280,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
     if (props.onRetryBatchItem === undefined || attemptInFlight) return;
     const scope: RecoveryScope = { jobId: job.id, policyId: job.policyId };
     setFeedback(null);
+    setRemovalNotice(null);
     setRetrying({ ...scope, index });
     let result: BatchItemRetryResult = { kind: "refused" };
     try {
@@ -312,20 +324,17 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
     const name = files[index]?.name ?? "";
     props.onRemoveBatchItem?.(index);
     setConfirmingRemove(null);
-    // #86: the removed row leaves active attention, so its consequence is
-    // reported in the persistent feedback region — it must not vanish with
-    // the row.
-    setFeedback({
-      jobId: job.id,
-      policyId: job.policyId,
-      index,
-      kind: "status",
-      text: `«${name}» se ha retirado del lote. Su error queda registrado y el documento ya no participa en el trabajo pendiente.`,
-    });
+    setFeedback(null);
+    // #86 correction: the bridge entry point returns void, so the removal is
+    // never asserted here. The notice records the confirmation; the outcome is
+    // read back from the authoritative job on the next render, and a guarded
+    // no-op is reported as not applied instead of as a false success.
+    setRemovalNotice({ jobId: job.id, policyId: job.policyId, index, name });
   };
 
   const handleAcknowledge = (index: number) => {
     props.onAcknowledgeBatchItemError?.(index);
+    setRemovalNotice(null);
     setFeedback({
       jobId: job.id,
       policyId: job.policyId,
@@ -347,6 +356,29 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
     feedback !== null &&
     feedback.jobId === job.id &&
     (feedback.kind === "error" || feedback.policyId === job.policyId);
+
+  // #86 correction: the removal outcome is derived from the authoritative job
+  // (the item's disposition), never assumed from the void callback. It is
+  // rendered in the persistent feedback region so a real removal's consequence
+  // cannot vanish with the row that leaves the current filter, while a guarded
+  // no-op honestly reports that nothing was applied.
+  let shownFeedback: RecoveryFeedback | null = feedbackVisible ? feedback : null;
+  if (
+    removalNotice !== null &&
+    removalNotice.jobId === job.id &&
+    removalNotice.policyId === job.policyId
+  ) {
+    const removed = files[removalNotice.index]?.itemDisposition === "removed";
+    shownFeedback = {
+      jobId: removalNotice.jobId,
+      policyId: removalNotice.policyId,
+      index: removalNotice.index,
+      kind: removed ? "status" : "error",
+      text: removed
+        ? `«${removalNotice.name}» se ha retirado del lote. Su error queda registrado y el documento ya no participa en el trabajo pendiente.`
+        : "La retirada no se aplicó: la acción ya no corresponde al estado actual del trabajo.",
+    };
+  }
 
   return (
     <section aria-labelledby="batch-review-step-heading">
@@ -415,16 +447,16 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
             Reintentando…{retryingName === undefined ? "" : ` «${retryingName}»`}
           </p>
         )}
-        {feedbackVisible && (
+        {shownFeedback && (
           <p
-            role={feedback!.kind === "error" ? "alert" : "status"}
+            role={shownFeedback.kind === "error" ? "alert" : "status"}
             className={`mt-3 rounded border px-3 py-2 text-sm ${
-              feedback!.kind === "error"
+              shownFeedback.kind === "error"
                 ? "border-primary-dark bg-surface-light font-semibold text-primary-dark"
                 : "border-primary bg-white text-neutral-800"
             } ${focusRing}`}
           >
-            {feedback!.text}
+            {shownFeedback.text}
           </p>
         )}
 

@@ -269,6 +269,21 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     expect(props.onRemoveBatchItem).toHaveBeenCalledWith(2);
   });
 
+  it("a guarded no-op removal is never announced as a successful removal (#86 correction)", async () => {
+    // The bridge callback here performs nothing: a stale-authority no-op. The
+    // feedback must report that nothing was applied and never claim the item
+    // left the batch.
+    const { props } = await renderView({ job: processingFailureJob() });
+    fireEvent.click(screen.getByRole("button", { name: "Retirar del lote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar retirada" }));
+    expect(props.onRemoveBatchItem).toHaveBeenCalledWith(2);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/La retirada no se aplicó/i);
+    expect(screen.queryByText(/se ha retirado del lote/i)).not.toBeInTheDocument();
+    // The item is still in active attention with its recovery actions.
+    expect(screen.getByRole("button", { name: "Retirar del lote" })).toBeInTheDocument();
+  });
+
   it("a removed item shows the retained failure plus the disposition and no recovery actions", async () => {
     const removed = removeBatchItem(processingFailureJob(), 2);
     await renderView({ job: removed });
@@ -681,22 +696,63 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
 
   it("switching filters never changes the active document, its session or its decisions", async () => {
     const job = orientationJob();
-    const sessions = { 0: await sessionFor(job, 0), 1: await sessionFor(job, 1) };
-    const { props } = await renderView({ job, sessions, activeIndex: 0 });
+    // Seed the ACTIVE document (0, completed) with real, complete decisions and
+    // a second successful document (1) as unrelated work with its own session,
+    // then prove both facts survive every filter change.
+    const sessions = {
+      0: completedSession(await sessionFor(job, 0)),
+      1: await sessionFor(job, 1),
+    };
+    const onSelectDocument = vi.fn();
+    function FiltersHarness(): ReactElement {
+      const [activeIndex, setActiveIndex] = useState<number | null>(0);
+      return (
+        <BatchReviewView
+          job={job}
+          sessions={sessions}
+          activeIndex={activeIndex}
+          retryContextAvailable
+          onSelectDocument={(next) => {
+            onSelectDocument(next);
+            setActiveIndex(next);
+          }}
+          onDecide={() => {}}
+          onAddManual={() => {}}
+        />
+      );
+    }
+    render(<FiltersHarness />);
 
+    const progress = () => screen.getByRole("status", { name: "Review progress" });
+    // The seeded decisions are exactly what the active document's workspace
+    // reports before any filter change.
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: yes");
+
+    // Filtering through every working category selects nothing and discards no
+    // decision: it is a pure presentation change.
     fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
     fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
     fireEvent.click(screen.getByRole("button", { name: "Necesitan atención (8)" }));
-    expect(props.onSelectDocument).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "En curso (3)" }));
+    expect(onSelectDocument).not.toHaveBeenCalled();
 
-    // The active document and its Review workspace survive; aria-current is
-    // unchanged once the row is visible.
+    // The active document, its decided session and its aria-current survive.
     fireEvent.click(screen.getByRole("button", { name: "Todos (16)" }));
     expect(screen.getByRole("button", { name: /queue-doc-01\.txt/ })).toHaveAttribute(
       "aria-current",
       "true"
     );
-    expect(screen.getByRole("status", { name: "Review progress" })).toBeInTheDocument();
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: yes");
+
+    // The unrelated successful document keeps its own independent session and
+    // stays usable; further filter changes leave that work untouched too.
+    fireEvent.click(screen.getByRole("button", { name: /queue-doc-02\.txt/ }));
+    expect(onSelectDocument).toHaveBeenCalledWith(1);
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: no");
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
+    expect(onSelectDocument).toHaveBeenCalledTimes(1);
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: no");
   });
 
   it("re-derives counts and membership from authoritative job props after review completion", async () => {
