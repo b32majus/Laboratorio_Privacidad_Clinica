@@ -308,7 +308,12 @@ export async function buildBatchConsolidatedPdfBytes(
   drawConsolidatedLines(first, font, bold, indexBody(startPages), addPage);
   for (const { document, pdf } of sections) {
     const cover = addPage();
-    cover.drawText(`${batchSafeDocumentLabel(document.batchIndex)} de ${documents.length}`, {
+    // The cover carries the stable original-index ordinal only. It must never
+    // present the included-document count as the denominator of an
+    // original-index ordinal: with earlier batch items removed, "Documento 2
+    // de 1" would be a false denominator (the index page already reports the
+    // included count as its own measured fact).
+    cover.drawText(batchSafeDocumentLabel(document.batchIndex), {
       x: CONSOLIDATED_MARGIN,
       y: CONSOLIDATED_PAGE_SIZE[1] - CONSOLIDATED_MARGIN,
       size: CONSOLIDATED_TITLE_SIZE,

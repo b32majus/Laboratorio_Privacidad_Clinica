@@ -328,6 +328,29 @@ describe("manifest/disposition preservation: #87 CSV unchanged, removed items pr
     expect(consolidatedText).toContain("Documento 2");
     expect(consolidatedText).not.toContain("Documento 1 —");
   });
+
+  it("cover keeps the stable original-index ordinal without the included-count denominator", async () => {
+    // A lower original index is absent (removed), so the single included
+    // document is original index 2 while the included count is 1. The cover
+    // must not present that included count as the denominator of the
+    // original-index ordinal (the old "Documento 2 de 1" false denominator).
+    let job = buildBatchJob(["falla.txt", "ok.txt"]);
+    job = recordItemRead(beginItemRead(job, 0), 0, {
+      ok: false,
+      error: { code: "pdf-no-text-layer", message: "El PDF no tiene capa de texto." },
+    });
+    job = completeItem(job, 1, "Contenido sintético B.");
+    job = derivedBatch(removeBatchItem(job, 0));
+    const documents = deriveBatchSafeDocuments(job, {
+      1: plainSession("Contenido sintético B.", "cover-ordinal-1"),
+    });
+    expect(documents).toHaveLength(1);
+    expect(documents[0].batchIndex).toBe(2);
+
+    const text = collapse(await extractPdfText(await buildBatchConsolidatedPdfBytes(documents)));
+    expect(text).toContain("Documento 2");
+    expect(text).not.toContain("Documento 2 de 1");
+  });
 });
 
 describe("all-or-nothing representation refusal (planted PDF-unrepresentable character)", () => {

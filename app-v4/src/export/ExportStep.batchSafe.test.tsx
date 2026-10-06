@@ -25,6 +25,7 @@ import { ExportStep } from "./ExportStep";
 import {
   BATCH_SAFE_CONSOLIDATED_PDF_FILENAME,
   BATCH_SAFE_ZIP_FILENAME,
+  type BatchSafeDocument,
 } from "./batchSafeDeliverables";
 import { applyDecision, createReviewSession, type ReviewSession } from "../review/review-domain";
 import {
@@ -57,12 +58,12 @@ vi.mock("./batchSafeDeliverables", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./batchSafeDeliverables")>();
   return {
     ...actual,
-    buildBatchSafeZipBytes: (documents: readonly { batchIndex: number }[]) =>
-      zipGate.suspend ? zipGate.suspend() : actual.buildBatchSafeZipBytes(documents as never),
-    buildBatchConsolidatedPdfBytes: (documents: readonly { batchIndex: number }[]) =>
+    buildBatchSafeZipBytes: (documents: readonly BatchSafeDocument[]) =>
+      zipGate.suspend ? zipGate.suspend() : actual.buildBatchSafeZipBytes(documents),
+    buildBatchConsolidatedPdfBytes: (documents: readonly BatchSafeDocument[]) =>
       consolidatedGate.suspend
         ? consolidatedGate.suspend()
-        : actual.buildBatchConsolidatedPdfBytes(documents as never),
+        : actual.buildBatchConsolidatedPdfBytes(documents),
   };
 });
 
