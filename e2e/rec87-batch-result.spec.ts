@@ -17,7 +17,11 @@
  *  - a batch that becomes ready after accepted removals downloads exactly
  *    one `resumen-lote-seguro.csv` whose rows account for every original
  *    selection index in order (removed failures as `error,retirado`);
- *  - the Safe manifest carries no source filenames and no source content.
+ *  - the Safe manifest carries no source filenames and no source content;
+ *  - REC-07 #88: the same ready Result downloads exactly one primary
+ *    `lote-documentos-seguros.zip` (ten ordinal Safe PDFs, one per prepared
+ *    document) and one secondary `lote-seguro-consolidado.pdf` (index +
+ *    sections), with ordinal entry names that carry no source filename.
  *
  * The auto no-network fixture from ./harness/fixtures applies to every test.
  */
@@ -25,6 +29,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { Page } from "@playwright/test";
+import JSZip from "jszip";
+import { PDFDocument } from "pdf-lib";
 
 import { expect, test } from "./harness/fixtures";
 
@@ -154,6 +160,44 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   expect(csv).not.toContain("12345678A");
   await page.waitForTimeout(300);
   expect(downloads).toBe(1);
+
+  // --- REC-07 #88 Safe deliverables: primary ZIP + consolidated PDF --------
+  // The ready bridge holds every per-item ReviewSession, so both async
+  // actions are enabled; the primary action is still exactly one (the ZIP).
+  await expect(page.locator('[data-variant="primary"]')).toHaveCount(1);
+
+  const [zipDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar documentos seguros (.zip)" }).click(),
+  ]);
+  expect(zipDownload.suggestedFilename()).toBe("lote-documentos-seguros.zip");
+  const zip = await JSZip.loadAsync(fs.readFileSync(await zipDownload.path()));
+  const entryNames = Object.keys(zip.files).sort();
+  // Ten prepared bodies addressed by stable original index (the two removed
+  // failures contribute no body); ordinal names only, never source filenames.
+  expect(entryNames).toHaveLength(10);
+  entryNames.forEach((name, position) => {
+    expect(name).toBe(`documento-seguro-${String(position + 1).padStart(2, "0")}.pdf`);
+  });
+  const joinedNames = entryNames.join("\n");
+  expect(joinedNames).not.toContain("rec87-doc-");
+  expect(joinedNames).not.toContain("corrupt.pdf");
+  expect(joinedNames).not.toContain("sample-scanned.pdf");
+  for (const name of entryNames) {
+    expect((await zip.files[name].async("uint8array")).length).toBeGreaterThan(0);
+  }
+
+  const [consolidatedDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar PDF consolidado del lote (.pdf)" }).click(),
+  ]);
+  expect(consolidatedDownload.suggestedFilename()).toBe("lote-seguro-consolidado.pdf");
+  const consolidated = await PDFDocument.load(fs.readFileSync(await consolidatedDownload.path()));
+  // Index + covers + one section per prepared document: strictly more pages
+  // than bare documents.
+  expect(consolidated.getPageCount()).toBeGreaterThan(10);
+  await page.waitForTimeout(300);
+  expect(downloads).toBe(3);
 
   // --- Returning to Review preserves every accepted decision -------------------
   await page.getByRole("button", { name: "Volver a la revisión" }).click();

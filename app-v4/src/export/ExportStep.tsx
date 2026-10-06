@@ -20,8 +20,10 @@
  * The structured branch is byte-unchanged in behavior:
  *   - Structured (REC-04 WU-C/D-022): Safe CSV/XLSX + Confidential TXT/XLSX.
  * The document-batch branch is the batch Result (REC-07 #87, `BatchResult`
- * below): readiness plus the Safe summary CSV, derived from the existing
- * batch authorities. Result visibility is decoupled from artifact
+ * below, extended by #88 with the per-document Safe deliverables): readiness
+ * plus the Safe summary CSV, the primary ZIP of individual prepared Safe PDFs
+ * and the secondary consolidated Safe PDF with an index — all derived from
+ * the existing batch authorities. Result visibility is decoupled from artifact
  * authorization; the batch Confidential Audit stays unavailable (#89).
  *
  * Both Safe and Confidential downloads are client-side only (Blob + object URL
@@ -79,6 +81,16 @@ import {
   deriveBatchResultView,
   serializeBatchSummaryCsv,
 } from "./batchResultModel";
+import {
+  BATCH_SAFE_CONSOLIDATED_PDF_FILENAME,
+  BATCH_SAFE_PDF_MIME,
+  BATCH_SAFE_ZIP_FILENAME,
+  BATCH_SAFE_ZIP_MIME,
+  BatchSafeDeliverablesError,
+  buildBatchConsolidatedPdfBytes,
+  buildBatchSafeZipBytes,
+  deriveBatchSafeDocuments,
+} from "./batchSafeDeliverables";
 import { deriveSingleResultView, type SingleResultMaterial } from "./singleResultModel";
 
 const focusRing =
@@ -186,6 +198,15 @@ export type ExportStepProps = {
    * render oracles can exercise the surface without the shell.
    */
   readonly onReturnToReview?: (() => void) | undefined;
+  /**
+   * REC-07 #88: the bridge-held per-item session set keyed by the original
+   * batch index (the known App.tsx → ExportStep bridge seam). The batch Safe
+   * deliverables (ZIP + consolidated PDF) derive each document's Safe content
+   * from these sessions via canonical `getFinalText(...)`. `null`/absent
+   * means the sessions are unavailable, so the per-document actions stay
+   * disabled; the #87 CSV manifest is unaffected.
+   */
+  readonly batchSessions?: Readonly<Record<number, ReviewSession>> | null;
 };
 
 /**
@@ -606,15 +627,46 @@ function batchSummaryDiagnostic(error: unknown): string {
 }
 
 /**
- * Document-batch Result (REC-07 #87): the human batch ending — readiness
- * (`Listo para usar` / `Requiere tu atención` / `Bloqueado`) plus the first
- * accepted batch Safe deliverable, all derived from the existing batch
- * authorities through `batchResultModel` (never a second state machine).
- * Result visibility is decoupled from artifact authorization: the surface
- * renders in every batch state, but the Safe summary CSV downloads exactly
- * once and only when the batch is ready. The download is synchronous and
- * client-side (Blob + object URL + anchor click, revoked afterwards): no
- * network, no persistence, no async generation path (D-013).
+ * Which batch Safe action produced the current Result feedback (REC-07 #88;
+ * same shape as the single-item `SingleResultFeedback`).
+ */
+type BatchSafeAction = "zip" | "consolidated" | "csv";
+
+type BatchSafeFeedback =
+  | { readonly action: BatchSafeAction; readonly status: "pending"; readonly message: string }
+  | { readonly action: BatchSafeAction; readonly status: "success"; readonly message: string }
+  | { readonly action: BatchSafeAction; readonly status: "error"; readonly message: string };
+
+/**
+ * Content-free diagnostic for a refused batch Safe download. Only the typed
+ * error CODE (or, for an unexpected error, its name) is retained: raw
+ * messages can name a source file, so they are never captured into state,
+ * logged or rendered (CODING_STANDARDS §4).
+ */
+function batchSafeDiagnostic(error: unknown): string {
+  if (error instanceof BatchSafeDeliverablesError) return error.code;
+  if (error instanceof BatchSummaryError) return error.code;
+  if (error instanceof Error) return error.name;
+  return "unknown-error";
+}
+
+/**
+ * Document-batch Result (REC-07 #87, extended by #88): the human batch ending
+ * — readiness (`Listo para usar` / `Requiere tu atención` / `Bloqueado`)
+ * plus the accepted batch Safe deliverables, all derived from the existing
+ * batch authorities through `batchResultModel` (never a second state machine).
+ * The primary Safe action is the ZIP of individual prepared Safe PDFs (one
+ * accepted Safe PDF per completed document, composed through REC-05
+ * `buildSafePdfBytes`, with deterministic ordinal entry names); the
+ * consolidated Safe PDF with an index and the Safe summary CSV are secondary
+ * representations. Result visibility is decoupled from artifact
+ * authorization: the surface renders in every batch state, but every Safe
+ * artifact downloads exactly once and only when the batch is ready, and each
+ * async generation revalidates the current Job/session/readiness authority
+ * after every await and immediately before download (same `authorityRef` +
+ * `disposedRef` + just-in-time guard pattern as the single-item Result).
+ * All-or-nothing per artifact: a representation refusal downloads zero bytes
+ * with a truthful non-PHI message and never mutates Job/review readiness.
  *
  * The batch Confidential Audit stays a clearly separate, deliberately
  * sensitive zone that is unavailable in this slice (#89 owns it); it is
@@ -625,13 +677,15 @@ function batchSummaryDiagnostic(error: unknown): string {
  */
 function BatchResult({
   job,
+  batchSessions,
   onReturnToReview,
 }: {
   job: Job;
+  batchSessions: Readonly<Record<number, ReviewSession>> | null;
   onReturnToReview: (() => void) | undefined;
 }): ReactElement {
   const view = deriveBatchResultView(job);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<BatchSafeFeedback | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
 
   // Transient action feedback never survives another Job: the domain inputs
@@ -639,7 +693,61 @@ function BatchResult({
   useEffect(() => {
     setFeedback(null);
     setDiagnostic(null);
-  }, [job]);
+  }, [job, batchSessions]);
+
+  // CURRENT authorization snapshot for the async batch Safe actions (REC-07
+  // #88; same accepted pattern as the single-result Result's `authorityRef`):
+  // the latest render's Job id + reference, the per-item session set
+  // identity, and the ready fact. A download is only requested against one
+  // frozen snapshot; because the ref carries the latest render it observes a
+  // Job/session/readiness change that arrives during an async generation
+  // window.
+  const authorityRef = useRef<{
+    readonly jobId: string;
+    readonly job: Job;
+    readonly sessions: Readonly<Record<number, ReviewSession>> | null;
+    readonly ready: boolean;
+  }>({ jobId: job.id, job, sessions: batchSessions, ready: view.state === "ready" });
+  authorityRef.current = {
+    jobId: job.id,
+    job,
+    sessions: batchSessions,
+    ready: view.state === "ready",
+  };
+
+  // Unmount disposal (same accepted pattern as the single-result Result's
+  // `disposedRef`): the snapshot above stays SELF-CONSISTENT after the Result
+  // is removed, so the just-in-time guard alone would still pass and a
+  // completed generation would download a stale artifact. Completion after
+  // unmount produces ZERO download and zero false success.
+  const disposedRef = useRef(false);
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  }, []);
+
+  // Just-in-time guard: true only while the requested Job + session set are
+  // still current and still ready, and the Result has not been disposed by
+  // unmount. Evaluated after every awaited generation window and immediately
+  // before any download begins.
+  const isBatchAuthorityCurrent = (requested: {
+    readonly jobId: string;
+    readonly job: Job;
+    readonly sessions: Readonly<Record<number, ReviewSession>> | null;
+  }): boolean => {
+    if (disposedRef.current) {
+      return false;
+    }
+    const current = authorityRef.current;
+    return (
+      current.ready &&
+      current.jobId === requested.jobId &&
+      current.job === requested.job &&
+      current.sessions === requested.sessions
+    );
+  };
 
   const stateLabel =
     view.state === "ready"
@@ -653,16 +761,136 @@ function BatchResult({
     try {
       downloadTextFile(BATCH_SUMMARY_CSV_FILENAME, serializeBatchSummaryCsv(job));
       setDiagnostic(null);
-      setFeedback("Descarga del resumen seguro (.csv) iniciada.");
+      setFeedback({
+        action: "csv",
+        status: "success",
+        message: "Descarga del resumen seguro (.csv) iniciada.",
+      });
     } catch (error) {
       // Fail-closed serialization: zero bytes downloaded, truthful message.
       // The refusal is not swallowed: a content-free diagnostic (typed code,
       // never the raw message) stays observable without leaking a filename
       // or source metadata into the DOM, a log or the Spanish UI copy.
       setDiagnostic(batchSummaryDiagnostic(error));
-      setFeedback("El resumen seguro todavía no está disponible para este lote.");
+      setFeedback({
+        action: "csv",
+        status: "error",
+        message: "El resumen seguro todavía no está disponible para este lote.",
+      });
     }
   };
+
+  // Per-document Safe actions need the bridge-held session set; without it
+  // they stay disabled (the #87 CSV manifest is unaffected).
+  const safeDocumentsBlocked = view.state !== "ready" || batchSessions === null;
+  const safeDocumentsDescribedBy =
+    view.state === "needs-attention"
+      ? "batch-result-attention-reason"
+      : view.state === "blocked"
+        ? "batch-result-blocked-reason"
+        : batchSessions === null
+          ? "batch-safe-documents-unavailable-reason"
+          : undefined;
+
+  const handleDownloadZip = async () => {
+    if (view.state !== "ready" || batchSessions === null) return;
+    const requested = { jobId: job.id, job, sessions: batchSessions };
+    setFeedback({
+      action: "zip",
+      status: "pending",
+      message: "Preparando el archivo ZIP con los documentos seguros…",
+    });
+    try {
+      const documents = deriveBatchSafeDocuments(requested.job, requested.sessions);
+      const bytes = await buildBatchSafeZipBytes(documents);
+      // Re-check AFTER the awaited generation and immediately before download.
+      // The guard also fails after unmount (disposal), so completion of a
+      // removed Result downloads nothing.
+      if (!isBatchAuthorityCurrent(requested)) {
+        if (disposedRef.current) return; // unmounted: no visible surface to report to
+        setDiagnostic("BATCH_SAFE_NOT_CURRENT");
+        setFeedback({
+          action: "zip",
+          status: "error",
+          message: "La revisión cambió; no se descargó ningún archivo.",
+        });
+        return;
+      }
+      downloadBinaryFile(BATCH_SAFE_ZIP_FILENAME, bytes, BATCH_SAFE_ZIP_MIME);
+      setDiagnostic(null);
+      setFeedback({
+        action: "zip",
+        status: "success",
+        message: "Descarga del ZIP con los documentos seguros iniciada.",
+      });
+    } catch (error) {
+      // All-or-nothing refusal or unauthorized derivation: zero bytes
+      // downloaded, truthful non-PHI message. The raw message can name a
+      // source file, so only the content-free diagnostic is retained.
+      if (disposedRef.current) return;
+      setDiagnostic(batchSafeDiagnostic(error));
+      setFeedback({
+        action: "zip",
+        status: "error",
+        message: "No se pudieron generar los documentos seguros del lote.",
+      });
+    }
+  };
+
+  const handleDownloadConsolidated = async () => {
+    if (view.state !== "ready" || batchSessions === null) return;
+    const requested = { jobId: job.id, job, sessions: batchSessions };
+    setFeedback({
+      action: "consolidated",
+      status: "pending",
+      message: "Preparando el PDF consolidado del lote…",
+    });
+    try {
+      const documents = deriveBatchSafeDocuments(requested.job, requested.sessions);
+      const bytes = await buildBatchConsolidatedPdfBytes(documents);
+      // Re-check AFTER the awaited generation and immediately before download.
+      if (!isBatchAuthorityCurrent(requested)) {
+        if (disposedRef.current) return; // unmounted: no visible surface to report to
+        setDiagnostic("BATCH_SAFE_NOT_CURRENT");
+        setFeedback({
+          action: "consolidated",
+          status: "error",
+          message: "La revisión cambió; no se descargó ningún archivo.",
+        });
+        return;
+      }
+      downloadBinaryFile(BATCH_SAFE_CONSOLIDATED_PDF_FILENAME, bytes, BATCH_SAFE_PDF_MIME);
+      setDiagnostic(null);
+      setFeedback({
+        action: "consolidated",
+        status: "success",
+        message: "Descarga del PDF consolidado del lote iniciada.",
+      });
+    } catch (error) {
+      // All-or-nothing refusal or unauthorized derivation: zero bytes
+      // downloaded, truthful non-PHI message.
+      if (disposedRef.current) return;
+      setDiagnostic(batchSafeDiagnostic(error));
+      setFeedback({
+        action: "consolidated",
+        status: "error",
+        message: "No se pudo generar el PDF consolidado del lote.",
+      });
+    }
+  };
+
+  const feedbackNode = feedback !== null && (
+    <p
+      role={feedback.status === "error" ? "alert" : "status"}
+      id="batch-result-action-feedback"
+      data-batch-summary-diagnostic={diagnostic ?? undefined}
+      data-batch-safe-diagnostic={diagnostic ?? undefined}
+      data-batch-safe-action={feedback.action}
+      className={feedback.status === "error" ? blockedNote : "mt-3 text-sm text-neutral-700"}
+    >
+      {feedback.message}
+    </p>
+  );
 
   const reasonId =
     view.state === "needs-attention"
@@ -727,24 +955,77 @@ function BatchResult({
 
           {view.state === "ready" ? (
             <>
-              <button
-                type="button"
-                onClick={handleDownloadSummary}
-                data-variant="primary"
-                className={primaryButton}
-              >
-                Descargar resumen seguro (.csv)
-              </button>
-              {feedback !== null && (
-                <p
-                  role="status"
-                  id="batch-result-action-feedback"
-                  data-batch-summary-diagnostic={diagnostic ?? undefined}
-                  className="mt-3 text-sm text-neutral-700"
+              <section aria-labelledby="batch-safe-primary-heading" className="mt-4">
+                <h4
+                  id="batch-safe-primary-heading"
+                  className="text-sm font-bold uppercase tracking-wide text-neutral-700"
                 >
-                  {feedback}
+                  Documentos seguros del lote
+                </h4>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                  Los documentos preparados del lote, cada uno como PDF individual en un único
+                  archivo ZIP. Es la acción principal del resultado.
                 </p>
-              )}
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadZip()}
+                    disabled={safeDocumentsBlocked}
+                    data-variant="primary"
+                    aria-describedby={safeDocumentsBlocked ? safeDocumentsDescribedBy : undefined}
+                    className={primaryButton}
+                  >
+                    Descargar documentos seguros (.zip)
+                  </button>
+                </div>
+                {batchSessions === null && (
+                  <p
+                    role="status"
+                    id="batch-safe-documents-unavailable-reason"
+                    className="mt-3 text-sm text-neutral-700"
+                  >
+                    Los documentos individuales todavía no están disponibles para este lote.
+                  </p>
+                )}
+              </section>
+
+              <section aria-labelledby="batch-safe-secondary-heading" className="mt-4">
+                <h4
+                  id="batch-safe-secondary-heading"
+                  className="text-sm font-bold uppercase tracking-wide text-neutral-700"
+                >
+                  Otros formatos
+                </h4>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                  El mismo resultado preparado en otros formatos. Son alternativas, no la acción
+                  principal. El resumen seguro (.csv) sigue siendo el manifiesto completo del lote.
+                </p>
+                <div
+                  role="group"
+                  aria-label="Otros formatos del lote"
+                  className="mt-1 flex flex-wrap gap-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => void handleDownloadConsolidated()}
+                    disabled={safeDocumentsBlocked}
+                    data-variant="secondary"
+                    aria-describedby={safeDocumentsBlocked ? safeDocumentsDescribedBy : undefined}
+                    className={secondaryButton}
+                  >
+                    Descargar PDF consolidado del lote (.pdf)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSummary}
+                    data-variant="secondary"
+                    className={secondaryButton}
+                  >
+                    Descargar resumen seguro (.csv)
+                  </button>
+                </div>
+              </section>
+              {feedbackNode}
             </>
           ) : (
             <div className="mt-1">
@@ -1452,7 +1733,13 @@ export function ExportStep(props: ExportStepProps): ReactElement {
     return <StructuredExport job={job} structured={props.structured ?? null} />;
   }
   if (job.kind === "document-batch") {
-    return <BatchResult job={job} onReturnToReview={props.onReturnToReview} />;
+    return (
+      <BatchResult
+        job={job}
+        batchSessions={props.batchSessions ?? null}
+        onReturnToReview={props.onReturnToReview}
+      />
+    );
   }
   return <SingleItemResult job={job} review={review} onReturnToReview={props.onReturnToReview} />;
 }

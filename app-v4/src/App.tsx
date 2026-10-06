@@ -804,6 +804,7 @@ export function App() {
           <ExportStep
             job={job}
             review={activeReview}
+            batchSessions={batchSessions}
             structured={structuredGateInput}
             onReturnToReview={() => void handleGoToStep("review")}
           />
