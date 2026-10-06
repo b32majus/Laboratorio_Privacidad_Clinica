@@ -1,123 +1,142 @@
-# Agent instructions — Laboratorio de Privacidad Clínica
+# Atenea — Repository Policy
 
-Status: **CURRENT — Atenea C-086 thin local execution policy**
+Status: **CURRENT AUTHORITY — C-086**
 
-This repository is the V4 brownfield privacy application. Product/domain authority is local to this repo; execution uses Atenea C-086 thin native OpenCode V2 through project-local agents and upstream Matt Pocock skills. C-086 retains the C-084 lifecycle and C-085 runtime/model economics while removing duplicated execution ceremony.
+Atenea is a thin upstream-first policy, routing and conformance layer over native OpenCode V2 and adopted upstream engineering skills. It does not duplicate those skills or implement a second execution/review lifecycle.
 
-## Read first
-
-Read only what the current work needs:
-
-1. `docs/START_HERE.md`;
-2. the accepted GitHub issue and durable execution handoff for the current unit;
-3. `CODING_STANDARDS.md` and only the relevant `CONTEXT.md` / domain authority they require;
-4. for recovery work, the owning `RECOVERY_MASTER_PLAN_2026-10.md` section and matrix/PDR rows cited by the handoff;
-5. for material human-facing work, `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` only when the handoff activates that authority;
-6. `docs/ATENEA_EXECUTION_ROUTING_V0.md` for current role/model bindings;
-7. specialized shaping/fidelity/prepublication documents only when the handoff, a concrete review finding, or the publication boundary explicitly activates them;
-8. the relevant code/tests/oracles.
-
-Historical handoffs, `docs/execution/`, `odd/tasks/`, C-077–C-085 execution prose, Gentle/Pi/RDD/4R/lineage/burn material, OpenCode V1 and `--pure` are provenance unless current authority explicitly cites them.
-
-## Repository / Git authority
-
-- Canonical V4 integration and Render deployment branch: `3.0-main`.
-- Do **not** infer the V4 base from GitHub's repository default branch; as of the C-084 reconciliation the remote default is still `main`.
-- Start implementation from a clean branch/worktree rooted at the exact accepted V4 base.
-- Do not force-push, rewrite history, auto-merge, delete remote branches, or mutate repository settings without explicit human authority.
-- A PR/review approval never grants merge or deploy authority.
-
-## C-086 thin execution boundary
-
-Herdr is persistent operator infrastructure; do not launch, restart, replace or stop it per ticket. Normal visible execution is:
+## 1. Ownership
 
 ```text
-cd <project-or-worktree>
-opencode .
+WHAT / WHY / acceptance / domain authority
+→ human + durable repository authority
+
+human product design / interaction authority
+→ attended Cora + human, when material
+
+stable engineering quality
+→ target repository AGENTS.md + CODING_STANDARDS.md
+
+technical shaping / implementation / code review method
+→ adopted Matt Pocock skills when invoked
+
+role → model binding and assurance profile
+→ Atenea project-local OpenCode agents + routing policy
+
+machine-decidable facts
+→ tests / typecheck / lint / validators / oracles / CI
+
+process persistence / observation
+→ Herdr when useful; never correctness authority
+
+publish / merge
+→ target repository policy + explicit human authority
 ```
 
-- Cost policy and risk class remain independent: `cost_policy = standard | free_only | go`; `risk_class = volume | complex`.
-- OpenCode runtime authority is V2 `2.0.22`.
-- Standard Volume writer = DeepSeek V4 Flash; Standard Complex writer = GLM 5.3 Flash high.
-- `opencode.json` keeps `default_agent = atenea-volume`; select `atenea-complex` explicitly for a Complex unit.
-- The selected primary coordinator owns `/implement` or `/implement-spec`, one canonical Standards + Spec review, review aggregation and correction dispatch.
-- Implementation workers own focused implementation/TDD, the smallest relevant deterministic checks and the fixed candidate only. Broad/full suites are integration/publication evidence by default, not writer ritual, unless the accepted handoff explicitly requires them earlier.
-- Review start closes the originating implementer write phase. Review-driven mutation goes only to a fresh bound corrector.
-- Allow at most two fresh finding-scoped correction attempts for the same authorized finding envelope. A blocker after attempt #2, a new material issue or scope expansion is HUMAN STOP.
-- Delegate by durable reference: child prompts carry the work identity/fixed point, `@handoff`, phase boundary and only a small task-specific delta. Do not restate the handoff, this file or specialized policy prose.
-- Specialized safeguards are conditional. Apply shaping/fidelity/adversarial/shared-seam safeguards only when the accepted handoff names them or a concrete review finding opens them.
-- Material product/architecture/privacy/data-semantics/acceptance choices remain attended Cora + human authority. Execution reports a concrete question and stops rather than deciding it.
-- No silent provider/model fallback, no per-ticket mutation of global OpenCode config, and no `--pure`.
-- Publication/merge remain human-owned.
+## 2. Authority precedence
 
-Use `complex` only for material privacy/security/trust-boundary risk, difficult state/concurrency/temporal semantics, cross-cutting architecture, delicate migration/back-compat invariants, or repeated semantic failure. Ordinary UI/file-count/business importance alone are not complex triggers.
+1. accepted current product/domain authority;
+2. accepted spec/ticket/work order for the current change;
+3. target-repository policy and coding standards;
+4. current Atenea execution/routing authority;
+5. adopted upstream skill instructions;
+6. upstream runtime defaults;
+7. historical docs, stale config and remembered session state.
 
-Cora prepares real work through `READY_TO_LAUNCH`; the human retains final visible launch.
+Material conflict between current authorities => STOP and reconcile. Runtime convenience never invents product semantics.
 
-## Product architecture invariants
+## 3. Read only what the work needs
 
-- One V4 SPA/app shell and one in-memory Job. `Input → Configure → Review → Privacy Gate → Export` may remain internal/domain pipeline structure, but D-023 + Human Product Design Authority govern visible topology; no phase becomes a user destination merely because it exists internally.
-- Vite + TypeScript + React + compiled Tailwind; no backend/SSR/remote PHI-processing API.
-- Domain state is independent of the DOM; `ReviewSession` is review/final-text authority.
-- Existing privacy behavior is migrated behind explicit adapters/contracts; no big-bang rewrite.
-- Heavy processing stays behind the accepted Web Worker boundary where applicable.
-- Keep one durable source of truth for policy/state/identity; ambiguous classification fails explicitly.
-- During the 2026-10 recovery train, do not treat route/workflow existence as product parity. Preserve the capability contract owned by the Recovery Master Plan/matrix; any deliberate substitution/removal must be explicit and traced back to the matrix.
+Normal engineering entry is deliberately small:
 
-## Privacy and data invariants
+1. this file;
+2. the accepted issue/spec/ticket or durable execution handoff;
+3. `CODING_STANDARDS.md` and only the relevant project/domain authority it references;
+4. `docs/ATENEA_EXECUTION_ROUTING_V0.md` when executing through Atenea.
 
-Never:
+Do not load product-design, shaping, fidelity, qualification or historical documents by ritual. Specialized policies are referenced when their condition is explicitly triggered; they are not default execution payload.
 
-- log PHI/PII to console or remote services;
-- add analytics/tag managers/error SaaS/remote runtime resources to the clinical origin;
-- place sensitive content in URL/query/hash;
-- add remote PHI processing or unexpected runtime network calls without accepted authority;
-- call output anonymous/compliant/certified without implemented evidence;
-- silently truncate input or hide failed batch items;
-- treat `UNKNOWN` structured classification as success/KEEP.
+Historical C-077–C-085 and Gentle/Pi/OpenCode V1 runbooks remain provenance unless current authority explicitly cites them.
 
-Sensitive Job data defaults to memory only. Use only synthetic committed fixtures/tests.
+## 4. Do not duplicate Matt
 
-## Safe vs confidential outputs
+Matt skills own their methodology. Do not copy their TDD loop, task-graph procedure, code-review rubric or worktree choreography into Atenea policy, project handoffs or child prompts.
 
-Safe Output and Confidential Audit are separate artifacts and authorities.
+Atenea adds stable repository constraints, explicit role/model bindings, deterministic evidence boundaries and human publication control.
 
-Safe Output must not contain correspondence mappings, originals retained solely for traceability, reviewer notes or confidential audit tables. Confidential Audit remains a separate explicit action/file.
+Atenea separates **risk class** (`volume|complex`) from **cost policy** (`standard|free_only|go`). Cora may recommend risk class; human/project authority owns cost policy. `free_only` and `go` have no silent provider/model fallback. See the profile documents for their replaceable bindings.
 
-## Deterministic evidence
+C-086 retains C-085 routing/runtime economics over the C-084 native-V2 lifecycle: OpenCode 2.0.22 known-good runtime, standard Volume writer DeepSeek V4 Flash, standard Complex writer GLM 5.3 Flash high, and the 220k effective writer context guard with automatic compaction around ~198k and ~15k recent verbatim retention. Routing changes only at a clean work-unit boundary.
 
-Existing repo-native checks are first-line authority. During implementation use focused TDD + the smallest checks relevant to the changed property; broader composed/full-suite checks belong to integration/publication unless current authority explicitly requires them earlier.
+Do not rewrite shared `~/.config/opencode/opencode.json` as per-ticket/train routing state. Do not add `--pure`: it is a V1 flag and is not part of native OpenCode V2.
 
-For material privacy/state/parser/security/checker changes, prefer a falsifiable oracle: known-good + representative planted violation/negative case, including built-artifact validation when the invariant applies to shipped output.
+## 5. Deterministic-first, phase-scoped evidence
 
-For any new UI/control/adapter/schema/export representation, apply the representation-narrowing check: accepted precision, cardinality, ranges, states, combinations, ordering and unset/unknown distinctions may not be silently collapsed.
+If a material property can be expressed deterministically, prove it mechanically. Do not create an oracle for every edit.
 
-When a changed shared helper/generator/serializer/state authority can affect sibling consumers, trace the behavioral blast radius even when those sibling files have zero diff. A materially affected supported surface outside the current envelope is HUMAN STOP, not silent scope expansion.
+Evidence belongs to the phase that needs it:
 
-For material universal/negative/preservation/boundary claims (`all`, `never`, `preserve`, `lossless`, `only after`, etc.), evidence must include an adversarial fixture capable of falsifying the exact claim; prose may not exceed the falsification power actually exercised.
+```text
+writer      → focused TDD + smallest relevant deterministic checks
+integration → merge-sensitive / cross-slice checks when justified
+review      → inspect candidate + existing evidence; request new proof only for a concrete gap
+corrector   → finding-scoped fix + focused regression evidence
+publication → changed-artifact / composed-candidate closeout
+```
 
-Do not add prose for a rule that an existing checker already enforces. Newly discovered debt stays separate from the requested change unless current authority explicitly includes it.
+Broad/full suites are integration/publication evidence by default, not a ritual for every writer slice. A ticket/repository may require an earlier broad suite when that is genuinely necessary; otherwise do not repeat it at every phase.
 
-## Frontend and accessibility
+## 6. Cora-shaped execution envelope
 
-Preserve semantic controls, keyboard operability, visible focus, readable status/error communication, AA contrast for normal operational text, responsive behavior and non-color-only state. Do not introduce a large global state framework or new application architecture without accepted authority.
+OpenCode/Matt execute already-accepted bounded work. Precision is not verbosity: reference durable authority and state only the semantic delta.
 
-## Deployment
+A handoff names the outcome, authority refs, in-scope surface, principal invariants, non-goals, evidence needed to close the writer phase, publication boundary and any **explicitly triggered conditional safeguard**. It does not restate `AGENTS.md`, coding standards, Matt methodology or entire product histories.
 
-Current clinical target is Render Static. The clinical origin serves static application bytes; clinical content remains in the browser. `render.yaml` is deployment/header authority. Cloudflare remains an availability experiment, not the canonical target.
+Material product choices are attended Cora + human work. If execution exposes an unresolved material product/architecture/scope/privacy/data-semantics/acceptance choice, HUMAN STOP rather than infer an answer.
 
-Before publication, validate changed artifact types using repo-native validators and the current Atenea pre-publication policy. Workflow changes require workflow parsing plus credential capability; deployment/config changes require the owning parser/oracle where available.
+Specialized safeguards remain available but are phase-owned and conditional:
 
-## Agent skills
+- material human-facing design → `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` upstream of execution;
+- expansive shaping → `docs/ATTENDED_PRODUCT_SHAPING_GUARDRAILS_V1.md` upstream;
+- product fidelity / representation / shared-seam questions → `docs/PRODUCT_FIDELITY_GATES_V1.md` when explicitly triggered;
+- publication closeout → `docs/PREPUBLICATION_ARTIFACT_VALIDATION_V1.md` at the final candidate boundary.
 
-### Issue tracker
+A writer is not a repository-wide auditor. It implements the accepted envelope. If it incidentally discovers a material affected surface or authority conflict outside that envelope, it reports the fact and STOPs; it does not start open-ended sibling tracing or broaden scope.
 
-Work is tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+## 7. Lifecycle ownership and bounded correction
 
-### Triage labels
+The selected primary coordinator owns `/implement` or `/implement-spec`, one canonical Standards + Spec review, review aggregation and correction dispatch. Implementation workers own implementation/TDD, focused implementation evidence and the candidate commit only. They do not invoke `/implement`, `/implement-spec`, `/code-review`, reviewers or correctors.
 
-Matt triage roles are configured in `docs/agents/triage-labels.md`; missing remote labels are not authority to create them silently.
+When delegating, coordinators reference the durable handoff rather than copying it into a second giant child prompt. Pass only the work identity/fixed point, the handoff pointer, phase boundary and any small delta needed for that child.
 
-### Domain docs
+Review start closes the originating implementer's write phase. Every review-driven mutation goes through a fresh bound corrector.
 
-This repo keeps canonical vocabulary/boundaries in `CONTEXT.md` plus accepted decisions/specs. See `docs/agents/domain.md`.
+Allow at most two fresh finding-scoped correction attempts:
+
+```text
+IMPLEMENT
+→ REVIEW
+→ clean → DONE
+→ findings → fresh corrector #1 → focused evidence
+    → resolved → DONE
+    → same findings remain → fresh corrector #2 → focused evidence
+        → resolved → DONE
+        → blocker / new material issue → HUMAN STOP
+```
+
+Correctors close supplied findings; they do not search for new sibling defects by default. If a review finding explicitly requires an adversarial witness or named conditional safeguard, the corrector supplies only that bounded closure.
+
+## 8. Herdr and operator-controlled launch
+
+Herdr is the already-running persistent operator surface. Do not launch/restart/replace it per ticket/train.
+
+For real work, Cora prepares through `READY_TO_LAUNCH`; the human performs the final visible launch unless that specific launch is explicitly delegated. The preferred first prompt is short:
+
+`Read @docs/handoffs/TRAIN_X.md and execute it under current repository/Atenea authority.`
+
+Do not use `opencode run` as the normal production surface.
+
+## 9. Repository entry, worktrees and publication
+
+Use `docs/REPOSITORY_ENTRY_RECONCILIATION_V1.md` read-only when prior harness/tooling state is ambiguous. Matt owns ephemeral implementer worktrees while its workflow is active; delivery/integration worktrees remain through accepted publication closeout.
+
+Before publication, validate the artifact types that actually changed and the composed candidate as required by `docs/PREPUBLICATION_ARTIFACT_VALIDATION_V1.md`. Review approval is not push/PR/merge/deploy authority. No automatic merge, force-push or destructive history recovery.

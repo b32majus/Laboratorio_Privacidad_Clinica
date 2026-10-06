@@ -9,8 +9,6 @@ These gates preserve accepted product/interaction/domain meaning when a material
 
 For material human-facing work, `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` establishes the interaction hypothesis upstream. This document protects that accepted outcome through decomposition, representation and composition; it does not ask execution agents to redesign the product.
 
-For Laboratorio, `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` is the binding project-specific human-product rail for REC-05→REC-11. The canonical Atenea human-product method is additionally pinned by the execution handoff's Atenea SHA.
-
 ## Invocation and phase ownership
 
 | Safeguard | Normal owner/phase | Writer role |
@@ -32,17 +30,6 @@ The execution handoff states `Conditional safeguards: NONE` or names the relevan
 5. Product non-negotiables survive decomposition and integration.
 6. Accepted semantic distinctions are not silently narrowed by a new representation.
 7. Shared-seam impact is behavioral rather than file-based when that seam is actually in scope.
-
-## Gate 0 — source-to-ticket completeness
-
-Before a material user-facing ticket becomes execution authority, prove that accepted product obligations have not fallen between documents:
-
-- trace frozen audit/debt rows, product/heritage rows and any later accepted reconciliation rows to an explicit owner;
-- for Laboratorio, include the matrix `PDR-01…PDR-12` overlay and the applicable HPD gates;
-- an accepted requirement with no owner, contradictory owners or a dependency that has not landed is a HUMAN STOP;
-- later product authority may deliberately supersede an older UI prescription, but the supersession must be explicit and must preserve/map the underlying human need where it still applies.
-
-This gate prevents a polished ticket set from being incomplete before implementation even starts.
 
 ## Gate 1 — ticketization fidelity
 
