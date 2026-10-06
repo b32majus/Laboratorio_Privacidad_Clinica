@@ -20,6 +20,7 @@
  */
 import {
   batchFailureRemedy,
+  batchActiveFailedItems,
   batchFailedItems,
   batchItemStatus,
   type BatchItemStatus,
@@ -44,7 +45,10 @@ export type PrivacyGateWarning = {
 
 /**
  * One factual document-batch item (T17 #21 SD-9). `errorMessage` is present
- * exactly when the item failed; the item stays visible either way.
+ * exactly when the item failed; the item stays visible either way. The
+ * recovery facts (#78) are present exactly when the failed item was
+ * deliberately removed (`removed`) and/or its current typed failure was
+ * acknowledged (`acknowledged`).
  */
 export type PrivacyGateBatchItem = {
   readonly index: number;
@@ -54,18 +58,28 @@ export type PrivacyGateBatchItem = {
   readonly errorMessage?: string;
   /** The item's typed failure code; present exactly when `status` is `error`. */
   readonly errorCode?: string;
+  /** #78: present exactly when the item was deliberately removed from the batch. */
+  readonly removed?: boolean;
+  /** #78: present exactly when the current typed failure was acknowledged. */
+  readonly acknowledged?: boolean;
 };
 
 /**
  * Factual aggregate of a document batch's per-item state (T17 #21 SD-9).
  * `pendingCount` counts non-error items whose review is not yet `completed`;
- * failed items are counted separately and never hidden.
+ * failed items are counted separately and never hidden. `failedCount` keeps
+ * its accepted meaning — EVERY `error` item, including deliberately removed
+ * ones (factual history, #78). `activeFailedCount` (#78) counts only the
+ * failed items that are still active blockers (not deliberately removed);
+ * the fail-closed batch copy is driven by THIS count.
  */
 export type PrivacyGateBatchFacts = {
   readonly items: readonly PrivacyGateBatchItem[];
   readonly pendingCount: number;
   readonly completedCount: number;
   readonly failedCount: number;
+  /** #78: failed items that are still active blockers (not removed). */
+  readonly activeFailedCount: number;
 };
 
 /** One factual structured column disposition for the gate. */
@@ -153,13 +167,15 @@ export function pendingDecisionMessage(count: number): string {
 
 /**
  * Factual, fail-closed batch failure copy (T17 #21 SD-9, remedy copy corrected
- * by CORR-B): every failed file is named with its own typed item error and a
- * remedy that matches the failure semantics (see {@link batchFailureRemedy}).
- * No safety/anonymity claim, no hidden failure, and no instruction to remove a
+ * by CORR-B): every ACTIVE failed file is named with its own typed item error
+ * and a remedy that matches the failure semantics (see
+ * {@link batchFailureRemedy}). Deliberately removed items (#78) are disposed
+ * facts, not still-blocking failures, and are never named here. No
+ * safety/anonymity claim, no hidden failure, and no instruction to remove a
  * healthy document that is merely blocked by the current policy.
  */
 export function batchFailedItemsMessage(items: readonly PrivacyGateBatchItem[]): string {
-  const failed = items.filter((item) => item.status === "error");
+  const failed = items.filter((item) => item.status === "error" && item.removed !== true);
   const detail = failed
     .map((item) => `"${item.name}"${item.errorMessage ? ` — ${item.errorMessage}` : ""}`)
     .join("; ");
@@ -211,6 +227,7 @@ export function deriveBatchFacts(job: Job): PrivacyGateBatchFacts {
   const errorByIndex = new Map(
     batchFailedItems(job).map((item) => [item.index, item.error] as const)
   );
+  const activeFailedCount = batchActiveFailedItems(job).length;
   const items = job.source.files.map((file, index) => {
     const status = batchItemStatus(job, index);
     const error = errorByIndex.get(index);
@@ -218,7 +235,14 @@ export function deriveBatchFacts(job: Job): PrivacyGateBatchFacts {
       index,
       name: file.name,
       status,
-      ...(error === undefined ? {} : { errorMessage: error.message, errorCode: error.code }),
+      ...(error === undefined
+        ? {}
+        : {
+            errorMessage: error.message,
+            errorCode: error.code,
+            ...(file.itemDisposition === "removed" ? { removed: true } : {}),
+            ...(file.itemAcknowledged === true ? { acknowledged: true } : {}),
+          }),
     });
   });
   return Object.freeze({
@@ -227,6 +251,7 @@ export function deriveBatchFacts(job: Job): PrivacyGateBatchFacts {
       .length,
     completedCount: items.filter((item) => item.status === "completed").length,
     failedCount: errorByIndex.size,
+    activeFailedCount,
   });
 }
 

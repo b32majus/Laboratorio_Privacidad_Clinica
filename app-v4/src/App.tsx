@@ -103,7 +103,7 @@ export function App() {
   const session = useJobSession();
   const job = session.job;
   const review = session.review;
-  const { batchSessions, batchActiveIndex } = session;
+  const { batchSessions, batchActiveIndex, batchRetryContextAvailable } = session;
   const startReview = session.startReview;
   const [draftText, setDraftText] = useState("");
   const [draftFiles, setDraftFiles] = useState<File[]>([]);
@@ -742,9 +742,20 @@ export function App() {
             sessions={batchSessions}
             activeIndex={batchActiveIndex}
             errorMessage={reviewError}
+            retryContextAvailable={batchRetryContextAvailable}
             onSelectDocument={session.selectDocument}
             onDecide={session.decide}
             onAddManual={session.addManual}
+            onRetryBatchItem={(index, options) =>
+              // #78 correction F3: the rendered job supplies BOTH authorities
+              // pinned at capture time — a captured action is refused when
+              // either the job or its policy authority was replaced.
+              session.retryBatchItem(job.id, job.policyId, index, options)
+            }
+            onRemoveBatchItem={(index) => session.removeBatchItem(job.id, job.policyId, index)}
+            onAcknowledgeBatchItemError={(index) =>
+              session.acknowledgeBatchItemError(job.id, job.policyId, index)
+            }
           />
         ) : currentStep === "review" && review ? (
           <ReviewWorkspace

@@ -91,8 +91,10 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   );
 
   // Presentation-only derivation of the checkpoint state from the SAME facts
-  // the model already supplies: no new authority, no reinterpretation.
-  const batchFailed = view.batch !== null && view.batch.failedCount > 0;
+  // the model already supplies: no new authority, no reinterpretation. The
+  // batch blocker (#78) is the ACTIVE failed count: a deliberately removed
+  // item is a retained fact, not a still-blocking failure.
+  const batchFailed = view.batch !== null && view.batch.activeFailedCount > 0;
   const safeOutputReady = view.safeOutputReady;
   const hasJobErrors = view.errors.length > 0;
   // The applicable output is blocked by the current authority. For a batch the
@@ -100,6 +102,15 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   // an availability fact, never an action the operator can take at this step.
   const outputBlocked = view.batch === null ? !safeOutputReady : batchFailed;
   const actionRequired = view.pendingCount > 0 || batchFailed || hasJobErrors || outputBlocked;
+  // #78 correction F1: the "Review complete" assertion is gated on the
+  // authoritative `view.complete` fact (the Job's derived review completeness,
+  // the single source of truth). The boundary case — a batch where every
+  // failed document was deliberately removed (nothing pending, no active
+  // failure, no job error) but no evaluable document remains — is a
+  // not-complete state: the checkpoint states the factual reason without
+  // claiming completion and without re-blocking on the resolved failures.
+  const batchAllRemovedBoundary = view.batch !== null && !view.complete && !actionRequired;
+  const checkpointActionRequired = actionRequired || batchAllRemovedBoundary;
   const hasAttentionFacts = hasJobErrors || view.warnings.length > 0;
 
   return (
@@ -121,7 +132,9 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
       </header>
 
       <GateCheckpoint
-        actionRequired={actionRequired}
+        actionRequired={checkpointActionRequired}
+        blocked={actionRequired}
+        batchAllRemovedBoundary={batchAllRemovedBoundary}
         outputBlocked={outputBlocked}
         safeOutputReady={safeOutputReady}
         pendingCount={view.pendingCount}
@@ -138,7 +151,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         </p>
       )}
 
-      {view.batch !== null && view.batch.failedCount > 0 && (
+      {view.batch !== null && view.batch.activeFailedCount > 0 && (
         <p
           role="alert"
           className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
@@ -183,24 +196,40 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
 /**
  * Compact decision checkpoint (UX-PILOT-02). States driven ONLY by the existing
  * facts: "Action required" while the applicable output is blocked by pending
- * decisions / failed batch items / errors, and "Review complete" when it is
- * not. The detailed readiness remains in the Output availability facts below.
+ * decisions / failed batch items / errors, and "Review complete" ONLY when the
+ * authoritative review completeness fact says so (#78 correction F1: the
+ * completion badge is gated on `view.complete`; the all-documents-removed
+ * batch boundary states its factual reason instead of asserting completion).
+ * The detailed readiness remains in the Output availability facts below.
  *
  * The body copy discriminates the SAME factual causes (UX-CLOSEOUT-01 outcome
- * C): failed batch items, a genuine job error, pending review decisions, and
- * the residual applicable output readiness cause. It never asserts a factual
- * error item when the only cause is pending review (the audit #62 F3 defect)
- * or a failed batch item (a batch fact, not a job `errors` item either).
+ * C): failed batch items, a genuine job error, pending review decisions, the
+ * all-documents-removed batch boundary, and the residual applicable output
+ * readiness cause. It never asserts a factual error item when the only cause
+ * is pending review (the audit #62 F3 defect) or a failed batch item (a batch
+ * fact, not a job `errors` item either), and never re-blocks on an
+ * already-resolved failure.
  */
 function GateCheckpoint({
   actionRequired,
+  blocked,
+  batchAllRemovedBoundary,
   outputBlocked,
   safeOutputReady,
   pendingCount,
   hasJobErrors,
   batchFailed,
 }: {
+  /**
+   * The checkpoint's fail-closed state: true while anything is actionable OR
+   * while the authoritative review completeness fact is not satisfied (#78
+   * correction F1) — "Review complete" is asserted only when this is false.
+   */
   actionRequired: boolean;
+  /** Whether any blocked-output cause actually applies (drives the body). */
+  blocked: boolean;
+  /** #78 correction F1: every failed batch document was deliberately removed. */
+  batchAllRemovedBoundary: boolean;
   outputBlocked: boolean;
   safeOutputReady: boolean;
   pendingCount: number;
@@ -213,7 +242,7 @@ function GateCheckpoint({
   // named first, then a genuine job error, then pending review decisions, and
   // only then the residual output readiness cause. A factual error item is
   // never asserted unless the job actually carries one.
-  const body = actionRequired
+  const body = blocked
     ? outputBlocked
       ? batchFailed
         ? "Safe Output is blocked because a batch item failed; the failure details and remedy are shown below."
@@ -229,9 +258,11 @@ function GateCheckpoint({
         : pendingCount === 1
           ? "1 mandatory review decision is still pending below before you rely on this review."
           : `${pendingCount} mandatory review decisions are still pending below before you rely on this review.`
-    : safeOutputReady
-      ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
-      : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available.";
+    : batchAllRemovedBoundary
+      ? "No batch document remains available for review: every failed document was deliberately removed. The batch review is not complete."
+      : safeOutputReady
+        ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
+        : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available.";
   return (
     <section
       aria-labelledby="gate-checkpoint-heading"
@@ -290,6 +321,10 @@ function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
           <li key={item.index}>
             <span className="font-semibold">{item.name}</span>: {BATCH_STATUS_LABELS[item.status]}
             {item.errorMessage !== undefined && <> — {item.errorMessage}</>}
+            {item.removed === true && <span className="font-semibold"> — Retirado del lote</span>}
+            {item.acknowledged === true && (
+              <span className="font-semibold"> — Error reconocido</span>
+            )}
           </li>
         ))}
       </ul>

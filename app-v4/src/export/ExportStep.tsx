@@ -584,7 +584,10 @@ function BatchExport({ job }: { job: Job }): ReactElement {
   if (!job.review.complete && batchFacts.pendingCount > 0) {
     // Review-incomplete keeps priority (same order as the domain guard).
     safeOutputReason = pendingDecisionMessage(batchFacts.pendingCount);
-  } else if (batchFacts.failedCount > 0) {
+  } else if (batchFacts.activeFailedCount > 0) {
+    // #78: only ACTIVE failed items name this reason. With every failure
+    // deliberately removed, the reason becomes the accepted no-batch-format
+    // limitation below — both actions stay disabled (no fabricated readiness).
     safeOutputReason = batchFailedItemsMessage(batchFacts.items);
   } else {
     safeOutputReason = batchSafeOutputUnavailableMessage();
