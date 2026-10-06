@@ -75,6 +75,7 @@ import type { StructuredTransformPlan } from "../structured/transform-plan";
 import { batchConfidentialAuditUnavailableMessage } from "../privacy-gate/privacyGateModel";
 import {
   BATCH_SUMMARY_CSV_FILENAME,
+  BatchSummaryError,
   deriveBatchResultView,
   serializeBatchSummaryCsv,
 } from "./batchResultModel";
@@ -591,6 +592,20 @@ function StructuredExport({
 }
 
 /**
+ * Content-free diagnostic for a refused Safe-summary download. Only the
+ * typed error CODE (or, for an unexpected error, its name) is retained: the
+ * raw message can name a source file, so it is never captured into state,
+ * logged or rendered (CODING_STANDARDS §4). Runtime sources carry no
+ * `console.*` call at all (check:external no-PHI-console rule), so the
+ * diagnostic is exposed as a stable DOM attribute instead.
+ */
+function batchSummaryDiagnostic(error: unknown): string {
+  if (error instanceof BatchSummaryError) return error.code;
+  if (error instanceof Error) return error.name;
+  return "unknown-error";
+}
+
+/**
  * Document-batch Result (REC-07 #87): the human batch ending — readiness
  * (`Listo para usar` / `Requiere tu atención` / `Bloqueado`) plus the first
  * accepted batch Safe deliverable, all derived from the existing batch
@@ -617,11 +632,13 @@ function BatchResult({
 }): ReactElement {
   const view = deriveBatchResultView(job);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<string | null>(null);
 
   // Transient action feedback never survives another Job: the domain inputs
   // are frozen, so a replaced Job always arrives as a new reference.
   useEffect(() => {
     setFeedback(null);
+    setDiagnostic(null);
   }, [job]);
 
   const stateLabel =
@@ -635,9 +652,14 @@ function BatchResult({
     if (view.state !== "ready") return;
     try {
       downloadTextFile(BATCH_SUMMARY_CSV_FILENAME, serializeBatchSummaryCsv(job));
+      setDiagnostic(null);
       setFeedback("Descarga del resumen seguro (.csv) iniciada.");
-    } catch {
+    } catch (error) {
       // Fail-closed serialization: zero bytes downloaded, truthful message.
+      // The refusal is not swallowed: a content-free diagnostic (typed code,
+      // never the raw message) stays observable without leaking a filename
+      // or source metadata into the DOM, a log or the Spanish UI copy.
+      setDiagnostic(batchSummaryDiagnostic(error));
       setFeedback("El resumen seguro todavía no está disponible para este lote.");
     }
   };
@@ -717,6 +739,7 @@ function BatchResult({
                 <p
                   role="status"
                   id="batch-result-action-feedback"
+                  data-batch-summary-diagnostic={diagnostic ?? undefined}
                   className="mt-3 text-sm text-neutral-700"
                 >
                   {feedback}

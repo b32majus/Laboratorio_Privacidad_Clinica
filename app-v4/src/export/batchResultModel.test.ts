@@ -126,7 +126,21 @@ describe("deriveBatchResultView", () => {
 
   it("refuses a non-batch job fail-closed", () => {
     const text = createJob({ type: "pasted-text", text: "Texto sintetico." });
-    expect(() => deriveBatchResultView(text)).toThrow();
+    // The batch boundary is owned by `deriveBatchFacts`, which throws a plain
+    // Error (not the serializer-only BatchSummaryError) naming the
+    // incompatible job kind. Pin the class and message so this oracle can
+    // disagree with an implementation that stops refusing non-batch jobs.
+    let thrown: unknown;
+    try {
+      deriveBatchResultView(text);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown).not.toBeInstanceOf(BatchSummaryError);
+    expect((thrown as Error).message).toMatch(
+      /^deriveBatchFacts requires a document-batch job; .* is kind "text"\.$/
+    );
   });
 });
 
