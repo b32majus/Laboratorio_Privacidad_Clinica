@@ -1,6 +1,6 @@
 # Atenea — Repository Policy
 
-Status: **CURRENT AUTHORITY — C-086**
+Status: **CURRENT AUTHORITY — C-087**
 
 Atenea is a thin upstream-first policy, routing and conformance layer over native OpenCode V2 and adopted upstream engineering skills. It does not duplicate those skills or implement a second execution/review lifecycle.
 
@@ -65,7 +65,7 @@ Atenea adds stable repository constraints, explicit role/model bindings, determi
 
 Atenea separates **risk class** (`volume|complex`) from **cost policy** (`standard|free_only|go`). Cora may recommend risk class; human/project authority owns cost policy. `free_only` and `go` have no silent provider/model fallback. See the profile documents for their replaceable bindings.
 
-C-086 retains C-085 routing/runtime economics over the C-084 native-V2 lifecycle: OpenCode 2.0.22 known-good runtime, standard Volume writer DeepSeek V4 Flash, standard Complex writer GLM 5.3 Flash high, and the 220k effective writer context guard with automatic compaction around ~198k and ~15k recent verbatim retention. Routing changes only at a clean work-unit boundary.
+C-087 retains C-086/C-085 routing/runtime economics over the C-084 native-V2 lifecycle: OpenCode 2.0.22 known-good runtime, standard Volume writer DeepSeek V4 Flash, standard Complex writer GLM 5.3 Flash high, and the 220k effective writer context guard with automatic compaction around ~198k and ~15k recent verbatim retention. Routing changes only at a clean work-unit boundary.
 
 Do not rewrite shared `~/.config/opencode/opencode.json` as per-ticket/train routing state. Do not add `--pure`: it is a V1 flag and is not part of native OpenCode V2.
 
@@ -106,7 +106,7 @@ A writer is not a repository-wide auditor. It implements the accepted envelope. 
 
 The selected primary coordinator owns `/implement` or `/implement-spec`, one canonical Standards + Spec review, review aggregation and correction dispatch. Implementation workers own implementation/TDD, focused implementation evidence and the candidate commit only. They do not invoke `/implement`, `/implement-spec`, `/code-review`, reviewers or correctors.
 
-When delegating, coordinators reference the durable handoff rather than copying it into a second giant child prompt. Pass only the work identity/fixed point, the handoff pointer, phase boundary and any small delta needed for that child.
+When delegating, coordinators use child-readable authority transport: a repo-local durable handoff reference when readable from the current worktree, otherwise a compact phase-specific authority capsule. Never make a child verdict depend on `/outbox`, `/tmp`, another worktree or another external directory. Do not copy the full handoff/policy corpus into a second giant prompt.
 
 Review start closes the originating implementer's write phase. Every review-driven mutation goes through a fresh bound corrector.
 

@@ -48,7 +48,7 @@ You own the Matt lifecycle. For a single `/implement`, delegate only implementat
 
 Product shaping is not your unattended responsibility. If a material product/architecture/scope/privacy/data-semantics/acceptance choice is unresolved or emerges during execution, HUMAN STOP to Cora + human.
 
-Delegate by durable reference: give the child the work identity/fixed point, `@<handoff>` pointer, phase boundary and only a small task-specific delta when needed. Do not restate the whole handoff, `AGENTS.md`, coding standards or specialized policy prose in the child prompt.
+Child authority transport is fail-closed: prefer a repo-local `@<handoff>` readable from the child's current worktree. If required authority lives in `/outbox`, `/tmp`, another worktree or any external/permission-blocked path, include a compact phase-specific authority capsule inline instead. Never copy the whole policy corpus. Tell the child to return `INCOMPLETE_AUTHORITY` rather than infer a verdict when required authority is still missing or inaccessible.
 
 Conditional safeguards are active only when the accepted handoff names them or a concrete review finding opens them. Do not turn candidate verification into an open-ended repository-wide audit.
 

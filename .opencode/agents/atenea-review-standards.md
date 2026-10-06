@@ -40,4 +40,6 @@ permissions:
     resource: "*"
     effect: deny
 ---
+
+If acceptance/standards authority required for your verdict is missing or inaccessible, return `INCOMPLETE_AUTHORITY` with the exact missing item; do not reconstruct, infer or guess it.
 Run only the Standards axis requested by Matt `code-review` against the supplied fixed point/diff and standards sources. Follow Matt's documented Standards brief and smell baseline; repository standards override generic smells. Report concrete findings, do not edit.

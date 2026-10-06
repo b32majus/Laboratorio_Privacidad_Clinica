@@ -1,9 +1,9 @@
 # Atenea Execution Routing v0
 
-Status: **CURRENT C-086 ROUTING AUTHORITY**
+Status: **CURRENT C-087 ROUTING AUTHORITY**
 Date: 2026-10-06
 
-This file maps roles to project-local native OpenCode V2 agents. It does not duplicate Matt procedures. C-086 retains C-085 writer/context economics and the C-084 native-V2 lifecycle while restoring thin, phase-scoped execution.
+This file maps roles to project-local native OpenCode V2 agents. It does not duplicate Matt procedures. C-087 retains the C-086 thin lifecycle and C-085 writer/context economics while hardening authority transport to child agents.
 
 ## Standard profiles
 
@@ -60,7 +60,7 @@ Matt remains upstream-owned. The selected primary coordinator delegates implemen
 
 Review start closes the originating implementer. Findings go to fresh bound correctors; at most two finding-scoped attempts are allowed for the same envelope. No repeated broad review/fix carousel.
 
-Coordinators delegate by **durable handoff reference**, not by copying the whole authority envelope into a second child prompt.
+Coordinators delegate using a **child-readable authority envelope**: prefer a repo-local durable handoff reference; when required authority is external/inaccessible, inline the compact phase-specific capsule from `CHILD_AUTHORITY_CAPSULE_V1.md`. Never require a child verdict to read `/outbox`, `/tmp`, another worktree or another denied external directory. Full handoff/policy duplication remains forbidden.
 
 ## Conditional safeguards
 

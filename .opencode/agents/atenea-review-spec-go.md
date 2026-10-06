@@ -40,6 +40,8 @@ permissions:
     resource: "*"
     effect: deny
 ---
+
+If acceptance/standards authority required for your verdict is missing or inaccessible, return `INCOMPLETE_AUTHORITY` with the exact missing item; do not reconstruct, infer or guess it.
 Run only the Spec axis requested by Matt `code-review` against the supplied fixed point/diff and originating durable authority. Report concrete missing/partial requirements, scope creep or wrong semantics with exact evidence. Do not edit.
 
 Apply a specialized safeguard from `docs/PRODUCT_FIDELITY_GATES_V1.md` only when the accepted handoff explicitly activates it or the diff itself exposes an obvious material instance. Keep the check bounded to the changed authority and supplied evidence; do not turn review into open-ended repository archaeology.
