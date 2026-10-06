@@ -13,7 +13,9 @@
  *    download actions stay disabled with the typed spec reason.
  */
 import { expect, test } from "./harness/fixtures";
+import type { Page } from "@playwright/test";
 
+import fs from "node:fs";
 import path from "node:path";
 
 const FIXTURES_DIR = path.resolve(__dirname, "fixtures");
@@ -21,6 +23,19 @@ const DOC_1 = path.join(FIXTURES_DIR, "batch-doc-1.txt");
 const DOC_2 = path.join(FIXTURES_DIR, "batch-doc-2.txt");
 const CORRUPT_PDF = path.resolve(__dirname, "../app-v4/src/input/fixtures/corrupt.pdf");
 const SCANNED_PDF = path.resolve(__dirname, "../app-v4/src/input/fixtures/sample-scanned.pdf");
+
+/**
+ * #86: the batch queue opens on the Necesitan atención filter whenever it has
+ * items. These #78 journey specs exercise the full per-document list, so they
+ * select the `Todos` view explicitly (orientation filtering itself is proven
+ * by the dedicated #86 journey below).
+ */
+async function showAllDocuments(page: Page): Promise<void> {
+  await page
+    .getByRole("group", { name: "Filtrar documentos del lote" })
+    .getByRole("button", { name: /^Todos \(/ })
+    .click();
+}
 
 test("a failed batch item stays visible and never blocks the rest of the batch silently", async ({
   page,
@@ -35,6 +50,7 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
   await expect(page.getByRole("list", { name: "Failed documents" })).toContainText("corrupt.pdf");
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
+  await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
   // The failed item stays listed in review, with its status and error.
@@ -79,6 +95,7 @@ test("navigation never fabricates review completion and a reviewed batch has no 
   await page.getByRole("button", { name: "Create job" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
+  await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
   const progress = page.getByRole("status", { name: "Review progress" });
@@ -135,6 +152,7 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   await page.getByRole("button", { name: "Create job" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
+  await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
   const failedRow = docList.getByRole("listitem").filter({ hasText: "corrupt.pdf" });
@@ -236,6 +254,7 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   await page.getByRole("button", { name: "Create job" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
+  await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
   await expect(docList).toContainText("corrupt.pdf");
@@ -287,4 +306,109 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
     "title",
     "Export is blocked while mandatory review is incomplete."
   );
+});
+
+/**
+ * Issue #86 (REC-06): work-queue orientation at realistic batch size.
+ *
+ * Twelve synthetic/no-PHI documents (ten review-required TXT + one corrupt
+ * PDF + one scanned PDF, both local read failures) exercise the orientation
+ * claim: pending/ready/removed documents are located through the live counts
+ * and filters instead of scanning the full list. The defaults and the
+ * category-change feedback behavior are asserted on the real application.
+ */
+test("batch work-queue orientation (#86): realistic 12-document batch is orientable without scanning the list", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const synthetic = Array.from({ length: 10 }, (_entry, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return {
+      name: `synth-doc-${number}.txt`,
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        `Documento sintético batch ${number}.\nIdentificador de prueba: DNI 12345678A.\nContenido clínico simulado para E2E.\n`
+      ),
+    };
+  });
+  const failures = [CORRUPT_PDF, SCANNED_PDF].map((source) => ({
+    name: path.basename(source),
+    mimeType: "application/pdf",
+    buffer: fs.readFileSync(source),
+  }));
+  await page
+    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .setInputFiles([...synthetic, ...failures]);
+  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "2. Configure" }).click();
+  await page.getByRole("button", { name: "3. Review" }).click();
+
+  const docList = page.getByRole("list", { name: "Batch document status" });
+  const filters = page.getByRole("group", { name: "Filtrar documentos del lote" });
+  const filterButton = (label: RegExp) => filters.getByRole("button", { name: label });
+
+  // The queue settles into 10 review-required + 2 failed items and opens on
+  // Necesitan atención (the default whenever it has items).
+  await expect(filterButton(/^Necesitan atención \(12\)/)).toBeVisible();
+  await expect(filterButton(/^En curso \(0\)/)).toBeVisible();
+  await expect(filterButton(/^Todos \(12\)/)).toBeVisible();
+  await expect(filterButton(/^Necesitan atención \(12\)/)).toHaveAttribute("aria-pressed", "true");
+  await expect(docList.getByRole("listitem")).toHaveCount(12);
+
+  // Complete one document: it leaves attention and becomes locatable in Listos
+  // without scanning the queue, while the open document keeps its workspace.
+  await docList.getByRole("button", { name: /synth-doc-01\.txt/ }).click();
+  await page
+    .getByRole("list", { name: "Detections" })
+    .getByRole("button", { name: /12345678A/ })
+    .click();
+  await page.getByRole("button", { name: "Accept detection" }).click();
+  await expect(filterButton(/^Listos \(1\)/)).toBeVisible();
+  await expect(filterButton(/^Necesitan atención \(11\)/)).toBeVisible();
+  await expect(page.getByText(/no pertenece al filtro actual/i)).toBeVisible();
+
+  // An empty filter explains itself and offers the Mostrar todos recovery.
+  await filterButton(/^Retirados \(0\)/).click();
+  await expect(
+    page.getByText(/No hay ningún documento que coincida con este filtro\./)
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar todos" }).click();
+  await expect(filterButton(/^Todos \(12\)/)).toHaveAttribute("aria-pressed", "true");
+
+  // Remove both local failures from Necesitan atención. Their consequence must
+  // stay perceptible although the rows leave the filter.
+  await filterButton(/^Necesitan atención \(11\)/).click();
+  for (const name of ["corrupt.pdf", "sample-scanned.pdf"]) {
+    const row = docList.getByRole("listitem").filter({ hasText: name });
+    await row.getByRole("button", { name: "Retirar del lote" }).click();
+    await row.getByRole("button", { name: "Confirmar retirada" }).click();
+  }
+  await expect(page.getByText(/se ha retirado del lote/i)).toBeVisible();
+  await expect(filterButton(/^Retirados \(2\)/)).toBeVisible();
+  await expect(filterButton(/^Necesitan atención \(9\)/)).toBeVisible();
+
+  // Retirados locates both removed errors; they stay distinguishable from
+  // completed and offer no further recovery actions.
+  await filterButton(/^Retirados \(2\)/).click();
+  const removedRows = docList.getByRole("listitem");
+  await expect(removedRows).toHaveCount(2);
+  await expect(docList).toContainText("corrupt.pdf");
+  await expect(docList).toContainText("sample-scanned.pdf");
+  await expect(docList).toContainText("Retirado del lote");
+  await expect(docList).toContainText("Error");
+  await expect(docList.getByRole("button", { name: "Retirar del lote" })).toHaveCount(0);
+  await expect(docList.getByRole("button", { name: "Reconocer error" })).toHaveCount(0);
+
+  // Listos locates the completed document without the attention rows.
+  await filterButton(/^Listos \(1\)/).click();
+  await expect(docList.getByRole("listitem")).toHaveCount(1);
+  await expect(docList).toContainText("synth-doc-01.txt");
+  await expect(docList).toContainText("Completado");
+  await expect(docList).not.toContainText("Requiere revisión");
+
+  // Necesitan atención is exactly the remaining 9 unresolved documents.
+  await filterButton(/^Necesitan atención \(9\)/).click();
+  await expect(docList.getByRole("listitem")).toHaveCount(9);
+  await expect(docList).not.toContainText("Completado");
+  await expect(docList).not.toContainText("Retirado del lote");
 });

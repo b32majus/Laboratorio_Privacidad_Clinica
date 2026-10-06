@@ -427,7 +427,7 @@ A remaining REC is launchable only when:
 5. Spanish and baseline visual hierarchy requirements are included for any touched user-facing surface;
 6. the branch/review anchor is fresh from the current canonical base.
 
-### 4.4 Published C-085 tracer-bullet graph
+### 4.4 Published tracer-bullet graph — ticketized under C-085, executed under current Atenea
 
 The approved `/to-tickets` decomposition is published in GitHub and preserved in `docs/handoffs/REC06_12_TO_TICKETS_20261006.md`.
 
@@ -441,7 +441,7 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Immediate native frontier: **#78–#85**. Scheduling may deliberately serialize those open tickets, but a preferred order is not a semantic blocker.
+Current state after PR #96: **#78 and #79 are closed**. The hard-dependency graph makes #80–#87 executable. Under the accepted serial preference, **#86 is the selected next frontier** because it is the remaining REC-06 slice; #87 is hard-unblocked but is scheduled after REC-06 closes. #80–#85 remain independently executable. Scheduling preference is not a semantic blocker.
 
 D-019 remains an attended decision boundary inside #80. `DISC-01` is explicit in #79 and must close before the new batch async-output path represented by #87 can claim the disposal/current-authority invariant.
 
@@ -476,7 +476,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                                          REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-05 are complete. The remaining REC-06→REC-12 plan has been decomposed under C-085 through Matt `/to-tickets` and published as GitHub issues **#78–#93**. The native issue-dependency graph is the executable blocking authority for those slices; the REC sequence remains the preferred composition/scheduling order. REC-07 has its REC-05 safe-output dependency satisfied and its remaining work is represented by #79/#87/#88/#89, with #87 blocked by #78 + #79. REC-08/09 slices that have no true blocker remain in the native frontier but may be serialized operationally to avoid churn. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every touched surface, while exhaustive closeouts are #90/#91 and intentionally have no dependency edge between each other. REC-12 proof/governance are #92→#93.
+REC-01 through REC-05 are complete. In the published REC-06→REC-12 ticket graph, #78 (REC-06 recovery actions) and #79 (REC-07 DISC-01 prefactor) are now closed. REC-06 has one remaining slice, **#86**, and the project serial preference selects it next. REC-07's #87 is now hard-unblocked because #78/#79 are closed, but is scheduled after #86 so the batch work queue is complete before batch Result/output composition. REC-08/09 #80–#85 remain technically executable and may be scheduled later without inventing dependency edges. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 

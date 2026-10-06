@@ -1,10 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState, type ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
 import {
   acknowledgeBatchItemError,
   batchItemStatus,
+  beginBatchItemRetry,
   beginItemProcessing,
   beginItemRead,
   createJob,
@@ -193,6 +195,9 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     // `completed`), one still requires review, one failed processing.
     const job = recordItemReviewCompletion(processingFailureJob(), 0, true);
     const { props } = await renderView({ job });
+    // #86: the queue opens on Necesitan atención; choose Todos to see the
+    // completed row alongside the attention rows.
+    fireEvent.click(screen.getByRole("button", { name: "Todos (3)" }));
     const list = screen.getByRole("list", { name: "Batch document status" });
 
     // Spanish status labels, conveyed by text (never color alone).
@@ -264,9 +269,27 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     expect(props.onRemoveBatchItem).toHaveBeenCalledWith(2);
   });
 
+  it("a guarded no-op removal is never announced as a successful removal (#86 correction)", async () => {
+    // The bridge callback here performs nothing: a stale-authority no-op. The
+    // feedback must report that nothing was applied and never claim the item
+    // left the batch.
+    const { props } = await renderView({ job: processingFailureJob() });
+    fireEvent.click(screen.getByRole("button", { name: "Retirar del lote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar retirada" }));
+    expect(props.onRemoveBatchItem).toHaveBeenCalledWith(2);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/La retirada no se aplicó/i);
+    expect(screen.queryByText(/se ha retirado del lote/i)).not.toBeInTheDocument();
+    // The item is still in active attention with its recovery actions.
+    expect(screen.getByRole("button", { name: "Retirar del lote" })).toBeInTheDocument();
+  });
+
   it("a removed item shows the retained failure plus the disposition and no recovery actions", async () => {
     const removed = removeBatchItem(processingFailureJob(), 2);
     await renderView({ job: removed });
+    // #86: a removed error leaves active attention; it stays discoverable in
+    // Retirados (and Todos).
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (1)" }));
     const list = screen.getByRole("list", { name: "Batch document status" });
     expect(within(list).getByText(/Retirado del lote/)).toBeInTheDocument();
     expect(within(list).getByText(/Synthetic processing failure\./)).toBeInTheDocument();
@@ -539,5 +562,368 @@ describe("BatchReviewView retry lifecycle through the real bridge (correction F2
     expect(alert).toHaveTextContent(/El reintento no se realizó/i);
     expect(screen.queryByText(/Reintento completado/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Reintentando…/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Work-queue orientation (#86, REC-06). All fixtures are synthetic; no real
+ * content anywhere. The view categories are presentation-only: these oracles
+ * prove counts/filtering/orientation while the canonical per-row state and
+ * every #78 recovery semantic stay untouched.
+ */
+describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
+  /**
+   * A realistic 16-item queue spanning every presentation category:
+   * - `completed` (Listos): 0, 1;
+   * - `review-required` + active errors (Necesitan atención): 2, 3, 4, 5, 15,
+   *   plus processing errors 9, 10 (10 acknowledged) and read error 11;
+   * - `queued`/`reading`/`processing` (En curso): 6, 7, 8;
+   * - removed errors (Retirados): 12, 13 (read), 14 (acknowledged then removed).
+   */
+  function orientationJob(): Job {
+    const names = Array.from(
+      { length: 16 },
+      (_entry, index) => `queue-doc-${String(index + 1).padStart(2, "0")}.txt`
+    );
+    let job = createJob({
+      type: "files",
+      files: names.map((name) => ({ name, extension: "txt" })),
+    });
+    names.forEach((_name, index) => {
+      job = beginItemRead(job, index);
+      // Item 7 stays `reading`; the read outcome is never recorded for it.
+      if (index === 7) return;
+      if (index === 11 || index === 13) {
+        job = recordItemRead(job, index, {
+          ok: false,
+          error: { code: "pdf-no-text-layer", message: "No text layer." },
+        });
+      } else {
+        job = recordItemRead(job, index, {
+          ok: true,
+          extractedText: `${TEXT_A} Documento sintético ${index}.`,
+        });
+      }
+    });
+    const processed = (index: number) => {
+      job = recordItemProcessed(beginItemProcessing(job, index), index);
+    };
+    const failed = (index: number) => {
+      job = recordItemFailed(beginItemProcessing(job, index), index, {
+        code: "processing-failed",
+        message: "Synthetic processing failure.",
+      });
+    };
+    [0, 1, 2, 3, 4, 5, 15].forEach(processed);
+    [9, 10, 12, 14].forEach(failed);
+    job = beginItemProcessing(job, 8);
+    job = recordItemReviewCompletion(job, 0, true);
+    job = recordItemReviewCompletion(job, 1, true);
+    job = acknowledgeBatchItemError(job, 10);
+    job = removeBatchItem(job, 12);
+    job = removeBatchItem(job, 13);
+    job = removeBatchItem(job, 14);
+    return job;
+  }
+
+  it("orients a 16-item queue with live Spanish counts and exact canonical row state (G-HP5)", async () => {
+    await renderView({ job: orientationJob() });
+
+    // Default: Necesitan atención because it has items; every count is live.
+    expect(screen.getByRole("button", { name: "Necesitan atención (8)" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Todos (16)" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(screen.getByRole("button", { name: "En curso (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Listos (2)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retirados (3)" })).toBeInTheDocument();
+
+    const list = screen.getByRole("list", { name: "Batch document status" });
+    // The attention view is exactly its 8 rows, each with its factual status.
+    expect(within(list).getAllByRole("listitem")).toHaveLength(8);
+    expect(within(list).getAllByText("Requiere revisión")).toHaveLength(5);
+    expect(within(list).getAllByText("Error")).toHaveLength(3);
+    expect(list).not.toHaveTextContent("Completado");
+    expect(list).not.toHaveTextContent("Retirado del lote");
+
+    // Todos keeps every original item with its exact canonical state.
+    fireEvent.click(screen.getByRole("button", { name: "Todos (16)" }));
+    expect(within(list).getAllByRole("listitem")).toHaveLength(16);
+    expect(within(list).getAllByText("Completado")).toHaveLength(2);
+    expect(within(list).getAllByText("En cola")).toHaveLength(1);
+    expect(within(list).getAllByText("Leyendo")).toHaveLength(1);
+    expect(within(list).getAllByText("Procesando")).toHaveLength(1);
+    expect(within(list).getAllByText(/Retirado del lote/)).toHaveLength(3);
+  });
+
+  it("locates completed and removed documents without the attention rows", async () => {
+    await renderView({ job: orientationJob() });
+    const list = screen.getByRole("list", { name: "Batch document status" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getAllByText("Completado")).toHaveLength(2);
+    expect(list).not.toHaveTextContent("Requiere revisión");
+
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(list).getAllByText(/Retirado del lote/)).toHaveLength(3);
+    // A removed item stays distinguishable from a completed one: still `error`.
+    expect(within(list).getAllByText("Error")).toHaveLength(3);
+  });
+
+  it("keeps an acknowledged error in attention and a removed error out of it", async () => {
+    await renderView({ job: orientationJob() });
+    const list = screen.getByRole("list", { name: "Batch document status" });
+    const item = (name: string) => within(list).getByText(name);
+
+    // item 10 (acknowledged) is still attention; item 12 (removed) is not.
+    expect(item("queue-doc-11.txt")).toBeInTheDocument();
+    expect(within(list).getByText(/Error reconocido/)).toBeInTheDocument();
+    expect(within(list).queryByText("queue-doc-13.txt")).not.toBeInTheDocument();
+
+    // Removed errors stay discoverable in Retirados and Todos.
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
+    expect(item("queue-doc-13.txt")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Todos (16)" }));
+    expect(item("queue-doc-13.txt")).toBeInTheDocument();
+    expect(item("queue-doc-11.txt")).toBeInTheDocument();
+  });
+
+  it("switching filters never changes the active document, its session or its decisions", async () => {
+    const job = orientationJob();
+    // Seed the ACTIVE document (0, completed) with real, complete decisions and
+    // a second successful document (1) as unrelated work with its own session,
+    // then prove both facts survive every filter change.
+    const sessions = {
+      0: completedSession(await sessionFor(job, 0)),
+      1: await sessionFor(job, 1),
+    };
+    const onSelectDocument = vi.fn();
+    function FiltersHarness(): ReactElement {
+      const [activeIndex, setActiveIndex] = useState<number | null>(0);
+      return (
+        <BatchReviewView
+          job={job}
+          sessions={sessions}
+          activeIndex={activeIndex}
+          retryContextAvailable
+          onSelectDocument={(next) => {
+            onSelectDocument(next);
+            setActiveIndex(next);
+          }}
+          onDecide={() => {}}
+          onAddManual={() => {}}
+        />
+      );
+    }
+    render(<FiltersHarness />);
+
+    const progress = () => screen.getByRole("status", { name: "Review progress" });
+    // The seeded decisions are exactly what the active document's workspace
+    // reports before any filter change.
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: yes");
+
+    // Filtering through every working category selects nothing and discards no
+    // decision: it is a pure presentation change.
+    fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Necesitan atención (8)" }));
+    fireEvent.click(screen.getByRole("button", { name: "En curso (3)" }));
+    expect(onSelectDocument).not.toHaveBeenCalled();
+
+    // The active document, its decided session and its aria-current survive.
+    fireEvent.click(screen.getByRole("button", { name: "Todos (16)" }));
+    expect(screen.getByRole("button", { name: /queue-doc-01\.txt/ })).toHaveAttribute(
+      "aria-current",
+      "true"
+    );
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: yes");
+
+    // The unrelated successful document keeps its own independent session and
+    // stays usable; further filter changes leave that work untouched too.
+    fireEvent.click(screen.getByRole("button", { name: /queue-doc-02\.txt/ }));
+    expect(onSelectDocument).toHaveBeenCalledWith(1);
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: no");
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
+    expect(onSelectDocument).toHaveBeenCalledTimes(1);
+    expect(progress()).toHaveTextContent("All mandatory decisions complete: no");
+  });
+
+  it("re-derives counts and membership from authoritative job props after review completion", async () => {
+    const job = processingFailureJob();
+    const sessions = { 0: completedSession(await sessionFor(job, 0)), 1: await sessionFor(job, 1) };
+    const baseProps = {
+      sessions,
+      activeIndex: 1 as number | null,
+      retryContextAvailable: true,
+      onSelectDocument: vi.fn(),
+      onDecide: vi.fn(),
+      onAddManual: vi.fn(),
+    };
+    const { rerender } = render(<BatchReviewView job={job} {...baseProps} />);
+    expect(screen.getByRole("button", { name: "Necesitan atención (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Listos (0)" })).toBeInTheDocument();
+
+    rerender(<BatchReviewView job={recordItemReviewCompletion(job, 1, true)} {...baseProps} />);
+    expect(screen.getByRole("button", { name: "Necesitan atención (2)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Listos (1)" })).toBeInTheDocument();
+  });
+
+  it("defaults to Todos when no item needs attention and recovers from an empty filter", async () => {
+    const completed = recordItemReviewCompletion(
+      recordItemReviewCompletion(
+        withProcessedItems(
+          batchJobWith([
+            { name: "doc-a.txt", read: { ok: true, extractedText: TEXT_A } },
+            { name: "doc-b.txt", read: { ok: true, extractedText: TEXT_B } },
+          ])
+        ),
+        0,
+        true
+      ),
+      1,
+      true
+    );
+    await renderView({ job: completed, sessions: {}, activeIndex: null });
+    expect(screen.getByRole("button", { name: "Todos (2)" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Necesitan atención (0)" }));
+    expect(
+      screen.getByText(/No hay ningún documento que coincida con este filtro\./)
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar todos" }));
+    expect(screen.getByRole("button", { name: "Todos (2)" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(
+      screen.getByRole("list", { name: "Batch document status" }).querySelectorAll("li")
+    ).toHaveLength(2);
+  });
+
+  it("keeps the open document's workspace intact and notes it is outside the selected filter", async () => {
+    const job = orientationJob();
+    const sessions = { 0: await sessionFor(job, 0), 1: await sessionFor(job, 1) };
+    await renderView({ job, sessions, activeIndex: 0 });
+
+    // Default attention: the open completed document is outside it, but its
+    // Review workspace survives and the UI states the fact.
+    expect(screen.getByText(/no pertenece al filtro actual/i)).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Review progress" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Todos (16)" }));
+    expect(screen.queryByText(/no pertenece al filtro actual/i)).not.toBeInTheDocument();
+  });
+
+  it("filter controls are native, labelled in Spanish and expose a pressed state", async () => {
+    await renderView({ job: processingFailureJob(), sessions: {}, activeIndex: null });
+    const group = screen.getByRole("group", { name: "Filtrar documentos del lote" });
+    const controls = within(group).getAllByRole("button");
+    expect(controls.map((control) => control.textContent)).toEqual([
+      "Todos (3)",
+      "Necesitan atención (3)",
+      "En curso (0)",
+      "Listos (0)",
+      "Retirados (0)",
+    ]);
+    for (const control of controls) {
+      expect(control.tagName).toBe("BUTTON");
+      expect(control).toHaveAttribute("aria-pressed");
+      expect(control.className).toContain("focus-visible:ring");
+    }
+  });
+
+  /** Stateful harness for a removal that really changes the job's category. */
+  function RemovalHarness({ initialJob }: { initialJob: Job }): ReactElement {
+    const [job, setJob] = useState(initialJob);
+    return (
+      <BatchReviewView
+        job={job}
+        sessions={null}
+        activeIndex={null}
+        retryContextAvailable
+        onSelectDocument={() => {}}
+        onDecide={() => {}}
+        onAddManual={() => {}}
+        onRemoveBatchItem={(index) => setJob((current) => removeBatchItem(current, index))}
+        onAcknowledgeBatchItemError={(index) =>
+          setJob((current) => acknowledgeBatchItemError(current, index))
+        }
+      />
+    );
+  }
+
+  it("a removal performed from Necesitan atención keeps its consequence perceptible", async () => {
+    render(<RemovalHarness initialJob={processingFailureJob()} />);
+    const list = screen.getByRole("list", { name: "Batch document status" });
+    const failedRow = screen.getByText(/Synthetic processing failure\./).closest("li")!;
+    fireEvent.click(within(failedRow).getByRole("button", { name: "Retirar del lote" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar retirada" }));
+
+    // The row leaves active attention, but the consequence stays perceptible.
+    await waitFor(() => expect(list).not.toHaveTextContent("doc-c.txt"));
+    expect(statusWith(/se ha retirado del lote/i)).toBeDefined();
+    // The removed item is still discoverable in Retirados.
+    fireEvent.click(screen.getByRole("button", { name: "Retirados (1)" }));
+    expect(within(list).getByText("doc-c.txt")).toBeInTheDocument();
+    expect(within(list).getByText(/Retirado del lote/)).toBeInTheDocument();
+  });
+
+  /** Stateful harness where a retry really moves its row out of attention. */
+  function RetryHarness({
+    initialJob,
+    retry,
+  }: {
+    initialJob: Job;
+    retry: (index: number) => Promise<BatchItemRetryResult>;
+  }): ReactElement {
+    const [job, setJob] = useState(initialJob);
+    return (
+      <BatchReviewView
+        job={job}
+        sessions={null}
+        activeIndex={null}
+        retryContextAvailable
+        onSelectDocument={() => {}}
+        onDecide={() => {}}
+        onAddManual={() => {}}
+        onRetryBatchItem={(index) => {
+          setJob((current) => beginBatchItemRetry(current, index));
+          return retry(index);
+        }}
+      />
+    );
+  }
+
+  it("retry feedback stays perceptible when its row moves from Necesitan atención to En curso", async () => {
+    let resolveRetry: (result: BatchItemRetryResult) => void = () => {};
+    const retry = vi.fn(
+      () =>
+        new Promise<BatchItemRetryResult>((resolve) => {
+          resolveRetry = resolve;
+        })
+    );
+    render(<RetryHarness initialJob={processingFailureJob()} retry={retry} />);
+    const list = screen.getByRole("list", { name: "Batch document status" });
+    const failedRow = screen.getByText(/Synthetic processing failure\./).closest("li")!;
+    fireEvent.click(within(failedRow).getByRole("button", { name: "Reintentar" }));
+
+    // The retry's own transition moved doc-c into En curso; the pending
+    // feedback does not disappear with the row.
+    await waitFor(() => expect(list).not.toHaveTextContent("doc-c.txt"));
+    expect(screen.getByRole("button", { name: "En curso (1)" })).toBeInTheDocument();
+    expect(statusWith(/Reintentando…/)).toBeDefined();
+
+    resolveRetry({ kind: "settled", failure: null });
+    await waitFor(() => expect(statusWith(/Reintento completado/i)).toBeDefined());
   });
 });

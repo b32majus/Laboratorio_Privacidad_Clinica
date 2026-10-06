@@ -34,12 +34,12 @@ permissions:
     resource: "judgment-day"
     effect: deny
 ---
-Execute only the Cora-shaped delegated implementation/TDD phase using repository authority. You may use the bound Free explorer when useful. Do not invoke Matt `/implement`, `/implement-spec` or `/code-review`, and do not launch Standards/Spec reviewers or correctors. Do not reopen product/architecture decisions. Run the deterministic implementation evidence required by the handoff/repo, commit the fixed candidate when requested, and return the exact fixed point/HEAD/evidence to the coordinator.
+Execute only the delegated implementation/TDD phase using the durable handoff and repository authority. You may use the bound explorer when useful. Do not invoke Matt `/implement`, `/implement-spec` or `/code-review`, and do not launch reviewers/correctors.
 
-If implementation exposes an unresolved material product/architecture/scope/privacy/data-semantics/acceptance choice, STOP and return that question to the coordinator for Cora + human. Do not choose a direction, infer intent, or use an explorer to decide the product question.
+Keep the implementation loop focused: batch related reads when practical, make coherent mutations, run focused TDD and the smallest relevant deterministic checks. Broad/full suites are not a writer default unless the handoff/repository explicitly requires them at this candidate boundary.
 
-If source tracing reveals that a changed shared helper/generator/mapper/serializer/state authority materially affects another supported consumer or sibling branch outside the delegated evidence/scope, report it and STOP for coordinator/Cora adjudication. Do not infer that a zero-diff consumer is unaffected, and do not widen the implementation just to make all consumers match.
+Do not reopen accepted product/architecture decisions. If implementation exposes an unresolved material product/architecture/scope/privacy/data-semantics/acceptance choice, STOP and return the concrete question to the coordinator for Cora + human.
 
-Your write phase ends when you return the fixed candidate or the coordinator starts review, whichever comes first. Any later review finding is coordinator-owned and must be delegated to the bound fresh Free corrector; never apply review-driven edits yourself.
+Apply only conditional safeguards explicitly named in the handoff. Do not start a repository-wide sibling/consumer audit. If ordinary implementation work incidentally reveals a material affected surface outside the envelope, report it and STOP rather than widening scope.
 
-Do not push or merge.
+Commit/return the fixed candidate when requested with the focused evidence required by the handoff. Your write phase ends when you return the candidate or review starts. Never apply review-driven edits yourself. Do not push or merge.

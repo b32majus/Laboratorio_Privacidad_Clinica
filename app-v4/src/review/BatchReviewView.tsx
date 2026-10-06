@@ -34,6 +34,20 @@
  * conveyed as text (never color alone). Status labels and recovery copy are
  * professional Spanish; the document-list aria-labels are kept stable for the
  * existing test/automation targets. No export surface here (T08 owns it).
+ *
+ * Work-queue orientation (#86, REC-06): a compact filter above the queue
+ * groups the items into `Todos` / `Necesitan atención` / `En curso` / `Listos`
+ * / `Retirados` with live Spanish counts. The default view is `Necesitan
+ * atención` whenever it has items, otherwise `Todos`. These are presentation
+ * categories only (never domain status/persistence): filtering never mutates
+ * Job state, `activeIndex`, ReviewSession, decisions or recovery facts, and
+ * every row keeps its exact canonical status/disposition. Acknowledged errors
+ * stay in active attention; removed errors stay discoverable in `Retirados`
+ * and `Todos`. When the open review document falls outside the selected
+ * filter its workspace stays intact and a factual note says so. Recovery
+ * feedback is rendered outside the filtered rows so an action's consequence
+ * never disappears with its row, and an empty filter explains itself and
+ * offers `Mostrar todos`.
  */
 import { useState, type ReactElement } from "react";
 
@@ -42,6 +56,7 @@ import {
   isBatchItemRetryable,
   type BatchItemStatus,
   type Job,
+  type JobSourceFile,
   type PrivacyPolicyId,
 } from "../domain/job";
 import type { EngineLoader } from "../engine/engine-seam";
@@ -67,6 +82,50 @@ const BATCH_STATUS_LABELS: Record<BatchItemStatus, string> = {
   error: "Error",
 };
 
+/**
+ * Batch work-queue orientation views (#86, REC-06). These are PRESENTATION
+ * categories derived from the canonical item state on every render: they are
+ * never a domain status, are never persisted and never drive a transition.
+ * The exact `BatchItemStatus` / disposition of every row stays authoritative.
+ */
+type BatchQueueView = "all" | "attention" | "in-progress" | "ready" | "removed";
+
+/** A concrete filter view (every value except the `all` umbrella). */
+type BatchQueueCategory = Exclude<BatchQueueView, "all">;
+
+const BATCH_QUEUE_VIEW_LABELS: Record<BatchQueueView, string> = {
+  all: "Todos",
+  attention: "Necesitan atención",
+  "in-progress": "En curso",
+  ready: "Listos",
+  removed: "Retirados",
+};
+
+/** Filter control order: the umbrella first, then the working categories. */
+const BATCH_QUEUE_VIEW_ORDER: readonly BatchQueueView[] = [
+  "all",
+  "attention",
+  "in-progress",
+  "ready",
+  "removed",
+];
+
+/**
+ * The presentation category of one batch item (#86). A deliberately removed
+ * error leaves active attention but stays discoverable in `Retirados`/`Todos`;
+ * an acknowledged error STAYS in active attention because acknowledgement is
+ * not resolution. `review-required` and active `error` share `Necesitan
+ * atención`; `queued`/`reading`/`processing` share `En curso`; `completed`
+ * is `Listos`.
+ */
+function batchQueueCategory(file: JobSourceFile): BatchQueueCategory {
+  if (file.itemDisposition === "removed") return "removed";
+  const status = file.itemStatus ?? "queued";
+  if (status === "error" || status === "review-required") return "attention";
+  if (status === "completed") return "ready";
+  return "in-progress";
+}
+
 /** The job + policy authority a transient recovery interaction was captured under. */
 type RecoveryScope = {
   readonly jobId: string;
@@ -81,7 +140,13 @@ type RecoveryScope = {
  */
 type RetryAttempt = RecoveryScope & { readonly index: number };
 
-/** Per-item recovery feedback (#78): perceptible, co-located, text-conveyed. */
+/**
+ * Recovery feedback (#78, #86): perceptible, text-conveyed and scoped to the
+ * job/policy authority it was captured under. It is rendered in the persistent
+ * feedback region rather than inside the row, so an action that moves its item
+ * to another filter category (or out of the current filter) keeps its
+ * consequence visible.
+ */
 type RecoveryFeedback = RecoveryScope & {
   readonly index: number;
   readonly kind: "status" | "error";
@@ -90,6 +155,16 @@ type RecoveryFeedback = RecoveryScope & {
 
 /** Open remove confirmation (#78): scoped to the job it was opened for. */
 type RemoveConfirmation = RecoveryScope & { readonly index: number };
+
+/**
+ * Confirmed removal awaiting its authoritative outcome (#86 correction). The
+ * `onRemoveBatchItem` bridge entry point returns `void`, so the component can
+ * never assume the guarded transition applied. This notice records the
+ * confirmation; the outcome is read back from the authoritative job on the
+ * next render, so a guarded no-op reports that nothing was applied instead of
+ * a false success.
+ */
+type RemovalNotice = RecoveryScope & { readonly index: number; readonly name: string };
 
 export type BatchReviewViewProps = {
   /** The frozen batch job: the single authority for per-item state. */
@@ -159,12 +234,53 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
   const [retrying, setRetrying] = useState<RetryAttempt | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState<RemoveConfirmation | null>(null);
   const [feedback, setFeedback] = useState<RecoveryFeedback | null>(null);
+  const [removalNotice, setRemovalNotice] = useState<RemovalNotice | null>(null);
   const attemptInFlight = retrying !== null && retrying.jobId === job.id;
+
+  // #86 orientation. An explicit filter choice is pinned to the job it was
+  // made for; until then the live default applies: Necesitan atención when it
+  // has at least one item, otherwise Todos. Counts and membership re-derive
+  // from the CURRENT authoritative props on every render, so
+  // retry/remove/acknowledge/review completion update the queue. Selecting a
+  // view never touches Job state, `activeIndex`, sessions or decisions.
+  const [queueSelection, setQueueSelection] = useState<{
+    jobId: string;
+    view: BatchQueueView;
+  } | null>(null);
+  const queueCategories = files.map(batchQueueCategory);
+  const queueCounts: Record<BatchQueueView, number> = {
+    all: files.length,
+    attention: 0,
+    "in-progress": 0,
+    ready: 0,
+    removed: 0,
+  };
+  for (const category of queueCategories) queueCounts[category] += 1;
+  const activeView: BatchQueueView =
+    queueSelection !== null && queueSelection.jobId === job.id
+      ? queueSelection.view
+      : queueCounts.attention > 0
+        ? "attention"
+        : "all";
+  const visibleIndices = files
+    .map((_file, index) => index)
+    .filter((index) => activeView === "all" || queueCategories[index] === activeView);
+  // The open review document may fall outside the selected filter; its Review
+  // workspace stays intact and the UI says so factually.
+  const activeFile = activeIndex === null ? undefined : files[activeIndex];
+  const activeOutsideFilter =
+    activeView !== "all" &&
+    activeFile !== undefined &&
+    batchQueueCategory(activeFile) !== activeView;
+  const retryingVisible =
+    retrying !== null && retrying.jobId === job.id && retrying.policyId === job.policyId;
+  const retryingName = retrying === null ? undefined : files[retrying.index]?.name;
 
   const handleRetry = async (index: number) => {
     if (props.onRetryBatchItem === undefined || attemptInFlight) return;
     const scope: RecoveryScope = { jobId: job.id, policyId: job.policyId };
     setFeedback(null);
+    setRemovalNotice(null);
     setRetrying({ ...scope, index });
     let result: BatchItemRetryResult = { kind: "refused" };
     try {
@@ -205,12 +321,20 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
   };
 
   const handleConfirmRemove = (index: number) => {
+    const name = files[index]?.name ?? "";
     props.onRemoveBatchItem?.(index);
     setConfirmingRemove(null);
+    setFeedback(null);
+    // #86 correction: the bridge entry point returns void, so the removal is
+    // never asserted here. The notice records the confirmation; the outcome is
+    // read back from the authoritative job on the next render, and a guarded
+    // no-op is reported as not applied instead of as a false success.
+    setRemovalNotice({ jobId: job.id, policyId: job.policyId, index, name });
   };
 
   const handleAcknowledge = (index: number) => {
     props.onAcknowledgeBatchItemError?.(index);
+    setRemovalNotice(null);
     setFeedback({
       jobId: job.id,
       policyId: job.policyId,
@@ -232,6 +356,29 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
     feedback !== null &&
     feedback.jobId === job.id &&
     (feedback.kind === "error" || feedback.policyId === job.policyId);
+
+  // #86 correction: the removal outcome is derived from the authoritative job
+  // (the item's disposition), never assumed from the void callback. It is
+  // rendered in the persistent feedback region so a real removal's consequence
+  // cannot vanish with the row that leaves the current filter, while a guarded
+  // no-op honestly reports that nothing was applied.
+  let shownFeedback: RecoveryFeedback | null = feedbackVisible ? feedback : null;
+  if (
+    removalNotice !== null &&
+    removalNotice.jobId === job.id &&
+    removalNotice.policyId === job.policyId
+  ) {
+    const removed = files[removalNotice.index]?.itemDisposition === "removed";
+    shownFeedback = {
+      jobId: removalNotice.jobId,
+      policyId: removalNotice.policyId,
+      index: removalNotice.index,
+      kind: removed ? "status" : "error",
+      text: removed
+        ? `«${removalNotice.name}» se ha retirado del lote. Su error queda registrado y el documento ya no participa en el trabajo pendiente.`
+        : "La retirada no se aplicó: la acción ya no corresponde al estado actual del trabajo.",
+    };
+  }
 
   return (
     <section aria-labelledby="batch-review-step-heading">
@@ -260,8 +407,62 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
         className="mt-4 rounded border border-primary bg-surface-light p-3"
       >
         <h3 className="font-display text-base font-bold text-primary-dark">Documentos</h3>
+
+        {/* #86 orientation: a compact filter immediately above the queue. The
+            counts derive from the CURRENT item state on every render; choosing
+            one only changes which rows are shown, never any review fact. */}
+        <div
+          role="group"
+          aria-label="Filtrar documentos del lote"
+          className="mt-3 flex flex-wrap gap-2"
+        >
+          {BATCH_QUEUE_VIEW_ORDER.map((view) => {
+            const pressed = activeView === view;
+            return (
+              <button
+                key={view}
+                type="button"
+                aria-pressed={pressed}
+                onClick={() => setQueueSelection({ jobId: job.id, view })}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  pressed
+                    ? "border-primary-dark bg-primary-dark text-white"
+                    : "border-primary bg-white text-primary-dark hover:bg-surface-light"
+                } ${focusRing}`}
+              >
+                {BATCH_QUEUE_VIEW_LABELS[view]} ({queueCounts[view]})
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Recovery feedback lives HERE, outside the filtered rows: an action
+            can move its row to another category (or out of the current
+            filter), and its consequence must stay perceptible. */}
+        {retryingVisible && (
+          <p
+            role="status"
+            className={`mt-3 rounded border border-primary bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ${focusRing}`}
+          >
+            Reintentando…{retryingName === undefined ? "" : ` «${retryingName}»`}
+          </p>
+        )}
+        {shownFeedback && (
+          <p
+            role={shownFeedback.kind === "error" ? "alert" : "status"}
+            className={`mt-3 rounded border px-3 py-2 text-sm ${
+              shownFeedback.kind === "error"
+                ? "border-primary-dark bg-surface-light font-semibold text-primary-dark"
+                : "border-primary bg-white text-neutral-800"
+            } ${focusRing}`}
+          >
+            {shownFeedback.text}
+          </p>
+        )}
+
         <ul aria-label="Batch document status" className="mt-2 space-y-1">
-          {files.map((file, index) => {
+          {visibleIndices.map((index) => {
+            const file = files[index]!;
             const status = file.itemStatus ?? "queued";
             const selectable = sessions?.[index] !== undefined;
             const isActive = activeIndex === index;
@@ -375,38 +576,40 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                     )}
                   </div>
                 )}
-                {retrying !== null &&
-                  retrying.jobId === job.id &&
-                  retrying.policyId === job.policyId &&
-                  retrying.index === index && (
-                    <p
-                      role="status"
-                      className={`mt-1 px-2 text-sm font-semibold text-neutral-800 ${focusRing}`}
-                    >
-                      Reintentando…
-                    </p>
-                  )}
-                {feedbackVisible && feedback!.index === index && (
-                  <p
-                    role={feedback!.kind === "error" ? "alert" : "status"}
-                    className={`mt-1 px-2 text-sm ${
-                      feedback!.kind === "error"
-                        ? "font-semibold text-primary-dark"
-                        : "text-neutral-800"
-                    } ${focusRing}`}
-                  >
-                    {feedback!.text}
-                  </p>
-                )}
               </li>
             );
           })}
         </ul>
+
+        {visibleIndices.length === 0 && (
+          <div className="mt-2 rounded border border-dashed border-primary bg-white px-3 py-2">
+            <p role="status" className="text-sm text-neutral-800">
+              No hay ningún documento que coincida con este filtro.
+            </p>
+            <button
+              type="button"
+              onClick={() => setQueueSelection({ jobId: job.id, view: "all" })}
+              className={`mt-2 rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+            >
+              Mostrar todos
+            </button>
+          </div>
+        )}
         <p className="mt-3 text-xs leading-relaxed text-neutral-600">
           Los documentos de este lote mantienen sustituciones internas y fechas coherentes entre
           todos los documentos del mismo trabajo.
         </p>
       </section>
+
+      {activeOutsideFilter && activeFile !== undefined && (
+        <p
+          role="status"
+          className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800"
+        >
+          El documento abierto «{activeFile.name}» no pertenece al filtro actual y no aparece en la
+          lista, pero su revisión sigue disponible e intacta.
+        </p>
+      )}
 
       {activeSession !== undefined ? (
         <ReviewWorkspace

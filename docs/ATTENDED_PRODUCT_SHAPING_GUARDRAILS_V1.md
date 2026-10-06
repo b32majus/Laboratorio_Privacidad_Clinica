@@ -1,7 +1,11 @@
 # Atenea — Attended product shaping guardrails v1
 
-Status: **CURRENT C-084 SHAPING BOUNDARY**
+Status: **CURRENT C-086 SHAPING BOUNDARY**
 Date: 2026-10-04
+
+## Execution consumption
+
+This document governs attended upstream shaping. Once accepted authority is frozen, normal implementers do **not** read or replay this method by default; execution handoffs reference the resulting durable product authority instead.
 
 ## Purpose
 

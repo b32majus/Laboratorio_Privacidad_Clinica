@@ -1,7 +1,7 @@
 # Atenea Go Profile v0
 
-Status: **QUALIFICATION CANDIDATE — C-084 GO COST-POLICY EXTENSION**
-Date: 2026-10-04
+Status: **QUALIFICATION CANDIDATE — CURRENT C-086 GO PROFILE (introduced under C-084)**
+Date: 2026-10-06
 
 ## Purpose
 
@@ -64,9 +64,9 @@ For both risk classes, MiMo coordinates, Muse implements, Qwen performs Standard
 
 - review closes the Go implementer's write phase; review findings go to fresh Go corrector sessions;
 - `Risk class: volume` findings go first to a fresh `atenea-corrector-go-volume` (Muse Go);
-- `Risk class: complex` findings go directly to a fresh `atenea-corrector-go-complex` (DeepSeek V4.1 Flash Go), with stronger deterministic closure and a Cora integrated audit before merge recommendation when the work is material;
+- `Risk class: complex` findings go directly to a fresh `atenea-corrector-go-complex` (DeepSeek V4.1 Flash Go), with focused finding-scoped closure and a Cora integrated audit before merge recommendation when the work is material;
 - the existing maximum of **two** fresh, finding-scoped correction attempts for the same already-authorized finding envelope is unchanged; a new material finding/scope change or a blocker after attempt #2 is HUMAN STOP;
-- do not add extra routine reviews merely because risk is `complex`; hardening stays proportional and deterministic-first.
+- do not add extra routine reviews or full suites merely because risk is `complex`; evidence follows the ordinary C-086 phase layering.
 
 ## Execution boundary
 

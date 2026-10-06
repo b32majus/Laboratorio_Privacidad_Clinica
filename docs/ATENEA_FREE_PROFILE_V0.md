@@ -1,7 +1,7 @@
 # Atenea Free Profile v0
 
-Status: **CURRENT C-084 COST-POLICY EXTENSION**
-Date: 2026-10-03
+Status: **CURRENT COST-POLICY PROFILE — C-086 (introduced under C-084)**
+Date: 2026-10-06
 
 ## Purpose
 
@@ -37,10 +37,10 @@ Both risk classes enter through the visible `atenea-free` coordinator. The Cora-
 `free_only + complex` remains Free. It does **not** unlock paid models. Instead:
 
 - Cora shapes smaller/coherent work units when useful;
-- deterministic closure is emphasized before model opinion;
+- evidence follows the ordinary C-086 phase layering: focused writer proof, one canonical review, finding-scoped correction and final composed closeout when justified;
 - review closes the Free implementer's write phase; review findings go to fresh Free corrector sessions;
 - up to two finding-scoped correction attempts are allowed, with the Complex corrector using a model different from the normal Free writer;
-- a material composed result requires Cora integrated audit before merge recommendation;
+- a material composed result may still require Cora integrated audit before merge recommendation; `complex` alone does not mandate extra full suites or review passes;
 - unresolved model insufficiency, ambiguity, a new material issue or a blocker remaining after correction #2 is HUMAN STOP.
 
 Complexity may make Cora recommend the paid Complex route, but the recommendation never overrides `free_only` human authority.
