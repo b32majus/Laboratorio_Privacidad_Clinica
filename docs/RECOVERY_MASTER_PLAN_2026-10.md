@@ -218,6 +218,8 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - a synthetic batch with multiple documents including at least one local read/process failure remains orientable and recoverable without destroying unrelated successful work;
 - the ordinary user need not understand `ProcessingContext` to benefit from cross-document consistency.
 
+**Status — REC-06 COMPLETED (2026-10-06; #78 + #86; PR #97; merged to `3.0-main@2941b666007062ad1c4aa8e967046705864e143d`).** #78 established bounded retry/remove/error-acknowledgement without fabricating completion or losing unrelated ReviewSession work. #86 then added the presentation-only professional work-queue orientation layer (`Todos / Necesitan atención / En curso / Listos / Retirados`) with live authoritative counts, persistent recovery feedback, preserved active review state and realistic-density evidence (16-item component fixture + 12-document real-app journey). The first remote publication validation exposed three stale `App.test.tsx` expectations that assumed every batch row remained visible after one document completed; the publication-only test correction made those legacy oracles explicitly select `Todos` and changed no runtime semantics. PR #97 then passed validate/E2E/CodeQL before merge. REC-06 therefore closes `H-16` and `PDR-05`; `PDR-10`/`PDR-11` remain transverse obligations for later user-facing REC closeout.
+
 ---
 
 ### REC-07 — BATCH-OUTPUT-PARITY-01
@@ -441,7 +443,7 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Current state after PR #96: **#78 and #79 are closed**. The hard-dependency graph makes #80–#87 executable. Under the accepted serial preference, **#86 is the selected next frontier** because it is the remaining REC-06 slice; #87 is hard-unblocked but is scheduled after REC-06 closes. #80–#85 remain independently executable. Scheduling preference is not a semantic blocker.
+Current state after PR #97: **#78, #79 and #86 are closed**. REC-06 is complete. The hard-dependency graph makes #80–#85 and #87 executable. Under the accepted serial preference, **#87 is the selected next frontier** because REC-07 is now the next incomplete REC group; #80–#85 remain independently executable. Scheduling preference is not a semantic blocker.
 
 D-019 remains an attended decision boundary inside #80. `DISC-01` is explicit in #79 and must close before the new batch async-output path represented by #87 can claim the disposal/current-authority invariant.
 
@@ -476,7 +478,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                                          REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-05 are complete. In the published REC-06→REC-12 ticket graph, #78 (REC-06 recovery actions) and #79 (REC-07 DISC-01 prefactor) are now closed. REC-06 has one remaining slice, **#86**, and the project serial preference selects it next. REC-07's #87 is now hard-unblocked because #78/#79 are closed, but is scheduled after #86 so the batch work queue is complete before batch Result/output composition. REC-08/09 #80–#85 remain technically executable and may be scheduled later without inventing dependency edges. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
+REC-01 through REC-06 are complete. In the published REC-06→REC-12 ticket graph, #78 and #86 close REC-06, while #79 closes the REC-07 `DISC-01` async-disposal prefactor. REC-07's **#87 is the selected next frontier**: its hard prerequisites #78/#79 are closed and the accepted serial preference now moves from the completed batch work queue into batch Result/output composition. REC-08/09 #80–#85 remain technically executable and may be scheduled later without inventing dependency edges. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 
