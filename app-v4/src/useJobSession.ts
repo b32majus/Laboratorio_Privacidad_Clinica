@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
+  type BatchItemProcessing,
   type DecisionExtras,
   type ExplicitDecisionStatus,
   type ManualDetectionInput,
@@ -16,11 +17,14 @@ import {
   type FlowStep,
   type Job,
   type JobInput,
+  type JobSourceFile,
   type PrivacyPolicyId,
   type ProcessingFailure,
+  acknowledgeBatchItemError,
   advanceStep,
   batchItemStatus,
   batchReviewComplete,
+  beginBatchItemRetry,
   beginItemProcessing,
   beginItemRead,
   beginProcessing,
@@ -28,10 +32,12 @@ import {
   createJob,
   failProcessing,
   goToStep,
+  isBatchItemRetryable,
   recordItemFailed,
   recordItemProcessed,
   recordItemRead,
   recordItemReviewCompletion,
+  removeBatchItem,
   setPolicy,
   withReviewState,
 } from "./domain/job";
@@ -112,6 +118,17 @@ const DEFAULT_ENGINE_LOADER = createDefaultEngineLoader();
 type BatchReviewState = {
   readonly sessions: Readonly<Record<number, ReviewSession>>;
   readonly activeIndex: number | null;
+  /**
+   * Batch failure recovery (#78, REC-06): the final carried shared
+   * {@link ProcessingContext} of the batch attempt (the promoted context of
+   * the last successful item, or the policy-owned initial context when no
+   * item succeeded). It is the context a contextual in-place retry MUST run
+   * with, so the retried document stays consistent with the already-processed
+   * documents (same original → same pseudonym, next free counter, job-scoped
+   * date shift). Job-scoped bridge state, dropped exactly where `batch` is
+   * dropped (`create`, `clear`, `updatePolicy`); NEVER exposed to components.
+   */
+  readonly sharedContext: ProcessingContext | null;
 };
 
 type SessionState = {
@@ -167,6 +184,59 @@ function withDerivedBatchReviewState(job: Job): Job {
 }
 
 /**
+ * #78 (mid-attempt mutation preservation): a batch attempt's outcome job is
+ * computed from its attempt-start snapshot, but the operator can record
+ * explicit mutations while the attempt is in flight — recovery facts
+ * (acknowledge/remove) on read-failed rows, which are visible with their
+ * actions from the moment Review renders, and review completions on other
+ * documents once sessions exist. Installing the snapshot wholesale would
+ * silently revert those explicit mutations. The rebase keeps the CURRENT job
+ * as the base and carries over ONLY the files the attempt itself owns:
+ *
+ * - the batch run owns every item that was `queued` at run start (the run
+ *   skips any other item, so their current files — possibly carrying #78
+ *   recovery facts recorded mid-run — are preserved);
+ * - a retry owns exactly its retried item's outcome file.
+ *
+ * The caller has already established that `current` is the same job under the
+ * same policy; otherwise the attempt's own stale-outcome drop applies.
+ */
+function rebaseRunOutcomeFiles(
+  runJob: Job,
+  begun: Job,
+  current: Job,
+  ownedOutcomeFiles?: Readonly<Record<number, JobSourceFile>>
+): Job {
+  if (begun.source.type !== "files" || runJob.source.type !== "files") return runJob;
+  if (current.source.type !== "files") return runJob;
+  const begunFiles = begun.source.files;
+  const runFiles = runJob.source.files;
+  const currentFiles = current.source.files;
+  if (begunFiles.length !== runFiles.length || runFiles.length !== currentFiles.length) {
+    return runJob;
+  }
+  const mergedFiles = runFiles.map((file, index) => {
+    const owned = ownedOutcomeFiles?.[index];
+    if (owned !== undefined) return owned;
+    // The run owns items it actually processed: `queued` at run start. Items
+    // it skipped (already `error` — read failures) keep the CURRENT file.
+    return begunFiles[index].itemStatus === "queued" ? file : currentFiles[index];
+  });
+  return withDerivedBatchReviewState(
+    Object.freeze({
+      ...runJob,
+      source: { type: "files", files: Object.freeze(mergedFiles) },
+    }) as Job
+  );
+}
+
+/** The batch item file at `index` of a files-source job (attempt-internal). */
+function itemFileOf(job: Job, index: number): JobSourceFile {
+  if (job.source.type !== "files") throw new Error("expected a files source");
+  return job.source.files[index];
+}
+
+/**
  * HARDEN-01 WU-A: derive a structured job's export-gated state from the exact
  * structured preparation (the only authority that activates T19/date-age,
  * QID pseudonymization and Study-ID). Safe
@@ -215,6 +285,13 @@ export type BatchReviewRun =
       readonly job: Job;
       readonly sessions: Readonly<Record<number, ReviewSession>>;
       readonly activeIndex: number | null;
+      /**
+       * Batch failure recovery (#78): the final carried shared context after
+       * the loop — the promoted context of the last success, or the
+       * policy-owned initial context when nothing succeeded. The bridge
+       * retains it for contextual retries and never exposes it to components.
+       */
+      readonly sharedContext: ProcessingContext;
     }
   | { readonly ok: false; readonly job: Job; readonly failure: ProcessingFailure };
 
@@ -296,6 +373,9 @@ export async function runBatchReviewAsync(
       job: withDerivedBatchReviewState(completeProcessing(working)),
       sessions,
       activeIndex,
+      // #78: the carried context survives the attempt so a failed item can be
+      // retried against the SAME shared state as the successful documents.
+      sharedContext: carriedContext,
     };
   } catch (error) {
     const failure = classifyProcessingFailure(error);
@@ -320,6 +400,14 @@ export function useJobSession() {
   } | null>(null);
   const structuredRef = useRef(structured);
   structuredRef.current = structured;
+
+  /**
+   * Batch failure recovery (#78, REC-06): the job id of the retry attempt
+   * currently in flight, or `null`. A second overlapping retry for the same
+   * job is a no-op (double-fire guard); the ref resets when the attempt
+   * settles, and a job replacement drops the stale outcome anyway.
+   */
+  const retryInFlightRef = useRef<string | null>(null);
 
   /**
    * Job-scoped structured output options (REC-04 WU-B, D-022): the canonical
@@ -580,16 +668,24 @@ export function useJobSession() {
       const run = await runBatchReviewAsync(begun);
       if (!jobStillCurrent()) return null;
       if (!run.ok) {
-        setState((state) => (jobStillCurrent() ? { ...state, job: run.job } : state));
+        setState((state) =>
+          jobStillCurrent() && state.job !== null
+            ? { ...state, job: rebaseRunOutcomeFiles(run.job, begun, state.job) }
+            : state
+        );
         return run.failure;
       }
       const sessions = Object.freeze({ ...run.sessions });
       setState((state) =>
-        jobStillCurrent()
+        jobStillCurrent() && state.job !== null
           ? {
-              job: run.job,
+              job: rebaseRunOutcomeFiles(run.job, begun, state.job),
               review: null,
-              batch: { sessions, activeIndex: run.activeIndex },
+              batch: {
+                sessions,
+                activeIndex: run.activeIndex,
+                sharedContext: run.sharedContext,
+              },
             }
           : state
       );
@@ -670,6 +766,7 @@ export function useJobSession() {
           batch: {
             sessions: Object.freeze({ ...current.batch.sessions, [activeIndex]: review }),
             activeIndex,
+            sharedContext: current.batch.sharedContext,
           },
         });
         return;
@@ -728,6 +825,7 @@ export function useJobSession() {
           batch: {
             sessions: Object.freeze({ ...current.batch.sessions, [activeIndex]: review }),
             activeIndex,
+            sharedContext: current.batch.sharedContext,
           },
         });
         return;
@@ -753,6 +851,169 @@ export function useJobSession() {
     setState((current) =>
       current.batch ? { ...current, batch: { ...current.batch, activeIndex: index } } : current
     );
+  }, []);
+
+  /**
+   * Batch failure recovery (#78, REC-06): contextual in-place retry of ONE
+   * retryable failed item against the RETAINED shared cross-document context.
+   *
+   * Fail-closed entry conditions (all checked before any mutation): the
+   * rendered job id must still match the CURRENT job (a stale action can
+   * never target a replaced Job), the batch state must exist, the domain must
+   * classify the item as retryable ({@link isBatchItemRetryable}: a
+   * processing failure with retained text, not removed, not
+   * `policy-unsupported`), and a shared context must be retained (no context
+   * ⇒ no retry — never a fresh/inconsistent context). A second overlapping
+   * retry for the same job is a no-op (double-fire guard; the in-flight ref
+   * resets when the attempt settles or the job changes).
+   *
+   * The started attempt is installed atomically (guarded by the SAME job id
+   * AND policy), the engine runs OUTSIDE any state updater, and the outcome
+   * is installed in one atomic write guarded by the existing
+   * `jobStillCurrent()` rule (same job id AND same policy — a policy change
+   * mid-retry drops the stale outcome with zero mutation). Success records
+   * `recordItemProcessed`, installs ONLY that item's session, applies the
+   * normal zero-pending `recordItemReviewCompletion` rule, promotes the
+   * returned context to the retained shared context and re-derives the batch
+   * review state; failure (including a throwing engine load) classifies the
+   * failure and records `recordItemFailed`, returning the item to a truthful
+   * `error` with its typed failure — never a silent `queued`/`processing`
+   * zombie. Every outcome write goes through
+   * {@link withDerivedBatchReviewState}, so `review.complete` and both output
+   * flags stay one authority.
+   */
+  const retryBatchItem = useCallback(
+    async (
+      jobId: string,
+      index: number,
+      options?: { engineLoader?: BatchEngineLoader }
+    ): Promise<ProcessingFailure | null> => {
+      const current = stateRef.current;
+      const job = current.job;
+      if (job === null || job.id !== jobId || current.batch === null) return null;
+      if (retryInFlightRef.current === jobId) return null;
+      if (current.batch.sharedContext === null) return null;
+      // Out-of-range (or malformed) indexes are a no-op at the bridge entry;
+      // the domain guard below stays the authority for genuine state refusals.
+      const files = job.source.type === "files" ? job.source.files : [];
+      if (!Number.isInteger(index) || index < 0 || index >= files.length) return null;
+      if (!isBatchItemRetryable(job, index)) return null;
+      const started = beginBatchItemRetry(job, index);
+      const startPolicyId = job.policyId;
+      const sharedContextAtStart = current.batch.sharedContext;
+      const jobStillCurrent = (): boolean => {
+        const latest = stateRef.current.job;
+        return latest !== null && latest.id === jobId && latest.policyId === startPolicyId;
+      };
+      retryInFlightRef.current = jobId;
+      try {
+        // Atomically install the explicitly started processing attempt; a
+        // job/policy replacement between the snapshot and this commit drops
+        // the start (and the whole attempt) with zero mutation.
+        setState((state) =>
+          state.job !== null && state.job.id === jobId && state.job.policyId === startPolicyId
+            ? { ...state, job: started }
+            : state
+        );
+        if (!jobStillCurrent()) return null;
+
+        let outcome: BatchItemProcessing;
+        try {
+          const engine = await (options?.engineLoader ?? DEFAULT_ENGINE_LOADER)();
+          outcome = await processBatchItem(started, index, sharedContextAtStart, engine);
+        } catch (error) {
+          // A throwing engine load is a classified processing failure like
+          // any other: the item returns to a truthful `error` state. The
+          // outcome FILE is computed from the `started` snapshot, but the
+          // install rebases onto the CURRENT job (#78): the attempt owns only
+          // its own item, so mutations recorded on OTHER items while the
+          // retry was in flight are never silently reverted.
+          if (!jobStillCurrent()) return null;
+          const failure = classifyProcessingFailure(error);
+          const failedJob = rebaseRunOutcomeFiles(started, started, stateRef.current.job!, {
+            [index]: itemFileOf(recordItemFailed(started, index, failure), index),
+          });
+          setState((state) => (jobStillCurrent() ? { ...state, job: failedJob } : state));
+          return failure;
+        }
+        if (!jobStillCurrent()) return null;
+
+        // #78 (React commit semantics): the outcome FILE for the retried item
+        // is computed from the `started` snapshot — exactly like the batch
+        // `startReview` path, which computes `run.job` from `begun`. The
+        // `jobStillCurrent()` guard (same job id AND same policy) is the
+        // staleness boundary for the atomic outcome install, and the install
+        // REBASES onto the current job (#78): the attempt owns only its own
+        // item, so mutations recorded on other items mid-retry survive.
+        if (!outcome.ok) {
+          const failedJob = rebaseRunOutcomeFiles(started, started, stateRef.current.job!, {
+            [index]: itemFileOf(recordItemFailed(started, index, outcome.failure), index),
+          });
+          setState((state) => (jobStillCurrent() ? { ...state, job: failedJob } : state));
+          return outcome.failure;
+        }
+        // Success: exactly this item's outcome, in one atomic write. The
+        // retained shared context is replaced by the promoted returned
+        // context, so a later retry stays consistent with this document too.
+        let outcomeJob = recordItemProcessed(started, index);
+        if (canFinalize(outcome.session)) {
+          outcomeJob = recordItemReviewCompletion(outcomeJob, index, true);
+        }
+        const derivedJob = rebaseRunOutcomeFiles(started, started, stateRef.current.job!, {
+          [index]: itemFileOf(outcomeJob, index),
+        });
+        const nextSessions = Object.freeze({
+          ...(stateRef.current.batch?.sessions ?? {}),
+          [index]: outcome.session,
+        });
+        const nextSharedContext = promoteToSharedContext(outcome.context);
+        setState((state) =>
+          jobStillCurrent() && state.batch !== null
+            ? {
+                job: derivedJob,
+                review: null,
+                batch: {
+                  sessions: nextSessions,
+                  activeIndex: state.batch.activeIndex,
+                  sharedContext: nextSharedContext,
+                },
+              }
+            : state
+        );
+        return null;
+      } finally {
+        if (retryInFlightRef.current === jobId) retryInFlightRef.current = null;
+      }
+    },
+    []
+  );
+
+  /**
+   * Batch failure recovery (#78, REC-06): apply the confirmed removal of one
+   * failed item. The confirm/cancel interaction lives in the component; this
+   * entry point runs only on Confirm. It verifies the rendered job id (a
+   * stale action can never mutate a replaced Job), applies the domain
+   * transition and re-derives the batch review state in ONE atomic write.
+   * Cancel never reaches this path, so it is zero mutation by construction.
+   */
+  const removeBatchItemAction = useCallback((jobId: string, index: number): void => {
+    const current = stateRef.current;
+    if (current.job === null || current.job.id !== jobId) return;
+    const job = withDerivedBatchReviewState(removeBatchItem(current.job, index));
+    setState((state) => (state.job !== null && state.job.id === jobId ? { ...state, job } : state));
+  }, []);
+
+  /**
+   * Batch failure recovery (#78, REC-06): acknowledge the current typed
+   * failure of one active failed item ("seen", never "resolved"). Same
+   * job-id guard and atomic re-derivation as the removal above; the item
+   * stays `error` and its blocker stays active.
+   */
+  const acknowledgeBatchItemErrorAction = useCallback((jobId: string, index: number): void => {
+    const current = stateRef.current;
+    if (current.job === null || current.job.id !== jobId) return;
+    const job = withDerivedBatchReviewState(acknowledgeBatchItemError(current.job, index));
+    setState((state) => (state.job !== null && state.job.id === jobId ? { ...state, job } : state));
   }, []);
 
   /**
@@ -995,6 +1256,14 @@ export function useJobSession() {
   );
 
   const currentJobId = state.job?.id ?? null;
+  /**
+   * Batch failure recovery (#78, REC-06): whether the CURRENT job's bridge
+   * batch state retains a shared processing context. The component gate for
+   * offering `Reintentar` (with the domain's `isBatchItemRetryable`); the
+   * context itself is never exposed to components.
+   */
+  const batchRetryContextAvailable =
+    state.batch !== null && state.batch.sharedContext !== null && state.job !== null;
   const heldStructuredOptions =
     structuredOptions !== null && structuredOptions.jobId === currentJobId
       ? structuredOptions.options
@@ -1072,6 +1341,18 @@ export function useJobSession() {
     decide,
     addManual,
     selectDocument,
+    /**
+     * Batch failure recovery (#78): contextual in-place retry of one
+     * retryable failed item against the retained shared context. See the
+     * implementation contract above for the fail-closed entry conditions.
+     */
+    retryBatchItem,
+    /** Batch failure recovery (#78): confirmed removal of one failed item. */
+    removeBatchItem: removeBatchItemAction,
+    /** Batch failure recovery (#78): acknowledgement of one failed item. */
+    acknowledgeBatchItemError: acknowledgeBatchItemErrorAction,
+    /** Whether the current batch retains the shared retry context (#78). */
+    batchRetryContextAvailable,
     runStructuredFreeTextReview,
     selectFreeTextCell,
     installStructuredGrid,

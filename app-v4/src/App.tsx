@@ -103,7 +103,7 @@ export function App() {
   const session = useJobSession();
   const job = session.job;
   const review = session.review;
-  const { batchSessions, batchActiveIndex } = session;
+  const { batchSessions, batchActiveIndex, batchRetryContextAvailable } = session;
   const startReview = session.startReview;
   const [draftText, setDraftText] = useState("");
   const [draftFiles, setDraftFiles] = useState<File[]>([]);
@@ -742,9 +742,15 @@ export function App() {
             sessions={batchSessions}
             activeIndex={batchActiveIndex}
             errorMessage={reviewError}
+            retryContextAvailable={batchRetryContextAvailable}
             onSelectDocument={session.selectDocument}
             onDecide={session.decide}
             onAddManual={session.addManual}
+            onRetryBatchItem={(index, options) => session.retryBatchItem(job.id, index, options)}
+            onRemoveBatchItem={(index) => session.removeBatchItem(job.id, index)}
+            onAcknowledgeBatchItemError={(index) =>
+              session.acknowledgeBatchItemError(job.id, index)
+            }
           />
         ) : currentStep === "review" && review ? (
           <ReviewWorkspace

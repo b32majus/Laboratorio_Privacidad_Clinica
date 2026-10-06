@@ -42,7 +42,9 @@ function createTextJob() {
  */
 async function goToReviewStep() {
   fireEvent.click(stepButton(3, "Review"));
-  await screen.findByRole("heading", { level: 2, name: "Review" }, { timeout: 5_000 });
+  // #78: the reworked batch review surface carries the Spanish "Revisión"
+  // heading; the single-document/structured surfaces keep "Review".
+  await screen.findByRole("heading", { level: 2, name: /Revisión|Review/ }, { timeout: 5_000 });
 }
 
 afterEach(cleanup);
@@ -1002,7 +1004,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     );
     const selector = documentSelector();
     expect(selector).toHaveTextContent("historia-buena.txt");
-    expect(selector).toHaveTextContent(/historia-buena\.txt — Review required/);
+    expect(selector).toHaveTextContent(/historia-buena\.txt — Requiere revisión/);
     expect(selector).toHaveTextContent(/corrupt\.docx — Error/);
     expect(selector).toHaveTextContent(/could not be parsed/i);
     // The failed item exposes no review button (no session exists).
@@ -1045,8 +1047,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     // The active document is A: complete its mandatory decisions.
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/));
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Select B: only the viewed document changes; A keeps its completion.
     const docB = within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ });
@@ -1055,8 +1057,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     const progress = screen.getByRole("status", { name: /review progress/i });
     const pendingB = Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
     expect(pendingB).toBeGreaterThan(0);
-    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/);
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Navigate away and back: nothing was auto-accepted or flipped.
     // Batch review navigation is synchronous (reads-settle effect).
@@ -1065,8 +1067,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     await waitFor(() =>
       expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
     );
-    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/);
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
     const progressAfter = screen.getByRole("status", { name: /review progress/i });
     expect(progressAfter.textContent?.match(/Pending: (\d+)/)?.[1]).toBe(String(pendingB));
     // B's review controls are present and untouched: nothing was auto-accepted.
@@ -1093,9 +1095,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
     // Reads have NOT settled: no processing and a factual reading state.
-    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Reading/);
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Leyendo/);
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/still being read/i)).toBeInTheDocument();
+    expect(screen.getByText(/se están leyendo todavía/i)).toBeInTheDocument();
 
     // Settle the read: the one-shot batch attempt starts automatically.
     await act(async () => {
@@ -1107,7 +1109,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       },
       { timeout: 10_000 }
     );
-    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Requiere revisión/);
   });
 
   it("discards a read outcome whose job was cleared while the read was in flight (SD-11)", async () => {
@@ -1162,9 +1164,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
     await waitFor(() => {
-      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Requiere revisión/);
     });
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Remedy loop: a REAL supported policy change (standard → strict) resets the
     // processing-derived item state. The read text is policy-INDEPENDENT, so the
@@ -1178,9 +1180,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // read text instead of dead-ending on a missing source.
     await goToReviewStep();
     await waitFor(() => {
-      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Review required/);
+      expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Requiere revisión/);
     });
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
     expect(documentSelector()).not.toHaveTextContent(/doc-a\.txt — Error/);
     expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
   });
@@ -1201,8 +1203,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     // Complete doc A with restored ("Keep original") decisions.
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
-    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Review required/);
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/));
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Switch the ACTIVE document to B; doc A's restored decisions still exist.
     fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
@@ -1233,10 +1235,10 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     // Complete BOTH documents → batch review complete, zero error items.
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completed/));
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/));
     fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completed/));
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completado/));
 
     // Privacy Gate: review is complete, yet both batch outputs are unavailable.
     fireEvent.click(stepButton(4, "Privacy Gate"));

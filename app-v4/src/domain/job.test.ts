@@ -3,11 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   FLOW_STEPS,
   JobModelError,
+  acknowledgeBatchItemError,
   advanceStep,
+  batchActiveFailedItems,
   batchFailedItems,
+  batchHasActiveErrorItems,
   batchHasErrorItems,
   batchItemStatus,
   batchReviewComplete,
+  beginBatchItemRetry,
   beginItemProcessing,
   beginItemRead,
   beginProcessing,
@@ -17,11 +21,13 @@ import {
   failProcessing,
   goToStep,
   inferJobKind,
+  isBatchItemRetryable,
   isStepAccessible,
   recordItemFailed,
   recordItemProcessed,
   recordItemRead,
   recordItemReviewCompletion,
+  removeBatchItem,
   setPolicy,
   withReviewState,
   type BatchItemStatus,
@@ -1426,6 +1432,364 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       const job = batchJob(["a.txt", "b.txt"]);
       expectItemTransitionError(() => recordItemRead(job, 0, { ok: true, extractedText: "x" }));
       expect(statusesOf(job)).toEqual(["queued", "queued"]);
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // Batch failure recovery (#78, REC-06): orthogonal recovery/disposition
+  // facts, contextual retry, confirmed removal and acknowledgement. All
+  // fixtures are synthetic; no real content anywhere.
+  // ------------------------------------------------------------------
+  describe("failure recovery (#78, REC-06)", () => {
+    const RETRY_TEXT = "Nombre: Carmen Sánchez. Contacto: 612345678.";
+
+    /** A batch whose item 0 failed PROCESSING (retained text) and item 1 failed READ. */
+    function processingAndReadFailureJob(): Job {
+      let job = batchJob(["doc-a.txt", "doc-b.txt", "doc-c.txt"]);
+      job = readText(job, 0, RETRY_TEXT);
+      job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+        code: "processing-failed",
+        message: "Synthetic processing failure.",
+      });
+      job = readFailure(job, 1, "pdf-no-text-layer", "No text layer.");
+      job = readText(job, 2, "Synthetic text C.");
+      return job;
+    }
+
+    describe("active-failure derivations", () => {
+      it("batchActiveFailedItems excludes removed items and keeps input order", () => {
+        let job = processingAndReadFailureJob();
+        expect(batchFailedItems(job).map((item) => item.index)).toEqual([0, 1]);
+        expect(batchHasErrorItems(job)).toBe(true);
+        expect(batchActiveFailedItems(job).map((item) => item.index)).toEqual([0, 1]);
+        expect(batchHasActiveErrorItems(job)).toBe(true);
+
+        job = removeBatchItem(job, 1);
+        // The full failure set keeps its accepted semantics (every error item).
+        expect(batchFailedItems(job).map((item) => item.index)).toEqual([0, 1]);
+        expect(batchHasErrorItems(job)).toBe(true);
+        // The removed item is no longer an ACTIVE blocker.
+        expect(batchActiveFailedItems(job).map((item) => item.index)).toEqual([0]);
+        expect(batchHasActiveErrorItems(job)).toBe(true);
+
+        job = removeBatchItem(job, 0);
+        expect(batchActiveFailedItems(job)).toEqual([]);
+        expect(batchHasActiveErrorItems(job)).toBe(false);
+      });
+
+      it("batchActiveFailedItems is fail-closed on an error item without itemError", () => {
+        const job = processingAndReadFailureJob();
+        // Simulate the impossible state directly to prove the guard fires.
+        const broken = {
+          ...job,
+          source: { type: "files", files: [{ ...itemsOf(job)[0], itemError: undefined }] },
+        } as unknown as Job;
+        expectItemTransitionError(() => batchActiveFailedItems(broken));
+        expectItemTransitionError(() => batchFailedItems(broken));
+      });
+
+      it("active-failure helpers throw for a non-batch job", () => {
+        const textJob = createJob({ type: "pasted-text", text: "Synthetic." });
+        expect(() => batchActiveFailedItems(textJob)).toThrowError(JobModelError);
+        expect(() => batchHasActiveErrorItems(textJob)).toThrowError(JobModelError);
+      });
+    });
+
+    describe("retryability boundary (witness 3)", () => {
+      it("a processing failure with retained text is retryable", () => {
+        const job = processingAndReadFailureJob();
+        expect(isBatchItemRetryable(job, 0)).toBe(true);
+      });
+
+      it("a read failure WITHOUT retained text is never retryable", () => {
+        const job = processingAndReadFailureJob();
+        expect(isBatchItemRetryable(job, 1)).toBe(false);
+      });
+
+      it("a policy-unsupported failure is not offered in-place retry", () => {
+        let job = readText(batchJob(["a.txt", "b.txt"]), 0, RETRY_TEXT);
+        job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+          code: "policy-unsupported",
+          message: "Blocked by the current policy.",
+        });
+        expect(isBatchItemRetryable(job, 0)).toBe(false);
+      });
+
+      it("a removed item is never retryable, and non-error items never are", () => {
+        let job = processingAndReadFailureJob();
+        job = removeBatchItem(job, 0);
+        expect(isBatchItemRetryable(job, 0)).toBe(false);
+        expect(isBatchItemRetryable(job, 2)).toBe(false);
+      });
+
+      it("throws typed for non-batch jobs and out-of-range indexes", () => {
+        const job = processingAndReadFailureJob();
+        const textJob = createJob({ type: "pasted-text", text: "Synthetic." });
+        expect(() => isBatchItemRetryable(textJob, 0)).toThrowError(JobModelError);
+        expectItemTransitionError(() => isBatchItemRetryable(job, 7));
+      });
+    });
+
+    describe("beginBatchItemRetry", () => {
+      it("starts a new processing attempt that the existing transitions can resolve", () => {
+        const job = processingAndReadFailureJob();
+        const before = itemsOf(job)[0];
+        const started = beginBatchItemRetry(job, 0);
+
+        // Identity, index and the retained read artifact survive; the stale
+        // failure and any acknowledgement are cleared.
+        const startedItem = itemsOf(started)[0];
+        expect(batchItemStatus(started, 0)).toBe("processing");
+        expect(startedItem.name).toBe(before.name);
+        expect(startedItem.extension).toBe(before.extension);
+        expect(startedItem.extraction).toEqual(before.extraction);
+        expect(startedItem.itemError).toBeUndefined();
+        expect(startedItem.itemAcknowledged).toBeUndefined();
+        // No other item changed.
+        expect(batchItemStatus(started, 1)).toBe("error");
+        expect(batchItemStatus(started, 2)).toBe("queued");
+        expect(Object.isFrozen(started)).toBe(true);
+
+        // Success path: the existing transitions resolve the attempt.
+        const done = recordItemProcessed(started, 0);
+        expect(batchItemStatus(done, 0)).toBe("review-required");
+        // Failure path: the item returns to a truthful error.
+        const failed = recordItemFailed(started, 0, {
+          code: "processing-failed",
+          message: "Second synthetic failure.",
+        });
+        expect(batchItemStatus(failed, 0)).toBe("error");
+        expect(itemsOf(failed)[0].itemError).toEqual({
+          code: "processing-failed",
+          message: "Second synthetic failure.",
+        });
+      });
+
+      it("refuses every non-retryable case with zero mutation", () => {
+        let job = processingAndReadFailureJob();
+        // Read failure without retained text.
+        expectItemTransitionError(() => beginBatchItemRetry(job, 1));
+        // Non-error item.
+        expectItemTransitionError(() => beginBatchItemRetry(job, 2));
+        // Out-of-range and non-batch.
+        expectItemTransitionError(() => beginBatchItemRetry(job, 9));
+        const textJob = createJob({ type: "pasted-text", text: "Synthetic." });
+        expect(() => beginBatchItemRetry(textJob, 0)).toThrowError(JobModelError);
+        // Removed item.
+        job = removeBatchItem(job, 0);
+        expectItemTransitionError(() => beginBatchItemRetry(job, 0));
+        // Every refused call left the job exactly as it was.
+        expect(batchItemStatus(job, 0)).toBe("error");
+        expect(itemsOf(job)[0].itemDisposition).toBe("removed");
+        expect(itemsOf(job)[0].itemError).toEqual({
+          code: "processing-failed",
+          message: "Synthetic processing failure.",
+        });
+        expect(batchItemStatus(job, 1)).toBe("error");
+        expect(batchItemStatus(job, 2)).toBe("queued");
+      });
+
+      it("refuses a policy-unsupported item with zero mutation (SD-8 remedy stays)", () => {
+        let job = readText(batchJob(["a.txt", "b.txt"]), 0, RETRY_TEXT);
+        job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+          code: "policy-unsupported",
+          message: "Blocked by the current policy.",
+        });
+        expectItemTransitionError(() => beginBatchItemRetry(job, 0));
+        expect(itemsOf(job)[0].itemStatus).toBe("error");
+        expect(itemsOf(job)[0].itemError).toEqual({
+          code: "policy-unsupported",
+          message: "Blocked by the current policy.",
+        });
+      });
+    });
+
+    describe("removeBatchItem (witness 4, domain half)", () => {
+      it("records the disposition verbatim and touches nothing else", () => {
+        let job = processingAndReadFailureJob();
+        job = acknowledgeBatchItemError(job, 0);
+        const removed = removeBatchItem(job, 1);
+        const item = itemsOf(removed)[1];
+        expect(item.itemStatus).toBe("error");
+        expect(item.itemDisposition).toBe("removed");
+        expect(item.itemError).toEqual({ code: "pdf-no-text-layer", message: "No text layer." });
+        expect(item.name).toBe("doc-b.txt");
+        expect(item.extraction).toBeUndefined();
+        // The other items are untouched, including the acknowledgement fact.
+        expect(itemsOf(removed)[0]).toEqual(itemsOf(job)[0]);
+        expect(itemsOf(removed)[2]).toEqual(itemsOf(job)[2]);
+        expect(Object.isFrozen(removed)).toBe(true);
+      });
+
+      it("refuses non-error items, non-batch jobs and double removal", () => {
+        let job = processingAndReadFailureJob();
+        expectItemTransitionError(() => removeBatchItem(job, 2));
+        const textJob = createJob({ type: "pasted-text", text: "Synthetic." });
+        expect(() => removeBatchItem(textJob, 0)).toThrowError(JobModelError);
+        job = removeBatchItem(job, 1);
+        // Double Confirm must not corrupt state: the second removal refuses.
+        expectItemTransitionError(() => removeBatchItem(job, 1));
+        expect(itemsOf(job)[1].itemDisposition).toBe("removed");
+      });
+    });
+
+    describe("acknowledgeBatchItemError (witness 5, domain half)", () => {
+      it("records the fact without changing status, error or blockers", () => {
+        const job = processingAndReadFailureJob();
+        const acknowledged = acknowledgeBatchItemError(job, 0);
+        const item = itemsOf(acknowledged)[0];
+        expect(item.itemStatus).toBe("error");
+        expect(item.itemAcknowledged).toBe(true);
+        expect(item.itemError).toEqual(itemsOf(job)[0].itemError);
+        expect(item.itemDisposition).toBeUndefined();
+        // The acknowledgement does NOT resolve the active blocker.
+        expect(batchHasActiveErrorItems(acknowledged)).toBe(true);
+        expect(batchActiveFailedItems(acknowledged).map((entry) => entry.index)).toEqual([0, 1]);
+        // Retry and removal stay available afterwards.
+        expect(isBatchItemRetryable(acknowledged, 0)).toBe(true);
+        expect(() => removeBatchItem(acknowledged, 0)).not.toThrow();
+      });
+
+      it("is an exact no-op when already acknowledged and refuses invalid items", () => {
+        let job = processingAndReadFailureJob();
+        job = acknowledgeBatchItemError(job, 0);
+        expect(acknowledgeBatchItemError(job, 0)).toBe(job);
+        expectItemTransitionError(() => acknowledgeBatchItemError(job, 2));
+        const textJob = createJob({ type: "pasted-text", text: "Synthetic." });
+        expect(() => acknowledgeBatchItemError(textJob, 0)).toThrowError(JobModelError);
+      });
+    });
+
+    describe("no fabricated completion (witness 2, domain half)", () => {
+      it("remove and acknowledge never route the item through completed", () => {
+        let job = processingAndReadFailureJob();
+        job = removeBatchItem(job, 0);
+        job = acknowledgeBatchItemError(job, 1);
+        expect(batchItemStatus(job, 0)).toBe("error");
+        expect(batchItemStatus(job, 1)).toBe("error");
+        // The ONLY path to completed still refuses error items.
+        expectItemTransitionError(() => recordItemReviewCompletion(job, 0, true));
+        expectItemTransitionError(() => recordItemReviewCompletion(job, 1, true));
+      });
+
+      it("batchReviewComplete keeps its accepted rule for removed items", () => {
+        let job = processingAndReadFailureJob();
+        job = removeBatchItem(job, 0);
+        job = removeBatchItem(job, 1);
+        // Item 2 is queued, so the review is not complete; a removed error
+        // item is excluded from the evaluable set, never counted as done.
+        expect(batchReviewComplete(job)).toBe(false);
+        const allDone = toCompleted(job, 2);
+        expect(batchReviewComplete(allDone)).toBe(true);
+        expect(batchItemStatus(allDone, 0)).toBe("error");
+      });
+    });
+
+    describe("export blocker switches to ACTIVE failures (#78)", () => {
+      function completedExcept(job: Job, failedIndex: number): Job {
+        for (let index = 0; index < itemsOf(job).length; index += 1) {
+          if (index === failedIndex) continue;
+          if (batchItemStatus(job, index) === "queued") {
+            job = toCompleted(job, index);
+          }
+        }
+        return withReviewState(job, { complete: batchReviewComplete(job) });
+      }
+
+      it("an active failed item still blocks the export transition", () => {
+        const job = atPrivacyGate(completedExcept(processingAndReadFailureJob(), 0));
+        expect(canAdvanceStep(job)).toBe(false);
+        try {
+          advanceStep(job);
+          throw new Error("expected the export transition to throw");
+        } catch (error) {
+          expect(error).toBeInstanceOf(JobModelError);
+          expect((error as JobModelError).code).toBe("batch-item-failed");
+        }
+      });
+
+      it("a removed item no longer blocks export and is never named as blocking", () => {
+        let job = processingAndReadFailureJob();
+        job = removeBatchItem(job, 0);
+        job = removeBatchItem(job, 1);
+        job = atPrivacyGate(completedExcept(job, -1));
+        expect(batchHasActiveErrorItems(job)).toBe(false);
+        expect(batchReviewComplete(job)).toBe(true);
+        expect(canAdvanceStep(job)).toBe(true);
+        const exported = advanceStep(job);
+        expect(exported.currentStep).toBe("export");
+      });
+
+      it("the blocked message names only the ACTIVE failed items", () => {
+        let job = processingAndReadFailureJob();
+        job = removeBatchItem(job, 1);
+        job = atPrivacyGate(completedExcept(job, -1));
+        try {
+          advanceStep(job);
+          throw new Error("expected the export transition to throw");
+        } catch (error) {
+          expect(error).toBeInstanceOf(JobModelError);
+          const message = (error as JobModelError).message;
+          expect(message).toContain('"doc-a.txt"');
+          expect(message).not.toContain('"doc-b.txt"');
+        }
+      });
+    });
+
+    describe("policy reset vs recovery facts (#78)", () => {
+      it("a removed item is never resurrected: disposition, status and failure survive", () => {
+        let job = readText(batchJob(["a.txt", "b.txt"]), 0, RETRY_TEXT);
+        job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+          code: "policy-unsupported",
+          message: "Blocked by the current policy.",
+        });
+        job = acknowledgeBatchItemError(job, 0);
+        job = removeBatchItem(job, 0);
+        const next = setPolicy(job, "strict");
+        const item = itemsOf(next)[0];
+        expect(item.itemStatus).toBe("error");
+        expect(item.itemDisposition).toBe("removed");
+        expect(item.itemError).toEqual({
+          code: "policy-unsupported",
+          message: "Blocked by the current policy.",
+        });
+        expect(item.itemAcknowledged).toBe(true);
+        expect(item.extraction).toEqual({
+          status: "extracted",
+          extractedText: RETRY_TEXT,
+        });
+        expect(batchHasActiveErrorItems(next)).toBe(false);
+      });
+
+      it("a cleared policy-unsupported failure drops its acknowledgement; a retained failure keeps it", () => {
+        let job = readText(batchJob(["a.txt", "b.txt"]), 0, RETRY_TEXT);
+        job = readFailure(job, 1, "pdf-no-text-layer", "No text layer.");
+        job = recordItemFailed(beginItemProcessing(job, 0), 0, {
+          code: "policy-unsupported",
+          message: "Blocked by the current policy.",
+        });
+        job = acknowledgeBatchItemError(job, 0);
+        job = acknowledgeBatchItemError(job, 1);
+        const next = setPolicy(job, "strict");
+        // Item 0: the failure IS cleared by the reset — the now-meaningless
+        // acknowledgement is cleared with it, and the read text is kept.
+        const resetItem = itemsOf(next)[0];
+        expect(resetItem.itemStatus).toBe("queued");
+        expect(resetItem.itemError).toBeUndefined();
+        expect(resetItem.itemAcknowledged).toBeUndefined();
+        expect(resetItem.extraction).toEqual({
+          status: "extracted",
+          extractedText: RETRY_TEXT,
+        });
+        // Item 1: the read failure is retained unchanged WITH its acknowledgement.
+        const retainedItem = itemsOf(next)[1];
+        expect(retainedItem.itemStatus).toBe("error");
+        expect(retainedItem.itemError).toEqual({
+          code: "pdf-no-text-layer",
+          message: "No text layer.",
+        });
+        expect(retainedItem.itemAcknowledged).toBe(true);
+      });
     });
   });
 });

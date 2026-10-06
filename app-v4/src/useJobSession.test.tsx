@@ -6,6 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import {
   type BatchItemReadOutcome,
   type Job,
+  type JobSourceFile,
   type ProcessingFailure,
   batchFailedItems,
   batchItemStatus,
@@ -36,6 +37,14 @@ const engineControl = vi.hoisted(() => ({
    * failure condition.
    */
   loadError: null as unknown,
+  /**
+   * Batch failure recovery (#78): deterministic per-text processing failure.
+   * When set, the adapted engine THROWS (inside `process`, after a successful
+   * load) for exactly this text, so one batch item fails with a RETAINED
+   * read artifact — a retryable processing failure, independent of any
+   * policy mapping. Cleared to let the retry succeed.
+   */
+  markerText: null as string | null,
 }));
 
 vi.mock("./engine/engine-seam", () => ({
@@ -44,8 +53,12 @@ vi.mock("./engine/engine-seam", () => ({
     const { createRegistryEngine } = await import("./engine/registry-engine");
     const engine = createRegistryEngine();
     const adapted = {
-      process: (input: Parameters<typeof engine.process>[0]) =>
-        Promise.resolve(engine.process(input)),
+      process: async (input: Parameters<typeof engine.process>[0]) => {
+        if (engineControl.markerText !== null && input.text === engineControl.markerText) {
+          throw new Error("Injected deterministic processing failure (#78 oracle).");
+        }
+        return engine.process(input);
+      },
     };
     if (engineControl.hold) {
       await new Promise<void>((resolve, reject) => {
@@ -137,8 +150,14 @@ afterEach(() => {
   engineControl.hold = false;
   engineControl.pending = [];
   engineControl.loadError = null;
+  engineControl.markerText = null;
   cleanup();
 });
+
+/** Type-safe read-only batch files view of a job's source (observation only). */
+function sourceFiles(job: Job): readonly JobSourceFile[] {
+  return job.source.type === "files" ? job.source.files : [];
+}
 
 describe("useJobSession.startReview (T15 #19)", () => {
   it("success route: records succeeded, installs a session and returns null", async () => {
@@ -1007,5 +1026,374 @@ describe("useJobSession batch bridge contracts (T17 #21 WU-B)", () => {
     });
     expect(result.current.review).not.toBeNull();
     expect(result.current.batchSessions).toBeNull();
+  });
+});
+
+/**
+ * Batch failure recovery (#78, REC-06) bridge oracles. The recovery actions
+ * are driven through the REAL hook and the REAL engine; the deterministic
+ * per-text marker in the engine-seam mock produces a RETAINED-text processing
+ * failure (retryable) and clears to let the retry succeed. All fixtures are
+ * synthetic; no real content anywhere.
+ */
+describe("useJobSession batch failure recovery (#78)", () => {
+  const RETRY_DOC = "Nombre: Carmen Sánchez. La paciente Marta Gómez acude a consulta.";
+  const DOC_C = BATCH_DOC_B;
+
+  /** Create/read a 3-document batch whose item 1 (B) will fail processing. */
+  function failingBatch(result: { readonly current: SessionHook }) {
+    act(() =>
+      result.current.create({
+        type: "files",
+        files: [
+          { name: "doc-a.txt", extension: "txt" },
+          { name: "doc-b.txt", extension: "txt" },
+          { name: "doc-c.txt", extension: "txt" },
+        ],
+      })
+    );
+    act(() => result.current.beginBatchItemRead(0));
+    act(() => result.current.recordBatchItemRead(0, { ok: true, extractedText: BATCH_DOC_A }));
+    act(() => result.current.beginBatchItemRead(1));
+    act(() => result.current.recordBatchItemRead(1, { ok: true, extractedText: RETRY_DOC }));
+    act(() => result.current.beginBatchItemRead(2));
+    act(() => result.current.recordBatchItemRead(2, { ok: true, extractedText: DOC_C }));
+  }
+
+  /** Run the initial batch attempt with item B deterministically failing. */
+  async function runWithFailedMiddleItem(result: { readonly current: SessionHook }) {
+    failingBatch(result);
+    engineControl.markerText = RETRY_DOC;
+    await act(async () => {
+      await result.current.startReview();
+    });
+    expect(batchItemStatus(result.current.job!, 0)).toBe("review-required");
+    expect(batchItemStatus(result.current.job!, 1)).toBe("error");
+    expect(batchItemStatus(result.current.job!, 2)).toBe("review-required");
+    expect(result.current.batchRetryContextAvailable).toBe(true);
+    const job = result.current.job!;
+    if (job.source.type !== "files") throw new Error("expected a files source");
+    expect(job.source.files[1].itemError?.code).toBe("processing-unknown");
+    // A processing failure KEEPS the read artifact: the item is retryable.
+    expect(job.source.files[1].extraction).toEqual({
+      status: "extracted",
+      extractedText: RETRY_DOC,
+    });
+    return job;
+  }
+
+  it("runBatchReviewAsync returns the retained shared context on the ok branch", async () => {
+    const real = createRegistryEngine();
+    const job = domainBatchJob([
+      { name: "a.txt", read: { ok: true, extractedText: BATCH_DOC_A } },
+      { name: "b.txt", read: { ok: true, extractedText: BATCH_DOC_B } },
+    ]);
+    const run = await runBatchReviewAsync(beginProcessing(job), {
+      engineLoader: async () => ({ process: async (input) => real.process(input) }),
+    });
+    if (!run.ok) throw new Error("expected ok: true");
+    expect(run.sharedContext.mode).toBe("shared");
+    expect(run.sharedContext.pseudonymState).toBeDefined();
+
+    // With a rejected engine load the attempt fails closed and the failure
+    // branch carries no shared context at all.
+    const allFail = domainBatchJob([
+      { name: "a.txt", read: { ok: true, extractedText: "No readable identifier here." } },
+      { name: "b.txt", read: { ok: true, extractedText: "Tampoco aquí." } },
+    ]);
+    const failing = await runBatchReviewAsync(beginProcessing(allFail), {
+      engineLoader: async () => {
+        throw new Error("module load failed");
+      },
+    });
+    if (failing.ok) throw new Error("expected ok: false");
+    expect(failing.job.processing).toBe("unknown");
+  });
+
+  it("retry end-to-end: contextual success preserves unrelated work and cross-document consistency (witnesses 1+7)", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const job = await runWithFailedMiddleItem(result);
+    const sessionsBefore = result.current.batchSessions!;
+    expect(sessionsBefore[1]).toBeUndefined();
+
+    // Give A and C real, independent review decisions before the retry.
+    completeItem(result, 0);
+    completeItem(result, 2);
+    const decisionsBefore = {
+      0: result.current.batchSessions![0],
+      2: result.current.batchSessions![2],
+    };
+
+    engineControl.markerText = null;
+    let failure: ProcessingFailure | null | "unset" = "unset";
+    await act(async () => {
+      failure = await result.current.retryBatchItem(job.id, 1);
+    });
+    expect(failure).toBeNull();
+
+    // The retried item gains review authority for THAT item only.
+    expect(batchItemStatus(result.current.job!, 1)).toBe("review-required");
+    const sessions = result.current.batchSessions!;
+    expect(sessions[1]).toBeDefined();
+    // Unrelated work preservation: session OBJECT IDENTITY is untouched.
+    expect(sessions[0]).toBe(decisionsBefore[0]);
+    expect(sessions[2]).toBe(decisionsBefore[2]);
+    expect(batchItemStatus(result.current.job!, 0)).toBe("completed");
+    expect(batchItemStatus(result.current.job!, 2)).toBe("completed");
+    // Source identity is preserved verbatim for every item.
+    const filesAfter = (result.current.job!.source as { files: readonly unknown[] }).files;
+    expect(filesAfter).toHaveLength(3);
+    expect(filesAfter[1]).toEqual({
+      name: "doc-b.txt",
+      extension: "txt",
+      extraction: { status: "extracted", extractedText: RETRY_DOC },
+      itemStatus: "review-required",
+    });
+
+    // Shared consistency (witness 7): the same original keeps its pseudonym
+    // from the already-processed documents, and a NEW original takes the next
+    // free counter instead of colliding or restarting.
+    expect(engineProposal(sessions[0]!, "Carmen Sánchez")).toBe("Paciente 1");
+    expect(engineProposal(sessions[2]!, "Carmen Sánchez")).toBe("Paciente 1");
+    expect(engineProposal(sessions[2]!, "Lucía Ruiz")).toBe("Paciente 2");
+    expect(engineProposal(sessions[1]!, "Carmen Sánchez")).toBe("Paciente 1");
+    expect(engineProposal(sessions[1]!, "Marta Gómez")).toBe("Paciente 3");
+  });
+
+  it("double-fire guard: a second overlapping retry for the same job is a no-op", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const job = await runWithFailedMiddleItem(result);
+    const sessionsBefore = result.current.batchSessions;
+
+    engineControl.markerText = null;
+    engineControl.hold = true;
+    const first = result.current.retryBatchItem(job.id, 1);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // The started attempt is installed and the engine load is held open.
+    expect(batchItemStatus(result.current.job!, 1)).toBe("processing");
+
+    let second: ProcessingFailure | null | "unset" = "unset";
+    await act(async () => {
+      second = await result.current.retryBatchItem(job.id, 1);
+    });
+    expect(second).toBeNull();
+    expect(batchItemStatus(result.current.job!, 1)).toBe("processing");
+    expect(result.current.batchSessions).toBe(sessionsBefore);
+
+    engineControl.hold = false;
+    releasePendingEngine();
+    await act(async () => {
+      await first;
+    });
+    expect(batchItemStatus(result.current.job!, 1)).toBe("review-required");
+  });
+
+  it("a failed retry returns the item to a truthful error, never a zombie state", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const job = await runWithFailedMiddleItem(result);
+    const sessionsBefore = result.current.batchSessions;
+    const errorsBefore = result.current.job!.errors.length;
+
+    // The marker stays: the retry fails again deterministically.
+    let failure: ProcessingFailure | null | "unset" = "unset";
+    await act(async () => {
+      failure = await result.current.retryBatchItem(job.id, 1);
+    });
+    if (failure === "unset") throw new Error("expected a settled retry outcome");
+    // (The explicit cast documents the runtime type: TypeScript cannot see
+    // through the closure assignment inside `act` and narrows `failure` to
+    // `never` at this point.)
+    expect((failure as ProcessingFailure | null)?.code).toBe("processing-unknown");
+    expect(batchItemStatus(result.current.job!, 1)).toBe("error");
+    const files = sourceFiles(result.current.job!);
+    expect(files[1].itemError?.code).toBe("processing-unknown");
+    expect(files[1].extraction).toEqual({ status: "extracted", extractedText: RETRY_DOC });
+    // No session was fabricated and the unrelated sessions are untouched.
+    expect(result.current.batchSessions).toBe(sessionsBefore);
+    expect(result.current.batchSessions![1]).toBeUndefined();
+    expect(result.current.job!.errors.length).toBe(errorsBefore);
+    // The derived gate stays fail-closed while the active failure exists.
+    expect(result.current.job!.review.complete).toBe(false);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+  });
+
+  it("policy change mid-retry drops the stale outcome with zero mutation", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const job = await runWithFailedMiddleItem(result);
+
+    engineControl.markerText = null;
+    engineControl.hold = true;
+    const attempt = result.current.retryBatchItem(job.id, 1);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(batchItemStatus(result.current.job!, 1)).toBe("processing");
+
+    // A REAL policy change while the retry engine is pending: the domain
+    // resets the processing-derived state (item → queued) and the bridge
+    // drops the batch state.
+    act(() => {
+      result.current.updatePolicy("strict");
+    });
+    engineControl.hold = false;
+    releasePendingEngine();
+    let failure: ProcessingFailure | null | "unset" = "unset";
+    await act(async () => {
+      failure = await attempt;
+    });
+    expect(failure).toBeNull();
+    expect(result.current.job!.policyId).toBe("strict");
+    expect(batchItemStatus(result.current.job!, 1)).toBe("queued");
+    expect(result.current.batchSessions).toBeNull();
+    expect(result.current.batchRetryContextAvailable).toBe(false);
+  });
+
+  it("stale action guard: actions captured for job A cannot mutate a replaced or cleared job (witness 6)", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const jobA = await runWithFailedMiddleItem(result);
+    const retryA = (index: number) => result.current.retryBatchItem(jobA.id, index);
+    const removeA = (index: number) => result.current.removeBatchItem(jobA.id, index);
+    const ackA = (index: number) => result.current.acknowledgeBatchItemError(jobA.id, index);
+
+    // New Job replaces A with B: every captured A action must be a no-op.
+    act(() =>
+      result.current.create({
+        type: "files",
+        files: [
+          { name: "otro-a.txt", extension: "txt" },
+          { name: "otro-b.txt", extension: "txt" },
+        ],
+      })
+    );
+    const jobB = result.current.job!;
+    engineControl.markerText = null;
+    await act(async () => {
+      expect(await retryA(1)).toBeNull();
+    });
+    removeA(1);
+    ackA(1);
+    expect(result.current.job).toBe(jobB);
+    expect(batchItemStatus(jobB, 1)).toBe("queued");
+    const filesB = sourceFiles(jobB);
+    expect(filesB[1].itemDisposition).toBeUndefined();
+
+    // Clear session: same no-op guarantee with no job at all.
+    act(() => result.current.clear());
+    await act(async () => {
+      expect(await retryA(1)).toBeNull();
+    });
+    removeA(1);
+    ackA(1);
+    expect(result.current.job).toBeNull();
+  });
+
+  it("acknowledge through the bridge: non-resolution with the blocker still active (witness 5)", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const job = await runWithFailedMiddleItem(result);
+
+    act(() => result.current.acknowledgeBatchItemError(job.id, 1));
+    const files = sourceFiles(result.current.job!);
+    expect(files[1].itemAcknowledged).toBe(true);
+    expect(batchItemStatus(result.current.job!, 1)).toBe("error");
+    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    // The acknowledged error is STILL an active blocker: completing every
+    // evaluable item is not enough while it is neither retried nor removed.
+    completeItem(result, 0);
+    completeItem(result, 2);
+    expect(result.current.job!.review.complete).toBe(true);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+
+    // Removal — not the acknowledgement — resolves the active blocker, and
+    // even then nothing fabricates review completion for the removed item.
+    const reviewComplete = result.current.job!.review.complete;
+    act(() => result.current.removeBatchItem(job.id, 1));
+    const afterRemoval = sourceFiles(result.current.job!)[1];
+    expect(afterRemoval.itemDisposition).toBe("removed");
+    expect(afterRemoval.itemStatus).toBe("error");
+    expect(result.current.job!.review.complete).toBe(reviewComplete);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    expect(result.current.batchSessions![0]).toBeDefined();
+  });
+
+  it("a mid-run acknowledge on a read-failed item survives the run's outcome install (#78)", async () => {
+    const { result } = renderHook(() => useJobSession());
+    act(() =>
+      result.current.create({
+        type: "files",
+        files: [
+          { name: "doc-a.txt", extension: "txt" },
+          { name: "doc-b.txt", extension: "txt" },
+          { name: "doc-c.txt", extension: "txt" },
+        ],
+      })
+    );
+    act(() => result.current.beginBatchItemRead(0));
+    act(() => result.current.recordBatchItemRead(0, { ok: true, extractedText: BATCH_DOC_A }));
+    act(() => result.current.beginBatchItemRead(1));
+    act(() =>
+      result.current.recordBatchItemRead(1, {
+        ok: false,
+        error: { code: "pdf-no-text-layer", message: "No text layer." },
+      })
+    );
+    act(() => result.current.beginBatchItemRead(2));
+    act(() => result.current.recordBatchItemRead(2, { ok: true, extractedText: BATCH_DOC_B }));
+
+    // Hold the engine loader so the run is observably in flight while the
+    // read-failed item is already visible with its recovery actions.
+    engineControl.hold = true;
+    let runPromise: Promise<ProcessingFailure | null> | undefined;
+    act(() => {
+      runPromise = result.current.startReview();
+    });
+    expect(batchItemStatus(result.current.job!, 1)).toBe("error");
+    // The operator acknowledges the read failure WHILE the run is in flight.
+    act(() => result.current.acknowledgeBatchItemError(result.current.job!.id, 1));
+    expect(sourceFiles(result.current.job!)[1].itemAcknowledged).toBe(true);
+
+    // Release the engine: the run settles and installs its outcome.
+    engineControl.hold = false;
+    act(() => releasePendingEngine());
+    await act(async () => {
+      await runPromise;
+    });
+
+    // The explicit mid-run mutation is NOT reverted by the outcome install.
+    const files = sourceFiles(result.current.job!);
+    expect(files[1].itemAcknowledged).toBe(true);
+    expect(batchItemStatus(result.current.job!, 1)).toBe("error");
+    // The run still owns the items it processed.
+    expect(batchItemStatus(result.current.job!, 0)).toBe("review-required");
+    expect(batchItemStatus(result.current.job!, 2)).toBe("review-required");
+  });
+
+  it("recovery entry points are no-ops without a current batch or for invalid items", async () => {
+    const { result } = renderHook(() => useJobSession());
+    const job = await runWithFailedMiddleItem(result);
+    const before = result.current.job;
+
+    // Wrong job id.
+    await act(async () => {
+      expect(await result.current.retryBatchItem("job-inexistente", 1)).toBeNull();
+    });
+    act(() => result.current.removeBatchItem("job-inexistente", 1));
+    act(() => result.current.acknowledgeBatchItemError("job-inexistente", 1));
+    expect(result.current.job).toBe(before);
+
+    // Non-retryable items (review-required/queued) and an out-of-range index.
+    await act(async () => {
+      expect(await result.current.retryBatchItem(job.id, 0)).toBeNull();
+      expect(await result.current.retryBatchItem(job.id, 9)).toBeNull();
+    });
+    expect(result.current.job).toBe(before);
+
+    // Remove/acknowledge of a non-error item and an out-of-range index are
+    // refused by the domain (typed) and never corrupt the state.
+    expect(() => result.current.removeBatchItem(job.id, 0)).toThrowError();
+    expect(() => result.current.acknowledgeBatchItemError(job.id, 9)).toThrowError();
+    expect(batchItemStatus(result.current.job!, 0)).toBe("review-required");
+    expect(result.current.job!.id).toBe(job.id);
   });
 });

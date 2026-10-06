@@ -91,8 +91,10 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   );
 
   // Presentation-only derivation of the checkpoint state from the SAME facts
-  // the model already supplies: no new authority, no reinterpretation.
-  const batchFailed = view.batch !== null && view.batch.failedCount > 0;
+  // the model already supplies: no new authority, no reinterpretation. The
+  // batch blocker (#78) is the ACTIVE failed count: a deliberately removed
+  // item is a retained fact, not a still-blocking failure.
+  const batchFailed = view.batch !== null && view.batch.activeFailedCount > 0;
   const safeOutputReady = view.safeOutputReady;
   const hasJobErrors = view.errors.length > 0;
   // The applicable output is blocked by the current authority. For a batch the
@@ -138,7 +140,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
         </p>
       )}
 
-      {view.batch !== null && view.batch.failedCount > 0 && (
+      {view.batch !== null && view.batch.activeFailedCount > 0 && (
         <p
           role="alert"
           className="mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
@@ -290,6 +292,10 @@ function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
           <li key={item.index}>
             <span className="font-semibold">{item.name}</span>: {BATCH_STATUS_LABELS[item.status]}
             {item.errorMessage !== undefined && <> — {item.errorMessage}</>}
+            {item.removed === true && <span className="font-semibold"> — Retirado del lote</span>}
+            {item.acknowledged === true && (
+              <span className="font-semibold"> — Error reconocido</span>
+            )}
           </li>
         ))}
       </ul>

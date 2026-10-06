@@ -157,7 +157,29 @@ export type JobSourceFile = {
   readonly itemStatus?: BatchItemStatus;
   /** Batch item typed failure; present exactly when `itemStatus` is `error`. */
   readonly itemError?: JobError;
+  /**
+   * Orthogonal recovery/disposition fact (#78, REC-06): present only when the
+   * failed item was deliberately removed from active batch work. It NEVER
+   * redefines {@link BatchItemStatus} — a removed item stays `error` and stays
+   * distinguishable from a completed reviewed item (D-011 status vocabulary).
+   */
+  readonly itemDisposition?: BatchItemDisposition;
+  /**
+   * Orthogonal recovery fact (#78, REC-06): present/true only when the CURRENT
+   * typed failure was explicitly acknowledged ("seen", never "resolved").
+   * Cleared together with `itemError` whenever the failure itself is cleared.
+   */
+  readonly itemAcknowledged?: boolean;
 };
+
+/**
+ * Deliberate disposition of a failed batch item (#78, REC-06). It is a
+ * recovery fact orthogonal to {@link BatchItemStatus}: `removed` means the
+ * item is excluded from further active batch work — never "completed" and
+ * never erased (name, index, extraction and the prior typed failure remain
+ * representable for REC-07 batch-manifest accounting).
+ */
+export type BatchItemDisposition = "removed";
 
 /**
  * Job source. `pasted-text` content is sensitive and memory-only (D-013):
@@ -702,6 +724,192 @@ export function batchHasErrorItems(job: Job): boolean {
 }
 
 /**
+ * Every failed batch item that is still an ACTIVE blocker (#78, REC-06): the
+ * `error` items whose {@link JobSourceFile.itemDisposition} is not `removed`,
+ * in input order, with the same {@link BatchFailedItem} shape as
+ * {@link batchFailedItems}. A deliberately removed item keeps its recorded
+ * failure but is no longer an active failure of the batch. Fail-closed: an
+ * `error` item without a recorded `itemError` throws instead of being dropped.
+ * Throws for a non-batch job.
+ */
+export function batchActiveFailedItems(job: Job): readonly BatchFailedItem[] {
+  const files = batchFiles(job, "batchActiveFailedItems");
+  const failed: BatchFailedItem[] = [];
+  files.forEach((file, index) => {
+    if (file.itemStatus !== "error") return;
+    if (file.itemError === undefined) {
+      throw new JobModelError(
+        "invalid-processing-transition",
+        `Batch item ${index} ("${file.name}") is in "error" without a recorded itemError.`
+      );
+    }
+    if (file.itemDisposition === "removed") return;
+    failed.push({ index, name: file.name, error: file.itemError });
+  });
+  return failed;
+}
+
+/**
+ * Whether the batch contains at least one ACTIVE failed item (#78): a failed
+ * item that was not deliberately removed. This is the export-blocker
+ * authority; the full {@link batchFailedItems} set stays the factual history.
+ */
+export function batchHasActiveErrorItems(job: Job): boolean {
+  return batchActiveFailedItems(job).length > 0;
+}
+
+/**
+ * Whether the failed item at `index` can be retried IN PLACE (#78, REC-06).
+ * Retry is contextual, not universal: it is offered only when the in-memory
+ * Job still holds the authoritative source material — a document-batch item
+ * that is `error`, NOT deliberately removed, and whose read artifact
+ * (`extraction.status === "extracted"`) is retained (a processing failure).
+ *
+ * A read/source failure with no retained text is NOT retryable (no
+ * persistence or job reconstruction is invented here), and
+ * `policy-unsupported` is NOT offered as in-place retry: it stays recoverable
+ * only through the existing policy-change reset (T17 #21 SD-8) under a policy
+ * that supports the item.
+ *
+ * Fail-closed: throws a typed error for a non-batch job or an out-of-range
+ * index (same guards as every other item helper).
+ */
+export function isBatchItemRetryable(job: Job, index: number): boolean {
+  const files = batchFiles(job, "isBatchItemRetryable");
+  const file = requireBatchItem(files, index, "isBatchItemRetryable");
+  return (
+    file.itemStatus === "error" &&
+    file.itemError !== undefined &&
+    file.itemDisposition !== "removed" &&
+    file.itemError.code !== "policy-unsupported" &&
+    file.extraction?.status === "extracted"
+  );
+}
+
+/**
+ * Start a new IN-PLACE processing attempt for one retryable failed item
+ * (#78, REC-06): `error → processing`, reachable afterwards only by the
+ * existing {@link recordItemProcessed} / {@link recordItemFailed} transitions.
+ *
+ * The attempt keeps the item's identity (`name`, `extension`, index) and its
+ * retained read artifact (`extraction`) verbatim, and clears the stale
+ * `itemError` plus the now-meaningless `itemAcknowledged` (the failure being
+ * retried is replaced by the new attempt's outcome). The item's status is the
+ * ONLY lifecycle change: no other item is touched and no completion is
+ * fabricated ({@link recordItemReviewCompletion} stays the only path to
+ * `completed`).
+ *
+ * Refuses (typed throw, zero mutation): a non-batch job, an out-of-range
+ * index, a non-`error` item, a deliberately removed item, an item without
+ * retained extracted text, and a `policy-unsupported` item (its remedy is the
+ * policy-change reset, never an in-place retry).
+ */
+export function beginBatchItemRetry(job: Job, index: number): Job {
+  const files = batchFiles(job, "beginBatchItemRetry");
+  const file = requireBatchItem(files, index, "beginBatchItemRetry");
+  if (file.itemStatus !== "error" || file.itemError === undefined) {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `beginBatchItemRetry for batch item ${index} ("${file.name}") requires status "error" with a recorded itemError, but the item is "${String(
+        file.itemStatus
+      )}".`
+    );
+  }
+  if (file.itemDisposition === "removed") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `beginBatchItemRetry for batch item ${index} ("${file.name}") is not allowed: the item was deliberately removed from the batch.`
+    );
+  }
+  if (file.itemError.code === "policy-unsupported") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `beginBatchItemRetry for batch item ${index} ("${file.name}") is not allowed for a policy-unsupported failure; choose a supported Privacy Policy instead.`
+    );
+  }
+  if (file.extraction?.status !== "extracted") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `beginBatchItemRetry for batch item ${index} ("${file.name}") requires the retained read text of a processing failure; a read failure without retained text is not retryable.`
+    );
+  }
+  const item: JobSourceFile = {
+    name: file.name,
+    extension: file.extension,
+    extraction: file.extraction,
+    itemStatus: "processing",
+  };
+  return replaceBatchItem(job, files, index, item);
+}
+
+/**
+ * Deliberately exclude one failed batch item from further active batch work
+ * (#78, REC-06). Removal is a disposition, NOT a completion and NOT an erase:
+ * the item keeps its `error` status, its `name`, `extension`, index, its
+ * retained `extraction` and its prior typed `itemError` verbatim (REC-07
+ * consumes this), and it stays visible in the work queue as a factual
+ * disposition. It only stops being an ACTIVE failure for the export blocker
+ * (see {@link batchHasActiveErrorItems}); review completeness is unchanged
+ * (error items were already excluded there, so removal never fabricates
+ * completion).
+ *
+ * Refuses (typed throw, zero mutation): a non-batch job, an out-of-range
+ * index, a non-`error` item, and an already-removed item. No other item is
+ * touched and no other field of this item changes.
+ */
+export function removeBatchItem(job: Job, index: number): Job {
+  const files = batchFiles(job, "removeBatchItem");
+  const file = requireBatchItem(files, index, "removeBatchItem");
+  if (file.itemStatus !== "error" || file.itemError === undefined) {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `removeBatchItem for batch item ${index} ("${file.name}") requires status "error" with a recorded itemError, but the item is "${String(
+        file.itemStatus
+      )}".`
+    );
+  }
+  if (file.itemDisposition === "removed") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `removeBatchItem for batch item ${index} ("${file.name}") is not allowed: the item is already removed from the batch.`
+    );
+  }
+  return replaceBatchItem(job, files, index, { ...file, itemDisposition: "removed" });
+}
+
+/**
+ * Record that the operator has SEEN the current typed failure of one active
+ * failed batch item (#78, REC-06). Acknowledgement is never resolution: the
+ * item stays `error`, its `itemError` is unchanged, no output becomes ready,
+ * and the item is not hidden. Only the orthogonal `itemAcknowledged` fact is
+ * set. Retry and removal stay available afterwards when applicable.
+ *
+ * Refuses (typed throw, zero mutation): a non-batch job, an out-of-range
+ * index, a non-`error` item and a removed item. An already-acknowledged item
+ * is an exact no-op (the same object is returned).
+ */
+export function acknowledgeBatchItemError(job: Job, index: number): Job {
+  const files = batchFiles(job, "acknowledgeBatchItemError");
+  const file = requireBatchItem(files, index, "acknowledgeBatchItemError");
+  if (file.itemStatus !== "error" || file.itemError === undefined) {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `acknowledgeBatchItemError for batch item ${index} ("${file.name}") requires status "error" with a recorded itemError, but the item is "${String(
+        file.itemStatus
+      )}".`
+    );
+  }
+  if (file.itemDisposition === "removed") {
+    throw new JobModelError(
+      "invalid-processing-transition",
+      `acknowledgeBatchItemError for batch item ${index} ("${file.name}") is not allowed: the item was deliberately removed from the batch.`
+    );
+  }
+  if (file.itemAcknowledged === true) return job;
+  return replaceBatchItem(job, files, index, { ...file, itemAcknowledged: true });
+}
+
+/**
  * Factual remedy sentence for failed batch items (T17 #21 CORR-B). The remedy
  * must match the failure semantics:
  *
@@ -738,8 +946,10 @@ export function batchFailureRemedy(errorCodes: readonly string[]): string {
  * files and the {@link batchFailureRemedy remedy} that matches each failure.
  */
 function assertBatchExportable(job: Job): void {
-  if (job.kind !== "document-batch" || !batchHasErrorItems(job)) return;
-  const failed = batchFailedItems(job);
+  // #78: only ACTIVE failed items block export; a deliberately removed item
+  // resolved its own blocker and is never named as a still-blocking failure.
+  if (job.kind !== "document-batch" || !batchHasActiveErrorItems(job)) return;
+  const failed = batchActiveFailedItems(job);
   const names = failed.map((item) => `"${item.name}"`).join(", ");
   const subject =
     failed.length === 1
@@ -769,9 +979,20 @@ function assertBatchExportable(job: Job): void {
  *   retryable, WU-C3);
  * - every other error item, including read errors, is retained unchanged
  *   (read errors are policy-independent).
+ *
+ * Recovery facts (#78, REC-06): a DELIBERATELY REMOVED item is never
+ * resurrected by a policy change — its `itemDisposition` (and its recorded
+ * failure) survive the reset untouched, exactly like any other non-resetting
+ * item. When a failure IS cleared by the reset (the
+ * `policy-unsupported → queued` path), the now-meaningless
+ * `itemAcknowledged` acknowledgement is cleared with it; when the failure is
+ * retained unchanged, its acknowledgement is retained with it.
  */
 function resetBatchItemsForPolicy(files: readonly JobSourceFile[]): JobSourceFile[] {
   return files.map((file) => {
+    // #78: a removed item is disposed, not failed-by-policy — a policy change
+    // never resurrects it into active batch work.
+    if (file.itemDisposition === "removed") return file;
     // CORR-A: the read phase is policy-INDEPENDENT, so a `queued` item needs
     // no reset at all and a `reading` item stays `reading` — resetting it to
     // `queued` would make its in-flight read impossible to commit.
@@ -862,7 +1083,7 @@ export type Job = {
  */
 function exportTransitionAllowed(job: Job): boolean {
   if (!job.review.complete) return false;
-  return !(job.kind === "document-batch" && batchHasErrorItems(job));
+  return !(job.kind === "document-batch" && batchHasActiveErrorItems(job));
 }
 
 /** Throwing form of {@link exportTransitionAllowed} for transition functions. */
