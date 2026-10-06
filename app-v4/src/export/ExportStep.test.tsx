@@ -1005,6 +1005,27 @@ describe("document batch Result (REC-07 #87): readiness + Safe summary CSV", () 
     expect(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })).toBeDisabled();
   });
 
+  it("keeps a completeness-mismatched batch non-ready with zero download (CORA-87-01)", () => {
+    const capture = captureDownloads();
+    try {
+      // Rows look completed, but the authoritative derived review fact is
+      // false: the shared readiness authority is false, so the Result is not
+      // ready and the independent serializer would refuse the bytes anyway.
+      let job = completeBatchItem(buildBatchJob(), 0, "Contenido sintético A.");
+      job = completeBatchItem(job, 1, "Contenido sintético B.");
+      job = withReviewState(job, { complete: false });
+      render(<ExportStep job={job} review={null} />);
+
+      expect(RESULT_STATE("needs-attention")).not.toBeNull();
+      const download = screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" });
+      expect(download).toBeDisabled();
+      fireEvent.click(download);
+      expect(capture.downloads).toHaveLength(0);
+    } finally {
+      capture.restore();
+    }
+  });
+
   it("enables exactly one Safe CSV download when the batch is ready", async () => {
     const capture = captureDownloads();
     try {

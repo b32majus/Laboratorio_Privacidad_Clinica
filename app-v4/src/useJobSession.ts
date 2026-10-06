@@ -33,6 +33,7 @@ import {
   failProcessing,
   goToStep,
   isBatchItemRetryable,
+  batchSafeSummaryReady,
   recordItemFailed,
   recordItemProcessed,
   recordItemRead,
@@ -160,24 +161,27 @@ function withDerivedReviewState(job: Job, review: ReviewSession): Job {
 
 /**
  * Derive a document-batch job's review-gated state in ONE atomic write
- * (T17 #21 SD-6, corrected by CORR-B). `review.complete` remains the domain's
- * single source of truth ({@link batchReviewComplete}: every non-error item is
- * `completed`), so the existing export step gate keeps working unchanged.
+ * (T17 #21 SD-6, corrected by CORR-B and by CORA-87-02). `review.complete`
+ * remains the domain's single source of truth ({@link batchReviewComplete}:
+ * every non-error item is `completed`), so the existing export step gate keeps
+ * working unchanged.
  *
- * Output authority (CORR-B): the accepted specification defines NO batch Safe
- * Output format and NO batch-wide Confidential Audit format, so BOTH output
- * flags stay `false` for a document batch regardless of review completion — a
- * completed batch review is a real, separate fact from output availability.
- * In particular, the ACTIVE document's ReviewSession is never presented as a
+ * Output authority (CORA-87-02): the batch Safe output flag is the SYNCHRONIZED
+ * derived mirror of the ONE shared Safe-summary readiness authority
+ * ({@link batchSafeSummaryReady}) — the same fact the Privacy Gate and the
+ * serializer consume — so the mirror never competes with or weakens it. The
+ * batch-wide Confidential Audit still has no accepted format and stays `false`
+ * until #89; the ACTIVE document's ReviewSession is never presented as a
  * batch-wide Confidential Audit. Single-document/text behavior is owned by
  * {@link withDerivedReviewState} and unchanged.
  */
 function withDerivedBatchReviewState(job: Job): Job {
   const complete = batchReviewComplete(job);
+  const withReview = withReviewState(job, { complete });
   return Object.freeze({
-    ...withReviewState(job, { complete }),
+    ...withReview,
     outputs: Object.freeze({
-      safeOutputReady: false,
+      safeOutputReady: batchSafeSummaryReady(withReview),
       confidentialAuditReady: false,
     }),
   }) as Job;

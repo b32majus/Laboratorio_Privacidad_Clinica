@@ -36,7 +36,7 @@
  * Privacy Gate, serializer, ReviewSession, source-offset or Class→Action
  * vocabulary. Memory-only, no logging, no network, no persistence (D-013).
  */
-import type { Job } from "../domain/job";
+import { batchSafeSummaryReady, type Job } from "../domain/job";
 import { deriveBatchFacts } from "../privacy-gate/privacyGateModel";
 
 /** The three human batch Result states, kept deliberately distinguishable. */
@@ -133,7 +133,11 @@ export function deriveBatchResultView(job: Job): BatchResultView {
       blockedMessage: blockedMessageFor(facts.activeFailedCount),
     };
   }
-  if (!job.review.complete || facts.pendingCount > 0) {
+  // Readiness for the batch Safe summary is the SAME shared authority the
+  // Privacy Gate and the serializer consume (CORA-87-02): a batch with
+  // completed-looking rows but a false/absent `review.complete`, a false
+  // item-derived completeness, or any active failure is never `ready`.
+  if (!batchSafeSummaryReady(job)) {
     return {
       ...base,
       state: "needs-attention",
@@ -160,12 +164,24 @@ function escapeCsvField(value: string): string {
 /**
  * Serialize the Safe batch summary CSV for a READY batch: header plus one
  * row per original selection index in original selection order. Fails
- * closed with a typed error (zero bytes) for any item that is not a
- * completed reviewed item or a deliberately removed failed item — an
- * active failed or pending batch is therefore never serializable.
+ * closed with a typed error (zero bytes) unless the batch Safe summary is
+ * authorized by the ONE shared readiness authority
+ * ({@link batchSafeSummaryReady}: a document batch whose authoritative review
+ * completeness and item-derived completeness are both true with no active
+ * failed item). The per-item guard below stays as defense-in-depth: any item
+ * that is neither a completed reviewed item nor a deliberately removed failed
+ * item also throws — so an active failed, pending or completeness-mismatched
+ * batch is never serializable, and the UI precondition is never the only
+ * guard (CORA-87-01).
  */
 export function serializeBatchSummaryCsv(job: Job): string {
   const facts = deriveBatchFacts(job);
+  if (!batchSafeSummaryReady(job)) {
+    throw new BatchSummaryError(
+      "serializeBatchSummaryCsv refuses to serialize: the batch Safe summary is not authorized " +
+        "while the review is incomplete, the derived completeness disagrees, or an active batch error remains."
+    );
+  }
   const lines = [BATCH_SUMMARY_CSV_HEADER];
   facts.items.forEach((item, position) => {
     const index = position + 1;

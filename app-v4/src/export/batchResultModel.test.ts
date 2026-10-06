@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   batchReviewComplete,
+  batchSafeSummaryReady,
   beginItemProcessing,
   beginItemRead,
   createJob,
@@ -230,5 +231,70 @@ describe("serializeBatchSummaryCsv", () => {
     expect(csv).toBe(
       ["indice_lote,estado,disposicion", "1,completado,", "2,error,retirado"].join("\n")
     );
+  });
+});
+
+/**
+ * Shared Safe-summary readiness authority (CORA-87-01 / CORA-87-02): ONE pure
+ * fact authorizes the batch Safe summary, consumed by the Privacy Gate, the
+ * batch Result and this serializer alike. These are the required adversarial
+ * stale/mismatch witnesses plus the genuine-ready boundary.
+ */
+describe("shared Safe-summary readiness authority", () => {
+  it("refuses completed-looking rows with review.complete=false and downloads nothing (stale mismatch witness)", () => {
+    let job = completeItem(batchJob(["a.txt", "b.txt"]), 0, "Texto A.");
+    job = completeItem(job, 1, "Texto B.");
+    // Crafted stale mismatch: rows look completed, but the authoritative
+    // derived review fact says the review is NOT complete.
+    const stale = withReviewState(job, { complete: false });
+
+    expect(batchSafeSummaryReady(stale)).toBe(false);
+    // Result visibility is not authorization: it reports the batch still needs
+    // attention, so the UI precondition alone already blocks the download.
+    expect(deriveBatchResultView(stale).state).toBe("needs-attention");
+    // The serializer is INDEPENDENTLY fail-closed and produces zero bytes.
+    expect(() => serializeBatchSummaryCsv(stale)).toThrowError(BatchSummaryError);
+  });
+
+  it("stays unauthorized when review.complete=true but an evaluable item is not completed (reverse mismatch)", () => {
+    const pending = withReviewState(readOk(batchJob(["a.txt", "b.txt"]), 0, "Texto A."), {
+      complete: true,
+    });
+    expect(batchSafeSummaryReady(pending)).toBe(false);
+    expect(deriveBatchResultView(pending).state).toBe("needs-attention");
+    expect(() => serializeBatchSummaryCsv(pending)).toThrowError(BatchSummaryError);
+  });
+
+  it("stays unauthorized when every failed item was removed with no completed item", () => {
+    let job = readFail(batchJob(["a.pdf", "b.pdf"]), 0, "pdf-no-text-layer", "No layer.");
+    job = readFail(job, 1, "pdf-no-text-layer", "No layer.");
+    job = removeBatchItem(job, 0);
+    job = removeBatchItem(job, 1);
+    const allRemoved = derived(job);
+
+    expect(batchSafeSummaryReady(allRemoved)).toBe(false);
+    expect(() => serializeBatchSummaryCsv(allRemoved)).toThrowError(BatchSummaryError);
+  });
+
+  it("stays unauthorized while an active failed item remains", () => {
+    const failed = derived(
+      readFail(batchJob(["a.txt", "roto.pdf"]), 1, "pdf-no-text-layer", "No layer.")
+    );
+    expect(batchSafeSummaryReady(failed)).toBe(false);
+  });
+
+  it("authorizes a genuine ready batch and keeps the deterministic bytes unchanged", () => {
+    let job = completeItem(batchJob(["a.txt", "b.txt"]), 0, "Texto A.");
+    job = completeItem(job, 1, "Texto B.");
+    const ready = derived(job);
+
+    expect(batchSafeSummaryReady(ready)).toBe(true);
+    expect(serializeBatchSummaryCsv(ready)).toBe(
+      ["indice_lote,estado,disposicion", "1,completado,", "2,completado,"].join("\n")
+    );
+  });
+
+  it("never authorizes a non-batch job", () => {
+    expect(batchSafeSummaryReady(createJob({ type: "pasted-text", text: "Texto." }))).toBe(false);
   });
 });

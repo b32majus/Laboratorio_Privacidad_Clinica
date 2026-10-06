@@ -762,6 +762,35 @@ export function batchHasActiveErrorItems(job: Job): boolean {
 }
 
 /**
+ * The single shared Safe-summary readiness authority for a document batch
+ * (REC-07 #87; Cora corrections CORA-87-01 / CORA-87-02). The only #87 batch
+ * Safe artifact is `resumen-lote-seguro.csv`, and this is the ONE pure fact
+ * that authorizes it. Fail-closed, and deliberately redundant on the
+ * completeness check, so the Safe summary is ready ONLY when ALL hold:
+ *
+ * 1. the job is a `document-batch`;
+ * 2. the authoritative derived review completeness ({@link Job.review}
+ *    `complete`) is true;
+ * 3. the item-derived completeness ({@link batchReviewComplete}) is true;
+ * 4. no ACTIVE failed item remains ({@link batchActiveFailedItems} is empty).
+ *
+ * Requirements 2 and 3 must BOTH hold: a crafted/stale mismatch such as
+ * completed-looking rows with `review.complete === false` (or the reverse) is
+ * NOT authorized. The Privacy Gate, the batch Result and the serializer all
+ * consume this one fact, so they can never disagree about the same batch Safe
+ * summary artifact. A non-batch job is never a batch Safe summary, so it
+ * returns `false` rather than throwing.
+ */
+export function batchSafeSummaryReady(job: Job): boolean {
+  if (job.kind !== "document-batch") return false;
+  return (
+    job.review.complete === true &&
+    batchReviewComplete(job) === true &&
+    batchActiveFailedItems(job).length === 0
+  );
+}
+
+/**
  * Whether the failed item at `index` can be retried IN PLACE (#78, REC-06).
  * Retry is contextual, not universal: it is offered only when the in-memory
  * Job still holds the authoritative source material — a document-batch item

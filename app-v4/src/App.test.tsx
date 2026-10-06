@@ -1272,15 +1272,15 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     completeActiveDocument();
     await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completado/));
 
-    // Privacy Gate: review is complete, yet the batch Safe/Confidential
-    // outputs stay unavailable there (no batch-wide gate format).
+    // Privacy Gate: review is complete, so the batch Safe summary is ready
+    // (the same shared readiness the Result and serializer consume), while the
+    // batch Confidential Audit stays unavailable (no batch-wide format, #89).
     fireEvent.click(stepButton(4, "Privacy Gate"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
-    expect(screen.getByText("Not available")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Safe Output is not available for a document batch yet/)
-    ).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Ready")).toBeInTheDocument();
+    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
 
     // Export is the ready batch Result: exactly one primary Safe action, and
     // returning to Review preserves both completions (no loss, no fabrication).
