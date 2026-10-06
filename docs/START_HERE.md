@@ -2,7 +2,7 @@
 
 Status: **CURRENT PRODUCT / RECOVERY AUTHORITY**
 
-Last reconciled: 2026-10-05
+Last reconciled: 2026-10-06
 
 ## 1. Where we are
 
@@ -60,7 +60,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-REC-05 is canonical after PR #76. The remaining REC-06→REC-12 recovery frontier has now been decomposed under C-085 through Matt `/to-tickets` and published as **GitHub issues #78–#93**, all labeled `ready-for-agent`, with native blocking relationships verified. The immediate native frontier is **#78, #79, #80, #81, #82, #83, #84 and #85**; the default operational preference is still serial recovery starting with **#78 (REC-06 batch failure-recovery)** to minimize shared-surface churn. GitHub issue dependencies are the executable blocking graph; the broader REC order remains scheduling/composition guidance and must not be converted into false dependency edges. The completed decomposition record is `docs/handoffs/REC06_12_TO_TICKETS_20261006.md`.
+REC-05 is canonical after PR #76. The remaining REC-06→REC-12 recovery frontier is published as **GitHub issues #78–#93**. Issues **#78 and #79 are CLOSED**; #79 merged by PR #96 at `3.0-main@30edfc3ca3c5deb585af82cc2d45a4bf03643e0a` and served as the final Laboratorio Complex canary for Atenea C-086. The accepted hard-dependency graph now makes #80–#87 executable, but the project authority still prefers serial recovery by REC group to minimize shared-surface churn. Therefore the selected next frontier is **#86 — REC-06 Batch work-queue orientation at realistic batch size**, the remaining REC-06 slice. #87 is hard-unblocked but waits operationally until REC-06 closes; #80–#85 remain valid unblocked tickets, not the selected frontier. GitHub dependencies remain the semantic blocking graph; scheduling preference must not be rewritten as fake edges.
 
 No new recovery ticket should be invented from memory. For the current frontier, use published issues #78–#93 plus the traceability matrix/master plan. Any newly discovered blocking obligation must first be reconciled into authority and ownership rather than silently appended to an implementation ticket.
 
@@ -96,6 +96,6 @@ Before implementing a REC Work Order:
 3. preserve the current V4 safety/domain architecture unless the Work Order explicitly changes an authority;
 4. define acceptance criteria for **product capability + safety semantics + deterministic evidence + proportional human-product evidence**, not only route/component existence;
 5. resolve material spatial/interaction choices in the **real application on bounded branches** with synthetic/no-PHI realistic-density fixtures by default; do not invent detached prototype products unless genuinely necessary;
-6. use the current Atenea execution model in `AGENTS.md`;
+6. use the current Atenea C-086 thin execution model in `AGENTS.md`;
 7. after each REC ticket, update the matrix/plan disposition so context cannot silently narrow again;
 8. REC-12 must first prove **source → matrix completeness** against both frozen audits + material v3 heritage, then re-audit all 88+42 (or explicitly reconciled later count) rows against the final product before recovery can be called complete.
