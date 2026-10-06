@@ -1,15 +1,23 @@
 /**
- * Unmount-disposal witness for the REC-05 single-item Result async guard
- * (handoff §4.6, D-024). The captured authority snapshot stays
- * self-consistent after the Result unmounts (New Job / Clear session removes
- * <ExportStep>), so the just-in-time guard alone passes and a completed
- * generation would download a stale artifact. The disposal flag in the
- * effect cleanup must make completion after unmount produce ZERO download
- * and zero false success.
+ * Unmount-disposal witnesses for the async guards of <ExportStep>:
  *
- * This file isolates a controlled `buildSafeDocxBytes` gate so the awaited
- * generation window can be suspended, the component unmounted, and the
- * promise resolved afterwards. All fixtures are synthetic; no real content.
+ * 1. REC-05 single-item Result (handoff §4.6, D-024): the captured authority
+ *    snapshot stays self-consistent after the Result unmounts (New Job /
+ *    Clear session removes <ExportStep>), so the just-in-time guard alone
+ *    passes and a completed generation would download a stale artifact. The
+ *    disposal flag in the effect cleanup must make completion after unmount
+ *    produce ZERO download and zero false success.
+ *
+ * 2. REC-07 prefactor #79 (Structured export): the Structured XLSX paths
+ *    share the same gap — an already-started `loadXlsx`/generation window
+ *    that completes after the owning Structured surface is removed must
+ *    produce ZERO download. The shared disposal flag joins the existing
+ *    post-await current-authority guards (`isSafeCurrent` /
+ *    `isConfirmationCurrent`).
+ *
+ * These tests isolate controlled gates so the awaited generation windows can
+ * be suspended, the component unmounted, and the promises resolved
+ * afterwards. All fixtures are synthetic; no real content.
  */
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,6 +31,14 @@ import {
   type ReviewSession,
 } from "../review/review-domain";
 import { createJob, withReviewState, type Job, type OutputAvailability } from "../domain/job";
+import { createStructuredConfiguration, setStructuredDateRole } from "../structured/configuration";
+import { buildStructuredTransformPlan } from "../structured/transform-plan";
+import { prepareStructuredOutput } from "../structured/transformed-dataset";
+import type { XlsxLib } from "../structured/xlsx-loader";
+import {
+  CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME,
+  SAFE_STRUCTURED_XLSX_FILE_NAME,
+} from "../structured/xlsx-export";
 
 /** Controlled gate for the awaited DOCX generation window. */
 const docxGate = vi.hoisted(() => ({
@@ -35,6 +51,33 @@ vi.mock("../output/docx-builder", async (importOriginal) => {
     ...actual,
     buildSafeDocxBytes: (safeText: string) =>
       docxGate.suspend ? docxGate.suspend(safeText) : actual.buildSafeDocxBytes(safeText),
+  };
+});
+
+/**
+ * Controlled gate for the awaited structured XLSX lazy-load window
+ * (`await loadXlsx()`), plus fixed bytes for both XLSX builders so a
+ * resumed generation always reaches the download seam instead of failing
+ * inside byte construction.
+ */
+const xlsxGate = vi.hoisted(() => ({
+  suspend: null as null | (() => Promise<XlsxLib>),
+}));
+
+vi.mock("../structured/xlsx-loader", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../structured/xlsx-loader")>();
+  return {
+    ...actual,
+    loadXlsx: () => (xlsxGate.suspend ? xlsxGate.suspend() : actual.loadXlsx()),
+  };
+});
+
+vi.mock("../structured/xlsx-export", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../structured/xlsx-export")>();
+  return {
+    ...actual,
+    buildSafeXlsxBytes: () => new Uint8Array([1, 2, 3]),
+    buildConfidentialXlsxBytes: () => new Uint8Array([4, 5, 6]),
   };
 });
 
@@ -144,6 +187,7 @@ async function flushAsyncWork(): Promise<void> {
 
 afterEach(() => {
   docxGate.suspend = null;
+  xlsxGate.suspend = null;
   cleanup();
   vi.restoreAllMocks();
 });
@@ -180,6 +224,160 @@ describe("REC-05 single-item Result — unmount disposal (handoff §4.6)", () =>
       expect(captured.downloads).toHaveLength(0);
     } finally {
       captured.restore();
+    }
+  });
+});
+
+/**
+ * Synthetic structured fixtures (same shape as structured-export.test.tsx,
+ * smaller): a ready configuration/plan/preparation triple over synthetic
+ * grid data, and a structured Job with the given readiness.
+ */
+const STRUCTURED_GRID = {
+  headers: ["Paciente", "Fecha_Visita", "Fecha_Nacimiento", "Diagnostico"],
+  rows: [
+    ["P-001", "2023-01-10", "1954-03-12", "Gripe A"],
+    ["P-002", "2023-03-15", "1980-07-04", "Fractura"],
+  ],
+};
+
+function structuredReadyInput() {
+  let configuration = createStructuredConfiguration(STRUCTURED_GRID, {
+    selectedPatientIdColumn: "Paciente",
+  });
+  configuration = setStructuredDateRole(configuration, 1, "visit");
+  configuration = setStructuredDateRole(configuration, 2, "birth");
+  const plan = buildStructuredTransformPlan(configuration, {
+    policyId: "standard",
+    jobSeed: "unmount-witness-structured",
+  });
+  return { configuration, plan, preparation: prepareStructuredOutput(configuration, plan) };
+}
+
+function structuredJobFor(id: string, ready: boolean): Job {
+  return {
+    kind: "structured",
+    id,
+    policyId: "standard",
+    outputs: { safeOutputReady: ready, confidentialAuditReady: ready },
+    errors: [],
+  } as unknown as Job;
+}
+
+describe("REC-07 prefactor #79 — Structured export unmount disposal", () => {
+  const SAFE_XLSX_BUTTON = "Download Safe Structured Output (.xlsx)";
+  const CONF_XLSX_BUTTON = "Download Structured Confidential Audit (.xlsx)";
+
+  it("produces ZERO download when the surface unmounts during the awaited Safe XLSX generation", async () => {
+    const captured = captureDownloads();
+    const view = render(
+      <ExportStep
+        job={structuredJobFor("job-1", true)}
+        review={null}
+        structured={structuredReadyInput()}
+      />
+    );
+    try {
+      // Suspend the awaited XLSX lazy-load at its first await.
+      let resolveLoader!: (lib: XlsxLib) => void;
+      xlsxGate.suspend = () =>
+        new Promise<XlsxLib>((resolve) => {
+          resolveLoader = resolve;
+        });
+
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      // The operation is genuinely pending: no bytes, no download yet.
+      expect(captured.downloads).toHaveLength(0);
+
+      // Removing the surface revokes download authority while the
+      // generation is still awaited.
+      view.unmount();
+
+      // The operation then completes — it must produce ZERO download.
+      resolveLoader({} as XlsxLib);
+      await flushAsyncWork();
+
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("produces ZERO download when the surface unmounts during the awaited Confidential XLSX generation", async () => {
+    const captured = captureDownloads();
+    const view = render(
+      <ExportStep
+        job={structuredJobFor("job-1", true)}
+        review={null}
+        structured={structuredReadyInput()}
+      />
+    );
+    try {
+      let resolveLoader!: (lib: XlsxLib) => void;
+      xlsxGate.suspend = () =>
+        new Promise<XlsxLib>((resolve) => {
+          resolveLoader = resolve;
+        });
+
+      fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      expect(captured.downloads).toHaveLength(0);
+
+      view.unmount();
+
+      resolveLoader({} as XlsxLib);
+      await flushAsyncWork();
+
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("still downloads normally when the surface stays mounted through the awaited Safe XLSX generation", async () => {
+    const captured = captureDownloads();
+    // Pre-seed the loader so the real lazy load resolves synchronously
+    // (no script injection); the builders are stubbed, the lib is unused.
+    window.XLSX = { version: "unmount-witness" } as unknown as XlsxLib;
+    render(
+      <ExportStep
+        job={structuredJobFor("job-1", true)}
+        review={null}
+        structured={structuredReadyInput()}
+      />
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      await flushAsyncWork();
+
+      expect(captured.downloads).toHaveLength(1);
+      expect(captured.downloads[0]?.fileName).toBe(SAFE_STRUCTURED_XLSX_FILE_NAME);
+    } finally {
+      captured.restore();
+      delete window.XLSX;
+    }
+  });
+
+  it("still downloads normally when the surface stays mounted through the awaited Confidential XLSX generation", async () => {
+    const captured = captureDownloads();
+    window.XLSX = { version: "unmount-witness" } as unknown as XlsxLib;
+    render(
+      <ExportStep
+        job={structuredJobFor("job-1", true)}
+        review={null}
+        structured={structuredReadyInput()}
+      />
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      await flushAsyncWork();
+
+      expect(captured.downloads).toHaveLength(1);
+      expect(captured.downloads[0]?.fileName).toBe(CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME);
+    } finally {
+      captured.restore();
+      delete window.XLSX;
     }
   });
 });

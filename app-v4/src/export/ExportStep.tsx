@@ -238,6 +238,26 @@ function StructuredExport({
     readonly message: string;
   } | null>(null);
 
+  // Unmount disposal (REC-07 prefactor #79; same accepted pattern as the
+  // single-result Result's `disposedRef`, handoff §4.6 / D-024): the
+  // snapshot below stays SELF-CONSISTENT after this Structured surface is
+  // removed, so the current-authority guards alone would still pass for an
+  // awaited operation that completes after unmount. This ONE shared flag is
+  // the disposal authority for the whole surface (both XLSX paths and the
+  // Confidential TXT check reuse the same guards). Reusable pattern for
+  // later REC-07 async outputs: capture the current-authority snapshot
+  // before the await, then revalidate BOTH this flag and the snapshot
+  // immediately before any bytes are produced or any download begins —
+  // completion after disposal produces ZERO download and zero false
+  // success.
+  const disposedRef = useRef(false);
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  }, []);
+
   // The CURRENT authorization snapshot (REC-04 SPEC-1; extended by
   // CORA-AUDIT-REC04-01 to the Safe XLSX async path). A download is only
   // ever requested against one frozen Job + preparation; the actual download
@@ -266,6 +286,9 @@ function StructuredExport({
     requestedJobId: string,
     requestedPreparation: StructuredOutputPreparation
   ): boolean => {
+    if (disposedRef.current) {
+      return false; // disposed: completion after unmount downloads nothing
+    }
     const current = confirmationAuthorityRef.current;
     return (
       !current.confidentialBlocked &&
@@ -285,6 +308,9 @@ function StructuredExport({
     requestedJobId: string,
     requestedPreparation: StructuredOutputPreparation
   ): boolean => {
+    if (disposedRef.current) {
+      return false; // disposed: completion after unmount downloads nothing
+    }
     const current = confirmationAuthorityRef.current;
     return (
       !current.safeBlocked &&
