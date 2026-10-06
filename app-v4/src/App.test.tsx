@@ -978,7 +978,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     return screen.getByRole("region", { name: "Batch documents" });
   }
 
-  it("creates a batch with one failed document: the failure stays visible on input and blocks gate/export", async () => {
+  it("creates a batch with one failed document: the failure stays visible and the artifact stays blocked while the Result communicates it", async () => {
     render(<App />);
     // One good synthetic TXT + one forced-failure DOCX fixture → a batch, NOT
     // an all-or-nothing refusal (BATCH-001).
@@ -1027,8 +1027,23 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(failedAlert).toBeDefined();
     expect(failedAlert).toHaveTextContent(/could not be parsed/i);
 
-    // Safe Export stays disabled (review incomplete and a failed item).
-    expect(stepButton(5, "Export")).toBeDisabled();
+    // REC-07 #87: the batch Result stays reachable while the artifact is
+    // unauthorized — it communicates blocked without enabling production.
+    expect(stepButton(5, "Export")).toBeEnabled();
+    fireEvent.click(stepButton(5, "Export"));
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Bloqueado" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })).toBeDisabled();
+    // Returning to Review preserves the accepted review state (no loss).
+    fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
+    await waitFor(
+      () => {
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
+    expect(documentSelector()).toHaveTextContent(/historia-buena\.txt — Requiere revisión/);
+    expect(documentSelector()).toHaveTextContent(/corrupt\.docx — Error/);
   });
 
   it("selecting and navigating between documents never marks one reviewed (FUNC-002, SD-5)", async () => {
@@ -1232,7 +1247,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/mandatory review decision/i);
   });
 
-  it("keeps a completed error-free batch's output surfaces unavailable at gate and export (T17 #21 CORR-B)", async () => {
+  it("reaches the ready batch Result for a completed error-free batch (REC-07 #87)", async () => {
     render(<App />);
     await createBatchAndSettle([
       new File([BATCH_NOTE_A], "doc-a.txt"),
@@ -1257,21 +1272,29 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     completeActiveDocument();
     await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completado/));
 
-    // Privacy Gate: review is complete, yet both batch outputs are unavailable.
+    // Privacy Gate: review is complete, so the batch Safe summary is ready
+    // (the same shared readiness the Result and serializer consume), while the
+    // batch Confidential Audit stays unavailable (no batch-wide format, #89).
     fireEvent.click(stepButton(4, "Privacy Gate"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
-    expect(screen.getByText("Not available")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Safe Output is not available for a document batch yet/)
-    ).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Ready")).toBeInTheDocument();
+    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
 
-    // Export reports the SAME fact: both actions disabled with explicit reasons.
+    // Export is the ready batch Result: exactly one primary Safe action, and
+    // returning to Review preserves both completions (no loss, no fabrication).
     fireEvent.click(stepButton(5, "Export"));
-    expect(screen.getByRole("button", { name: "Download Safe Output (.txt)" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Download Confidential Audit (.txt)" })
-    ).toBeDisabled();
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Listo para usar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Todos (2)" })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Todos (2)" }));
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
+    expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completado/);
   });
 });
 

@@ -33,7 +33,7 @@ import {
   type PrivacyGateView,
   batchConfidentialAuditUnavailableMessage,
   batchFailedItemsMessage,
-  batchSafeOutputUnavailableMessage,
+  batchSafeSummaryAvailabilityMessage,
   derivePrivacyGateView,
   pendingDecisionMessage,
 } from "./privacyGateModel";
@@ -98,8 +98,9 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   const safeOutputReady = view.safeOutputReady;
   const hasJobErrors = view.errors.length > 0;
   // The applicable output is blocked by the current authority. For a batch the
-  // accepted spec defines no Safe Output, so the no-format limitation itself is
-  // an availability fact, never an action the operator can take at this step.
+  // operative checkpoint blocker is the active failed count (a deliberately
+  // removed item is retained history); the Safe summary's own readiness is the
+  // shared authority fact shown in the Output availability copy below.
   const outputBlocked = view.batch === null ? !safeOutputReady : batchFailed;
   const actionRequired = view.pendingCount > 0 || batchFailed || hasJobErrors || outputBlocked;
   // #78 correction F1: the "Review complete" assertion is gated on the
@@ -406,7 +407,7 @@ function AvailabilityFacts({ view }: { view: PrivacyGateView }): ReactElement {
       </dl>
       {view.batch !== null && (
         <div className="mt-3 space-y-1 text-sm text-neutral-800">
-          <p>{batchSafeOutputUnavailableMessage()}</p>
+          <p>{batchSafeSummaryAvailabilityMessage(view.safeOutputReady)}</p>
           <p>{batchConfidentialAuditUnavailableMessage()}</p>
         </div>
       )}

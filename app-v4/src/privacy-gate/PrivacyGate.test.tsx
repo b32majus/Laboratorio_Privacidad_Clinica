@@ -344,9 +344,11 @@ function completedBatchJob(): Job {
 }
 
 /**
- * Mirror of the bridge's batch output authority (T17 #21 SD-6, corrected by
- * CORR-B): while no accepted batch output format exists, BOTH batch output
- * flags are false regardless of review completion.
+ * Stale batch-output mirror fixture: forces BOTH mirrored output flags false
+ * regardless of review completion. The Privacy Gate no longer trusts this
+ * mirror for a batch (CORA-87-02): its Safe-summary readiness comes from the
+ * shared {@link batchSafeSummaryReady} authority, so a stale mirror cannot
+ * make the gate disagree with the Result or the serializer.
  */
 function withBatchOutputs(job: Job): Job {
   return {
@@ -461,36 +463,72 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     expect(items).toHaveTextContent("Retirado del lote");
 
     // Downloads remain unavailable as before: both output surfaces stay
-    // closed for the batch.
+    // closed for the batch (no evaluable item means the Safe summary is not
+    // ready; Confidential has no accepted batch format).
     expect(screen.getByText("Not ready")).toBeInTheDocument();
     expect(screen.getByText("Not available")).toBeInTheDocument();
     expect(
-      screen.getByText(/Safe Output is not available for a document batch yet/)
+      screen.getByText(/Safe Output for a document batch is not ready yet/)
     ).toBeInTheDocument();
   });
 
-  it("reports both batch output surfaces unavailable for a fully reviewed error-free batch", () => {
+  it("reflects the shared Safe-summary readiness for a fully reviewed error-free batch while Confidential stays unavailable", () => {
     renderGate(withBatchOutputs(completedBatchJob()), null);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
     const counts = screen.getByRole("group", { name: /batch item counts/i });
     expect(counts).toHaveTextContent("Failed: 0");
-    // T17 #21 CORR-B: review completion is true, but no accepted batch output
-    // format exists, so both batch output surfaces stay unavailable.
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
-    expect(screen.getByText("Not available")).toBeInTheDocument();
+    // CORA-87-02: a completed error-free batch authorizes the Safe summary
+    // (the same shared readiness authority the Result and serializer use),
+    // while the batch Confidential Audit stays unavailable (#89) and the
+    // retired "no batch Safe format" claim is gone.
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Ready")).toBeInTheDocument();
+    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Safe Output is not available for a document batch yet/)
+      within(availability).getByText(/Confidential Audit is not available for a document batch yet/)
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Confidential Audit is not available for a document batch yet/)
-    ).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(
+      /does not define a batch Safe Output format/
+    );
   });
 
   it("never renders score, percentage, anonymity or certification claims with batch facts (D-006)", () => {
     const { container } = renderGate(failedBatchJob(), null);
     expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
+  });
+});
+
+/**
+ * CORA-87-02: the Privacy Gate consumes the ONE shared Safe-summary readiness
+ * authority, so a not-ready batch is never presented as ready at the gate, and
+ * no batch state claims that no Safe batch format exists.
+ */
+describe("PrivacyGate — shared Safe-summary readiness (CORA-87-02)", () => {
+  it("shows the Safe summary as not ready for a pending batch", () => {
+    renderGate(pendingBatchJob(), null);
+
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Not ready")).toBeInTheDocument();
+    expect(
+      within(availability).getByText(/Safe Output for a document batch is not ready yet/)
+    ).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(
+      /does not define a batch Safe Output format/
+    );
+  });
+
+  it("shows the Safe summary as not ready with the factual blocker for an active-failure batch", () => {
+    renderGate(failedBatchJob(), null);
+
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Not ready")).toBeInTheDocument();
+    // The factual blocker remains the active failed item's named remedy.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/batch item failed/i);
+    expect(alert).toHaveTextContent('"informe-a.txt"');
   });
 });
 

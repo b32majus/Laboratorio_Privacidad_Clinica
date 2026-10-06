@@ -202,6 +202,9 @@ export type JobModelErrorCode =
   | "review-incomplete"
   | "invalid-processing-transition"
   | "invalid-batch-intake"
+  // Retired as a step-transition code by REC-07 #87 (batch Result
+  // navigation is decoupled from artifact authorization); retained in the
+  // typed vocabulary for traceability of the T17 #21 SD-7 blocker.
   | "batch-item-failed";
 
 /** Typed domain error; carries a machine-readable code (D-009 fail-closed). */
@@ -759,6 +762,35 @@ export function batchHasActiveErrorItems(job: Job): boolean {
 }
 
 /**
+ * The single shared Safe-summary readiness authority for a document batch
+ * (REC-07 #87; Cora corrections CORA-87-01 / CORA-87-02). The only #87 batch
+ * Safe artifact is `resumen-lote-seguro.csv`, and this is the ONE pure fact
+ * that authorizes it. Fail-closed, and deliberately redundant on the
+ * completeness check, so the Safe summary is ready ONLY when ALL hold:
+ *
+ * 1. the job is a `document-batch`;
+ * 2. the authoritative derived review completeness ({@link Job.review}
+ *    `complete`) is true;
+ * 3. the item-derived completeness ({@link batchReviewComplete}) is true;
+ * 4. no ACTIVE failed item remains ({@link batchActiveFailedItems} is empty).
+ *
+ * Requirements 2 and 3 must BOTH hold: a crafted/stale mismatch such as
+ * completed-looking rows with `review.complete === false` (or the reverse) is
+ * NOT authorized. The Privacy Gate, the batch Result and the serializer all
+ * consume this one fact, so they can never disagree about the same batch Safe
+ * summary artifact. A non-batch job is never a batch Safe summary, so it
+ * returns `false` rather than throwing.
+ */
+export function batchSafeSummaryReady(job: Job): boolean {
+  if (job.kind !== "document-batch") return false;
+  return (
+    job.review.complete === true &&
+    batchReviewComplete(job) === true &&
+    batchActiveFailedItems(job).length === 0
+  );
+}
+
+/**
  * Whether the failed item at `index` can be retried IN PLACE (#78, REC-06).
  * Retry is contextual, not universal: it is offered only when the in-memory
  * Job still holds the authoritative source material — a document-batch item
@@ -938,26 +970,11 @@ export function batchFailureRemedy(errorCodes: readonly string[]): string {
     : "Create a new job without them to continue.";
 }
 
-/**
- * Batch export blocker (T17 #21 SD-7, remedy copy corrected by CORR-B). Called
- * only for `document-batch` jobs, AFTER the review-completeness guard so
- * `review-incomplete` keeps priority when both apply. A single failed item
- * blocks export with the typed `batch-item-failed` code naming the failed
- * files and the {@link batchFailureRemedy remedy} that matches each failure.
- */
-function assertBatchExportable(job: Job): void {
-  // #78: only ACTIVE failed items block export; a deliberately removed item
-  // resolved its own blocker and is never named as a still-blocking failure.
-  if (job.kind !== "document-batch" || !batchHasActiveErrorItems(job)) return;
-  const failed = batchActiveFailedItems(job);
-  const names = failed.map((item) => `"${item.name}"`).join(", ");
-  const subject =
-    failed.length === 1
-      ? `a batch item failed: ${names}`
-      : `${failed.length} batch items failed: ${names}`;
-  const remedy = batchFailureRemedy(failed.map((item) => item.error.code));
-  throw new JobModelError("batch-item-failed", `Export is blocked because ${subject}. ${remedy}`);
-}
+// Batch artifact authorization lived here (T17 #21 SD-7) as a throwing
+// step-navigation guard. REC-07 #87 decouples batch Result navigation from
+// artifact authorization (see batchResultDecoupled): the fail-closed
+// artifact authority is now the batch Result model. The factual remedy
+// sentence stays available through batchFailureRemedy for gate/Result copy.
 
 /**
  * Policy-change item reset (T17 #21 SD-8, corrected by WU-C3 and CORR-A).
@@ -1073,17 +1090,33 @@ export type Job = {
 };
 
 /**
- * Whether the export transition guard is satisfied. Export is gated on review
- * completeness (D-004) and, for a document-batch, on the absence of failed
- * items (T17 #21 SD-7); review-incomplete keeps priority over the batch item
- * guard. Shared by every path INTO export so one fail-closed rule cannot drift
- * between {@link canAdvanceStep}, {@link advanceStep}, the canonical
+ * Batch Result navigation (REC-07 #87). For a `document-batch` job the
+ * Result (`export`) step is the presentation destination that communicates
+ * ready / needs-attention / blocked, so it is navigable along the canonical
+ * order even while the batch artifact itself is unauthorized. Navigation
+ * never authorizes bytes: artifact production stays fail-closed in the
+ * batch Result model (`deriveBatchResultView`, whose state reuses the same
+ * batch authorities, plus the fail-closed `serializeBatchSummaryCsv`).
+ * A batch still reaches `export` only through `privacy-gate` (no direct
+ * review→export skip): the Privacy Gate stays an intact, visitable
+ * checkpoint in the path. Every other job kind keeps the readiness-gated
+ * export transition byte-for-byte.
+ */
+function batchResultDecoupled(job: Job): boolean {
+  return job.kind === "document-batch";
+}
+
+/**
+ * Whether the export transition guard is satisfied (non-batch jobs only).
+ * Export is gated on review completeness (D-004). Shared by every non-batch
+ * path INTO export so one fail-closed rule cannot drift between
+ * {@link canAdvanceStep}, {@link advanceStep}, the canonical
  * `privacy-gate → export` transition and the D-024 direct `review → export`
- * transition.
+ * transition. Batch Result navigation is decoupled (see
+ * {@link batchResultDecoupled}) and never consults this guard.
  */
 function exportTransitionAllowed(job: Job): boolean {
-  if (!job.review.complete) return false;
-  return !(job.kind === "document-batch" && batchHasActiveErrorItems(job));
+  return job.review.complete;
 }
 
 /** Throwing form of {@link exportTransitionAllowed} for transition functions. */
@@ -1094,7 +1127,6 @@ function assertExportTransitionAllowed(job: Job): void {
       "Export is blocked while mandatory review is incomplete."
     );
   }
-  assertBatchExportable(job);
 }
 
 /**
@@ -1113,21 +1145,25 @@ function resultReachableFromReview(job: Job): boolean {
 
 /**
  * Whether the immediate forward transition out of the current step is
- * allowed. Export is gated on review completeness (D-004) and, for a
- * document-batch, on the absence of failed items (T17 #21 SD-7); every other
- * forward transition along the canonical order is allowed.
+ * allowed. For text/document/structured jobs export is gated on review
+ * completeness (D-004); for a document-batch the Result step itself is
+ * always the allowed immediate-next destination out of `privacy-gate`
+ * (REC-07 #87: Result visibility is decoupled from artifact authorization,
+ * which stays fail-closed in the batch Result model). Every other forward
+ * transition along the canonical order is allowed.
  */
 export function canAdvanceStep(job: Job): boolean {
   const index = stepIndex(job.currentStep);
   if (index < 0 || index === FLOW_STEPS.length - 1) return false;
   const next = FLOW_STEPS[index + 1];
   if (next !== "export") return true;
+  if (batchResultDecoupled(job)) return true;
   return exportTransitionAllowed(job);
 }
 
 /**
  * Advance exactly one step forward along the canonical order. Throws a typed
- * error when the transition is invalid or gated.
+ * error when the transition is invalid or (for non-batch jobs) gated.
  */
 export function advanceStep(job: Job): Job {
   const index = stepIndex(job.currentStep);
@@ -1135,14 +1171,17 @@ export function advanceStep(job: Job): Job {
     throw new JobModelError("invalid-step", `Cannot advance from step "${job.currentStep}".`);
   }
   const next = FLOW_STEPS[index + 1];
-  if (next === "export") assertExportTransitionAllowed(job);
+  if (next === "export" && !batchResultDecoupled(job)) assertExportTransitionAllowed(job);
   return moveToStep(job, next);
 }
 
 /**
  * Move to a step. Allowed: the current step (no-op), any already-visited
- * step (backward), the immediate next forward step when its guard passes, or —
- * for a pasted-text/single-document Job — the Result (`export`) step directly
+ * step (backward), the immediate next forward step when its guard passes —
+ * for a document-batch the Result step is always allowed as the immediate
+ * next step out of `privacy-gate` (REC-07 #87 decoupling; the artifact
+ * itself stays fail-closed in the batch Result model) — or — for a
+ * pasted-text/single-document Job — the Result (`export`) step directly
  * from Review (D-024; {@link resultReachableFromReview}). Any other jump throws
  * (fail-closed; SPEC §2 canonical order).
  */
@@ -1154,7 +1193,9 @@ export function goToStep(job: Job, target: FlowStep): Job {
   if (job.visitedSteps.includes(target)) return moveToStep(job, target);
 
   const isImmediateNext = stepIndex(target) === stepIndex(job.currentStep) + 1;
-  if (isImmediateNext && target === "export") assertExportTransitionAllowed(job);
+  if (isImmediateNext && target === "export" && !batchResultDecoupled(job)) {
+    assertExportTransitionAllowed(job);
+  }
   if (isImmediateNext) return moveToStep(job, target);
 
   // D-024 (REC-05 WU-B2): the single-item Result is directly reachable from
@@ -1183,7 +1224,9 @@ function moveToStep(job: Job, target: FlowStep): Job {
  * the canonical visited/immediate-next rules, a pasted-text/single-document Job
  * at Review may go straight to Result (D-024; {@link resultReachableFromReview})
  * whenever the export guard is satisfied, so the Privacy Gate is never a
- * mandatory stop on the ordinary path.
+ * mandatory stop on the ordinary path. A document-batch Job may always reach
+ * its Result as the immediate next step out of `privacy-gate` (REC-07 #87;
+ * see {@link batchResultDecoupled}).
  */
 export function isStepAccessible(job: Job, target: FlowStep): boolean {
   if (target === job.currentStep) return true;

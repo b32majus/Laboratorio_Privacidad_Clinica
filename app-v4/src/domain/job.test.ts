@@ -7,6 +7,7 @@ import {
   advanceStep,
   batchActiveFailedItems,
   batchFailedItems,
+  batchFailureRemedy,
   batchHasActiveErrorItems,
   batchHasErrorItems,
   batchItemStatus,
@@ -1184,38 +1185,33 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
     });
   });
 
-  describe("export guard (SD-7)", () => {
+  describe("batch Result navigation (REC-07 #87)", () => {
     function failedBatch(): Job {
       return readFailure(batchJob(["scan.pdf", "ok.txt"]), 0, "pdf-no-text-layer", "No layer.");
     }
 
-    it("keeps review-incomplete priority when review is pending and an item failed", () => {
+    it("reaches the batch Result while review is pending; the artifact stays unauthorized", () => {
       const gate = atPrivacyGate(failedBatch());
-      expect(canAdvanceStep(gate)).toBe(false);
-      try {
-        advanceStep(gate);
-        throw new Error("expected advanceStep to throw");
-      } catch (error) {
-        expect(error).toBeInstanceOf(JobModelError);
-        expect((error as JobModelError).code).toBe("review-incomplete");
-      }
+      // Navigation is decoupled from artifact authorization: the Result step
+      // communicates the not-ready state instead of staying unreachable.
+      expect(canAdvanceStep(gate)).toBe(true);
+      expect(isStepAccessible(gate, "export")).toBe(true);
+      expect(advanceStep(gate).currentStep).toBe("export");
+      expect(goToStep(gate, "export").currentStep).toBe("export");
+      // The same authorities still report the artifact as unauthorized:
+      // review is incomplete and an active failure remains.
+      expect(batchReviewComplete(failedBatch())).toBe(false);
+      expect(batchHasActiveErrorItems(failedBatch())).toBe(true);
     });
 
-    it("blocks export with batch-item-failed naming the failed file once review is complete", () => {
+    it("reaches the batch Result with an active failed item once review is complete", () => {
       const gate = atPrivacyGate(withReviewState(failedBatch(), { complete: true }));
-      expect(canAdvanceStep(gate)).toBe(false);
-      expect(isStepAccessible(gate, "export")).toBe(false);
-      for (const attempt of [() => advanceStep(gate), () => goToStep(gate, "export")]) {
-        try {
-          attempt();
-          throw new Error("expected the export transition to throw");
-        } catch (error) {
-          expect(error).toBeInstanceOf(JobModelError);
-          expect((error as JobModelError).code).toBe("batch-item-failed");
-          expect((error as JobModelError).message).toContain('"scan.pdf"');
-          expect((error as JobModelError).message).toMatch(/new job/i);
-        }
-      }
+      expect(canAdvanceStep(gate)).toBe(true);
+      expect(isStepAccessible(gate, "export")).toBe(true);
+      expect(advanceStep(gate).currentStep).toBe("export");
+      // The active failure is still the artifact blocker in the batch facts.
+      expect(batchHasActiveErrorItems(gate)).toBe(true);
+      expect(batchActiveFailedItems(gate).map((item) => item.name)).toEqual(["scan.pdf"]);
     });
 
     it("allows export for a fully completed batch without failures", () => {
@@ -1237,6 +1233,23 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       expect(advanceStep(gate).currentStep).toBe("export");
     });
 
+    it("keeps the review-incomplete guard for a single-document job", () => {
+      const pending = createJob({
+        type: "files",
+        files: [extractedFile("note.txt", "Synthetic note.")],
+      });
+      const gate = atPrivacyGate(pending);
+      expect(canAdvanceStep(gate)).toBe(false);
+      expect(isStepAccessible(gate, "export")).toBe(false);
+      expect(() => advanceStep(gate)).toThrowError(JobModelError);
+    });
+
+    it("still refuses a direct batch review-to-export skip: the Gate stays in the path", () => {
+      const review = goToStep(goToStep(failedBatch(), "configure"), "review");
+      expect(() => goToStep(review, "export")).toThrowError(JobModelError);
+      expect(goToStep(review, "privacy-gate").currentStep).toBe("privacy-gate");
+    });
+
     it("offers the policy remedy for a policy-unsupported failure instead of removing the document (CORR-B)", () => {
       let job = readText(batchJob(["blocked.txt", "ok.txt"]), 0, "Healthy synthetic text.");
       job = recordItemFailed(beginItemProcessing(job, 0), 0, {
@@ -1245,18 +1258,11 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       });
       job = toCompleted(job, 1);
       const gate = atPrivacyGate(withReviewState(job, { complete: true }));
-      expect(canAdvanceStep(gate)).toBe(false);
-      try {
-        advanceStep(gate);
-        throw new Error("expected advanceStep to throw");
-      } catch (error) {
-        expect(error).toBeInstanceOf(JobModelError);
-        expect((error as JobModelError).code).toBe("batch-item-failed");
-        expect((error as JobModelError).message).toContain('"blocked.txt"');
-        // The document is healthy; the remedy is policy configuration, not removal.
-        expect((error as JobModelError).message).toMatch(/supported Privacy Policy/i);
-        expect((error as JobModelError).message).not.toMatch(/new job/i);
-      }
+      // The Result copy names the remedy from the batch facts (gate/Result
+      // authority), not from a throwing transition.
+      const codes = batchActiveFailedItems(gate).map((item) => item.error.code);
+      expect(batchFailureRemedy(codes)).toMatch(/supported Privacy Policy/i);
+      expect(batchFailureRemedy(codes)).not.toMatch(/new job/i);
     });
 
     it("names both remedies for a mixed policy + read failure (CORR-B)", () => {
@@ -1268,15 +1274,9 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       job = readFailure(job, 1, "pdf-no-text-layer", "No layer.");
       job = toCompleted(job, 2);
       const gate = atPrivacyGate(withReviewState(job, { complete: true }));
-      try {
-        advanceStep(gate);
-        throw new Error("expected advanceStep to throw");
-      } catch (error) {
-        expect(error).toBeInstanceOf(JobModelError);
-        const message = (error as JobModelError).message;
-        expect(message).toMatch(/supported Privacy Policy/i);
-        expect(message).toMatch(/new job/i);
-      }
+      const codes = batchActiveFailedItems(gate).map((item) => item.error.code);
+      expect(batchFailureRemedy(codes)).toMatch(/supported Privacy Policy/i);
+      expect(batchFailureRemedy(codes)).toMatch(/new job/i);
     });
   });
 
@@ -1685,7 +1685,7 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
       });
     });
 
-    describe("export blocker switches to ACTIVE failures (#78)", () => {
+    describe("artifact authorization follows ACTIVE failures (REC-07 #87)", () => {
       function completedExcept(job: Job, failedIndex: number): Job {
         for (let index = 0; index < itemsOf(job).length; index += 1) {
           if (index === failedIndex) continue;
@@ -1696,19 +1696,16 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
         return withReviewState(job, { complete: batchReviewComplete(job) });
       }
 
-      it("an active failed item still blocks the export transition", () => {
+      it("an active failed item keeps the artifact unauthorized while the Result stays reachable", () => {
         const job = atPrivacyGate(completedExcept(processingAndReadFailureJob(), 0));
-        expect(canAdvanceStep(job)).toBe(false);
-        try {
-          advanceStep(job);
-          throw new Error("expected the export transition to throw");
-        } catch (error) {
-          expect(error).toBeInstanceOf(JobModelError);
-          expect((error as JobModelError).code).toBe("batch-item-failed");
-        }
+        // The blocked Result is navigable; the same authorities still report
+        // the artifact as unauthorized (active failure present).
+        expect(canAdvanceStep(job)).toBe(true);
+        expect(advanceStep(job).currentStep).toBe("export");
+        expect(batchHasActiveErrorItems(job)).toBe(true);
       });
 
-      it("a removed item no longer blocks export and is never named as blocking", () => {
+      it("a removed item no longer counts as an active failure and the batch can become ready", () => {
         let job = processingAndReadFailureJob();
         job = removeBatchItem(job, 0);
         job = removeBatchItem(job, 1);
@@ -1720,19 +1717,13 @@ describe("batch item-state contract (T17 #21 WU-A)", () => {
         expect(exported.currentStep).toBe("export");
       });
 
-      it("the blocked message names only the ACTIVE failed items", () => {
+      it("the active-failure facts name only the ACTIVE failed items", () => {
         let job = processingAndReadFailureJob();
         job = removeBatchItem(job, 1);
         job = atPrivacyGate(completedExcept(job, -1));
-        try {
-          advanceStep(job);
-          throw new Error("expected the export transition to throw");
-        } catch (error) {
-          expect(error).toBeInstanceOf(JobModelError);
-          const message = (error as JobModelError).message;
-          expect(message).toContain('"doc-a.txt"');
-          expect(message).not.toContain('"doc-b.txt"');
-        }
+        const active = batchActiveFailedItems(job);
+        expect(active.map((item) => item.name)).toContain("doc-a.txt");
+        expect(active.map((item) => item.name)).not.toContain("doc-b.txt");
       });
     });
 

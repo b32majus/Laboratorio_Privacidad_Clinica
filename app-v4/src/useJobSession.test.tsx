@@ -505,15 +505,15 @@ describe("useJobSession batch review state (T17 #21 WU-B)", () => {
     expect(result.current.job!.review.complete).toBe(false);
     expect(result.current.batchSessions).toBe(sessionsBefore);
 
-    // Complete doc B → both completed, so the BATCH REVIEW is complete. The
-    // batch output surfaces stay unavailable (T17 #21 CORR-B): review
-    // completion and output availability are separate facts while no accepted
-    // batch output format exists.
+    // Complete doc B → both completed, so the BATCH REVIEW is complete: the
+    // batch Safe summary is now authorized (CORA-87-02), reflected by the
+    // synchronized Safe-output mirror. The batch-wide Confidential Audit still
+    // has no accepted format and stays unavailable until #89.
     completeItem(result, 1);
     expect(batchItemStatus(result.current.job!, 0)).toBe("completed");
     expect(batchItemStatus(result.current.job!, 1)).toBe("completed");
     expect(result.current.job!.review.complete).toBe(true);
-    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(true);
     expect(result.current.job!.outputs.confidentialAuditReady).toBe(false);
 
     // A later mandatory manual detection re-opens A only and re-derives the gate.
@@ -846,10 +846,10 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
       expect(getPendingDetections(run.sessions[index]!)).toHaveLength(0);
     }
     expect(run.job.review.complete).toBe(true);
-    // T17 #21 CORR-B: a completed batch review does NOT make batch output
-    // available; no accepted batch Safe Output / Confidential Audit format
-    // exists, so both output flags stay fail-closed.
-    expect(run.job.outputs.safeOutputReady).toBe(false);
+    // CORA-87-02: a completed error-free batch authorizes the Safe summary
+    // (the Safe-output mirror follows the shared readiness authority); the
+    // batch-wide Confidential Audit still has no accepted format (#89).
+    expect(run.job.outputs.safeOutputReady).toBe(true);
     expect(run.job.outputs.confidentialAuditReady).toBe(false);
     expect(run.activeIndex).toBe(0);
   });
@@ -889,14 +889,14 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
 });
 
 /**
- * T17 #21 CORR-B oracles for the batch output authority. A document batch can
- * complete its review legitimately, but the accepted specification defines no
- * batch Safe Output and no batch-wide Confidential Audit, so both output
- * surfaces stay unavailable. The active document's session is never promoted
- * to a batch-wide audit.
+ * Batch output authority after CORA-87-02: a legitimately completed batch
+ * authorizes the Safe summary (mirrored into `outputs.safeOutputReady`), while
+ * the batch-wide Confidential Audit has no accepted format and stays
+ * unavailable. The active document's session is never promoted to a
+ * batch-wide audit.
  */
-describe("useJobSession batch output authority (T17 #21 CORR-B)", () => {
-  it("keeps review.complete true while both batch output surfaces stay unavailable", async () => {
+describe("useJobSession batch output authority (CORA-87-02)", () => {
+  it("keeps review.complete true and mirrors Safe-summary readiness while Confidential stays unavailable", async () => {
     const { result } = renderHook(() => useJobSession());
     reviewedBatch(result);
     await act(async () => {
@@ -906,7 +906,7 @@ describe("useJobSession batch output authority (T17 #21 CORR-B)", () => {
     completeItem(result, 1);
 
     expect(result.current.job!.review.complete).toBe(true);
-    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    expect(result.current.job!.outputs.safeOutputReady).toBe(true);
     expect(result.current.job!.outputs.confidentialAuditReady).toBe(false);
   });
 });
@@ -1414,7 +1414,10 @@ describe("useJobSession batch failure recovery (#78)", () => {
     expect(afterRemoval.itemDisposition).toBe("removed");
     expect(afterRemoval.itemStatus).toBe("error");
     expect(result.current.job!.review.complete).toBe(reviewComplete);
-    expect(result.current.job!.outputs.safeOutputReady).toBe(false);
+    // Removal resolves the active blocker: with no active failure and every
+    // remaining item completed, the Safe summary is now authorized
+    // (CORA-87-02) while the removed item stays error history.
+    expect(result.current.job!.outputs.safeOutputReady).toBe(true);
     // Same preservation class for the removal (correction F4b): identity AND
     // decisions of both unrelated sessions survive.
     expect(result.current.batchSessions![0]).toBe(sessionsBeforeRemove[0]);

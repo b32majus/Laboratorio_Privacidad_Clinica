@@ -23,6 +23,7 @@ import {
   batchActiveFailedItems,
   batchFailedItems,
   batchItemStatus,
+  batchSafeSummaryReady,
   type BatchItemStatus,
   type Job,
 } from "../domain/job";
@@ -188,15 +189,18 @@ export function batchFailedItemsMessage(items: readonly PrivacyGateBatchItem[]):
 }
 
 /**
- * Explicit typed reason for the batch Safe Output unavailability (T17 #21
- * SD-7). The accepted specification defines no batch Safe Output format, so
- * the action stays disabled with this factual reason instead of inventing one.
+ * Factual batch Safe-output availability copy (REC-07 #87; Cora correction
+ * CORA-87-02). The only accepted batch Safe artifact is the Safe summary CSV
+ * (`resumen-lote-seguro.csv`), so this copy reflects the SAME shared
+ * readiness authority ({@link batchSafeSummaryReady}) that the batch Result
+ * and the serializer consume — the retired claim that the specification
+ * defines no batch Safe Output format is gone. Kept factual: no score, no
+ * anonymity/certification wording (D-006).
  */
-export function batchSafeOutputUnavailableMessage(): string {
-  return (
-    "Safe Output is not available for a document batch yet: the accepted " +
-    "specification does not define a batch Safe Output format."
-  );
+export function batchSafeSummaryAvailabilityMessage(ready: boolean): string {
+  return ready
+    ? "Safe Output for a document batch is the Safe summary CSV (resumen-lote-seguro.csv); download it in the Result step once the batch review is complete."
+    : "Safe Output for a document batch is not ready yet: complete the batch review, or clear any active batch error, before preparing the Safe summary.";
 }
 
 /**
@@ -426,13 +430,15 @@ function aggregateBatchSessions(sessions: readonly ReviewSession[]): BatchSessio
 }
 
 /**
- * Document-batch derivation (T17 #21 SD-9, corrected by CORR-B): readiness
- * comes from the Job's derived `review.complete`; the batch item facts come
- * from the Job's items. The review facts (counts + restored-original warnings)
- * are aggregated over EVERY available per-document ReviewSession, never the
- * ACTIVE one alone: the selected document is navigation state, not batch-wide
- * privacy authority, so a restored decision in a non-active document stays
- * visible (CORR-B). Export unavailability itself is ExportStep's concern.
+ * Document-batch derivation (T17 #21 SD-9, corrected by CORR-B and by
+ * CORA-87-02): the Safe-output availability comes from the ONE shared
+ * Safe-summary readiness authority ({@link batchSafeSummaryReady}), so the
+ * gate agrees with the batch Result and the serializer. The batch item facts
+ * come from the Job's items. The review facts (counts + restored-original
+ * warnings) are aggregated over EVERY available per-document ReviewSession,
+ * never the ACTIVE one alone: the selected document is navigation state, not
+ * batch-wide privacy authority, so a restored decision in a non-active
+ * document stays visible (CORR-B).
  */
 function deriveBatchView(
   job: Job,
@@ -457,7 +463,10 @@ function deriveBatchView(
     lowConfidencePendingCount: aggregate.lowConfidencePending,
     warnings: aggregate.warnings,
     errors: job.errors,
-    safeOutputReady: job.outputs.safeOutputReady,
+    // CORA-87-02: the gate reflects the ONE shared Safe-summary readiness
+    // authority, never a competing/mirror flag, so it cannot disagree with
+    // the batch Result or the serializer about the same artifact.
+    safeOutputReady: batchSafeSummaryReady(job),
     confidentialAuditReady: job.outputs.confidentialAuditReady,
     batch,
     structured: null,

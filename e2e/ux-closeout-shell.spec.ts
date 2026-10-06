@@ -58,7 +58,9 @@ const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Stric
 
 /** The rendered body must never carry migration-residue copy. */
 async function expectNoMigrationCopy(page: Page, label: string): Promise<void> {
-  await expect(page.locator("body"), `migration copy on ${label}`).not.toContainText(MIGRATION_COPY);
+  await expect(page.locator("body"), `migration copy on ${label}`).not.toContainText(
+    MIGRATION_COPY
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -136,8 +138,13 @@ test.describe("canonical flow traversal by Job kind", () => {
       "Action required"
     );
     await expectNoMigrationCopy(page, "batch Privacy Gate");
-    // No accepted batch format exists: Export stays blocked while review is pending.
-    await expect(page.getByRole("button", { name: "5. Export" })).toBeDisabled();
+    // The batch Result is reachable while unauthorized: it communicates
+    // needs-attention without enabling artifact production.
+    const exportButton = page.getByRole("button", { name: "5. Export" });
+    await expect(exportButton).toBeEnabled();
+    await exportButton.click();
+    await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Requiere tu atención" })).toBeVisible();
   });
 
   test("structured job: structured Configure, its Review notice and the structured Gate", async ({
@@ -146,7 +153,9 @@ test.describe("canonical flow traversal by Job kind", () => {
     await createStructuredJob(page, STRUCTURED_CSV);
 
     await page.getByRole("button", { name: "2. Configure" }).click();
-    await expect(page.getByRole("status", { name: "Structured configuration facts" })).toBeVisible();
+    await expect(
+      page.getByRole("status", { name: "Structured configuration facts" })
+    ).toBeVisible();
     await expectNoMigrationCopy(page, "structured Configure");
 
     await page.getByRole("button", { name: "3. Review" }).click();
@@ -218,7 +227,9 @@ test("mobile selection routes directly to the decision controls without recordin
 
   await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
 
-  const jump = page.locator('button:has-text("Go to decision controls for the selected detection")');
+  const jump = page.locator(
+    'button:has-text("Go to decision controls for the selected detection")'
+  );
   await expect(jump).toBeVisible();
   await jump.click();
 
@@ -244,7 +255,9 @@ test("desktop Review stays three-column and hides the mobile route", async ({ pa
   );
   expect(columnCount).toBe(3);
 
-  const jump = page.locator('button:has-text("Go to decision controls for the selected detection")');
+  const jump = page.locator(
+    'button:has-text("Go to decision controls for the selected detection")'
+  );
   await expect(jump).toBeHidden();
 });
 
@@ -311,9 +324,9 @@ test("structured Configure keeps UNKNOWN, blockers and authority facts reachable
   await expect(summary).toContainText("Structured export ready: No");
 
   // Fail-closed blocker is visible without opening any disclosure.
-  await expect(
-    page.getByRole("alert", { name: "Structured export block reasons" })
-  ).toContainText("Structured export is blocked while 1 column requires review.");
+  await expect(page.getByRole("alert", { name: "Structured export block reasons" })).toContainText(
+    "Structured export is blocked while 1 column requires review."
+  );
 
   const freeColumn = page
     .getByRole("list", { name: "Column classification list" })
