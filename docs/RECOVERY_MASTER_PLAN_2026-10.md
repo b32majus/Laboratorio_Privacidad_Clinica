@@ -224,6 +224,8 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 
 ### REC-07 — BATCH-OUTPUT-PARITY-01
 
+**Status — #87 COMPLETED (2026-10-06; PR #100; merged to `3.0-main@ed61e319fe3d54529abe33d4d145454502e11257`), REC-07 still IN PROGRESS.** #87 establishes the canonical batch Result readiness model and deterministic Safe summary CSV with one shared fail-closed readiness authority across Privacy Gate, Result and serializer; removed failures remain explicit `error + removed` manifest history and source filenames/content stay out of the Safe CSV. #88 (Safe ZIP/consolidated PDF) and #89 (batch Confidential Audit) remain open, so this status does not claim full batch-output parity or select the next frontier.
+
 **Reshaped goal:** recover useful batch **Result** deliverables safely and coherently with the single-result model.
 
 **Owns**
@@ -443,9 +445,9 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Current state after PR #97: **#78, #79 and #86 are closed**. REC-06 is complete. The hard-dependency graph makes #80–#85 and #87 executable. Under the accepted serial preference, **#87 is the selected next frontier** because REC-07 is now the next incomplete REC group; #80–#85 remain independently executable. Scheduling preference is not a semantic blocker.
+Current state after PR #100: **#78, #79, #86 and #87 are closed**. REC-06 is complete and #87 is canonical inside the still-incomplete REC-07 group. The hard-dependency graph now makes #80–#85, #88 and #89 executable. **No next frontier is selected by this closeout**; scheduling returns to attended Cora+human choice. Scheduling preference is not a semantic blocker.
 
-D-019 remains an attended decision boundary inside #80. `DISC-01` is explicit in #79 and must close before the new batch async-output path represented by #87 can claim the disposal/current-authority invariant.
+D-019 remains an attended decision boundary inside #80. `DISC-01` was closed by #79 before #87. #87 adds only the synchronous Safe summary CSV, so it introduces no new async batch output path; any future async batch deliverable in #88/#89 must preserve the already-established disposal/current-authority invariant.
 
 ## 5. Dependency graph
 
@@ -478,7 +480,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                                          REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-06 are complete. In the published REC-06→REC-12 ticket graph, #78 and #86 close REC-06, while #79 closes the REC-07 `DISC-01` async-disposal prefactor. REC-07's **#87 is the selected next frontier**: its hard prerequisites #78/#79 are closed and the accepted serial preference now moves from the completed batch work queue into batch Result/output composition. REC-08/09 #80–#85 remain technically executable and may be scheduled later without inventing dependency edges. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
+REC-01 through REC-06 are complete. In the published REC-06→REC-12 ticket graph, #78 and #86 close REC-06, #79 closes the REC-07 `DISC-01` async-disposal prefactor, and #87 is now canonical for batch Result readiness + Safe summary CSV via PR #100. REC-07 remains incomplete because #88/#89 are still open. REC-08/09 #80–#85 and REC-07 #88/#89 are technically executable; **this closeout deliberately selects none of them as the next frontier**. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 
