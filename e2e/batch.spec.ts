@@ -75,14 +75,20 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
   await expect(page.getByRole("alert").last()).toContainText("a batch item failed");
   await expect(page.getByRole("alert").last()).toContainText("corrupt.pdf");
 
-  // Export stays inaccessible while the batch review is incomplete (the
-  // disabled control itself carries the blocked reason).
+  // Export is the batch Result: reachable while the artifact is
+  // unauthorized, communicating blocked without enabling production.
   const exportButton = page.getByRole("button", { name: "5. Export" });
-  await expect(exportButton).toBeDisabled();
-  await expect(exportButton).toHaveAttribute(
-    "title",
-    "Export is blocked while mandatory review is incomplete."
-  );
+  await expect(exportButton).toBeEnabled();
+  await exportButton.click();
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bloqueado" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Descargar resumen seguro (.csv)" })
+  ).toBeDisabled();
+  // The corrective action returns to the still-pending review without loss.
+  await page.getByRole("button", { name: "Volver a la revisión" }).click();
+  await showAllDocuments(page);
+  await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
 });
 
 test("navigation never fabricates review completion and a reviewed batch has no fabricated output", async ({
@@ -125,21 +131,26 @@ test("navigation never fabricates review completion and a reviewed batch has no 
   await page.getByRole("button", { name: "Accept detection" }).click();
   await expect(docList.filter({ hasText: "batch-doc-2.txt" })).toContainText("Completado");
 
-  // A completed batch review is NOT a batch output: the accepted spec defines
-  // no batch-wide format, so both downloads stay disabled with that reason.
+  // A completed batch review reaches the ready batch Result: exactly one
+  // primary Safe action producing the deterministic Safe manifest.
   await page.getByRole("button", { name: "4. Privacy Gate" }).click();
   await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText(
     "Completed: 2"
   );
   await page.getByRole("button", { name: "5. Export" }).click();
-  const safeButton = page.getByRole("button", { name: "Download Safe Output (.txt)" });
-  await expect(safeButton).toBeDisabled();
-  await expect(page.locator("#safe-output-blocked-reason")).toContainText(
-    "does not define a batch Safe Output format"
-  );
-  await expect(
-    page.getByRole("button", { name: "Download Confidential Audit (.txt)" })
-  ).toBeDisabled();
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Listo para usar" })).toBeVisible();
+  const [csvDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar resumen seguro (.csv)" }).click(),
+  ]);
+  expect(csvDownload.suggestedFilename()).toBe("resumen-lote-seguro.csv");
+  const csv = fs.readFileSync(await csvDownload.path(), "utf8");
+  expect(csv).toBe("indice_lote,estado,disposicion\n1,completado,\n2,completado,");
+  // The Safe manifest carries no source filenames and no source content.
+  expect(csv).not.toContain("batch-doc-");
+  expect(csv).not.toContain("12345678A");
+  expect(csv).not.toContain("87654321B");
 });
 
 test("batch failure recovery (#78): acknowledge and remove act only on the failed item and never fabricate readiness", async ({
@@ -229,18 +240,22 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   await expect(batchItems).toContainText("Error reconocido");
   await expect(page.getByRole("alert").filter({ hasText: "a batch item failed" })).toHaveCount(0);
 
-  // Export: with no active failure and no pending review, the remaining
-  // reason is the accepted no-batch-format limitation; both downloads stay
-  // disabled (a resolved failure never fabricates batch readiness).
+  // Export is the ready batch Result: the removed failure is manifest
+  // history (error/retirado at its original index), never a blocker and
+  // never completion. The pre-existing review decisions survived.
   await page.getByRole("button", { name: "5. Export" }).click();
-  const safeButton = page.getByRole("button", { name: "Download Safe Output (.txt)" });
-  await expect(safeButton).toBeDisabled();
-  await expect(page.locator("#safe-output-blocked-reason")).toContainText(
-    "does not define a batch Safe Output format"
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Listo para usar" })).toBeVisible();
+  const [csvDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar resumen seguro (.csv)" }).click(),
+  ]);
+  expect(csvDownload.suggestedFilename()).toBe("resumen-lote-seguro.csv");
+  const csv = fs.readFileSync(await csvDownload.path(), "utf8");
+  expect(csv).toBe(
+    "indice_lote,estado,disposicion\n1,completado,\n2,error,retirado\n3,completado,"
   );
-  await expect(
-    page.getByRole("button", { name: "Download Confidential Audit (.txt)" })
-  ).toBeDisabled();
+  expect(csv).not.toContain("corrupt.pdf");
 });
 
 test("batch failure recovery (#78): an all-failed batch with every item removed never asserts review completion (correction F1)", async ({
@@ -298,14 +313,20 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
     "Retirado del lote"
   );
 
-  // Downloads remain unavailable as before: the export step stays gated by
-  // the authoritative (false) review completeness.
+  // The batch Result stays reachable: with every failure removed but no
+  // evaluable document, it communicates needs-attention and the Safe
+  // summary stays unavailable (no fabricated readiness, no re-blocking).
   const exportButton = page.getByRole("button", { name: "5. Export" });
-  await expect(exportButton).toBeDisabled();
-  await expect(exportButton).toHaveAttribute(
-    "title",
-    "Export is blocked while mandatory review is incomplete."
+  await expect(exportButton).toBeEnabled();
+  await exportButton.click();
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
+  await expect(page.locator("[data-result-state]")).toHaveAttribute(
+    "data-result-state",
+    "needs-attention"
   );
+  await expect(
+    page.getByRole("button", { name: "Descargar resumen seguro (.csv)" })
+  ).toBeDisabled();
 });
 
 /**

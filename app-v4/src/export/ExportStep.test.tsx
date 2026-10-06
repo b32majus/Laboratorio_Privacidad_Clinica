@@ -14,6 +14,7 @@ import {
   type ReviewSession,
 } from "../review/review-domain";
 import {
+  batchReviewComplete,
   beginItemProcessing,
   beginItemRead,
   createJob,
@@ -21,6 +22,7 @@ import {
   recordItemProcessed,
   recordItemRead,
   recordItemReviewCompletion,
+  removeBatchItem,
   withReviewState,
   type Job,
   type OutputAvailability,
@@ -877,10 +879,8 @@ describe("claims gate (D-006): no anonymity/compliance wording on the Result sur
 });
 
 // ---------------------------------------------------------------------------
-// Document batch (T17 #21): unchanged behavior, gains NO single-item surface
+// Document batch Result (REC-07 #87): readiness + Safe summary CSV
 // ---------------------------------------------------------------------------
-const SAFE_BUTTON = "Download Safe Output (.txt)";
-const AUDIT_BUTTON = "Download Confidential Audit (.txt)";
 
 function buildBatchJob(names: readonly string[] = ["informe-a.txt", "informe-b.txt"]): Job {
   return createJob({
@@ -908,24 +908,37 @@ function completeBatchItem(job: Job, index: number, text: string): Job {
   return recordItemReviewCompletion(processed, index, true);
 }
 
+/** Mirror the bridge: review completeness derives from the batch authority. */
+function derivedBatch(job: Job): Job {
+  return withReviewState(job, { complete: batchReviewComplete(job) });
+}
+
 function pendingBatchJob(): Job {
-  return readBatchOk(
-    readBatchOk(buildBatchJob(), 0, "Contenido sintético A."),
-    1,
-    "Contenido sintético B."
+  return derivedBatch(
+    readBatchOk(
+      readBatchOk(buildBatchJob(), 0, "Contenido sintético A."),
+      1,
+      "Contenido sintético B."
+    )
   );
 }
 
 function failedBatchJob(): Job {
   const withFailure = readBatchFail(buildBatchJob(), 0, "El PDF no tiene capa de texto.");
   const completed = completeBatchItem(withFailure, 1, "Contenido sintético B.");
-  return withReviewState(completed, { complete: true });
+  return derivedBatch(completed);
 }
 
 function completedBatchJob(): Job {
   const first = completeBatchItem(buildBatchJob(), 0, "Contenido sintético A.");
   const both = completeBatchItem(first, 1, "Contenido sintético B.");
-  return withReviewState(both, { complete: true });
+  return derivedBatch(both);
+}
+
+function removedBatchJob(): Job {
+  const withFailure = readBatchFail(buildBatchJob(), 0, "El PDF no tiene capa de texto.");
+  const completed = completeBatchItem(withFailure, 1, "Contenido sintético B.");
+  return derivedBatch(removeBatchItem(completed, 0));
 }
 
 function policyUnsupportedBatchJob(): Job {
@@ -935,93 +948,160 @@ function policyUnsupportedBatchJob(): Job {
     message: "Policy is known but has no accepted per-category operator mapping.",
   });
   job = completeBatchItem(job, 1, "Contenido sintético B.");
-  return withReviewState(job, { complete: true });
+  return derivedBatch(job);
 }
 
-describe("document batch export (T17 #21): batch Safe Output stays unavailable", () => {
-  it("keeps Safe Output disabled with the review-incomplete reason while review is pending", () => {
-    render(<ExportStep job={pendingBatchJob()} review={null} />);
+describe("document batch Result (REC-07 #87): readiness + Safe summary CSV", () => {
+  it("renders needs-attention with the CSV unavailable and a return path that downloads nothing", () => {
+    const capture = captureDownloads();
+    try {
+      const onReturnToReview = vi.fn();
+      render(
+        <ExportStep job={pendingBatchJob()} review={null} onReturnToReview={onReturnToReview} />
+      );
 
-    const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
-    expect(safeButton).toBeDisabled();
-    const reason = screen.getByRole("alert");
-    expect(reason).toHaveTextContent(
-      "Safe export is blocked while 2 mandatory review decisions are pending."
-    );
-    expect(safeButton).toHaveAttribute("aria-describedby", reason.id);
+      expect(RESULT_STATE("needs-attention")).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "Requiere tu atención" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+      expect(screen.getByText(/Quedan 2 documentos por revisar/)).toBeInTheDocument();
+
+      const download = screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" });
+      expect(download).toBeDisabled();
+
+      // The corrective action returns to Review without producing any artifact.
+      fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
+      expect(onReturnToReview).toHaveBeenCalledTimes(1);
+      expect(capture.downloads).toHaveLength(0);
+    } finally {
+      capture.restore();
+    }
   });
 
-  it("names the failed file and the remedy when the reviewed batch has an error item", () => {
-    render(<ExportStep job={failedBatchJob()} review={null} />);
+  it("renders blocked for an active failed item with zero download", () => {
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={failedBatchJob()} review={null} />);
 
-    const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
-    expect(safeButton).toBeDisabled();
-    const reason = screen.getByRole("alert");
-    expect(reason).toHaveTextContent('"informe-a.txt"');
-    expect(reason).toHaveTextContent("El PDF no tiene capa de texto.");
-    expect(reason).toHaveTextContent("Create a new job without it to continue.");
+      expect(RESULT_STATE("blocked")).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "Bloqueado" })).toBeInTheDocument();
+      expect(screen.getByText(/Hay 1 documento con error/)).toBeInTheDocument();
+      // Corrective orientation names the failed file; the typed error detail
+      // stays out of the Result surface.
+      expect(screen.getByText("informe-a.txt")).toBeInTheDocument();
+      expect(screen.queryByText("El PDF no tiene capa de texto.")).not.toBeInTheDocument();
+
+      const download = screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" });
+      expect(download).toBeDisabled();
+      fireEvent.click(download);
+      expect(capture.downloads).toHaveLength(0);
+    } finally {
+      capture.restore();
+    }
   });
 
-  it("explains the not-yet-defined batch Safe Output format when review is complete without errors", () => {
+  it("renders blocked for a policy-unsupported failure without offering removal copy", () => {
+    render(<ExportStep job={policyUnsupportedBatchJob()} review={null} />);
+    expect(RESULT_STATE("blocked")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })).toBeDisabled();
+  });
+
+  it("enables exactly one Safe CSV download when the batch is ready", async () => {
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={completedBatchJob()} review={null} />);
+
+      expect(RESULT_STATE("ready")).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "Listo para usar" })).toBeInTheDocument();
+      const primary = document.querySelectorAll('[data-variant="primary"]');
+      expect(primary).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" }));
+      expect(capture.downloads).toHaveLength(1);
+      expect(capture.downloads[0].fileName).toBe("resumen-lote-seguro.csv");
+      await expect(textOf(capture.downloads[0])).resolves.toBe(
+        ["indice_lote,estado,disposicion", "1,completado,", "2,completado,"].join("\n")
+      );
+      expect(screen.getByText(/Descarga del resumen seguro/)).toBeInTheDocument();
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("becomes ready after an accepted removal while the manifest keeps the error history", async () => {
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={removedBatchJob()} review={null} />);
+
+      expect(RESULT_STATE("ready")).not.toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" }));
+      expect(capture.downloads).toHaveLength(1);
+      await expect(textOf(capture.downloads[0])).resolves.toBe(
+        ["indice_lote,estado,disposicion", "1,error,retirado", "2,completado,"].join("\n")
+      );
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("keeps the batch Confidential Audit separate and unavailable, never an equivalent format", () => {
     render(<ExportStep job={completedBatchJob()} review={null} />);
-
-    const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
-    expect(safeButton).toBeDisabled();
-    const reason = screen.getByRole("alert");
-    expect(reason).toHaveTextContent("Safe Output is not available for a document batch yet");
-    expect(reason).not.toHaveTextContent(/batch item failed/i);
+    expect(screen.getByRole("heading", { name: "Auditoría confidencial" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" })
+    ).toBeDisabled();
+    expect(screen.getByText(/todavía no está disponible para el lote/i)).toBeInTheDocument();
   });
 
   it("never renders the single-item Result surface or its prepared actions for a batch", () => {
-    const { container } = render(<ExportStep job={completedBatchJob()} review={null} />);
-    expect(container.querySelectorAll("[data-result-state]")).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "Volver a la revisión" })).not.toBeInTheDocument();
+    render(<ExportStep job={completedBatchJob()} review={null} />);
+    expect(
+      screen.queryByRole("button", { name: "Copiar texto preparado" })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("group", { name: "Otros formatos disponibles" })
     ).not.toBeInTheDocument();
   });
 
-  it("reports Safe Output not ready and the batch audit unavailable for a fully reviewed error-free batch", () => {
-    render(<ExportStep job={completedBatchJob()} review={null} />);
+  it("renders the batch Result hierarchy at realistic density with a recovery history before readiness", async () => {
+    // Twelve synthetic documents: ten completed, one completed after a
+    // failed sibling was deliberately removed (recovery history), one more
+    // completed — every original index stays in the manifest in order.
+    const names = Array.from({ length: 12 }, (_entry, index) => {
+      const number = String(index + 1).padStart(2, "0");
+      return `lote-doc-${number}.txt`;
+    });
+    let job = buildBatchJob(names);
+    job = readBatchFail(job, 5, "El PDF no tiene capa de texto.");
+    for (let index = 0; index < 12; index += 1) {
+      if (index !== 5) job = completeBatchItem(job, index, `Contenido sintético ${index + 1}.`);
+    }
+    job = derivedBatch(removeBatchItem(job, 5));
 
-    const safeButton = screen.getByRole("button", { name: SAFE_BUTTON });
-    expect(safeButton).toBeDisabled();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Safe Output is not available for a document batch yet"
-    );
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={job} review={null} />);
 
-    const auditButton = screen.getByRole("button", { name: AUDIT_BUTTON });
-    expect(auditButton).toBeDisabled();
-    expect(auditButton).toHaveAttribute("aria-describedby", "confidential-audit-blocked-reason");
-    expect(
-      screen.getByText(/Confidential Audit is not available for a document batch yet/)
-    ).toBeInTheDocument();
-  });
+      // Hierarchy: Resultado heading, primary state, exactly one primary action.
+      expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+      expect(RESULT_STATE("ready")).not.toBeNull();
+      expect(screen.getByRole("heading", { name: "Listo para usar" })).toBeInTheDocument();
+      expect(document.querySelectorAll('[data-variant="primary"]')).toHaveLength(1);
+      // Orientation summary without a second dense copy of the work queue.
+      expect(screen.getByLabelText("Resumen del lote")).toHaveTextContent("Documentos: 12");
+      expect(screen.getByLabelText("Resumen del lote")).toHaveTextContent("Completados: 11");
+      expect(screen.getByLabelText("Resumen del lote")).toHaveTextContent("Retirados: 1");
 
-  it("never presents the active document's review as a batch-wide Confidential Audit", () => {
-    const session = completedSession();
-    render(<ExportStep job={completedBatchJob()} review={session} />);
-
-    expect(screen.getByRole("button", { name: AUDIT_BUTTON })).toBeDisabled();
-    expect(screen.getByRole("button", { name: SAFE_BUTTON })).toBeDisabled();
-    expect(screen.getByText(/not a batch-wide audit/i)).toBeInTheDocument();
-  });
-
-  it("offers the policy remedy for a policy-unsupported failure instead of removing the document", () => {
-    render(<ExportStep job={policyUnsupportedBatchJob()} review={null} />);
-
-    const reason = screen.getByRole("alert");
-    expect(reason).toHaveTextContent("Policy is known but has no accepted per-category operator");
-    expect(reason).toHaveTextContent("Choose a supported Privacy Policy");
-    expect(reason).not.toHaveTextContent(/new job without/i);
-  });
-
-  it("keeps the recreate remedy for a representative read failure", () => {
-    render(<ExportStep job={failedBatchJob()} review={null} />);
-
-    const reason = screen.getByRole("alert");
-    expect(reason).toHaveTextContent('"informe-a.txt"');
-    expect(reason).toHaveTextContent("Create a new job without it to continue.");
-    expect(reason).not.toHaveTextContent(/supported Privacy Policy/i);
+      fireEvent.click(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" }));
+      expect(capture.downloads).toHaveLength(1);
+      const lines = (await textOf(capture.downloads[0])).split("\n");
+      expect(lines).toHaveLength(13);
+      expect(lines[0]).toBe("indice_lote,estado,disposicion");
+      lines.slice(1).forEach((line, position) => {
+        const index = position + 1;
+        expect(line).toBe(index === 6 ? `${index},error,retirado` : `${index},completado,`);
+      });
+    } finally {
+      capture.restore();
+    }
   });
 });

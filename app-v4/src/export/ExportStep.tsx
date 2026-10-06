@@ -17,11 +17,12 @@
  * authority immediately before download (H-42 single text/document slice,
  * D-024).
  *
- * The structured and document-batch branches are byte-unchanged in behavior:
+ * The structured branch is byte-unchanged in behavior:
  *   - Structured (REC-04 WU-C/D-022): Safe CSV/XLSX + Confidential TXT/XLSX.
- *   - Document batch (T17 #21 SD-7/CORR-B): no batch Safe Output / batch audit;
- *     BOTH actions stay disabled with the existing typed reasons and the single
- *     Result surface is never rendered for a batch.
+ * The document-batch branch is the batch Result (REC-07 #87, `BatchResult`
+ * below): readiness plus the Safe summary CSV, derived from the existing
+ * batch authorities. Result visibility is decoupled from artifact
+ * authorization; the batch Confidential Audit stays unavailable (#89).
  *
  * Both Safe and Confidential downloads are client-side only (Blob + object URL
  * + anchor click; the object URL is revoked afterwards): no network, no
@@ -71,13 +72,12 @@ import {
 } from "../structured/transformed-dataset";
 import type { StructuredConfiguration } from "../structured/configuration";
 import type { StructuredTransformPlan } from "../structured/transform-plan";
+import { batchConfidentialAuditUnavailableMessage } from "../privacy-gate/privacyGateModel";
 import {
-  batchConfidentialAuditUnavailableMessage,
-  batchFailedItemsMessage,
-  batchSafeOutputUnavailableMessage,
-  deriveBatchFacts,
-  pendingDecisionMessage,
-} from "../privacy-gate/privacyGateModel";
+  BATCH_SUMMARY_CSV_FILENAME,
+  deriveBatchResultView,
+  serializeBatchSummaryCsv,
+} from "./batchResultModel";
 import { deriveSingleResultView, type SingleResultMaterial } from "./singleResultModel";
 
 const focusRing =
@@ -591,81 +591,159 @@ function StructuredExport({
 }
 
 /**
- * Document-batch export surface (T17 #21 WU-C1/CORR-B, unchanged by REC-05):
- * the accepted specification defines no batch Safe Output format and no
- * batch-wide Confidential Audit, so BOTH actions stay DISABLED with explicit
- * typed reasons — review pending, failed items (naming each file and the
- * matching remedy) or the not-yet-defined batch format, in that order. The
- * active document's session is never presented as a batch-wide audit. A batch
- * gains NO single-item Result surface (D-024 protected sibling).
+ * Document-batch Result (REC-07 #87): the human batch ending — readiness
+ * (`Listo para usar` / `Requiere tu atención` / `Bloqueado`) plus the first
+ * accepted batch Safe deliverable, all derived from the existing batch
+ * authorities through `batchResultModel` (never a second state machine).
+ * Result visibility is decoupled from artifact authorization: the surface
+ * renders in every batch state, but the Safe summary CSV downloads exactly
+ * once and only when the batch is ready. The download is synchronous and
+ * client-side (Blob + object URL + anchor click, revoked afterwards): no
+ * network, no persistence, no async generation path (D-013).
+ *
+ * The batch Confidential Audit stays a clearly separate, deliberately
+ * sensitive zone that is unavailable in this slice (#89 owns it); it is
+ * never presented as an equivalent output format. Batch Confidential
+ * remains unavailable exactly as before (T17 #21 CORR-B): the ACTIVE
+ * document's ReviewSession is never presented as a batch-wide audit.
+ * A batch gains NO single-item Result surface (D-024 protected sibling).
  */
-function BatchExport({ job }: { job: Job }): ReactElement {
-  const batchFacts = deriveBatchFacts(job);
+function BatchResult({
+  job,
+  onReturnToReview,
+}: {
+  job: Job;
+  onReturnToReview: (() => void) | undefined;
+}): ReactElement {
+  const view = deriveBatchResultView(job);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
-  // A batch Safe Output is never available in the accepted spec (SD-7), so the
-  // action is disabled for every batch regardless of derived readiness.
-  const safeOutputBlocked = true;
+  // Transient action feedback never survives another Job: the domain inputs
+  // are frozen, so a replaced Job always arrives as a new reference.
+  useEffect(() => {
+    setFeedback(null);
+  }, [job]);
 
-  let safeOutputReason: string;
-  if (!job.review.complete && batchFacts.pendingCount > 0) {
-    // Review-incomplete keeps priority (same order as the domain guard).
-    safeOutputReason = pendingDecisionMessage(batchFacts.pendingCount);
-  } else if (batchFacts.activeFailedCount > 0) {
-    // #78: only ACTIVE failed items name this reason. With every failure
-    // deliberately removed, the reason becomes the accepted no-batch-format
-    // limitation below — both actions stay disabled (no fabricated readiness).
-    safeOutputReason = batchFailedItemsMessage(batchFacts.items);
-  } else {
-    safeOutputReason = batchSafeOutputUnavailableMessage();
-  }
+  const stateLabel =
+    view.state === "ready"
+      ? "Listo para usar"
+      : view.state === "needs-attention"
+        ? "Requiere tu atención"
+        : "Bloqueado";
 
-  // Batch Confidential Audit authority (CORR-B): no accepted batch-wide audit
-  // exists, so the ACTIVE document's ReviewSession is never presented as one.
-  const confidentialAuditBlocked = true;
-  const confidentialAuditReason = batchConfidentialAuditUnavailableMessage();
+  const handleDownloadSummary = () => {
+    if (view.state !== "ready") return;
+    try {
+      downloadTextFile(BATCH_SUMMARY_CSV_FILENAME, serializeBatchSummaryCsv(job));
+      setFeedback("Descarga del resumen seguro (.csv) iniciada.");
+    } catch {
+      // Fail-closed serialization: zero bytes downloaded, truthful message.
+      setFeedback("El resumen seguro todavía no está disponible para este lote.");
+    }
+  };
+
+  const reasonId =
+    view.state === "needs-attention"
+      ? "batch-result-attention-reason"
+      : view.state === "blocked"
+        ? "batch-result-blocked-reason"
+        : undefined;
 
   return (
-    <section aria-labelledby="export-step-heading">
+    <section aria-labelledby="export-step-heading" data-result-state={view.state}>
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Export</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
+          Resultado
+        </p>
         <h2
           id="export-step-heading"
           className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
         >
-          Export
+          Resultado
         </h2>
         <p className="mt-2 text-base leading-relaxed text-neutral-700">
-          Two independent artifacts are produced from this review session, downloaded separately.
-          Download only the one your destination is authorized to receive.
+          Revisa el estado del lote y descarga el resumen seguro cuando esté listo. Las descargas se
+          generan en tu navegador.
         </p>
       </header>
 
-      <section aria-labelledby="safe-output-heading" className={zoneCard}>
+      <section aria-labelledby="batch-result-state-heading" className={zoneCard}>
         <div className="border-b border-primary/30 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className={`${zoneBadge} bg-primary-dark`}>Deliverable</span>
-            <h3 id="safe-output-heading" className={zoneHeading}>
-              Safe Output
+            <span className={`${zoneBadge} bg-primary-dark`}>Resultado</span>
+            <h3 id="batch-result-state-heading" className={zoneHeading}>
+              {stateLabel}
             </h3>
           </div>
         </div>
         <div className="p-4">
-          <p className={zoneBody}>
-            The final reviewed text of this session. It contains no original↔replacement mapping, no
-            reviewer notes and no original values kept for traceability.
-          </p>
-          {safeOutputBlocked && (
-            <p role="alert" id="safe-output-blocked-reason" className={blockedNote}>
-              {safeOutputReason}
+          {view.state === "needs-attention" && view.attentionMessage !== null && (
+            <p role="status" id="batch-result-attention-reason" className={blockedNote}>
+              {view.attentionMessage}
             </p>
           )}
+          {view.state === "blocked" && view.blockedMessage !== null && (
+            <p role="alert" id="batch-result-blocked-reason" className={blockedNote}>
+              {view.blockedMessage}
+            </p>
+          )}
+          {view.state === "blocked" && view.failedNames.length > 0 && (
+            <ul
+              aria-label="Documentos con error"
+              className="mt-2 list-disc space-y-0.5 pl-6 text-sm"
+            >
+              {view.failedNames.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          )}
+
+          <p aria-label="Resumen del lote" className="mt-3 text-sm text-neutral-700">
+            Documentos: {view.totalCount} · Completados: {view.completedCount} · Pendientes:{" "}
+            {view.pendingCount} · Con error: {view.failedCount} · Retirados: {view.removedCount}
+          </p>
+
+          {view.state === "ready" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleDownloadSummary}
+                data-variant="primary"
+                className={primaryButton}
+              >
+                Descargar resumen seguro (.csv)
+              </button>
+              {feedback !== null && (
+                <p
+                  role="status"
+                  id="batch-result-action-feedback"
+                  className="mt-3 text-sm text-neutral-700"
+                >
+                  {feedback}
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="mt-1">
+              <button
+                type="button"
+                disabled
+                data-variant="primary"
+                aria-describedby={reasonId}
+                className={primaryButton}
+              >
+                Descargar resumen seguro (.csv)
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
-            disabled={safeOutputBlocked}
-            aria-describedby={safeOutputBlocked ? "safe-output-blocked-reason" : undefined}
-            className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
+            onClick={() => onReturnToReview?.()}
+            data-variant="return"
+            className={secondaryButton}
           >
-            Download Safe Output (.txt)
+            Volver a la revisión
           </button>
         </div>
       </section>
@@ -676,34 +754,34 @@ function BatchExport({ job }: { job: Job }): ReactElement {
       >
         <div className="bg-surface-dark px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className={`${zoneBadge} border border-white/70`}>Internal</span>
+            <span className={`${zoneBadge} border border-white/70`}>Interno</span>
             <h3
               id="confidential-audit-heading"
               className="font-display text-lg font-bold text-white"
             >
-              Confidential Audit
+              Auditoría confidencial
             </h3>
           </div>
         </div>
         <div className="p-4">
           <p className="text-sm font-semibold text-neutral-800">
-            {CONFIDENTIAL_AUDIT_WARNING_LINE}
+            Confidencial — artefacto interno de auditoría
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            This artifact contains original sensitive values, their replacements and reviewer notes.
-            It is an internal traceability record and must never be shared or delivered outside the
-            authorized audit trail.
+            La correspondencia de auditoría del lote es un registro de trazabilidad interno y nunca
+            debe compartirse ni entregarse fuera de la pista de auditoría autorizada. Todavía no
+            está disponible para el lote.
           </p>
           <p role="status" id="confidential-audit-blocked-reason" className={blockedNote}>
-            {confidentialAuditReason}
+            {batchConfidentialAuditUnavailableMessage()}
           </p>
           <button
             type="button"
-            disabled={confidentialAuditBlocked}
+            disabled
             aria-describedby="confidential-audit-blocked-reason"
             className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            Download Confidential Audit (.txt)
+            Descargar auditoría confidencial (.txt)
           </button>
         </div>
       </section>
@@ -1351,7 +1429,7 @@ export function ExportStep(props: ExportStepProps): ReactElement {
     return <StructuredExport job={job} structured={props.structured ?? null} />;
   }
   if (job.kind === "document-batch") {
-    return <BatchExport job={job} />;
+    return <BatchResult job={job} onReturnToReview={props.onReturnToReview} />;
   }
   return <SingleItemResult job={job} review={review} onReturnToReview={props.onReturnToReview} />;
 }
