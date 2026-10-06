@@ -52,7 +52,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 3. `REC-03 — STRUCTURED-SEMANTICS-RECOVERY-01` — **COMPLETED**, merged by PR #70 at `3.0-main@c67d1aede36c41bb9ff1a52ae785e9ab969e1202`
 4. `REC-04 — STRUCTURED-IO-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #72 at `3.0-main@7f7de6b5bf4c0692850b4e3c5de6987bcdef18f0`
 5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #76 at `3.0-main@96e53ee9f390026eff2ff44cb405634517ffbe09`
-6. `REC-06 — BATCH-WORKFLOW-PARITY-01`
+6. `REC-06 — BATCH-WORKFLOW-PARITY-01` — **COMPLETED**, closed by #78 + #86; #86 merged by PR #97 at `3.0-main@2941b666007062ad1c4aa8e967046705864e143d`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01`
 8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01`
 9. `REC-09 — APP-IA-REVIEW-PRODUCTIVITY-01`
@@ -60,7 +60,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-REC-05 is canonical after PR #76. The remaining REC-06→REC-12 recovery frontier is published as **GitHub issues #78–#93**. Issues **#78 and #79 are CLOSED**; #79 merged by PR #96 at `3.0-main@30edfc3ca3c5deb585af82cc2d45a4bf03643e0a` and served as the final Laboratorio Complex canary for Atenea C-086. The accepted hard-dependency graph now makes #80–#87 executable, but the project authority still prefers serial recovery by REC group to minimize shared-surface churn. Therefore the selected next frontier is **#86 — REC-06 Batch work-queue orientation at realistic batch size**, the remaining REC-06 slice. #87 is hard-unblocked but waits operationally until REC-06 closes; #80–#85 remain valid unblocked tickets, not the selected frontier. GitHub dependencies remain the semantic blocking graph; scheduling preference must not be rewritten as fake edges.
+REC-05 is canonical after PR #76. The remaining REC-07→REC-12 recovery frontier is published inside **GitHub issues #79–#93**. Issues **#78, #79 and #86 are CLOSED**; #79 merged by PR #96 at `3.0-main@30edfc3ca3c5deb585af82cc2d45a4bf03643e0a` and served as the final Laboratorio Complex canary for Atenea C-086, while #86 merged by PR #97 at `3.0-main@2941b666007062ad1c4aa8e967046705864e143d` and completes REC-06 together with #78. The accepted hard-dependency graph makes #80–#85 and #87 executable, but the project authority still prefers serial recovery by REC group to minimize shared-surface churn. Therefore the selected next frontier is **#87 — REC-07 Batch Result readiness + summary CSV deliverable**. #80–#85 remain valid unblocked tickets, not the selected frontier. GitHub dependencies remain the semantic blocking graph; scheduling preference must not be rewritten as fake edges.
 
 No new recovery ticket should be invented from memory. For the current frontier, use published issues #78–#93 plus the traceability matrix/master plan. Any newly discovered blocking obligation must first be reconciled into authority and ownership rather than silently appended to an implementation ticket.
 
