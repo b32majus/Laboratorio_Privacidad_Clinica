@@ -1047,7 +1047,13 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     // The active document is A: complete its mandatory decisions.
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/));
+    // #86 defaults to Necesitan atención after A completes, so explicitly use
+    // Todos when this legacy oracle needs to inspect both completed and pending rows.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Todos (2)" })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Todos (2)" }));
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Select B: only the viewed document changes; A keeps its completion.
@@ -1067,6 +1073,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     await waitFor(() =>
       expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
     );
+    // Returning to Review remounts the queue and restores #86's default
+    // attention filter; choose Todos before asserting cross-document state.
+    fireEvent.click(screen.getByRole("button", { name: "Todos (2)" }));
     expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
     const progressAfter = screen.getByRole("status", { name: /review progress/i });
@@ -1203,7 +1212,11 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     // Complete doc A with restored ("Keep original") decisions.
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Todos (2)" })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Todos (2)" }));
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Switch the ACTIVE document to B; doc A's restored decisions still exist.
@@ -1235,7 +1248,11 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     // Complete BOTH documents → batch review complete, zero error items.
     completeActiveDocument();
-    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Todos (2)" })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Todos (2)" }));
+    expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
     fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
     completeActiveDocument();
     await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Completado/));
