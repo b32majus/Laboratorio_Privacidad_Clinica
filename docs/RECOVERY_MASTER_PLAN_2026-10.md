@@ -427,6 +427,24 @@ A remaining REC is launchable only when:
 5. Spanish and baseline visual hierarchy requirements are included for any touched user-facing surface;
 6. the branch/review anchor is fresh from the current canonical base.
 
+### 4.4 Published C-085 tracer-bullet graph
+
+The approved `/to-tickets` decomposition is published in GitHub and preserved in `docs/handoffs/REC06_12_TO_TICKETS_20261006.md`.
+
+| REC group | Published issue slices | Hard dependency summary |
+| --- | --- | --- |
+| REC-06 | #78, #86 | #86 ← #78 |
+| REC-07 | #79, #87, #88, #89 | #87 ← #78 + #79; #88/#89 ← #87 |
+| REC-08 | #80 | native frontier |
+| REC-09 | #81, #82, #83, #84, #85 | native frontier; intentionally split for context-fit |
+| REC-10 | #90 | blocked by stable product-surface set #80–#89 |
+| REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
+| REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
+
+Immediate native frontier: **#78–#85**. Scheduling may deliberately serialize those open tickets, but a preferred order is not a semantic blocker.
+
+D-019 remains an attended decision boundary inside #80. `DISC-01` is explicit in #79 and must close before the new batch async-output path represented by #87 can claim the disposal/current-authority invariant.
+
 ## 5. Dependency graph
 
 ```text
@@ -450,16 +468,15 @@ REC-10 Spanish foundation ───────── effective from first rewor
 REC-11 Visual hierarchy foundation ─ effective from first reworked surface
 
 REC-05 + REC-06 + REC-07 + REC-08 + REC-09
-                 └──────────────────────────┐
-                                            v
-                          REC-10 localization closeout
-                                            v
-                          REC-11 visual-system closeout
-                                            v
-                          REC-12 recovery closeout + governance
+                 └──────────────────────────┬──────────────────────────┐
+                                            v                          v
+                          REC-10 localization closeout   REC-11 visual-system closeout
+                                            └──────────────┬───────────┘
+                                                           v
+                                         REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-05 are complete. REC-07 now has its REC-05 safe single-output dependency satisfied and waits on REC-06 batch workflow authority. Before any remaining frontier is executable, the coarse post-reconciliation REC-06→REC-12 plan must be decomposed under C-085 through Matt `/to-tickets` into reviewable tracer-bullet units that fit one fresh writer context; the proposal is reviewed before any ticket becomes execution authority. REC-08 and REC-09 may be scheduled where their touched authorities do not collide with the active Work Order. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every surface touched from REC-05 onward, while their exhaustive closeouts remain late so transient surfaces are not polished twice.
+REC-01 through REC-05 are complete. The remaining REC-06→REC-12 plan has been decomposed under C-085 through Matt `/to-tickets` and published as GitHub issues **#78–#93**. The native issue-dependency graph is the executable blocking authority for those slices; the REC sequence remains the preferred composition/scheduling order. REC-07 has its REC-05 safe-output dependency satisfied and its remaining work is represented by #79/#87/#88/#89, with #87 blocked by #78 + #79. REC-08/09 slices that have no true blocker remain in the native frontier but may be serialized operationally to avoid churn. REC-10/REC-11 no longer mean “ignore language/visual hierarchy until the end”: their **foundations apply immediately** to every touched surface, while exhaustive closeouts are #90/#91 and intentionally have no dependency edge between each other. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 

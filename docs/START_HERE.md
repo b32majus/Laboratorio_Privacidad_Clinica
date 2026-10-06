@@ -60,9 +60,9 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-REC-05 is canonical at `3.0-main@96e53ee9f390026eff2ff44cb405634517ffbe09` after PR #76. **REC-06 — BATCH-WORKFLOW-PARITY-01** is the next numbered recovery frontier, but it must not be launched from the pre-C-085 coarse Work Order as-is: first re-decompose the remaining REC-06→REC-12 frontier through the current C-085 context-economy rule and Matt `/to-tickets`, then review the proposed tracer-bullet tickets for fidelity, dependencies and one-fresh-context fit before any ticket becomes `EXECUTION_READY`. The pre-reconciliation REC-05 launch packet and stopped sessions remain provenance only.
+REC-05 is canonical after PR #76. The remaining REC-06→REC-12 recovery frontier has now been decomposed under C-085 through Matt `/to-tickets` and published as **GitHub issues #78–#93**, all labeled `ready-for-agent`, with native blocking relationships verified. The immediate native frontier is **#78, #79, #80, #81, #82, #83, #84 and #85**; the default operational preference is still serial recovery starting with **#78 (REC-06 batch failure-recovery)** to minimize shared-surface churn. GitHub issue dependencies are the executable blocking graph; the broader REC order remains scheduling/composition guidance and must not be converted into false dependency edges. The completed decomposition record is `docs/handoffs/REC06_12_TO_TICKETS_20261006.md`.
 
-No new recovery ticket should be invented from memory. First locate the capability in the traceability matrix and either map it to the owning REC Work Order or explicitly amend the master plan.
+No new recovery ticket should be invented from memory. For the current frontier, use published issues #78–#93 plus the traceability matrix/master plan. Any newly discovered blocking obligation must first be reconciled into authority and ownership rather than silently appended to an implementation ticket.
 
 ## 5. Important current truths
 
