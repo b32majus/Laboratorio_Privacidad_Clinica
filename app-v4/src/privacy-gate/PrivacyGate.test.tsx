@@ -9,6 +9,7 @@ import {
   recordItemProcessed,
   recordItemRead,
   recordItemReviewCompletion,
+  removeBatchItem,
   setPolicy,
   withReviewState,
   type Job,
@@ -354,6 +355,22 @@ function withBatchOutputs(job: Job): Job {
   } as Job;
 }
 
+/**
+ * #78 correction F1 boundary: EVERY item of the batch failed its read and was
+ * then deliberately removed. The mirror of the bridge write
+ * (`withDerivedBatchReviewState`) keeps `review.complete` false — no
+ * evaluable item exists — and both output flags false (fail-closed).
+ */
+function allRemovedBatchJob(): Job {
+  const failed = readFail(
+    readFail(buildBatchJob(), 0, "El PDF no tiene capa de texto."),
+    1,
+    "El PDF no tiene capa de texto."
+  );
+  const removed = removeBatchItem(removeBatchItem(failed, 0), 1);
+  return withBatchOutputs(withReviewState(removed, { complete: false }));
+}
+
 describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
   it("lists every batch item with a visible status and the failed item's message", () => {
     renderGate(failedBatchJob(), null);
@@ -413,6 +430,43 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     expect(alert).toHaveTextContent(
       "Safe export is blocked while 2 mandatory review decisions are pending."
     );
+  });
+
+  it("never asserts review completion when every item of an all-failed batch was removed (#78 correction F1 boundary)", () => {
+    const job = allRemovedBatchJob();
+    // The authoritative review fact: no evaluable item exists, so the review
+    // is NOT complete — the gate may never claim the opposite.
+    expect(job.review.complete).toBe(false);
+
+    renderGate(job, null);
+
+    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    // Never the completion badge while view.complete is false.
+    expect(checkpoint).toHaveTextContent("Action required");
+    expect(checkpoint).not.toHaveTextContent("Review complete");
+    expect(checkpoint).not.toHaveTextContent("Every mandatory review decision is recorded");
+    // The body states the factual boundary reason…
+    expect(checkpoint).toHaveTextContent(/No batch document remains available for review/i);
+    expect(checkpoint).toHaveTextContent(/deliberately removed/i);
+    // …and never re-blocks on the already-resolved failures.
+    expect(checkpoint).not.toHaveTextContent(/batch item failed/i);
+
+    // The removed items stay factual history: counted as failed, marked
+    // removed, not hidden and not completed.
+    const counts = screen.getByRole("group", { name: /batch item counts/i });
+    expect(counts).toHaveTextContent("Failed: 2");
+    expect(counts).toHaveTextContent("Pending: 0");
+    expect(counts).toHaveTextContent("Completed: 0");
+    const items = screen.getByRole("list", { name: /batch item status/i });
+    expect(items).toHaveTextContent("Retirado del lote");
+
+    // Downloads remain unavailable as before: both output surfaces stay
+    // closed for the batch.
+    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Safe Output is not available for a document batch yet/)
+    ).toBeInTheDocument();
   });
 
   it("reports both batch output surfaces unavailable for a fully reviewed error-free batch", () => {

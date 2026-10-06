@@ -35,17 +35,17 @@
  * professional Spanish; the document-list aria-labels are kept stable for the
  * existing test/automation targets. No export surface here (T08 owns it).
  */
-import { useEffect, useState, type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import {
   batchActiveFailedItems,
-  batchFailureRemedy,
   isBatchItemRetryable,
   type BatchItemStatus,
   type Job,
-  type ProcessingFailure,
+  type PrivacyPolicyId,
 } from "../domain/job";
 import type { EngineLoader } from "../engine/engine-seam";
+import type { BatchItemRetryResult } from "../useJobSession";
 import {
   type DecisionExtras,
   type ExplicitDecisionStatus,
@@ -67,12 +67,29 @@ const BATCH_STATUS_LABELS: Record<BatchItemStatus, string> = {
   error: "Error",
 };
 
+/** The job + policy authority a transient recovery interaction was captured under. */
+type RecoveryScope = {
+  readonly jobId: string;
+  readonly policyId: PrivacyPolicyId;
+};
+
+/**
+ * In-flight retry attempt (#78 correction F2): identified by the authority it
+ * was captured under AND its row. The pending state clears only when that
+ * attempt settles — never because an unrelated domain update replaced the job
+ * object mid-attempt.
+ */
+type RetryAttempt = RecoveryScope & { readonly index: number };
+
 /** Per-item recovery feedback (#78): perceptible, co-located, text-conveyed. */
-type RecoveryFeedback = {
+type RecoveryFeedback = RecoveryScope & {
   readonly index: number;
   readonly kind: "status" | "error";
   readonly text: string;
 };
+
+/** Open remove confirmation (#78): scoped to the job it was opened for. */
+type RemoveConfirmation = RecoveryScope & { readonly index: number };
 
 export type BatchReviewViewProps = {
   /** The frozen batch job: the single authority for per-item state. */
@@ -102,12 +119,16 @@ export type BatchReviewViewProps = {
   readonly onAddManual: (detection: ManualDetectionInput) => void;
   /**
    * Retry one retryable failed item through the bridge (#78). Resolves with
-   * the typed failure, or `null` on success.
+   * the discriminated attempt result (#78 correction F2): `{ kind: "settled",
+   * failure }` when the attempt actually ran and installed its outcome
+   * (`failure === null` exactly for a real success), `{ kind: "refused" }`
+   * when the call was stale/overlapping and performed zero mutation — never
+   * conflated with success.
    */
   readonly onRetryBatchItem?: (
     index: number,
     options?: { engineLoader?: EngineLoader }
-  ) => Promise<ProcessingFailure | null>;
+  ) => Promise<BatchItemRetryResult>;
   /** Apply the CONFIRMED removal of one failed item through the bridge (#78). */
   readonly onRemoveBatchItem?: (index: number) => void;
   /** Acknowledge one active failed item's failure through the bridge (#78). */
@@ -129,52 +150,88 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
     job.kind === "document-batch" ? batchActiveFailedItems(job).map((item) => item.error.code) : [];
 
   // Recovery interaction state (#78): component-transient only — every
-  // mutation goes through the bridge; Cancel/feedback never touch the domain.
-  const [retryingIndex, setRetryingIndex] = useState<number | null>(null);
-  const [confirmingRemoveIndex, setConfirmingRemoveIndex] = useState<number | null>(null);
+  // mutation goes through the bridge. Each piece is keyed by the job AND
+  // policy authority it was captured under (#78 corrections F2/F3): a
+  // replaced Job or policy authority can never render it, while unrelated
+  // domain updates of the SAME job (the retry's own start transition, a
+  // decision or recovery action on another row) never wipe it. The pending
+  // attempt clears only when that attempt settles — never on a job change.
+  const [retrying, setRetrying] = useState<RetryAttempt | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState<RemoveConfirmation | null>(null);
   const [feedback, setFeedback] = useState<RecoveryFeedback | null>(null);
-  // Recovery feedback is transient interaction state: it never survives the
-  // Job it was produced for (a replaced Job cannot inherit stale feedback).
-  useEffect(() => {
-    setRetryingIndex(null);
-    setConfirmingRemoveIndex(null);
-    setFeedback(null);
-  }, [job]);
+  const attemptInFlight = retrying !== null && retrying.jobId === job.id;
 
   const handleRetry = async (index: number) => {
-    if (props.onRetryBatchItem === undefined || retryingIndex !== null) return;
+    if (props.onRetryBatchItem === undefined || attemptInFlight) return;
+    const scope: RecoveryScope = { jobId: job.id, policyId: job.policyId };
     setFeedback(null);
-    setRetryingIndex(index);
-    let failure: ProcessingFailure | null = null;
+    setRetrying({ ...scope, index });
+    let result: BatchItemRetryResult = { kind: "refused" };
     try {
-      failure = await props.onRetryBatchItem(index);
+      result = await props.onRetryBatchItem(index);
+    } catch {
+      // An unexpected bridge rejection is never a success.
+      result = { kind: "refused" };
     } finally {
-      setRetryingIndex((current) => (current === index ? null : current));
+      setRetrying((current) =>
+        current !== null && current.jobId === scope.jobId && current.index === index
+          ? null
+          : current
+      );
     }
+    const name = files[index]?.name ?? "";
     setFeedback(
-      failure === null
+      result.kind === "settled" && result.failure === null
         ? {
+            ...scope,
             index,
             kind: "status",
-            text: `Reintento completado: "${files[index]?.name}" ya está disponible para revisión.`,
+            text: `Reintento completado: "${name}" ya está disponible para revisión.`,
           }
-        : { index, kind: "error", text: `El reintento no se completó: ${failure.message}` }
+        : result.kind === "settled" && result.failure !== null
+          ? {
+              ...scope,
+              index,
+              kind: "error",
+              text: `El reintento no se completó: ${result.failure.message}`,
+            }
+          : {
+              ...scope,
+              index,
+              kind: "error",
+              text: "El reintento no se realizó: la acción ya no corresponde al estado actual del trabajo.",
+            }
     );
   };
 
   const handleConfirmRemove = (index: number) => {
     props.onRemoveBatchItem?.(index);
-    setConfirmingRemoveIndex(null);
+    setConfirmingRemove(null);
   };
 
   const handleAcknowledge = (index: number) => {
     props.onAcknowledgeBatchItemError?.(index);
     setFeedback({
+      jobId: job.id,
+      policyId: job.policyId,
       index,
       kind: "status",
       text: "Error reconocido. El documento sigue en error: reconocerlo no lo resuelve.",
     });
   };
+
+  /**
+   * Whether a feedback entry is still rendered for the CURRENT job. Error
+   * feedback (a settled typed failure or a refusal) stays visible across a
+   * policy-authority replacement of the same job — it reports what the
+   * attempt did (or did not do) and never claims a current item state.
+   * Status feedback (success, acknowledgement) describes the item under the
+   * captured authority, so a replaced policy authority no longer shows it.
+   */
+  const feedbackVisible =
+    feedback !== null &&
+    feedback.jobId === job.id &&
+    (feedback.kind === "error" || feedback.policyId === job.policyId);
 
   return (
     <section aria-labelledby="batch-review-step-heading">
@@ -254,7 +311,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                         {retryOffered && (
                           <button
                             type="button"
-                            disabled={retryingIndex !== null}
+                            disabled={attemptInFlight}
                             onClick={() => void handleRetry(index)}
                             className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
                           >
@@ -262,7 +319,9 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                           </button>
                         )}
                         {props.onRemoveBatchItem !== undefined &&
-                          (confirmingRemoveIndex === index ? (
+                          (confirmingRemove !== null &&
+                          confirmingRemove.jobId === job.id &&
+                          confirmingRemove.index === index ? (
                             <span
                               role="group"
                               aria-label={`Confirmar la retirada de ${file.name}`}
@@ -282,7 +341,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setConfirmingRemoveIndex(null)}
+                                onClick={() => setConfirmingRemove(null)}
                                 className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
                               >
                                 Cancelar
@@ -291,7 +350,13 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                           ) : (
                             <button
                               type="button"
-                              onClick={() => setConfirmingRemoveIndex(index)}
+                              onClick={() =>
+                                setConfirmingRemove({
+                                  jobId: job.id,
+                                  policyId: job.policyId,
+                                  index,
+                                })
+                              }
                               className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
                             >
                               Retirar del lote
@@ -310,24 +375,27 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                     )}
                   </div>
                 )}
-                {retryingIndex === index && (
+                {retrying !== null &&
+                  retrying.jobId === job.id &&
+                  retrying.policyId === job.policyId &&
+                  retrying.index === index && (
+                    <p
+                      role="status"
+                      className={`mt-1 px-2 text-sm font-semibold text-neutral-800 ${focusRing}`}
+                    >
+                      Reintentando…
+                    </p>
+                  )}
+                {feedbackVisible && feedback!.index === index && (
                   <p
-                    role="status"
-                    className={`mt-1 px-2 text-sm font-semibold text-neutral-800 ${focusRing}`}
-                  >
-                    Reintentando…
-                  </p>
-                )}
-                {feedback !== null && feedback.index === index && (
-                  <p
-                    role={feedback.kind === "error" ? "alert" : "status"}
+                    role={feedback!.kind === "error" ? "alert" : "status"}
                     className={`mt-1 px-2 text-sm ${
-                      feedback.kind === "error"
+                      feedback!.kind === "error"
                         ? "font-semibold text-primary-dark"
                         : "text-neutral-800"
                     } ${focusRing}`}
                   >
-                    {feedback.text}
+                    {feedback!.text}
                   </p>
                 )}
               </li>
@@ -354,7 +422,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
           {stillReading
             ? "Los documentos se están leyendo todavía. La revisión comienza automáticamente cuando todos los documentos se han leído."
             : failedCodes.length > 0
-              ? `No hay ningún documento disponible para revisión. Los documentos con error permanecen en la lista con sus acciones de recuperación. ${batchFailureRemedy(failedCodes)}`
+              ? "No hay ningún documento disponible para revisión. Los documentos con error permanecen en la lista con su error registrado y con las acciones de recuperación que cada uno ofrece."
               : "Todavía no hay ningún documento disponible para revisión."}
         </p>
       )}

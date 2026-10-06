@@ -746,10 +746,15 @@ export function App() {
             onSelectDocument={session.selectDocument}
             onDecide={session.decide}
             onAddManual={session.addManual}
-            onRetryBatchItem={(index, options) => session.retryBatchItem(job.id, index, options)}
-            onRemoveBatchItem={(index) => session.removeBatchItem(job.id, index)}
+            onRetryBatchItem={(index, options) =>
+              // #78 correction F3: the rendered job supplies BOTH authorities
+              // pinned at capture time — a captured action is refused when
+              // either the job or its policy authority was replaced.
+              session.retryBatchItem(job.id, job.policyId, index, options)
+            }
+            onRemoveBatchItem={(index) => session.removeBatchItem(job.id, job.policyId, index)}
             onAcknowledgeBatchItemError={(index) =>
-              session.acknowledgeBatchItemError(job.id, index)
+              session.acknowledgeBatchItemError(job.id, job.policyId, index)
             }
           />
         ) : currentStep === "review" && review ? (

@@ -263,6 +263,24 @@ function withDerivedStructuredState(job: Job, preparation: StructuredOutputPrepa
 export type BatchEngineLoader = EngineLoader;
 
 /**
+ * #78 (correction F2): the discriminated result of ONE `retryBatchItem` call.
+ * The two kinds are never conflated:
+ *
+ * - `settled`: the attempt actually RAN and installed its outcome atomically.
+ *   `failure` is `null` exactly when the retried item reached a real success
+ *   install (review authority created for that item), and carries the typed
+ *   failure when the item was returned to a truthful `error`.
+ * - `refused`: the call was stale/overlapping/invalid (job or policy authority
+ *   changed since capture, an attempt already in flight for the job, no
+ *   retained shared context, invalid index, non-retryable item, or a start
+ *   dropped by a concurrent replacement) and performed ZERO mutation. A
+ *   `refused` result is never a success and must never be reported as one.
+ */
+export type BatchItemRetryResult =
+  | { readonly kind: "settled"; readonly failure: ProcessingFailure | null }
+  | { readonly kind: "refused" };
+
+/**
  * Per-item outcome callbacks for {@link runBatchReview}. Production callers
  * pass nothing; deterministic oracles may observe each item transition.
  */
@@ -858,18 +876,24 @@ export function useJobSession() {
    * retryable failed item against the RETAINED shared cross-document context.
    *
    * Fail-closed entry conditions (all checked before any mutation): the
-   * rendered job id must still match the CURRENT job (a stale action can
-   * never target a replaced Job), the batch state must exist, the domain must
-   * classify the item as retryable ({@link isBatchItemRetryable}: a
-   * processing failure with retained text, not removed, not
-   * `policy-unsupported`), and a shared context must be retained (no context
-   * ⇒ no retry — never a fresh/inconsistent context). A second overlapping
-   * retry for the same job is a no-op (double-fire guard; the in-flight ref
-   * resets when the attempt settles or the job changes).
+   * rendered job id AND the captured policy authority must still match the
+   * CURRENT job (a stale action can never target a replaced Job or a replaced
+   * policy authority — #78 correction F3 pins BOTH at capture time), the
+   * batch state must exist, the domain must classify the item as retryable
+   * ({@link isBatchItemRetryable}: a processing failure with retained text,
+   * not removed, not `policy-unsupported`), and a shared context must be
+   * retained (no context ⇒ no retry — never a fresh/inconsistent context).
+   * A second overlapping retry for the same job is refused (double-fire
+   * guard; the in-flight ref resets when the attempt settles).
+   *
+   * Every refusal — including a start/outcome dropped by a concurrent job or
+   * policy replacement — is reported as `{ kind: "refused" }` with ZERO
+   * mutation (#78 correction F2): a refused call is never conflated with an
+   * attempt that settled, so callers cannot announce a refusal as success.
    *
    * The started attempt is installed atomically (guarded by the SAME job id
-   * AND policy), the engine runs OUTSIDE any state updater, and the outcome
-   * is installed in one atomic write guarded by the existing
+   * AND the captured policy), the engine runs OUTSIDE any state updater, and
+   * the outcome is installed in one atomic write guarded by the existing
    * `jobStillCurrent()` rule (same job id AND same policy — a policy change
    * mid-retry drops the stale outcome with zero mutation). Success records
    * `recordItemProcessed`, installs ONLY that item's session, applies the
@@ -885,21 +909,29 @@ export function useJobSession() {
   const retryBatchItem = useCallback(
     async (
       jobId: string,
+      policyId: PrivacyPolicyId,
       index: number,
       options?: { engineLoader?: BatchEngineLoader }
-    ): Promise<ProcessingFailure | null> => {
+    ): Promise<BatchItemRetryResult> => {
       const current = stateRef.current;
       const job = current.job;
-      if (job === null || job.id !== jobId || current.batch === null) return null;
-      if (retryInFlightRef.current === jobId) return null;
-      if (current.batch.sharedContext === null) return null;
-      // Out-of-range (or malformed) indexes are a no-op at the bridge entry;
+      if (job === null || job.id !== jobId || job.policyId !== policyId || current.batch === null) {
+        return { kind: "refused" };
+      }
+      if (retryInFlightRef.current === jobId) return { kind: "refused" };
+      if (current.batch.sharedContext === null) return { kind: "refused" };
+      // Out-of-range (or malformed) indexes are a refusal at the bridge entry;
       // the domain guard below stays the authority for genuine state refusals.
       const files = job.source.type === "files" ? job.source.files : [];
-      if (!Number.isInteger(index) || index < 0 || index >= files.length) return null;
-      if (!isBatchItemRetryable(job, index)) return null;
+      if (!Number.isInteger(index) || index < 0 || index >= files.length) {
+        return { kind: "refused" };
+      }
+      if (!isBatchItemRetryable(job, index)) return { kind: "refused" };
       const started = beginBatchItemRetry(job, index);
-      const startPolicyId = job.policyId;
+      // #78 correction F3: the policy authority captured when the action was
+      // offered (the rendered job's policy) is pinned here and is the ONLY
+      // policy the whole attempt may start or install under.
+      const startPolicyId = policyId;
       const sharedContextAtStart = current.batch.sharedContext;
       const jobStillCurrent = (): boolean => {
         const latest = stateRef.current.job;
@@ -915,7 +947,7 @@ export function useJobSession() {
             ? { ...state, job: started }
             : state
         );
-        if (!jobStillCurrent()) return null;
+        if (!jobStillCurrent()) return { kind: "refused" };
 
         let outcome: BatchItemProcessing;
         try {
@@ -928,15 +960,15 @@ export function useJobSession() {
           // install rebases onto the CURRENT job (#78): the attempt owns only
           // its own item, so mutations recorded on OTHER items while the
           // retry was in flight are never silently reverted.
-          if (!jobStillCurrent()) return null;
+          if (!jobStillCurrent()) return { kind: "refused" };
           const failure = classifyProcessingFailure(error);
           const failedJob = rebaseRunOutcomeFiles(started, started, stateRef.current.job!, {
             [index]: itemFileOf(recordItemFailed(started, index, failure), index),
           });
           setState((state) => (jobStillCurrent() ? { ...state, job: failedJob } : state));
-          return failure;
+          return { kind: "settled", failure };
         }
-        if (!jobStillCurrent()) return null;
+        if (!jobStillCurrent()) return { kind: "refused" };
 
         // #78 (React commit semantics): the outcome FILE for the retried item
         // is computed from the `started` snapshot — exactly like the batch
@@ -950,7 +982,7 @@ export function useJobSession() {
             [index]: itemFileOf(recordItemFailed(started, index, outcome.failure), index),
           });
           setState((state) => (jobStillCurrent() ? { ...state, job: failedJob } : state));
-          return outcome.failure;
+          return { kind: "settled", failure: outcome.failure };
         }
         // Success: exactly this item's outcome, in one atomic write. The
         // retained shared context is replaced by the promoted returned
@@ -980,7 +1012,7 @@ export function useJobSession() {
               }
             : state
         );
-        return null;
+        return { kind: "settled", failure: null };
       } finally {
         if (retryInFlightRef.current === jobId) retryInFlightRef.current = null;
       }
@@ -991,30 +1023,49 @@ export function useJobSession() {
   /**
    * Batch failure recovery (#78, REC-06): apply the confirmed removal of one
    * failed item. The confirm/cancel interaction lives in the component; this
-   * entry point runs only on Confirm. It verifies the rendered job id (a
-   * stale action can never mutate a replaced Job), applies the domain
+   * entry point runs only on Confirm. It verifies the rendered job id AND the
+   * captured policy authority (a stale action can never mutate a replaced Job
+   * or a policy-replaced job — #78 correction F3), applies the domain
    * transition and re-derives the batch review state in ONE atomic write.
    * Cancel never reaches this path, so it is zero mutation by construction.
    */
-  const removeBatchItemAction = useCallback((jobId: string, index: number): void => {
-    const current = stateRef.current;
-    if (current.job === null || current.job.id !== jobId) return;
-    const job = withDerivedBatchReviewState(removeBatchItem(current.job, index));
-    setState((state) => (state.job !== null && state.job.id === jobId ? { ...state, job } : state));
-  }, []);
+  const removeBatchItemAction = useCallback(
+    (jobId: string, policyId: PrivacyPolicyId, index: number): void => {
+      const current = stateRef.current;
+      if (current.job === null || current.job.id !== jobId || current.job.policyId !== policyId) {
+        return;
+      }
+      const job = withDerivedBatchReviewState(removeBatchItem(current.job, index));
+      setState((state) =>
+        state.job !== null && state.job.id === jobId && state.job.policyId === policyId
+          ? { ...state, job }
+          : state
+      );
+    },
+    []
+  );
 
   /**
    * Batch failure recovery (#78, REC-06): acknowledge the current typed
    * failure of one active failed item ("seen", never "resolved"). Same
-   * job-id guard and atomic re-derivation as the removal above; the item
-   * stays `error` and its blocker stays active.
+   * job-id + captured-policy guard and atomic re-derivation as the removal
+   * above; the item stays `error` and its blocker stays active.
    */
-  const acknowledgeBatchItemErrorAction = useCallback((jobId: string, index: number): void => {
-    const current = stateRef.current;
-    if (current.job === null || current.job.id !== jobId) return;
-    const job = withDerivedBatchReviewState(acknowledgeBatchItemError(current.job, index));
-    setState((state) => (state.job !== null && state.job.id === jobId ? { ...state, job } : state));
-  }, []);
+  const acknowledgeBatchItemErrorAction = useCallback(
+    (jobId: string, policyId: PrivacyPolicyId, index: number): void => {
+      const current = stateRef.current;
+      if (current.job === null || current.job.id !== jobId || current.job.policyId !== policyId) {
+        return;
+      }
+      const job = withDerivedBatchReviewState(acknowledgeBatchItemError(current.job, index));
+      setState((state) =>
+        state.job !== null && state.job.id === jobId && state.job.policyId === policyId
+          ? { ...state, job }
+          : state
+      );
+    },
+    []
+  );
 
   /**
    * Run the structured free-text review loop (REC-03 WU-C): every non-blank
