@@ -47,9 +47,9 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { type ReviewSession, canFinalize } from "../review/review-domain";
+import { type ReviewSession } from "../review/review-domain";
 import type { Job } from "../domain/job";
-import { deriveBatchFacts } from "../privacy-gate/privacyGateModel";
+import { batchConfidentialAuditReady } from "../privacy-gate/privacyGateModel";
 import {
   serializeConfidentialAudit,
   CONFIDENTIAL_AUDIT_WARNING_LINE,
@@ -921,36 +921,18 @@ function BatchResult({
   // ---------------------------------------------------------------------------
 
   /**
-   * Confidential availability in the UI (CORR #89 Sp1, PROOF 4): composed
-   * from the SAME canonical facts the builder enforces — never a second
-   * state machine and never a weakened batch-ready prerequisite. The batch
-   * must be ready through the ONE shared prerequisite
-   * (`view.state === "ready"`, derived from `batchSafeSummaryReady`), the
-   * exact per-item session set must be bridged, EVERY completed item must
-   * hold its current, still-finalizable session, and at least one audited
-   * section must exist — the same fail-closed facts
-   * `deriveBatchConfidentialAuditSections` refuses bytes on. A ready Job
-   * with a missing (`{}`/incomplete) or non-finalizable per-item session
+   * Confidential availability in the UI (CORR #89 Sp1, PROOF 4; corrected by
+   * CORA-89-01): the ONE shared pure batch-Confidential availability
+   * authority ({@link batchConfidentialAuditReady}) — the exact derivation
+   * the Privacy Gate and the batch Confidential bytes authority consume, so
+   * Gate, Result and builder can never disagree about the same artifact. No
+   * duplicated predicate, no second state machine, no weakened batch-ready
+   * prerequisite, and no `job.outputs` mirror alone. A ready Job with a
+   * missing (`null`/incomplete) or non-finalizable per-item session
    * therefore renders the factual unavailable state here, while the builder
-   * still refuses bytes with zero download; Gate and Result state the same
-   * shared readiness fact and cannot contradict.
+   * still refuses bytes with zero download.
    */
-  const confidentialAvailable = (() => {
-    if (view.state !== "ready" || batchSessions === null) return false;
-    const facts = deriveBatchFacts(job);
-    let auditedSections = 0;
-    for (let position = 0; position < facts.items.length; position += 1) {
-      const item = facts.items[position];
-      if (item.status === "completed") {
-        const session = batchSessions[position];
-        if (session === undefined || !canFinalize(session)) return false;
-        auditedSections += 1;
-        continue;
-      }
-      if (item.status !== "error" || item.removed !== true) return false;
-    }
-    return auditedSections > 0;
-  })();
+  const confidentialAvailable = batchConfidentialAuditReady(job, batchSessions);
 
   // Defense in depth: a newly unavailable Confidential authority (readiness
   // loss, a missing session set, or a session that stopped being finalizable)

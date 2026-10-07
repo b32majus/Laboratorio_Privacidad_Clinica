@@ -204,15 +204,16 @@ export function batchSafeSummaryAvailabilityMessage(ready: boolean): string {
 }
 
 /**
- * Factual batch Confidential Audit availability copy (REC-07 #89). The
- * accepted batch Confidential artifact is the deliberate-confirmation TXT
- * (`auditoria-confidencial-lote.txt`), authorized by the SAME shared batch
- * readiness prerequisite ({@link batchSafeSummaryReady}) the Safe summary
- * uses, so this copy cannot contradict the batch Result or the serializer.
- * The one-time deliberate warning/confirm interaction lives in the batch
- * Result; the Gate states availability facts only. Ordinary UI copy is
- * Spanish-first (HPD-11; CORR #89 Sp3): professional, factual Spanish with
- * no score, no anonymity/certification wording (D-006).
+ * Factual batch Confidential Audit availability copy (REC-07 #89; corrected
+ * by CORA-89-01). The accepted batch Confidential artifact is the
+ * deliberate-confirmation TXT (`auditoria-confidencial-lote.txt`), authorized
+ * by the ONE shared batch-Confidential availability authority
+ * ({@link batchConfidentialAuditReady}) the batch Result and the bytes
+ * authority consume, so this copy cannot contradict them. The one-time
+ * deliberate warning/confirm interaction lives in the batch Result; the
+ * Gate states availability facts only. Ordinary UI copy is Spanish-first
+ * (HPD-11; CORR #89 Sp3): professional, factual Spanish with no score, no
+ * anonymity/certification wording (D-006).
  */
 export function batchConfidentialAuditAvailabilityMessage(ready: boolean): string {
   return ready
@@ -266,18 +267,79 @@ export function deriveBatchFacts(job: Job): PrivacyGateBatchFacts {
 }
 
 /**
+ * ONE shared factual batch-Confidential availability authority (REC-07 #89;
+ * Cora correction CORA-89-01). This is the pure, DOM-free derivation beneath
+ * the presentation surfaces that the Privacy Gate, the batch Result and the
+ * batch Confidential bytes authority (`deriveBatchConfidentialAuditSections`)
+ * ALL consume, so they can never disagree about the same artifact. Fail-closed;
+ * it returns `true` ONLY when ALL of the accepted facts hold:
+ *
+ * 1. the accepted batch-ready prerequisite remains true
+ *    ({@link batchSafeSummaryReady}: document-batch kind, authoritative
+ *    review completeness, item-derived completeness, no active failed item);
+ * 2. the current batch session authority exists (`sessionsByIndex` is the
+ *    bridged per-item record — `null`/absent authority refuses);
+ * 3. every completed (non-removed) item holds its exact current session,
+ *    matched by original batch index, never by position or filename;
+ * 4. every such session is still finalizable (`canFinalize` — a stale or
+ *    re-opened review refuses);
+ * 5. at least one auditable completed section exists (a batch whose every
+ *    failed item was removed has NO Confidential audit to authorize);
+ * 6. deliberately removed failures remain permitted only as bounded
+ *    disposition history: they never need a session and never count as
+ *    audited sections — no fabricated audit body is implied.
+ *
+ * This is NOT a second batch state machine and never reads the
+ * `job.outputs.confidentialAuditReady` mirror (a mirror alone is never
+ * authorization). It derives strictly from the Job's item facts and the
+ * current per-item ReviewSession authority.
+ */
+export function batchConfidentialAuditReady(
+  job: Job,
+  sessionsByIndex: Readonly<Record<number, ReviewSession>> | null
+): boolean {
+  // 1. the accepted batch-ready prerequisite (shared with Safe readiness).
+  if (!batchSafeSummaryReady(job)) return false;
+  // 2. the current batch session authority must exist.
+  if (sessionsByIndex === null) return false;
+  const facts = deriveBatchFacts(job);
+  let auditedSections = 0;
+  for (let position = 0; position < facts.items.length; position += 1) {
+    const item = facts.items[position];
+    if (item.status === "completed") {
+      // 3. the item's exact current session, by original batch index.
+      const session = sessionsByIndex[position];
+      // 4. the session must still be finalizable.
+      if (session === undefined || !canFinalize(session)) return false;
+      auditedSections += 1;
+      continue;
+    }
+    // 6. only a deliberately removed failed item may remain unaudited;
+    //    any other item state (active failure, pending work) refuses.
+    if (item.status !== "error" || item.removed !== true) return false;
+  }
+  // 5. at least one auditable completed section.
+  return auditedSections > 0;
+}
+
+/**
  * Derive the Privacy Gate view from the job + review session. Frozen result;
  * the session and job are never mutated.
  *
- * Signature/order unchanged (T17 #21 SD-9): for a `document-batch` job,
- * `review` is the active item's session or `null`; the batch facts come from
- * the Job, so the model never breaks when it is null. Single-document and text
- * jobs keep the exact previous derivation.
+ * Signature (T17 #21 SD-9, corrected by CORA-89-01): for a `document-batch`
+ * job, `review` is the active item's session or `null`, and `batchSessions`
+ * is the bridged per-item session authority keyed by original batch index
+ * (the same record the batch Result and the Confidential builder hold) —
+ * keyed, because a ready batch may legitimately lack sessions at removed
+ * items' indexes, so array positions could never name the right session.
+ * The batch facts come from the Job, so the model never breaks when the
+ * authority is `null`. Single-document and text jobs keep the exact
+ * previous derivation.
  */
 export function derivePrivacyGateView(
   job: Job,
   review: ReviewSession | null,
-  batchSessions: readonly ReviewSession[] = [],
+  batchSessions: Readonly<Record<number, ReviewSession>> | null = null,
   structured: PrivacyGateStructuredInput | null = null
 ): PrivacyGateView {
   if (job.kind === "structured") {
@@ -436,25 +498,29 @@ function aggregateBatchSessions(sessions: readonly ReviewSession[]): BatchSessio
 }
 
 /**
- * Document-batch derivation (T17 #21 SD-9, corrected by CORR-B and by
- * CORA-87-02): the Safe-output availability comes from the ONE shared
- * Safe-summary readiness authority ({@link batchSafeSummaryReady}), so the
- * gate agrees with the batch Result and the serializer. The batch item facts
- * come from the Job's items. The review facts (counts + restored-original
- * warnings) are aggregated over EVERY available per-document ReviewSession,
- * never the ACTIVE one alone: the selected document is navigation state, not
- * batch-wide privacy authority, so a restored decision in a non-active
- * document stays visible (CORR-B).
+ * Document-batch derivation (T17 #21 SD-9, corrected by CORR-B, CORA-87-02
+ * and CORA-89-01): the Safe-output availability comes from the ONE shared
+ * Safe-summary readiness authority ({@link batchSafeSummaryReady}), and the
+ * batch Confidential availability comes from the ONE shared
+ * batch-Confidential availability authority ({@link batchConfidentialAuditReady})
+ * — the same derivation the batch Result and the Confidential builder
+ * consume, so the gate can never contradict them about the same artifact.
+ * The batch item facts come from the Job's items. The review facts (counts +
+ * restored-original warnings) are aggregated over EVERY available
+ * per-document ReviewSession, never the ACTIVE one alone: the selected
+ * document is navigation state, not batch-wide privacy authority, so a
+ * restored decision in a non-active document stays visible (CORR-B).
  */
 function deriveBatchView(
   job: Job,
   review: ReviewSession | null,
-  batchSessions: readonly ReviewSession[]
+  batchSessions: Readonly<Record<number, ReviewSession>> | null
 ): PrivacyGateView {
   const batch = deriveBatchFacts(job);
   // Prefer the complete set; fall back to the active session for callers that
   // only hold one (keeps the model usable without inventing session state).
-  const sessions = batchSessions.length > 0 ? batchSessions : review === null ? [] : [review];
+  const available = Object.values(batchSessions ?? {});
+  const sessions = available.length > 0 ? available : review === null ? [] : [review];
   const aggregate = aggregateBatchSessions(sessions);
 
   return Object.freeze({
@@ -473,12 +539,14 @@ function deriveBatchView(
     // authority, never a competing/mirror flag, so it cannot disagree with
     // the batch Result or the serializer about the same artifact.
     safeOutputReady: batchSafeSummaryReady(job),
-    // #89: the batch Confidential Audit availability is the SAME shared
-    // readiness prerequisite (the deliberate warning/confirm interaction
-    // and the current-session bytes authority live in the batch Result), so
-    // a stale job-side mirror can never make the Gate contradict the batch
-    // Result or the Confidential builder.
-    confidentialAuditReady: batchSafeSummaryReady(job),
+    // CORA-89-01: the batch Confidential Audit availability is the ONE shared
+    // batch-Confidential availability authority (batch-ready prerequisite +
+    // exact current finalizable per-item session set + at least one audited
+    // section), the same derivation the batch Result and the Confidential
+    // bytes authority consume — so a ready Job with missing/non-finalizable
+    // session authority is unavailable EVERYWHERE, and a stale job-side
+    // mirror can never make the Gate contradict the Result or the builder.
+    confidentialAuditReady: batchConfidentialAuditReady(job, batchSessions),
     batch,
     structured: null,
   });

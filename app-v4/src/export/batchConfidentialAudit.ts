@@ -17,7 +17,11 @@
  *   (`batchSafeSummaryReady(...)`) AND additionally requires the exact
  *   current per-item session set for every completed item, each still
  *   finalizable (`canFinalize`). Missing/stale/non-finalizable session
- *   authority fails closed with a typed error and zero bytes. A
+ *   authority fails closed with a typed error and zero bytes. The whole
+ *   authorization is the ONE shared batch-Confidential availability
+ *   authority (`batchConfidentialAuditReady(...)` — CORA-89-01), which the
+ *   Privacy Gate and the batch Result also consume, and it is re-checked
+ *   before any composed bytes are returned. A
  *   `job.outputs.confidentialAuditReady` mirror is never sufficient by
  *   itself.
  * - One deterministic section per ORIGINAL batch index. A deliberately
@@ -36,7 +40,7 @@
  */
 
 import { batchSafeSummaryReady, type Job } from "../domain/job";
-import { deriveBatchFacts } from "../privacy-gate/privacyGateModel";
+import { batchConfidentialAuditReady, deriveBatchFacts } from "../privacy-gate/privacyGateModel";
 import { buildConfidentialAudit, type ConfidentialAudit } from "../output/confidential-audit";
 import {
   serializeConfidentialAudit,
@@ -155,6 +159,20 @@ export function deriveBatchConfidentialAuditSections(
     throw new BatchConfidentialAuditError(
       "deriveBatchConfidentialAuditSections refuses to derive: the batch holds no " +
         "Confidential section."
+    );
+  }
+  // CORA-89-01: final agreement with the ONE shared batch-Confidential
+  // availability authority (`batchConfidentialAuditReady`) — the exact same
+  // derivation the Privacy Gate and the batch Result consume. The granular
+  // checks above already enforce every fact it covers, so this is
+  // defense-in-depth against drift, not a weaker duplicate: the composed
+  // artifact is returned ONLY when the shared authority also authorizes it,
+  // and any disagreement fails closed with zero bytes.
+  if (!batchConfidentialAuditReady(job, sessionsByIndex)) {
+    throw new BatchConfidentialAuditError(
+      "deriveBatchConfidentialAuditSections refuses to derive: the ONE shared " +
+        "batch-Confidential availability authority refuses this batch, so no " +
+        "Confidential Audit may be composed."
     );
   }
   return Object.freeze(sections);

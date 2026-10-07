@@ -65,12 +65,15 @@ export type PrivacyGateProps = {
    */
   readonly review: ReviewSession | null;
   /**
-   * EVERY available per-document ReviewSession of a document batch (T17 #21
-   * CORR-B). Batch-wide restored-original warnings are derived from this
-   * complete set, so a non-active document's restored decision stays visible.
-   * Absent/empty for single-document and text jobs.
+   * The current per-document ReviewSession authority of a document batch,
+   * keyed by original batch index (T17 #21 CORR-B; CORA-89-01). Batch-wide
+   * restored-original warnings are derived from this complete set, and the
+   * batch Confidential availability is derived from the SAME authority
+   * through {@link batchConfidentialAuditReady} — the one shared derivation
+   * the batch Result and the Confidential builder consume. `null`/absent
+   * for single-document and text jobs (and before a batch holds sessions).
    */
-  readonly batchSessions?: readonly ReviewSession[];
+  readonly batchSessions?: Readonly<Record<number, ReviewSession>> | null;
   /**
    * The reviewed structured configuration + exact preparation for a structured
    * job (HARDEN-01 WU-A). Required for `kind === "structured"`; ignored else.
@@ -84,7 +87,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
       derivePrivacyGateView(
         props.job,
         props.review,
-        props.batchSessions ?? [],
+        props.batchSessions ?? null,
         props.structured ?? null
       ),
     [props.job, props.review, props.batchSessions, props.structured]

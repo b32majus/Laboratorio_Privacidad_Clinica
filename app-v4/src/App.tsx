@@ -795,7 +795,7 @@ export function App() {
           <PrivacyGate
             job={job}
             review={activeReview}
-            batchSessions={batchSessions === null ? [] : Object.values(batchSessions)}
+            batchSessions={batchSessions}
             structured={structuredGateInput}
           />
         ) : currentStep === "export" &&

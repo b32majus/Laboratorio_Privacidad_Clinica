@@ -276,7 +276,7 @@ describe("WU-D — Gate and Export stay closed on unresolved state (falsificatio
     expect(preparation.output).toBeNull();
     expect(preparation.reasons.join(" ")).toMatch(/requires review/);
 
-    const view = derivePrivacyGateView(structuredJob("standard", false), null, [], {
+    const view = derivePrivacyGateView(structuredJob("standard", false), null, null, {
       configuration: unresolved,
       plan,
       preparation,
@@ -325,7 +325,7 @@ describe("WU-D — Gate and Export stay closed on unresolved state (falsificatio
     expect(preparation.reasons.join(" ")).toMatch(/failed/i);
     expect(preparation.reasons.join("\n")).not.toContain("Paciente Carmen");
 
-    const view = derivePrivacyGateView(structuredJob("standard", false), null, [], {
+    const view = derivePrivacyGateView(structuredJob("standard", false), null, null, {
       configuration: config,
       plan,
       preparation,
@@ -340,7 +340,7 @@ describe("WU-D — Gate and Export stay closed on unresolved state (falsificatio
     const preparation = prepareStructuredOutput(config, plan, { freeText: state });
     expect(preparation.status).toBe("ready");
     if (preparation.status !== "ready") return;
-    const view = derivePrivacyGateView(structuredJob("standard", true), null, [], {
+    const view = derivePrivacyGateView(structuredJob("standard", true), null, null, {
       configuration: config,
       plan,
       preparation,
