@@ -490,7 +490,7 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
     expect(
       within(availability).getByText(
-        /Confidential Audit for a document batch is the batch confidential audit TXT/
+        /La Auditoría Confidencial de un lote de documentos es el TXT de auditoría confidencial/
       )
     ).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(

@@ -12,6 +12,10 @@
  *    produces ZERO download, NO false success and a content-free failure.
  * 2. Result unmount during the awaited window produces ZERO download and
  *    no visible false feedback.
+ * 3. (CORR #89 Sp2) An unexpected generation failure retains ONLY the
+ *    closed typed code `unexpected-error`: neither an unconstrained
+ *    `Error.name` nor the raw message (which can carry Confidential
+ *    content) ever reaches the DOM.
  *
  * All fixtures are synthetic; no real content anywhere.
  */
@@ -199,6 +203,39 @@ describe("batch Confidential awaited-window witnesses (PROOF 7)", () => {
 
       expect(captured.downloads).toHaveLength(0);
       expect(document.getElementById("batch-result-action-feedback")).toBeNull();
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("an unexpected generation failure retains only the closed typed code, never an exception-derived string (CORR #89 Sp2)", async () => {
+    const { job, sessions } = readyBatch();
+    const captured = captureDownloads();
+    try {
+      render(<ExportStep job={job} review={null} batchSessions={sessions} />);
+
+      // A hostile unexpected error: both `name` (writable, unconstrained)
+      // and `message` carry would-be Confidential content. The retained
+      // diagnostic must collapse to the fixed code `unexpected-error` and
+      // neither string may reach the DOM.
+      confidentialGate.suspend = () =>
+        Promise.reject(
+          Object.assign(new Error("CONFIDENTIAL_BODY_SENTINEL: Carmen Sánchez"), {
+            name: "CarmenSánchezLeak",
+          })
+        );
+
+      fireEvent.click(screen.getByRole("button", { name: CONF_BUTTON }));
+      fireEvent.click(screen.getByRole("button", { name: CONF_CONFIRM }));
+      await flushAsyncWork();
+
+      expect(captured.downloads).toHaveLength(0);
+      const feedback = document.getElementById("batch-result-action-feedback");
+      expect(feedback).not.toBeNull();
+      expect(feedback).toHaveTextContent("No se pudo generar la auditoría confidencial del lote.");
+      expect(feedback).toHaveAttribute("data-batch-safe-diagnostic", "unexpected-error");
+      expect(document.body.textContent ?? "").not.toContain("CarmenSánchezLeak");
+      expect(document.body.textContent ?? "").not.toContain("CONFIDENTIAL_BODY_SENTINEL");
     } finally {
       captured.restore();
     }

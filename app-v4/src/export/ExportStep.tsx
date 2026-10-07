@@ -47,8 +47,9 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { type ReviewSession } from "../review/review-domain";
+import { type ReviewSession, canFinalize } from "../review/review-domain";
 import type { Job } from "../domain/job";
+import { deriveBatchFacts } from "../privacy-gate/privacyGateModel";
 import {
   serializeConfidentialAudit,
   CONFIDENTIAL_AUDIT_WARNING_LINE,
@@ -660,14 +661,16 @@ function batchSafeDiagnostic(error: unknown): string {
 /**
  * Content-free diagnostic for a refused batch Confidential Audit generation
  * (#89). Raw generation/serialization exceptions can carry Confidential
- * original values, so ONLY the typed error CODE (or, for an unexpected
- * error, its name) is retained — never the message, never the content.
+ * original values, so ONLY the closed set of typed error CODES is retained —
+ * never the message and never an exception-derived string: `Error.name` is
+ * writable and unconstrained, so it can itself carry Confidential content
+ * (CORR #89 Sp2; CODING_STANDARDS §4). Unexpected failures collapse to the
+ * fixed code `unexpected-error`.
  */
 function batchConfidentialDiagnostic(error: unknown): string {
   if (error instanceof BatchConfidentialAuditError) return error.code;
   if (error instanceof ConfidentialAuditError) return error.code;
-  if (error instanceof Error) return error.name;
-  return "unknown-error";
+  return "unexpected-error";
 }
 
 /**
@@ -918,13 +921,46 @@ function BatchResult({
   // ---------------------------------------------------------------------------
 
   /**
-   * Confidential availability in the UI: the batch must be ready AND the
-   * exact per-item session set must be bridged. The availability mirror
-   * alone is never sufficient; the builder revalidates the shared readiness
-   * prerequisite plus every completed item's current finalizable session
-   * and fails closed (zero bytes) without them.
+   * Confidential availability in the UI (CORR #89 Sp1, PROOF 4): composed
+   * from the SAME canonical facts the builder enforces — never a second
+   * state machine and never a weakened batch-ready prerequisite. The batch
+   * must be ready through the ONE shared prerequisite
+   * (`view.state === "ready"`, derived from `batchSafeSummaryReady`), the
+   * exact per-item session set must be bridged, EVERY completed item must
+   * hold its current, still-finalizable session, and at least one audited
+   * section must exist — the same fail-closed facts
+   * `deriveBatchConfidentialAuditSections` refuses bytes on. A ready Job
+   * with a missing (`{}`/incomplete) or non-finalizable per-item session
+   * therefore renders the factual unavailable state here, while the builder
+   * still refuses bytes with zero download; Gate and Result state the same
+   * shared readiness fact and cannot contradict.
    */
-  const confidentialAvailable = view.state === "ready" && batchSessions !== null;
+  const confidentialAvailable = (() => {
+    if (view.state !== "ready" || batchSessions === null) return false;
+    const facts = deriveBatchFacts(job);
+    let auditedSections = 0;
+    for (let position = 0; position < facts.items.length; position += 1) {
+      const item = facts.items[position];
+      if (item.status === "completed") {
+        const session = batchSessions[position];
+        if (session === undefined || !canFinalize(session)) return false;
+        auditedSections += 1;
+        continue;
+      }
+      if (item.status !== "error" || item.removed !== true) return false;
+    }
+    return auditedSections > 0;
+  })();
+
+  // Defense in depth: a newly unavailable Confidential authority (readiness
+  // loss, a missing session set, or a session that stopped being finalizable)
+  // clears a pending confirmation even if the reference identity above was
+  // somehow reused.
+  useEffect(() => {
+    if (!confidentialAvailable) {
+      setConfidentialPending(false);
+    }
+  }, [confidentialAvailable]);
 
   // First action: reveal the warning only, download ZERO bytes.
   const handleRequestBatchConfidential = () => {

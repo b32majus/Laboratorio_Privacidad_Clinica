@@ -210,16 +210,17 @@ export function batchSafeSummaryAvailabilityMessage(ready: boolean): string {
  * readiness prerequisite ({@link batchSafeSummaryReady}) the Safe summary
  * uses, so this copy cannot contradict the batch Result or the serializer.
  * The one-time deliberate warning/confirm interaction lives in the batch
- * Result; the Gate states availability facts only. Kept factual: no score,
- * no anonymity/certification wording (D-006).
+ * Result; the Gate states availability facts only. Ordinary UI copy is
+ * Spanish-first (HPD-11; CORR #89 Sp3): professional, factual Spanish with
+ * no score, no anonymity/certification wording (D-006).
  */
 export function batchConfidentialAuditAvailabilityMessage(ready: boolean): string {
   return ready
-    ? "Confidential Audit for a document batch is the batch confidential audit TXT " +
-        "(auditoria-confidencial-lote.txt); prepare it in the Result step behind an explicit " +
-        "confirmation once the batch review is complete."
-    : "Confidential Audit for a document batch is not ready yet: complete the batch review, " +
-        "or clear any active batch error, before preparing the batch confidential audit.";
+    ? "La Auditoría Confidencial de un lote de documentos es el TXT de auditoría confidencial " +
+        "del lote (auditoria-confidencial-lote.txt); prepáralo en el paso Resultado, detrás de " +
+        "una confirmación explícita, cuando la revisión del lote esté completa."
+    : "La Auditoría Confidencial de un lote de documentos todavía no está lista: completa la " +
+        "revisión del lote o resuelve cualquier error activo del lote antes de prepararla.";
 }
 
 /**

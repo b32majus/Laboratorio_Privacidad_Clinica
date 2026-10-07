@@ -328,6 +328,97 @@ describe("batch Confidential journey at realistic density (PROOF 9)", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// PROOF 4 (CORR #89 Sp1): a ready Job whose per-item session authority is
+// missing or non-finalizable renders the factual UNAVAILABLE state — the
+// same canonical facts the builder refuses bytes on (session-set
+// completeness, finalizability, the shared batch-ready prerequisite) — and
+// downloads zero. No `job.outputs` mirror or ready state alone can enable
+// the Confidential action.
+// ---------------------------------------------------------------------------
+
+/** A completed item's session whose mandatory decision is still pending. */
+function nonFinalizableSession(): ReviewSession {
+  return createReviewSession({
+    originalText: SOURCE_0,
+    detections: [
+      {
+        type: "NOMBRE",
+        start: NAME_START,
+        end: NAME_END,
+        confidence: 0.95,
+        proposed: "PACIENTE-1",
+        requiresReview: true,
+      },
+    ],
+    sessionId: "ui-lote-non-finalizable",
+  });
+}
+
+describe("missing/non-finalizable session authority keeps the Confidential zone unavailable (PROOF 4)", () => {
+  it("a ready Job with an incomplete session set renders the factual unavailable state and downloads zero", () => {
+    const { job, sessions } = realisticBatch();
+    const captured = captureDownloads();
+    try {
+      const incomplete = { ...sessions };
+      delete incomplete[3]; // a completed item loses its exact current session
+
+      render(<ExportStep job={job} review={null} batchSessions={incomplete} />);
+      expect(RESULT_STATE("ready")).not.toBeNull(); // the batch itself is still ready
+
+      const confidential = screen.getByRole("button", { name: CONF_BUTTON });
+      expect(confidential).toBeDisabled();
+      expect(
+        screen.getByText("La auditoría confidencial todavía no está disponible para el lote.")
+      ).toBeInTheDocument();
+      fireEvent.click(confidential);
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("a ready Job with a non-finalizable current session renders the factual unavailable state and downloads zero", () => {
+    const { job, sessions } = realisticBatch();
+    const captured = captureDownloads();
+    try {
+      const stale = { ...sessions, 2: nonFinalizableSession() };
+
+      render(<ExportStep job={job} review={null} batchSessions={stale} />);
+      expect(RESULT_STATE("ready")).not.toBeNull();
+
+      const confidential = screen.getByRole("button", { name: CONF_BUTTON });
+      expect(confidential).toBeDisabled();
+      expect(
+        screen.getByText("La auditoría confidencial todavía no está disponible para el lote.")
+      ).toBeInTheDocument();
+      fireEvent.click(confidential);
+      expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("a pending confirmation dies when the current session stops being finalizable", () => {
+    const { job, sessions } = realisticBatch();
+    const view = render(<ExportStep job={job} review={null} batchSessions={sessions} />);
+    fireEvent.click(screen.getByRole("button", { name: CONF_BUTTON }));
+    expect(screen.getByRole("group", { name: CONF_GROUP })).toBeInTheDocument();
+
+    view.rerender(
+      <ExportStep
+        job={job}
+        review={null}
+        batchSessions={{ ...sessions, 2: nonFinalizableSession() }}
+      />
+    );
+    expect(screen.queryByRole("group", { name: CONF_GROUP })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: CONF_BUTTON })).toBeDisabled();
+  });
+});
+
 describe("pending confirmation dies on batch mutation (PROOF 6)", () => {
   it("dies when the Job is replaced (zero downloads; fresh request required)", () => {
     const { job, sessions } = realisticBatch();

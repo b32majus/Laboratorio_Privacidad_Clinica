@@ -22,6 +22,14 @@
  *    `lote-documentos-seguros.zip` (ten ordinal Safe PDFs, one per prepared
  *    document) and one secondary `lote-seguro-consolidado.pdf` (index +
  *    sections), with ordinal entry names that carry no source filename.
+ *  - REC-07 #89: the same ready Result carries the separate batch
+ *    Confidential Audit zone — the first action reveals the Spanish
+ *    warning and downloads ZERO, Cancel downloads ZERO, and a fresh
+ *    request + explicit Confirm downloads exactly ONE
+ *    `auditoria-confidencial-lote.txt` composed from the real bridge
+ *    sessions (removed failures carry bounded disposition metadata only,
+ *    never a fabricated audit body), while every Safe assertion above
+ *    stays intact.
  *
  * The auto no-network fixture from ./harness/fixtures applies to every test.
  */
@@ -98,6 +106,10 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   );
   const summaryButton = page.getByRole("button", { name: "Descargar resumen seguro (.csv)" });
   await expect(summaryButton).toBeDisabled();
+  // The batch Confidential Audit stays unavailable while the batch is blocked.
+  await expect(
+    page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" })
+  ).toBeDisabled();
 
   let downloads = 0;
   page.on("download", () => {
@@ -198,6 +210,60 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   expect(consolidated.getPageCount()).toBeGreaterThan(10);
   await page.waitForTimeout(300);
   expect(downloads).toBe(3);
+
+  // --- REC-07 #89 batch Confidential Audit: deliberate confirmation ----------
+  // The separate internal zone behind the accepted one-time confirmation:
+  // first action → warning only, ZERO downloads; Cancel → ZERO; a fresh
+  // request + explicit Confirm → exactly ONE `auditoria-confidencial-lote.txt`
+  // composed from the real bridge sessions through the canonical per-item
+  // Confidential facts.
+  const confButton = page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" });
+  await expect(confButton).toBeEnabled();
+
+  await confButton.click();
+  const confGroup = page.getByRole("group", { name: "Confirmación de descarga confidencial" });
+  await expect(confGroup).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(downloads).toBe(3);
+
+  await page.getByRole("button", { name: "Cancelar descarga confidencial" }).click();
+  await expect(confGroup).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(downloads).toBe(3);
+
+  await confButton.click();
+  await expect(confGroup).toBeVisible();
+  const [confDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Confirmar descarga confidencial" }).click(),
+  ]);
+  expect(confDownload.suggestedFilename()).toBe("auditoria-confidencial-lote.txt");
+  const confidentialTxt = fs.readFileSync(await confDownload.path(), "utf8");
+  // One stable ordinal section per original batch index; the two deliberately
+  // removed failures carry bounded ordinal/disposition metadata only — no
+  // fabricated audit body, never relabelled completed.
+  expect(
+    confidentialTxt
+      .split("\n")
+      .filter((line) => line === "Estado: error (retirado del lote; sin cuerpo de auditoría).")
+  ).toHaveLength(2);
+  for (let index = 1; index <= 12; index += 1) {
+    expect(confidentialTxt).toContain(`Documento ${index}`);
+  }
+  // Canonical Confidential correspondence from the really reviewed sessions:
+  // the original detected value and its replacement mapping are present.
+  expect(confidentialTxt).toContain("12345678A");
+  // No source filenames and no ordinary Safe-only body text ever enter the
+  // Confidential artifact.
+  expect(confidentialTxt).not.toContain("rec87-doc-");
+  expect(confidentialTxt).not.toContain("corrupt.pdf");
+  expect(confidentialTxt).not.toContain("sample-scanned.pdf");
+  expect(confidentialTxt).not.toContain("Contenido clínico simulado para E2E");
+  expect(confidentialTxt).not.toContain("Documento sintético batch");
+  // The confirmation never survives its own download.
+  await expect(confGroup).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(downloads).toBe(4);
 
   // --- Returning to Review preserves every accepted decision -------------------
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
