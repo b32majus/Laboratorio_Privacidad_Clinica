@@ -204,17 +204,22 @@ export function batchSafeSummaryAvailabilityMessage(ready: boolean): string {
 }
 
 /**
- * Explicit typed reason for the batch Confidential Audit unavailability
- * (T17 #21 CORR-B). No accepted batch-wide Confidential Audit/export semantics
- * exist, so the ACTIVE document's ReviewSession is never presented as if it
- * were a batch-wide audit.
+ * Factual batch Confidential Audit availability copy (REC-07 #89). The
+ * accepted batch Confidential artifact is the deliberate-confirmation TXT
+ * (`auditoria-confidencial-lote.txt`), authorized by the SAME shared batch
+ * readiness prerequisite ({@link batchSafeSummaryReady}) the Safe summary
+ * uses, so this copy cannot contradict the batch Result or the serializer.
+ * The one-time deliberate warning/confirm interaction lives in the batch
+ * Result; the Gate states availability facts only. Kept factual: no score,
+ * no anonymity/certification wording (D-006).
  */
-export function batchConfidentialAuditUnavailableMessage(): string {
-  return (
-    "Confidential Audit is not available for a document batch yet: the accepted " +
-    "specification does not define a batch-wide Confidential Audit, and a single " +
-    "document's review is not a batch-wide audit."
-  );
+export function batchConfidentialAuditAvailabilityMessage(ready: boolean): string {
+  return ready
+    ? "Confidential Audit for a document batch is the batch confidential audit TXT " +
+        "(auditoria-confidencial-lote.txt); prepare it in the Result step behind an explicit " +
+        "confirmation once the batch review is complete."
+    : "Confidential Audit for a document batch is not ready yet: complete the batch review, " +
+        "or clear any active batch error, before preparing the batch confidential audit.";
 }
 
 /**
@@ -467,7 +472,12 @@ function deriveBatchView(
     // authority, never a competing/mirror flag, so it cannot disagree with
     // the batch Result or the serializer about the same artifact.
     safeOutputReady: batchSafeSummaryReady(job),
-    confidentialAuditReady: job.outputs.confidentialAuditReady,
+    // #89: the batch Confidential Audit availability is the SAME shared
+    // readiness prerequisite (the deliberate warning/confirm interaction
+    // and the current-session bytes authority live in the batch Result), so
+    // a stale job-side mirror can never make the Gate contradict the batch
+    // Result or the Confidential builder.
+    confidentialAuditReady: batchSafeSummaryReady(job),
     batch,
     structured: null,
   });

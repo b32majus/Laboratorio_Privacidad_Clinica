@@ -31,7 +31,7 @@ import {
   type PrivacyGateStructuredFacts,
   type PrivacyGateStructuredInput,
   type PrivacyGateView,
-  batchConfidentialAuditUnavailableMessage,
+  batchConfidentialAuditAvailabilityMessage,
   batchFailedItemsMessage,
   batchSafeSummaryAvailabilityMessage,
   derivePrivacyGateView,
@@ -408,7 +408,7 @@ function AvailabilityFacts({ view }: { view: PrivacyGateView }): ReactElement {
       {view.batch !== null && (
         <div className="mt-3 space-y-1 text-sm text-neutral-800">
           <p>{batchSafeSummaryAvailabilityMessage(view.safeOutputReady)}</p>
-          <p>{batchConfidentialAuditUnavailableMessage()}</p>
+          <p>{batchConfidentialAuditAvailabilityMessage(view.confidentialAuditReady)}</p>
         </div>
       )}
     </section>

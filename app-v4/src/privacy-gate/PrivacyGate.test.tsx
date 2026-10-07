@@ -472,7 +472,7 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     ).toBeInTheDocument();
   });
 
-  it("reflects the shared Safe-summary readiness for a fully reviewed error-free batch while Confidential stays unavailable", () => {
+  it("reflects the shared Safe-summary readiness for a fully reviewed error-free batch while Confidential mirrors the same shared fact", () => {
     renderGate(withBatchOutputs(completedBatchJob()), null);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -480,15 +480,18 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     const counts = screen.getByRole("group", { name: /batch item counts/i });
     expect(counts).toHaveTextContent("Failed: 0");
     // CORA-87-02: a completed error-free batch authorizes the Safe summary
-    // (the same shared readiness authority the Result and serializer use),
-    // while the batch Confidential Audit stays unavailable (#89) and the
-    // retired "no batch Safe format" claim is gone.
+    // (the same shared readiness authority the Result and serializer use).
+    // #89: the batch Confidential Audit flag is the SAME synchronized
+    // availability mirror, so the Gate states the same availability fact;
+    // the deliberate warning/confirm interaction lives in the batch Result.
     const availability = screen.getByRole("region", { name: "Output availability" });
     expect(within(availability).getByText("Ready")).toBeInTheDocument();
-    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(within(availability).getByText("Available")).toBeInTheDocument();
     expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
     expect(
-      within(availability).getByText(/Confidential Audit is not available for a document batch yet/)
+      within(availability).getByText(
+        /Confidential Audit for a document batch is the batch confidential audit TXT/
+      )
     ).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(
       /does not define a batch Safe Output format/

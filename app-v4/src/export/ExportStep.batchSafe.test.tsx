@@ -346,13 +346,38 @@ describe("ready Result hierarchy: one primary ZIP, secondary consolidated + CSV"
     }
   });
 
-  it("keeps the Confidential zone separate and disabled", () => {
+  it("keeps the Confidential zone separate, behind its deliberate warning (never an equivalent format)", () => {
     const { job, sessions } = readyTwo();
-    render(<ExportStep job={job} review={null} batchSessions={sessions} />);
-    expect(screen.getByRole("heading", { name: "Auditoría confidencial" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" })
-    ).toBeDisabled();
+    const captured = captureDownloads();
+    try {
+      render(<ExportStep job={job} review={null} batchSessions={sessions} />);
+      expect(screen.getByRole("heading", { name: "Auditoría confidencial" })).toBeInTheDocument();
+
+      // #89: the zone is enabled for a READY batch with its current session
+      // set, but it is interactionally separate: it never appears inside the
+      // "Otros formatos" group and its first action downloads nothing.
+      const confidential = screen.getByRole("button", {
+        name: "Descargar auditoría confidencial (.txt)",
+      });
+      expect(confidential).toBeEnabled();
+      const otherFormats = screen.getByRole("group", { name: "Otros formatos del lote" });
+      expect(otherFormats).not.toContainElement(confidential);
+
+      // First action: the Spanish identifiable/reversible-data warning with
+      // an explicit Confirm/Cancel choice — and ZERO downloads.
+      fireEvent.click(confidential);
+      expect(
+        screen.getByRole("group", { name: "Confirmación de descarga confidencial" })
+      ).toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: "Cancelar descarga confidencial" }));
+      expect(
+        screen.queryByRole("group", { name: "Confirmación de descarga confidencial" })
+      ).not.toBeInTheDocument();
+      expect(captured.downloads).toHaveLength(0);
+    } finally {
+      captured.restore();
+    }
   });
 
   it("disables the per-document actions when the session set is unavailable (CSV unaffected)", async () => {

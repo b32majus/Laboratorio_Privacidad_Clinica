@@ -20,11 +20,13 @@
  * The structured branch is byte-unchanged in behavior:
  *   - Structured (REC-04 WU-C/D-022): Safe CSV/XLSX + Confidential TXT/XLSX.
  * The document-batch branch is the batch Result (REC-07 #87, `BatchResult`
- * below, extended by #88 with the per-document Safe deliverables): readiness
- * plus the Safe summary CSV, the primary ZIP of individual prepared Safe PDFs
- * and the secondary consolidated Safe PDF with an index — all derived from
- * the existing batch authorities. Result visibility is decoupled from artifact
- * authorization; the batch Confidential Audit stays unavailable (#89).
+ * below, extended by #88 with the per-document Safe deliverables and by #89
+ * with the batch Confidential Audit): readiness plus the Safe summary CSV,
+ * the primary ZIP of individual prepared Safe PDFs, the secondary
+ * consolidated Safe PDF with an index and the separate deliberately
+ * confirmed batch Confidential Audit TXT — all derived from the existing
+ * batch authorities. Result visibility is decoupled from artifact
+ * authorization.
  *
  * Both Safe and Confidential downloads are client-side only (Blob + object URL
  * + anchor click; the object URL is revoked afterwards): no network, no
@@ -51,7 +53,7 @@ import {
   serializeConfidentialAudit,
   CONFIDENTIAL_AUDIT_WARNING_LINE,
 } from "../output/confidential-audit-serializer";
-import { buildConfidentialAudit } from "../output/confidential-audit";
+import { buildConfidentialAudit, ConfidentialAuditError } from "../output/confidential-audit";
 import { copyTextToClipboard, ClipboardError } from "../output/clipboard";
 import { DocxBuildError, SAFE_DOCX_FILENAME, buildSafeDocxBytes } from "../output/docx-builder";
 import {
@@ -74,7 +76,11 @@ import {
 } from "../structured/transformed-dataset";
 import type { StructuredConfiguration } from "../structured/configuration";
 import type { StructuredTransformPlan } from "../structured/transform-plan";
-import { batchConfidentialAuditUnavailableMessage } from "../privacy-gate/privacyGateModel";
+import {
+  BATCH_CONFIDENTIAL_AUDIT_FILENAME,
+  BatchConfidentialAuditError,
+  buildBatchConfidentialAuditText,
+} from "./batchConfidentialAudit";
 import {
   BATCH_SUMMARY_CSV_FILENAME,
   BatchSummaryError,
@@ -627,10 +633,11 @@ function batchSummaryDiagnostic(error: unknown): string {
 }
 
 /**
- * Which batch Safe action produced the current Result feedback (REC-07 #88;
- * same shape as the single-item `SingleResultFeedback`).
+ * Which batch action produced the current Result feedback (REC-07 #88;
+ * #89 extends the same channel to the batch Confidential Audit; same shape
+ * as the single-item `SingleResultFeedback`).
  */
-type BatchSafeAction = "zip" | "consolidated" | "csv";
+type BatchSafeAction = "zip" | "consolidated" | "csv" | "confidential";
 
 type BatchSafeFeedback =
   | { readonly action: BatchSafeAction; readonly status: "pending"; readonly message: string }
@@ -646,6 +653,19 @@ type BatchSafeFeedback =
 function batchSafeDiagnostic(error: unknown): string {
   if (error instanceof BatchSafeDeliverablesError) return error.code;
   if (error instanceof BatchSummaryError) return error.code;
+  if (error instanceof Error) return error.name;
+  return "unknown-error";
+}
+
+/**
+ * Content-free diagnostic for a refused batch Confidential Audit generation
+ * (#89). Raw generation/serialization exceptions can carry Confidential
+ * original values, so ONLY the typed error CODE (or, for an unexpected
+ * error, its name) is retained — never the message, never the content.
+ */
+function batchConfidentialDiagnostic(error: unknown): string {
+  if (error instanceof BatchConfidentialAuditError) return error.code;
+  if (error instanceof ConfidentialAuditError) return error.code;
   if (error instanceof Error) return error.name;
   return "unknown-error";
 }
@@ -668,10 +688,12 @@ function batchSafeDiagnostic(error: unknown): string {
  * All-or-nothing per artifact: a representation refusal downloads zero bytes
  * with a truthful non-PHI message and never mutates Job/review readiness.
  *
- * The batch Confidential Audit stays a clearly separate, deliberately
- * sensitive zone that is unavailable in this slice (#89 owns it); it is
- * never presented as an equivalent output format. Batch Confidential
- * remains unavailable exactly as before (T17 #21 CORR-B): the ACTIVE
+ * The batch Confidential Audit (REC-07 #89) stays a clearly separate,
+ * deliberately sensitive internal zone — never presented as an equivalent
+ * output format. It reuses the accepted one-time deliberate-confirmation
+ * lifecycle (first action → zero download; Confirm → exactly one download;
+ * Cancel → zero) and the #88 batch Job/session/current-authority + unmount
+ * disposal pattern on its real awaited generation path. The ACTIVE
  * document's ReviewSession is never presented as a batch-wide audit.
  * A batch gains NO single-item Result surface (D-024 protected sibling).
  */
@@ -687,12 +709,21 @@ function BatchResult({
   const view = deriveBatchResultView(job);
   const [feedback, setFeedback] = useState<BatchSafeFeedback | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
+  // REC-07 #89: the one-time deliberate batch Confidential confirmation.
+  // The first action only reveals the Spanish identifiable/reversible-data
+  // warning and downloads nothing; one explicit Confirm authorizes exactly
+  // one download attempt; Cancel authorizes zero. The confirmation grants
+  // no readiness and never survives another Job, a batch-session identity
+  // change, readiness loss, either terminal action, or Result disposal.
+  const [confidentialPending, setConfidentialPending] = useState(false);
 
   // Transient action feedback never survives another Job: the domain inputs
-  // are frozen, so a replaced Job always arrives as a new reference.
+  // are frozen, so a replaced Job always arrives as a new reference. The
+  // same mutation invalidates a pending Confidential confirmation (#89).
   useEffect(() => {
     setFeedback(null);
     setDiagnostic(null);
+    setConfidentialPending(false);
   }, [job, batchSessions]);
 
   // CURRENT authorization snapshot for the async batch Safe actions (REC-07
@@ -875,6 +906,82 @@ function BatchResult({
         action: "consolidated",
         status: "error",
         message: "No se pudo generar el PDF consolidado del lote.",
+      });
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Batch Confidential Audit (REC-07 #89). A separate internal zone behind
+  // the same deliberate one-time confirmation contract as the single-item
+  // and Structured Results, guarded by the #88 current-authority + disposal
+  // pattern on the real awaited generation path.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Confidential availability in the UI: the batch must be ready AND the
+   * exact per-item session set must be bridged. The availability mirror
+   * alone is never sufficient; the builder revalidates the shared readiness
+   * prerequisite plus every completed item's current finalizable session
+   * and fails closed (zero bytes) without them.
+   */
+  const confidentialAvailable = view.state === "ready" && batchSessions !== null;
+
+  // First action: reveal the warning only, download ZERO bytes.
+  const handleRequestBatchConfidential = () => {
+    if (!confidentialAvailable) return;
+    setDiagnostic(null);
+    setConfidentialPending(true);
+  };
+
+  // Cancel: reset, download ZERO bytes.
+  const handleCancelBatchConfidential = () => {
+    setConfidentialPending(false);
+  };
+
+  // Explicit Confirm: reset first (one Confirm = exactly one download
+  // attempt; the confirmation never survives either way), then generate on
+  // the real awaited path and revalidate the CURRENT batch authority after
+  // the awaited window and immediately before download — same Job, same
+  // exact session set, still ready, Result still mounted. Any stale
+  // mismatch produces ZERO download, no false success, and a visible
+  // content-free failure (raw Confidential values never reach the DOM).
+  const handleConfirmBatchConfidential = async () => {
+    if (!confidentialPending || !confidentialAvailable || batchSessions === null) return;
+    const requested = { jobId: job.id, job, sessions: batchSessions };
+    setConfidentialPending(false);
+    setFeedback({
+      action: "confidential",
+      status: "pending",
+      message: "Preparando la auditoría confidencial del lote…",
+    });
+    try {
+      const text = await buildBatchConfidentialAuditText(requested.job, requested.sessions);
+      if (!isBatchAuthorityCurrent(requested)) {
+        if (disposedRef.current) return; // unmounted: no visible surface to report to
+        setDiagnostic("BATCH_CONFIDENTIAL_NOT_CURRENT");
+        setFeedback({
+          action: "confidential",
+          status: "error",
+          message: "La revisión cambió; no se descargó ninguna auditoría.",
+        });
+        return;
+      }
+      downloadTextFile(BATCH_CONFIDENTIAL_AUDIT_FILENAME, text);
+      setDiagnostic(null);
+      setFeedback({
+        action: "confidential",
+        status: "success",
+        message: "Descarga de la auditoría confidencial del lote iniciada.",
+      });
+    } catch (error) {
+      // All-or-nothing refusal or generation failure: ZERO bytes downloaded,
+      // truthful non-PHI message; only the content-free diagnostic is kept.
+      if (disposedRef.current) return;
+      setDiagnostic(batchConfidentialDiagnostic(error));
+      setFeedback({
+        action: "confidential",
+        status: "error",
+        message: "No se pudo generar la auditoría confidencial del lote.",
       });
     }
   };
@@ -1072,21 +1179,64 @@ function BatchResult({
             Confidencial — artefacto interno de auditoría
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            La correspondencia de auditoría del lote es un registro de trazabilidad interno y nunca
-            debe compartirse ni entregarse fuera de la pista de auditoría autorizada. Todavía no
-            está disponible para el lote.
+            La auditoría confidencial del lote contiene, por cada documento completado, la
+            correspondencia identificable y reversible entre los valores originales detectados y sus
+            reemplazos, con las notas de revisión y los originales conservados. Es un registro de
+            trazabilidad interno y nunca debe compartirse ni entregarse fuera de la pista de
+            auditoría autorizada.
           </p>
-          <p role="status" id="confidential-audit-blocked-reason" className={blockedNote}>
-            {batchConfidentialAuditUnavailableMessage()}
-          </p>
+          {!confidentialAvailable && (
+            <p role="status" id="confidential-audit-blocked-reason" className={blockedNote}>
+              La auditoría confidencial todavía no está disponible para el lote.
+            </p>
+          )}
           <button
             type="button"
-            disabled
-            aria-describedby="confidential-audit-blocked-reason"
+            onClick={handleRequestBatchConfidential}
+            disabled={!confidentialAvailable}
+            aria-describedby={
+              !confidentialAvailable ? "confidential-audit-blocked-reason" : undefined
+            }
             className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
             Descargar auditoría confidencial (.txt)
           </button>
+          {confidentialPending && confidentialAvailable && (
+            <div
+              role="group"
+              aria-labelledby="confidential-audit-confirm-heading"
+              className="mt-3 rounded border-2 border-surface-dark bg-surface-light px-3 py-2"
+            >
+              <h4
+                id="confidential-audit-confirm-heading"
+                className="text-sm font-bold text-neutral-800"
+              >
+                Confirmación de descarga confidencial
+              </h4>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-800">
+                Este archivo contiene correspondencia identificable y reversible entre los valores
+                originales de todo el lote y sus reemplazos, y es solo para manejo interno
+                autorizado. Confirma para descargarlo una vez ahora, o cancela para no descargar
+                nada.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmBatchConfidential()}
+                  className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+                >
+                  Confirmar descarga confidencial
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelBatchConfidential}
+                  className={`rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white ${focusRing}`}
+                >
+                  Cancelar descarga confidencial
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </section>

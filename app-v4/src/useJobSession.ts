@@ -169,10 +169,16 @@ function withDerivedReviewState(job: Job, review: ReviewSession): Job {
  * Output authority (CORA-87-02): the batch Safe output flag is the SYNCHRONIZED
  * derived mirror of the ONE shared Safe-summary readiness authority
  * ({@link batchSafeSummaryReady}) — the same fact the Privacy Gate and the
- * serializer consume — so the mirror never competes with or weakens it. The
- * batch-wide Confidential Audit still has no accepted format and stays `false`
- * until #89; the ACTIVE document's ReviewSession is never presented as a
- * batch-wide Confidential Audit. Single-document/text behavior is owned by
+ * serializer consume — so the mirror never competes with or weakens it.
+ *
+ * #89: the batch Confidential Audit flag becomes the SAME synchronized
+ * availability mirror (the same one shared readiness prerequisite). It is
+ * never sufficient by itself to authorize Confidential bytes: the actual
+ * batch artifact additionally requires the exact current per-item session
+ * set, every session still finalizable, and fails closed without it (the
+ * batch Confidential builder is the only bytes authority). The ACTIVE
+ * document's ReviewSession is never presented as a batch-wide Confidential
+ * Audit. Single-document/text behavior is owned by
  * {@link withDerivedReviewState} and unchanged.
  */
 function withDerivedBatchReviewState(job: Job): Job {
@@ -182,7 +188,7 @@ function withDerivedBatchReviewState(job: Job): Job {
     ...withReview,
     outputs: Object.freeze({
       safeOutputReady: batchSafeSummaryReady(withReview),
-      confidentialAuditReady: false,
+      confidentialAuditReady: batchSafeSummaryReady(withReview),
     }),
   }) as Job;
 }
