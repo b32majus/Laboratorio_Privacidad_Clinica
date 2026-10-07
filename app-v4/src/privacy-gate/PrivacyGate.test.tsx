@@ -106,8 +106,12 @@ function buildFechaSession(): ReviewSession {
   });
 }
 
-function renderGate(job: Job, review: ReviewSession | null) {
-  return render(<PrivacyGate job={job} review={review} />);
+function renderGate(
+  job: Job,
+  review: ReviewSession | null,
+  batchSessions?: Readonly<Record<number, ReviewSession>> | null
+) {
+  return render(<PrivacyGate job={job} review={review} batchSessions={batchSessions} />);
 }
 
 /**
@@ -344,6 +348,37 @@ function completedBatchJob(): Job {
 }
 
 /**
+ * A finalizable per-item session (zero pending mandatory detections) for the
+ * batch Confidential availability correspondence fixtures (CORA-89-01).
+ */
+function completedBatchSession(sessionId: string): ReviewSession {
+  return createReviewSession({
+    originalText: "Contenido sintético del documento.",
+    detections: [],
+    sessionId,
+  });
+}
+
+/** A per-item session whose mandatory review decision is still pending. */
+function pendingBatchSession(sessionId: string): ReviewSession {
+  const name = "Carmen Sánchez";
+  const start = SOURCE.indexOf(name);
+  return createReviewSession({
+    originalText: SOURCE,
+    sessionId,
+    detections: [
+      {
+        type: "NOMBRE",
+        start,
+        end: start + name.length,
+        confidence: 0.95,
+        proposed: "PACIENTE-1",
+      },
+    ],
+  });
+}
+
+/**
  * Stale batch-output mirror fixture: forces BOTH mirrored output flags false
  * regardless of review completion. The Privacy Gate no longer trusts this
  * mirror for a batch (CORA-87-02): its Safe-summary readiness comes from the
@@ -472,23 +507,33 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     ).toBeInTheDocument();
   });
 
-  it("reflects the shared Safe-summary readiness for a fully reviewed error-free batch while Confidential stays unavailable", () => {
-    renderGate(withBatchOutputs(completedBatchJob()), null);
+  it("reflects the shared Safe-summary readiness for a fully reviewed error-free batch while Confidential mirrors the same shared fact", () => {
+    // CORA-89-01: the Confidential "Available" fact is the ONE shared
+    // batch-Confidential availability authority, so this oracle must supply
+    // the COMPLETE current finalizable session set — a ready Job alone no
+    // longer presents the batch Confidential artifact as available.
+    renderGate(withBatchOutputs(completedBatchJob()), null, {
+      0: completedBatchSession("batch-ready-0"),
+      1: completedBatchSession("batch-ready-1"),
+    });
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
     const counts = screen.getByRole("group", { name: /batch item counts/i });
     expect(counts).toHaveTextContent("Failed: 0");
     // CORA-87-02: a completed error-free batch authorizes the Safe summary
-    // (the same shared readiness authority the Result and serializer use),
-    // while the batch Confidential Audit stays unavailable (#89) and the
-    // retired "no batch Safe format" claim is gone.
+    // (the same shared readiness authority the Result and serializer use).
+    // #89: the batch Confidential Audit flag is the SAME synchronized
+    // availability mirror, so the Gate states the same availability fact;
+    // the deliberate warning/confirm interaction lives in the batch Result.
     const availability = screen.getByRole("region", { name: "Output availability" });
     expect(within(availability).getByText("Ready")).toBeInTheDocument();
-    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(within(availability).getByText("Available")).toBeInTheDocument();
     expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
     expect(
-      within(availability).getByText(/Confidential Audit is not available for a document batch yet/)
+      within(availability).getByText(
+        /La Auditoría Confidencial de un lote de documentos es el TXT de auditoría confidencial/
+      )
     ).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(
       /does not define a batch Safe Output format/
@@ -529,6 +574,55 @@ describe("PrivacyGate — shared Safe-summary readiness (CORA-87-02)", () => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(/batch item failed/i);
     expect(alert).toHaveTextContent('"informe-a.txt"');
+  });
+});
+
+/**
+ * CORA-89-01: the Privacy Gate consumes the ONE shared batch-Confidential
+ * availability authority (`batchConfidentialAuditReady`) — the same
+ * derivation the batch Result and the Confidential bytes authority consume.
+ * A batch Job that is otherwise ready but whose current session authority is
+ * missing or non-finalizable is therefore UNAVAILABLE at the gate too: the
+ * gate can never contradict the Result or the builder about the same
+ * artifact. The fully-authorized "Available" correspondence lives in the
+ * completed-batch oracle above.
+ */
+describe("PrivacyGate — shared batch-Confidential availability (CORA-89-01)", () => {
+  it("keeps Confidential unavailable for an otherwise ready batch whose completed item lacks its current session", () => {
+    renderGate(withBatchOutputs(completedBatchJob()), null, {
+      0: completedBatchSession("batch-gap-0"),
+      // Index 1's exact current session is missing from the bridged authority.
+    });
+
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(
+      within(availability).getByText(
+        /La Auditoría Confidencial de un lote de documentos todavía no está lista/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Confidential unavailable for an otherwise ready batch whose current session is no longer finalizable", () => {
+    renderGate(withBatchOutputs(completedBatchJob()), null, {
+      0: completedBatchSession("batch-stale-0"),
+      1: pendingBatchSession("batch-stale-1"),
+    });
+
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    expect(
+      within(availability).getByText(
+        /La Auditoría Confidencial de un lote de documentos todavía no está lista/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Confidential unavailable when no current session authority exists at all", () => {
+    renderGate(withBatchOutputs(completedBatchJob()), null);
+
+    const availability = screen.getByRole("region", { name: "Output availability" });
+    expect(within(availability).getByText("Not available")).toBeInTheDocument();
   });
 });
 
@@ -583,7 +677,11 @@ describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", ()
     const sessionA = restoredSession(textA, "batch-a");
     const sessionB = pendingSession(textB, "batch-b");
     render(
-      <PrivacyGate job={buildBatchJob()} review={sessionB} batchSessions={[sessionA, sessionB]} />
+      <PrivacyGate
+        job={buildBatchJob()}
+        review={sessionB}
+        batchSessions={{ 0: sessionA, 1: sessionB }}
+      />
     );
 
     // The active document is B (its own detections are pending), yet A's

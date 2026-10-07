@@ -507,14 +507,16 @@ describe("useJobSession batch review state (T17 #21 WU-B)", () => {
 
     // Complete doc B → both completed, so the BATCH REVIEW is complete: the
     // batch Safe summary is now authorized (CORA-87-02), reflected by the
-    // synchronized Safe-output mirror. The batch-wide Confidential Audit still
-    // has no accepted format and stays unavailable until #89.
+    // synchronized Safe-output mirror. #89: the batch Confidential Audit
+    // flag is the SAME synchronized availability mirror; it alone never
+    // authorizes Confidential bytes (the builder revalidates readiness and
+    // the exact current session set).
     completeItem(result, 1);
     expect(batchItemStatus(result.current.job!, 0)).toBe("completed");
     expect(batchItemStatus(result.current.job!, 1)).toBe("completed");
     expect(result.current.job!.review.complete).toBe(true);
     expect(result.current.job!.outputs.safeOutputReady).toBe(true);
-    expect(result.current.job!.outputs.confidentialAuditReady).toBe(false);
+    expect(result.current.job!.outputs.confidentialAuditReady).toBe(true);
 
     // A later mandatory manual detection re-opens A only and re-derives the gate.
     act(() => result.current.selectDocument(0));
@@ -847,10 +849,11 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
     }
     expect(run.job.review.complete).toBe(true);
     // CORA-87-02: a completed error-free batch authorizes the Safe summary
-    // (the Safe-output mirror follows the shared readiness authority); the
-    // batch-wide Confidential Audit still has no accepted format (#89).
+    // (the Safe-output mirror follows the shared readiness authority); #89:
+    // the batch Confidential Audit flag is the same synchronized mirror and
+    // the batch Confidential builder holds the only bytes authority.
     expect(run.job.outputs.safeOutputReady).toBe(true);
-    expect(run.job.outputs.confidentialAuditReady).toBe(false);
+    expect(run.job.outputs.confidentialAuditReady).toBe(true);
     expect(run.activeIndex).toBe(0);
   });
 
@@ -896,7 +899,7 @@ describe("useJobSession zero-pending batch completion (T17 #21 CORR-A)", () => {
  * batch-wide audit.
  */
 describe("useJobSession batch output authority (CORA-87-02)", () => {
-  it("keeps review.complete true and mirrors Safe-summary readiness while Confidential stays unavailable", async () => {
+  it("keeps review.complete true and mirrors Safe-summary readiness while Confidential mirrors the same fact", async () => {
     const { result } = renderHook(() => useJobSession());
     reviewedBatch(result);
     await act(async () => {
@@ -907,7 +910,9 @@ describe("useJobSession batch output authority (CORA-87-02)", () => {
 
     expect(result.current.job!.review.complete).toBe(true);
     expect(result.current.job!.outputs.safeOutputReady).toBe(true);
-    expect(result.current.job!.outputs.confidentialAuditReady).toBe(false);
+    // #89: the synchronized availability mirror; the Confidential builder
+    // alone authorizes bytes (current session set + finalizability).
+    expect(result.current.job!.outputs.confidentialAuditReady).toBe(true);
   });
 });
 
