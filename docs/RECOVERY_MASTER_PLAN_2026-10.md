@@ -224,7 +224,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 
 ### REC-07 — BATCH-OUTPUT-PARITY-01
 
-**Status — #87 + #88 COMPLETED (2026-10-07; PR #100 + PR #102), REC-07 still IN PROGRESS.** #87 establishes the canonical batch Result readiness model and deterministic Safe summary CSV with one shared fail-closed readiness authority across Privacy Gate, Result and serializer. #88, merged by PR #102 at `3.0-main@6f47192bd6be9892708cb01ab6c85abb479bed44`, completes the prepared/shareable Safe document side with a primary ZIP of ordinal per-document Safe PDFs plus a secondary consolidated Safe PDF with index, composed only from canonical reviewed Safe content and guarded against stale/unmounted async completion. Removed failures remain explicit `error + removed` history and emit no prepared document body. **#89 (batch Confidential Audit) is the selected frontier and the only remaining REC-07 ticket**; it closes the deliberately asymmetric identifiable/reversible audit side before REC-07 can be declared complete.
+**Status — REC-07 COMPLETED (2026-10-07; #79 + #87 + #88 + #89; PR #96 + PR #100 + PR #102 + PR #104).** #87 establishes the canonical batch Result readiness model and deterministic Safe summary CSV with one shared fail-closed Safe readiness authority. #88 completes the prepared/shareable Safe document side with a primary ordinal per-document Safe PDF ZIP plus secondary consolidated Safe PDF, including all-or-nothing representation and stale/unmount zero-download. #89, merged by PR #104 at `3.0-main@86dbd34d303e2c967063400bacd452e4780bae66`, completes the deliberately separate batch Confidential Audit TXT: exact current finalizable per-item sessions are required by one shared fail-closed availability authority consumed by Privacy Gate, Result and builder; first action downloads zero, Cancel downloads zero, Confirm authorizes exactly one current attempt, and Job/session/readiness mutation or Result disposal revokes authorization. Removed failures remain bounded `error + removed` history with no fabricated audit body. **REC-07 is complete; this closeout does not select the next frontier.**
 
 **Reshaped goal:** recover useful batch **Result** deliverables safely and coherently with the single-result model.
 
@@ -445,9 +445,9 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Current state after PR #102: **#78, #79, #86, #87 and #88 are closed**. REC-06 is complete; #87 + #88 are canonical inside the still-incomplete REC-07 group, whose only remaining ticket is #89. The hard-dependency graph makes #80–#85 and #89 executable. Under the accepted serial recovery preference, **#89 is the selected frontier** so the Confidential remainder closes before moving to another REC group. #80–#85 remain independently executable but are not selected. Scheduling preference is not a semantic blocker.
+Current state after PR #104: **#78, #79, #86, #87, #88 and #89 are closed**. REC-06 and REC-07 are complete. The hard-dependency graph now makes #80–#85 executable, while #90/#91 still wait for the stable #80–#89 product-surface set and REC-12 remains downstream. **No next frontier is selected by this closeout**; scheduling returns to attended Cora+human choice. Scheduling preference is not a semantic blocker.
 
-D-019 remains an attended decision boundary inside #80. `DISC-01` was closed by #79 before #87. #88 now adds the first accepted async batch Safe downloads and proves the same disposal/current-authority invariant for ZIP/PDF generation: authority change or Result unmount before completion produces zero download. If #89 introduces any async batch Confidential generation, it must preserve that already-canonical invariant.
+D-019 remains an attended decision boundary inside #80. `DISC-01` was closed by #79 before #87. #88 applies the disposal/current-authority invariant to async batch Safe ZIP/PDF generation, and #89 preserves the same invariant for async batch Confidential generation: authority change or Result unmount before completion produces zero download.
 
 ## 5. Dependency graph
 
@@ -480,7 +480,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                                          REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-06 are complete. In the published REC-06→REC-12 ticket graph, #78 and #86 close REC-06, #79 closes the REC-07 `DISC-01` async-disposal prefactor, #87 is canonical for batch Result readiness + Safe summary CSV via PR #100, and #88 is canonical for the Safe PDF ZIP + consolidated PDF via PR #102. REC-07 remains incomplete only because #89 is still open. REC-08/09 #80–#85 and REC-07 #89 are technically executable; under the accepted serial preference **#89 is the selected frontier**, while #80–#85 remain unselected rather than semantically blocked. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
+REC-01 through REC-07 are complete. In the published REC-06→REC-12 ticket graph, #78 + #86 close REC-06; #79 closes the REC-07 `DISC-01` async-disposal prefactor; #87 is canonical for batch Result readiness + Safe summary CSV via PR #100; #88 is canonical for the Safe PDF ZIP + consolidated PDF via PR #102; and #89 is canonical for batch Confidential Audit + deliberate confirmation via PR #104. REC-08/09 #80–#85 are technically executable; **this closeout deliberately selects none of them as the next frontier**. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 
