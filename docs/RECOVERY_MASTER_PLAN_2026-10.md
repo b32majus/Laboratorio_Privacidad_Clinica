@@ -253,6 +253,8 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 
 ### REC-08 — INPUT-PRODUCTIVITY-PARITY-01
 
+**Status — SELECTED FRONTIER: #80 (2026-10-07).** D-019 is resolved `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override before implementation: the original audit supplied no legitimate case, v3 had no global selector, deterministic V4 input-family routing already covers the supported families, and mixed/unsupported input must remain fail-closed rather than becoming an arbitrary route choice. #80 therefore owns the remaining REC-08 product work without adding a generic pipeline override.
+
 **Reshaped goal:** make starting work direct and human, recovering useful input conveniences while keeping routing deterministic/fail-closed underneath.
 
 **Owns**
@@ -445,9 +447,9 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Current state after PR #104: **#78, #79, #86, #87, #88 and #89 are closed**. REC-06 and REC-07 are complete. The hard-dependency graph now makes #80–#85 executable, while #90/#91 still wait for the stable #80–#89 product-surface set and REC-12 remains downstream. **No next frontier is selected by this closeout**; scheduling returns to attended Cora+human choice. Scheduling preference is not a semantic blocker.
+Current state after PR #104: **#78, #79, #86, #87, #88 and #89 are closed**. REC-06 and REC-07 are complete. The hard-dependency graph makes #80–#85 executable, while #90/#91 still wait for the stable #80–#89 product-surface set and REC-12 remains downstream. Under the attended serial recovery choice, **#80 is the selected frontier**; #81–#85 remain independently executable but unselected. Scheduling preference is not a semantic blocker.
 
-D-019 remains an attended decision boundary inside #80. `DISC-01` was closed by #79 before #87. #88 applies the disposal/current-authority invariant to async batch Safe ZIP/PDF generation, and #89 preserves the same invariant for async batch Confidential generation: authority change or Result unmount before completion produces zero download.
+D-019 is resolved `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override; #80 must preserve deterministic/fail-closed `inferJobKind` behavior and may not invent a global escape hatch. `DISC-01` was closed by #79 before #87. #88 applies the disposal/current-authority invariant to async batch Safe ZIP/PDF generation, and #89 preserves the same invariant for async batch Confidential generation: authority change or Result unmount before completion produces zero download.
 
 ## 5. Dependency graph
 
