@@ -162,6 +162,41 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
+  // CORA-80-01: text equality alone is not authority. A type-then-undo makes
+  // the draft text re-match the stale snapshot while the revision counter has
+  // advanced, so the pending read must still be rejected.
+  it("a late clipboard read never overwrites a type-then-undo draft that re-matches the stale snapshot", async () => {
+    const read = deferred<string>();
+    stubClipboardRead(() => read.promise);
+
+    render(<App />);
+    // An ordinary Document draft is already staged BEFORE the paste starts, so
+    // its array identity never changes: the revision counter is the only
+    // authority the stale response needs to be rejected by.
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [new File(["nota sintética"], "sintetico.txt")] },
+    });
+    fireEvent.click(pegarButton());
+    // The user types a newer draft, then undoes it: the text ends identical to
+    // the value the pending read snapshotted, but the revision counter advanced.
+    fireEvent.change(draftTextarea(), {
+      target: { value: "TEXTO QUE EL USUARIO ESCRIBE Y DESHACE" },
+    });
+    fireEvent.change(draftTextarea(), { target: { value: "" } });
+    // The old clipboard response resolves after the undo restored the draft.
+    read.resolve("RESPUESTA ANTIGUA DEL PORTAPAPELES");
+    await waitFor(() => expect(pegarButton()).toBeEnabled());
+    // Reference equality on the text alone would re-match and let this stale
+    // read overwrite the draft; the revision counter must reject it.
+    expect(draftTextarea()).toHaveValue("");
+    expect(screen.queryByRole("alert")).toBeNull();
+    // The undo-restored ordinary draft still creates a normal Document job.
+    fireEvent.click(createButton());
+    await waitFor(() => {
+      expect(screen.getByText("Document job")).toBeInTheDocument();
+    });
+  });
+
   it("a late clipboard read never overwrites a newly chosen example", async () => {
     const read = deferred<string>();
     stubClipboardRead(() => read.promise);
