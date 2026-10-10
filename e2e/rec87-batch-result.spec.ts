@@ -81,9 +81,9 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([...syntheticDocuments(), ...failureInputs()]);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
 

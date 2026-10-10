@@ -21,12 +21,12 @@ const FORBIDDEN_CLAIM =
 afterEach(cleanup);
 
 function createTextJob() {
-  fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: SYNTHETIC_NOTE } });
-  fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: SYNTHETIC_NOTE } });
+  fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
 }
 
 function selectFiles(files: File[]) {
-  fireEvent.change(screen.getByLabelText(/select files/i), { target: { files } });
+  fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), { target: { files } });
 }
 
 function policySelect(): HTMLSelectElement {
@@ -106,7 +106,7 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
   it("applies the same availability to a document job", async () => {
     render(<App />);
     selectFiles([new File([SYNTHETIC_NOTE], "nota.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Document job")).toBeInTheDocument());
 
     for (const name of POLICY_NAMES) {
@@ -120,12 +120,15 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
   it("applies the same availability to a document-batch job", async () => {
     render(<App />);
     selectFiles([new File([SYNTHETIC_NOTE], "doc-a.txt"), new File([SYNTHETIC_NOTE], "doc-b.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
     // Wait until the read phase settles so no async intake outlives the test.
-    await waitFor(() => expect(screen.getByRole("button", { name: "Create job" })).toBeEnabled(), {
-      timeout: 10_000,
-    });
+    await waitFor(
+      () => expect(screen.getByRole("button", { name: "Crear trabajo" })).toBeEnabled(),
+      {
+        timeout: 10_000,
+      }
+    );
 
     for (const name of POLICY_NAMES) {
       expect(screen.getByRole("option", { name })).toBeEnabled();
@@ -155,8 +158,8 @@ function proposedReplacement(): string {
 
 async function runTextJobWithPolicy(policyId: "external-ai" | "longitudinal-research") {
   render(<App />);
-  fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: POLICY_DATE_NOTE } });
-  fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: POLICY_DATE_NOTE } });
+  fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
   fireEvent.change(policySelect(), { target: { value: policyId } });
   expect(policySelect().value).toBe(policyId);
   fireEvent.click(screen.getByRole("button", { name: "2. Configure" }));
@@ -199,7 +202,7 @@ describe("Policy guidance on structured jobs (POLICY-01 #56)", () => {
   it("makes all four selectable and describes the accepted date/age mapping with the patient-ID requirement", async () => {
     render(<App />);
     selectFiles([new File([CSV], "labs.csv", { type: "text/csv" })]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Structured job")).toBeInTheDocument());
 
     for (const name of ["Standard", "External AI", "Longitudinal Research", "Strict"]) {
@@ -273,7 +276,7 @@ describe("Policy guidance copy guardrails (POLICY-01 #56)", () => {
     render(<App />);
     const csv = ["NHC,Fecha_Nac,Diagnostico", "00123,1990-05-01,Gripe A"].join("\n");
     selectFiles([new File([csv], "labs.csv", { type: "text/csv" })]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Structured job")).toBeInTheDocument());
 
     expect(guidanceRegion().textContent ?? "").not.toMatch(FORBIDDEN_CLAIM);

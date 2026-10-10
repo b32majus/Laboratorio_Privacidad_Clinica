@@ -28,8 +28,8 @@ const CSV = path.resolve(__dirname, "fixtures/structured-composed.csv");
 
 async function createComposedJob(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await expect(page.locator("header")).toContainText("Structured job");
 }

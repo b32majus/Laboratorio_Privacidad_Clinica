@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ClipboardError, copyTextToClipboard } from "./clipboard";
+import { ClipboardError, copyTextToClipboard, readTextFromClipboard } from "./clipboard";
 
 function installClipboard(writeText: (text: string) => Promise<void>): void {
   Object.defineProperty(navigator, "clipboard", {
@@ -108,5 +108,38 @@ describe("source boundary", () => {
     ]) {
       expect(source, `clipboard.ts must not contain ${forbidden}`).not.toMatch(forbidden);
     }
+  });
+});
+
+describe("clipboard read for the REC-08 Pegar convenience (issue #80)", () => {
+  it("resolves with the exact clipboard text on success", async () => {
+    const readText = vi.fn().mockResolvedValue("Texto del portapapeles.");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText },
+    });
+
+    await expect(readTextFromClipboard()).resolves.toBe("Texto del portapapeles.");
+    expect(readText).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws CLIPBOARD_REJECTED without leaking the raw exception when the read is denied", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { readText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
+
+    const failure = await readTextFromClipboard().catch((error) => error);
+    expect(failure).toBeInstanceOf(ClipboardError);
+    expect(failure.code).toBe("CLIPBOARD_REJECTED");
+    expect(String(failure.message)).not.toMatch(/denied/);
+  });
+
+  it("throws CLIPBOARD_UNAVAILABLE when no clipboard read API exists", async () => {
+    removeClipboard();
+
+    await expect(readTextFromClipboard()).rejects.toMatchObject({
+      code: "CLIPBOARD_UNAVAILABLE",
+    });
   });
 });

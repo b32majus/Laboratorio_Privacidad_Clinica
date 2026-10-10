@@ -22,8 +22,8 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
 
   await expect(page.locator("header")).toContainText("Structured job");

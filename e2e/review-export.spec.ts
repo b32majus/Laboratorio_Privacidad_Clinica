@@ -46,8 +46,8 @@ function expectedSafeOutput(): string {
 
 test("review decisions drive the export gate and the canonical Safe Output", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(FIXTURE_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(FIXTURE_TEXT);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
 

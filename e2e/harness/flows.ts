@@ -33,15 +33,15 @@ export async function selectFiles(
   files: FileInput | readonly FileInput[]
 ): Promise<void> {
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles(files as string | string[]);
 }
 
 /** Create a text job from the plain fixture and assert the shell fact. */
 export async function createTextJob(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(PLAIN_TEXT_FIXTURE);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(PLAIN_TEXT_FIXTURE);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await expect(page.getByRole("banner")).toContainText("Text job");
 }
 
@@ -49,7 +49,7 @@ export async function createTextJob(page: Page): Promise<void> {
 export async function createDocumentJob(page: Page, file: FileInput): Promise<void> {
   await page.goto("/");
   await selectFiles(page, file);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await expect(page.getByRole("banner")).toContainText("Document job");
 }
 
@@ -57,7 +57,7 @@ export async function createDocumentJob(page: Page, file: FileInput): Promise<vo
 export async function createBatchJob(page: Page, files: readonly FileInput[]): Promise<void> {
   await page.goto("/");
   await selectFiles(page, files);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await expect(page.getByRole("banner")).toContainText("Document batch");
 }
 
@@ -65,7 +65,7 @@ export async function createBatchJob(page: Page, files: readonly FileInput[]): P
 export async function createStructuredJob(page: Page, csvPath: string): Promise<void> {
   await page.goto("/");
   await selectFiles(page, csvPath);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await expect(page.getByRole("banner")).toContainText("Structured job");
 }
 
@@ -84,8 +84,8 @@ export function guidanceItem(page: Page, name: string): Locator {
 /** Enter Review through the canonical text flow and wait for the detections. */
 export async function gotoReviewWithDetections(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(REVIEW_FIXTURE_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
