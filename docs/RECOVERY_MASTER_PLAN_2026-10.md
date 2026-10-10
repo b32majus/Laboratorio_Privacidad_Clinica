@@ -253,7 +253,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 
 ### REC-08 — INPUT-PRODUCTIVITY-PARITY-01
 
-**Status — SELECTED FRONTIER: #80 (2026-10-07; D-019 ratified by the human 2026-10-10).** D-019 is resolved `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override before implementation: the original audit supplied no legitimate case, v3 had no global selector, deterministic V4 input-family routing already covers the supported families, and mixed/unsupported input must remain fail-closed rather than becoming an arbitrary route choice. #80 therefore owns the remaining REC-08 product work without adding a generic pipeline override.
+**Status — REC-08 COMPLETED (2026-10-11; #80 + separately human-authorized #106; PR #107; `3.0-main@a5453930b87f472eb12170c2a5ff40ea3cc9f6dc`).** #80 restores three Spanish synthetic no-PHI clinical examples, explicit browser-local Pegar with denied/unavailable Ctrl+V fallback, convergent drag/drop and file selection, quiet automatic Job inference with typed Spanish refusals, and purpose-based policy guidance on the touched Input surface. #106 is a distinct C-087 work unit (not a third #80 correction) and closes CORA-80-03, where a late clipboard response could otherwise conflict with a newer file selection/drop; CORA-80-01 and -02 remain preserved. The exact existing supported-format boundary and Job authority remain intact. D-019 stays human-ratified `DELIBERATELY_SUPERSEDED` for a generic pipeline selector. REC-08 is complete; this closeout selects **no next frontier**.
 
 **Reshaped goal:** make starting work direct and human, recovering useful input conveniences while keeping routing deterministic/fail-closed underneath.
 
@@ -441,15 +441,15 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | --- | --- | --- |
 | REC-06 | #78, #86 | #86 ← #78 |
 | REC-07 | #79, #87, #88, #89 | #87 ← #78 + #79; #88/#89 ← #87 |
-| REC-08 | #80 | native frontier |
+| REC-08 | #80, separately human-authorized #106 | completed through PR #107; #106 closes CORA-80-03 without reviving #80 correction budget |
 | REC-09 | #81, #82, #83, #84, #85 | native frontier; intentionally split for context-fit |
 | REC-10 | #90 | blocked by stable product-surface set #80–#89 |
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Current state after PR #104: **#78, #79, #86, #87, #88 and #89 are closed**. REC-06 and REC-07 are complete. The hard-dependency graph makes #80–#85 executable, while #90/#91 still wait for the stable #80–#89 product-surface set and REC-12 remains downstream. Under the attended serial recovery choice, **#80 is the selected frontier**; #81–#85 remain independently executable but unselected. Scheduling preference is not a semantic blocker.
+Current state after PR #107: **#78, #79, #80, #86, #87, #88, #89 and #106 are closed**. REC-06, REC-07 and REC-08 are complete. REC-09 issues #81–#85 are technically executable; #90/#91 still wait for the stable remaining product-surface set and REC-12 remains downstream. **This closeout selects no next frontier**. Serial scheduling preference is not a semantic blocker, and #106 is a recorded human-authorized repair rather than an invented hard-dependency edge.
 
-D-019 is resolved `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override; #80 must preserve deterministic/fail-closed `inferJobKind` behavior and may not invent a global escape hatch. `DISC-01` was closed by #79 before #87. #88 applies the disposal/current-authority invariant to async batch Safe ZIP/PDF generation, and #89 preserves the same invariant for async batch Confidential generation: authority change or Result unmount before completion produces zero download.
+D-019 is human-ratified `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override; #80/#106 preserved deterministic/fail-closed `inferJobKind` behavior without introducing a global escape hatch. `DISC-01` was closed by #79 before #87. #88 applies the disposal/current-authority invariant to async batch Safe ZIP/PDF generation, and #89 preserves the same invariant for async batch Confidential generation: authority change or Result unmount before completion produces zero download.
 
 ## 5. Dependency graph
 
@@ -482,7 +482,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                                          REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-07 are complete. In the published REC-06→REC-12 ticket graph, #78 + #86 close REC-06; #79 closes the REC-07 `DISC-01` async-disposal prefactor; #87 is canonical for batch Result readiness + Safe summary CSV via PR #100; #88 is canonical for the Safe PDF ZIP + consolidated PDF via PR #102; and #89 is canonical for batch Confidential Audit + deliberate confirmation via PR #104. REC-08/09 #80–#85 are technically executable; **this closeout deliberately selects none of them as the next frontier**. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
+REC-01 through REC-08 are complete. In the published REC-06→REC-12 ticket graph, #78 + #86 close REC-06; #79 closes the REC-07 `DISC-01` async-disposal prefactor; #87 is canonical for batch Result readiness + Safe summary CSV via PR #100; #88 is canonical for the Safe PDF ZIP + consolidated PDF via PR #102; and #89 is canonical for batch Confidential Audit + deliberate confirmation via PR #104. REC-08 #80 + #106 are completed via PR #107; REC-09 #81–#85 remain technically executable, and **no next frontier is selected by the REC-08 closeout**. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 
