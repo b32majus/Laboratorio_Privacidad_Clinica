@@ -1091,7 +1091,7 @@ function selectedFileFamilyLabel(fileName: string): string {
  * single `policy-guidance.ts` seam (`POLICY_IDS` via `buildPolicyGuidance`
  * and the same engine authorities); no second policy table, no semantic or
  * availability change, and none of the forbidden claims (anonymity, GDPR/
- * compliance, research approval, k-anonymity). Exhaustive app-wide
+ * compliance or research approval guarantees). Exhaustive app-wide
  * localization remains REC-10; only this touched start surface is Spanish.
  */
 const POLICY_PURPOSE_ES: Readonly<Record<PrivacyPolicyId, { name: string; purpose: string }>> = {
