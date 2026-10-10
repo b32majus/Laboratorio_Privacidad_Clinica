@@ -21,6 +21,7 @@ import {
   type JobInput,
   type JobKind,
   JobModelError,
+  type JobModelErrorCode,
   type JobSourceFile,
   type PrivacyPolicyId,
   batchFailedItems,
@@ -31,7 +32,11 @@ import {
 import { EngineError } from "./engine/types";
 import { PolicyError } from "./engine/policy";
 import { extractFile, extractFromPastedText } from "./input/extract";
-import { extensionOf, type ExtractedSource } from "./input/extracted-source";
+import {
+  extensionOf,
+  type ExtractedSource,
+  type ExtractionErrorCode,
+} from "./input/extracted-source";
 import { SYNTHETIC_EXAMPLES } from "./input/synthetic-examples";
 import { readTextFromClipboard } from "./output/clipboard";
 import { ExportStep } from "./export/ExportStep";
@@ -102,6 +107,82 @@ function hasReadingBatchItems(job: Job): boolean {
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
 
+/**
+ * REC-08 F1 (corrective): typed identity of a start-surface refusal.
+ *
+ * The domain/adapter that owns the refusal decision also owns its typed code;
+ * the view carries that code here purely to SELECT a Spanish failure + remedy.
+ * `fileName` is the already-visible source name (the literal `"pasted text"`
+ * for pasted input) so the presentation can name WHICH entry was refused
+ * without introducing a second extension classifier or re-deciding anything.
+ */
+type StartSurfaceRefusal = {
+  readonly code: JobModelErrorCode | ExtractionErrorCode;
+  readonly fileName?: string;
+};
+
+/**
+ * Presented start-surface alert. `refusal` is a typed refusal awaiting the
+ * Spanish presentation mapping below; `text` is copy the view already authored
+ * (the mutual-exclusion / single-table guidance) or a non-refusal navigation
+ * message passed through unchanged.
+ */
+type InputAlert =
+  | { readonly kind: "refusal"; readonly refusal: StartSurfaceRefusal }
+  | { readonly kind: "text"; readonly message: string };
+
+const SUPPORTED_FORMATS_ES = "TXT, PDF, DOCX, CSV, XLS y XLSX";
+
+/**
+ * Presentation-only Spanish mapping for the typed start-surface refusals
+ * (REC-08 F1, HPD-11, HPD §6.1). It does NOT decide, weaken or recover from a
+ * refusal: the domain/adapter already refused and no job is created. Each
+ * entry states the contextual failure AND an actionable remedy; a raw
+ * exception message is never included, and the offending extension is read
+ * from the already-visible file name — never re-classified here.
+ */
+function presentStartSurfaceRefusal(refusal: StartSurfaceRefusal): string {
+  const file = refusal.fileName;
+  const quoted = file !== undefined ? `"${file}"` : null;
+  switch (refusal.code) {
+    case "empty-input":
+      return quoted === null
+        ? "No hay texto que crear: escriba o pegue texto antes de crear el trabajo."
+        : `El archivo ${quoted} no contiene texto utilizable. Añada contenido al documento o use otro archivo.`;
+    case "ambiguous-input":
+      return "No se pueden combinar documentos (TXT, PDF, DOCX) y tablas estructuradas (CSV, XLS, XLSX) en un mismo trabajo. Cree un trabajo aparte para cada tipo de archivo.";
+    case "unsupported-file-type":
+    case "unsupported-format": {
+      const extension = file !== undefined ? extensionOf(file) : "";
+      const subject =
+        extension.length > 0
+          ? `el formato ".${extension}"`
+          : quoted !== null
+            ? `el formato de ${quoted}`
+            : "ese formato";
+      return `No se admite ${subject}. Formatos admitidos: ${SUPPORTED_FORMATS_ES}. Convierta el archivo a un formato admitido e inténtelo de nuevo.`;
+    }
+    case "pdf-no-text-layer":
+      return quoted === null
+        ? "El PDF no contiene texto extraíble: probablemente sea un escaneo. Aplique OCR o use un PDF con capa de texto e inténtelo de nuevo."
+        : `El PDF ${quoted} no contiene texto extraíble: probablemente sea un escaneo. Aplique OCR o use un PDF con capa de texto e inténtelo de nuevo.`;
+    case "extraction-failed":
+      return quoted === null
+        ? "No se pudo leer el documento; puede estar dañado o no ser un archivo válido. Compruebe el archivo o conviértalo e inténtelo de nuevo."
+        : `No se pudo leer el documento ${quoted}; puede estar dañado o no ser un archivo válido. Compruebe el archivo o conviértalo e inténtelo de nuevo.`;
+    case "input-too-large":
+      return "La entrada supera el tamaño admitido para procesarla en este dispositivo. Divídala en partes más pequeñas y cree un trabajo por cada parte.";
+    default:
+      return "La entrada no se pudo usar para crear un trabajo. Revise el texto o los archivos e inténtelo de nuevo.";
+  }
+}
+
+/** Resolve the presented start-surface alert to its Spanish user-visible copy. */
+function presentInputAlert(alert: InputAlert | null): string | null {
+  if (alert === null) return null;
+  return alert.kind === "text" ? alert.message : presentStartSurfaceRefusal(alert.refusal);
+}
+
 export function App() {
   const session = useJobSession();
   const job = session.job;
@@ -110,7 +191,7 @@ export function App() {
   const startReview = session.startReview;
   const [draftText, setDraftText] = useState("");
   const [draftFiles, setDraftFiles] = useState<File[]>([]);
-  const [inputError, setInputError] = useState<string | null>(null);
+  const [inputError, setInputError] = useState<InputAlert | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [batchRead, setBatchRead] = useState<{
@@ -163,15 +244,22 @@ export function App() {
     structuredFileRef.current = null;
   };
 
-  const handleCreateJob = (input: JobInput) => {
+  /**
+   * Create a Job from the given input. A typed refusal is remembered by its
+   * TYPED identity (REC-08 F1) so the start surface can present a Spanish
+   * failure + remedy without touching the domain authority. `refusalContext`
+   * carries the already-visible source name of a refused file (captured by the
+   * intake caller); no classification or refusal decision happens here.
+   */
+  const handleCreateJob = (input: JobInput, refusalContext?: { readonly fileName?: string }) => {
     try {
       session.create(input);
       resetDraft();
     } catch (error) {
       setInputError(
         error instanceof JobModelError
-          ? error.message
-          : "The input could not be used to create a job."
+          ? { kind: "refusal", refusal: { code: error.code, fileName: refusalContext?.fileName } }
+          : { kind: "text", message: "La entrada no se pudo usar para crear un trabajo." }
       );
     }
   };
@@ -200,7 +288,15 @@ export function App() {
                 error: { code: result.error.code, message: result.error.message },
               },
       }));
-      handleCreateJob({ type: "files", files: jobFiles });
+      // REC-08 F1: carry the first refused file's already-visible name so the
+      // Spanish presentation can name it; the domain still owns the refusal.
+      const firstFailure = results.find((result) => result.status === "failed");
+      handleCreateJob(
+        { type: "files", files: jobFiles },
+        firstFailure !== undefined && firstFailure.status === "failed"
+          ? { fileName: firstFailure.sourceName }
+          : undefined
+      );
     } finally {
       setIsExtracting(false);
     }
@@ -245,8 +341,8 @@ export function App() {
       } catch (error) {
         setInputError(
           error instanceof JobModelError
-            ? error.message
-            : "The input could not be used to create a job."
+            ? { kind: "refusal", refusal: { code: error.code } }
+            : { kind: "text", message: "La entrada no se pudo usar para crear un trabajo." }
         );
         return;
       }
@@ -278,16 +374,20 @@ export function App() {
     const hasText = draftText.trim().length > 0;
     if (hasText && draftFiles.length > 0) {
       // REC-08: App-authored start-surface copy is Spanish-first (HPD-11).
-      // Typed domain failures below stay verbatim; only this view-owned
-      // mutual-exclusion message is translated here.
-      setInputError("Use una sola entrada por trabajo: texto pegado o archivos, no ambos.");
+      // Typed refusals below are carried by their typed code and PRESENTED in
+      // Spanish via `presentStartSurfaceRefusal`; this view-owned
+      // mutual-exclusion message is authored in Spanish directly.
+      setInputError({
+        kind: "text",
+        message: "Use una sola entrada por trabajo: texto pegado o archivos, no ambos.",
+      });
       return;
     }
     if (hasText) {
       // Pasted-text extraction is synchronous; typed failure surfaces as alert.
       const result = extractFromPastedText(draftText);
       if (result.status === "failed") {
-        setInputError(result.error.message);
+        setInputError({ kind: "refusal", refusal: { code: result.error.code } });
         return;
       }
       session.create({ type: "pasted-text", text: result.text });
@@ -295,9 +395,14 @@ export function App() {
       return;
     }
     if (draftFiles.length === 0) {
-      // Surface the domain's typed empty-input error instead of guessing.
+      // Surface the domain's typed empty-input error again, now by its typed
+      // identity so the start surface presents it in Spanish (REC-08 F1).
       const result = extractFromPastedText("");
-      setInputError(result.status === "failed" ? result.error.message : null);
+      setInputError(
+        result.status === "failed"
+          ? { kind: "refusal", refusal: { code: result.error.code } }
+          : null
+      );
       return;
     }
     const hasStructured = draftFiles.some((file) => isStructuredExtension(extensionOf(file.name)));
@@ -313,9 +418,11 @@ export function App() {
       // through the T20 structured intake; a multi-file selection is refused
       // fail-closed instead of silently guessing which table to profile.
       if (draftFiles.length !== 1) {
-        setInputError(
-          "Los trabajos estructurados clasifican una tabla cada vez; cree un trabajo por cada archivo CSV o Excel."
-        );
+        setInputError({
+          kind: "text",
+          message:
+            "Los trabajos estructurados clasifican una tabla cada vez; cree un trabajo por cada archivo CSV o Excel.",
+        });
         return;
       }
       const previousJobId = jobIdRef.current;
@@ -407,7 +514,7 @@ export function App() {
           ? error.message
           : "That step is not available right now.";
       if (step === "review") setReviewError(message);
-      else setInputError(message);
+      else setInputError({ kind: "text", message });
     }
   };
 
@@ -721,7 +828,7 @@ export function App() {
           <InputStep
             draftText={draftText}
             draftFiles={draftFiles}
-            inputError={inputError}
+            inputError={presentInputAlert(inputError)}
             isExtracting={isExtracting}
             batchRead={batchRead}
             batchJob={job}
@@ -1275,8 +1382,6 @@ function InputStep(props: {
         </section>
       </div>
 
-      <IntendedUseGuidance jobKind={props.batchJob ? props.batchJob.kind : null} />
-
       <div className="mt-5 max-w-3xl space-y-4">
         {props.batchRead && (
           <p
@@ -1324,6 +1429,8 @@ function InputStep(props: {
           Crear trabajo
         </button>
       </div>
+
+      <IntendedUseGuidance jobKind={props.batchJob ? props.batchJob.kind : null} />
     </section>
   );
 }

@@ -108,3 +108,63 @@ for (const width of [375, 1280]) {
     await assertNoHorizontalOverflow(page, `example-loaded input start @${width}px`);
   });
 }
+
+/**
+ * REC-08 F2 (corrective): rendered witness that the primary add-information
+ * task is visible AND reachable at narrow/mobile (375px) and desktop (1280px),
+ * and that the intended-use/policy guidance does not visually outrank it
+ * (HPD-12). DOM/visual order + visibility is the falsifiable proxy: every
+ * primary control sits above the guidance regions in document flow.
+ */
+for (const width of [375, 1280]) {
+  test(`primary add-information task is visible, reachable and ahead of guidance at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+
+    const textarea = page.getByRole("textbox", { name: "Pegar texto" });
+    const pegar = page.getByRole("button", { name: "Pegar desde el portapapeles" });
+    const fileSelect = page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
+    const create = page.getByRole("button", { name: "Crear trabajo" });
+    const examples = [
+      page.getByRole("button", { name: "Ejemplo: consulta de urgencias" }),
+      page.getByRole("button", { name: "Ejemplo: informe quirúrgico" }),
+      page.getByRole("button", { name: "Ejemplo: historia clínica" }),
+    ];
+
+    // Visibility + operability of every primary add-information control.
+    for (const control of [textarea, pegar, fileSelect, create, ...examples]) {
+      await expect(control).toBeVisible();
+      await expect(control).toBeEnabled();
+    }
+
+    // Reachability: each primary control can be brought into the viewport.
+    for (const control of [textarea, pegar, fileSelect, create]) {
+      await control.scrollIntoViewIfNeeded();
+      await expect(control).toBeInViewport();
+    }
+
+    await assertNoHorizontalOverflow(page, `primary add-information task @${width}px`);
+
+    // Guidance must not visually outrank the primary task: both the inline
+    // intended-use region and the shell Privacy Policy region sit BELOW the
+    // primary input controls and the create action.
+    const intendedUse = page.getByRole("region", { name: "Uso previsto" });
+    const privacyPolicy = page.getByRole("region", { name: "Privacy Policy" });
+    await expect(intendedUse).toBeVisible();
+    await expect(privacyPolicy).toBeVisible();
+
+    const createBox = await create.boundingBox();
+    const textareaBox = await textarea.boundingBox();
+    const intendedUseBox = await intendedUse.boundingBox();
+    const privacyPolicyBox = await privacyPolicy.boundingBox();
+    expect(createBox).not.toBeNull();
+    expect(textareaBox).not.toBeNull();
+    expect(intendedUseBox).not.toBeNull();
+    expect(privacyPolicyBox).not.toBeNull();
+    expect(textareaBox!.y).toBeLessThan(intendedUseBox!.y);
+    expect(createBox!.y).toBeLessThan(intendedUseBox!.y);
+    expect(createBox!.y).toBeLessThan(privacyPolicyBox!.y);
+  });
+}

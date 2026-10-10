@@ -174,7 +174,8 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     dropFiles([new File(["nota"], "historia.txt"), new File(["a,b"], "labs.csv")]);
     fireEvent.click(createButton());
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/cannot be mixed/i);
+    // REC-08 F1: the typed ambiguous-input refusal is presented in Spanish.
+    expect(alert).toHaveTextContent(/no se pueden combinar/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -187,7 +188,67 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     dropFiles([new File(["legacy"], "informe.doc")]);
     fireEvent.click(createButton());
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/\.doc.*unsupported type/i);
+    // REC-08 F1: Spanish presentation still names the refused ".doc" and lists
+    // only the accepted formats (legacy .doc is never advertised).
+    expect(alert).toHaveTextContent(/no se admite/i);
+    expect(alert).toHaveTextContent(/\.doc/);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// REC-08 F1 (corrective): the composed start-surface refusal is presented in
+// Spanish (failure + remedy). The domain/adapter still OWNS every refusal and
+// no job is created — these witnesses only falsify English leakage on the
+// touched start surface.
+// ---------------------------------------------------------------------------
+describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
+  function refuseWith(files: File[]): Promise<HTMLElement> {
+    const heading = screen.getByRole("heading", { level: 3, name: "Elegir archivos" });
+    const section = heading.closest("section");
+    if (!section) throw new Error("expected the files card section");
+    fireEvent.drop(section, { dataTransfer: { files } });
+    fireEvent.click(createButton());
+    return screen.findByRole("alert");
+  }
+
+  it("presents the mixed document+structured refusal in Spanish with a remedy", async () => {
+    render(<App />);
+    const alert = await refuseWith([
+      new File(["nota"], "historia.txt"),
+      new File(["a,b"], "labs.csv"),
+    ]);
+    expect(alert).toHaveTextContent(/no se pueden combinar/i);
+    expect(alert).toHaveTextContent(/cree un trabajo aparte/i);
+    expect(alert).not.toHaveTextContent(/cannot be mixed/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("presents the unsupported-extension refusal in Spanish, names the extension and never advertises .doc", async () => {
+    render(<App />);
+    const alert = await refuseWith([new File(["legacy"], "informe.doc")]);
+    expect(alert).toHaveTextContent(/no se admite/i);
+    expect(alert).toHaveTextContent(/\.doc/);
+    expect(alert).toHaveTextContent(/txt, pdf, docx, csv, xls y xlsx/i);
+    expect(alert).not.toHaveTextContent(/unsupported type/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("presents the single-document extraction failure in Spanish with a remedy", async () => {
+    render(<App />);
+    const alert = await refuseWith([new File(["no es un docx válido"], "corrupt.docx")]);
+    expect(alert).toHaveTextContent(/no se pudo leer/i);
+    expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
+    expect(alert).not.toHaveTextContent(/could not be parsed/i);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("presents the empty-input refusal in Spanish with a remedy", async () => {
+    render(<App />);
+    fireEvent.click(createButton());
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/no hay texto/i);
+    expect(alert).not.toHaveTextContent(/pasted text is empty/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 });

@@ -154,9 +154,9 @@ describe("App shell", () => {
   it("surfaces the typed domain error instead of guessing a job kind", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      /pasted text is empty; provide text before creating a job/i
-    );
+    // REC-08 F1: the typed empty-input refusal is PRESENTED in Spanish; the
+    // domain still refuses and no job is created.
+    expect(screen.getByRole("alert")).toHaveTextContent(/no hay texto/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -699,7 +699,10 @@ describe("App document intake (T06)", () => {
     selectFiles([fixtureFile("sample-legacy.doc")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/\.doc.*unsupported type/i);
+    // REC-08 F1: Spanish presentation; the offending ".doc" is still named and
+    // the legacy format is never advertised as supported.
+    expect(alert).toHaveTextContent(/\.doc/);
+    expect(alert).toHaveTextContent(/no se admite/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(screen.queryByText("Document job")).not.toBeInTheDocument();
   });
@@ -709,7 +712,9 @@ describe("App document intake (T06)", () => {
     selectFiles([fixtureFile("corrupt.docx")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/could not be parsed/i);
+    // REC-08 F1: Spanish presentation (failure + remedy).
+    expect(alert).toHaveTextContent(/no se pudo leer/i);
+    expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -718,7 +723,8 @@ describe("App document intake (T06)", () => {
     selectFiles([new File(["   \n\t "], "empty.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/is empty/i);
+    // REC-08 F1: Spanish presentation (failure + remedy).
+    expect(alert).toHaveTextContent(/no contiene texto utilizable/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -731,7 +737,9 @@ describe("App document intake (T06)", () => {
     // default 1s poll budget on a loaded machine; the oracle disagrees on
     // alert CONTENT, not on millisecond latency.
     const alert = await screen.findByRole("alert", {}, { timeout: 10_000 });
-    expect(alert).toHaveTextContent(/no extractable text|no text layer/i);
+    // REC-08 F1: Spanish presentation (failure + remedy).
+    expect(alert).toHaveTextContent(/texto extraíble/i);
+    expect(alert).toHaveTextContent(/escaneo/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -756,7 +764,8 @@ describe("App document intake (T06)", () => {
     selectFiles([fixtureFile("sample-clinical-note.txt"), new File(["a,b"], "labs.csv")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/cannot be mixed/i);
+    // REC-08 F1: Spanish presentation of the typed ambiguous-input refusal.
+    expect(alert).toHaveTextContent(/no se pueden combinar/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 });
