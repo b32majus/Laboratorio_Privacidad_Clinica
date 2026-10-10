@@ -192,8 +192,8 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(HIGH_VOLUME_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(HIGH_VOLUME_TEXT);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
 
@@ -315,8 +315,8 @@ test("a needs-attention Result states what remains, returns to the pending revie
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(REVIEW_FIXTURE_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await completeReview(page);
@@ -370,8 +370,8 @@ test("a deliberately kept original stays a factual Result warning and is present
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(REVIEW_FIXTURE_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   // completeReview deliberately keeps the email original ("Keep original").
@@ -406,8 +406,8 @@ test("Confidential Audit first action downloads zero, Confirm downloads exactly 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(REVIEW_FIXTURE_TEXT);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await completeReview(page);
@@ -458,8 +458,8 @@ test("an unrepresentable PDF character fails the PDF action with zero download w
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(buildLongRefusalText());
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(buildLongRefusalText());
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   const progress = page.getByRole("status", { name: "Review progress" });

@@ -148,8 +148,8 @@ function columnCard(page: Page, header: string) {
 async function createAndConfigureComposedJob(page: Page): Promise<void> {
   const xlsx = materializeWorkbook();
   await page.goto("/");
-  await page.getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(xlsx);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(xlsx);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await expect(page.locator("header")).toContainText("Structured job");
 

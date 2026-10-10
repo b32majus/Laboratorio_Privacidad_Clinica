@@ -68,8 +68,8 @@ async function createPolicyTextJob(
   policyId: "external-ai" | "longitudinal-research"
 ): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Paste text").fill(POLICY_TEXT_FIXTURE);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(POLICY_TEXT_FIXTURE);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByLabel("Privacy Policy:").selectOption(policyId);
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();

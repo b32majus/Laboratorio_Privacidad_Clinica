@@ -28,10 +28,10 @@ function stepButton(stepNumber: number, label: string) {
 }
 
 function createTextJob() {
-  fireEvent.change(screen.getByLabelText("Paste text"), {
+  fireEvent.change(screen.getByLabelText("Pegar texto"), {
     target: { value: SYNTHETIC_NOTE },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
 }
 
 /**
@@ -59,7 +59,7 @@ function fixtureFile(name: string): File {
 }
 
 function selectFiles(files: File[]) {
-  fireEvent.change(screen.getByLabelText(/select files/i), { target: { files } });
+  fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), { target: { files } });
 }
 
 async function seedRealPdfJs(): Promise<void> {
@@ -121,7 +121,7 @@ describe("App shell", () => {
     expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
     expect(stepButton(2, "Configure")).toBeEnabled();
     // Draft intake is cleared after the job is created.
-    expect(screen.getByLabelText("Paste text")).toHaveValue("");
+    expect(screen.getByLabelText("Pegar texto")).toHaveValue("");
   });
 
   it("creates a structured job and classifies its columns in the Configure workspace (T20 #24)", async () => {
@@ -135,10 +135,10 @@ describe("App shell", () => {
       "labs.csv",
       { type: "text/csv" }
     );
-    fireEvent.change(screen.getByLabelText(/select files/i), {
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [csvFile] },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(screen.getByText("labs.csv")).toBeInTheDocument();
     expect(screen.getByText("Structured job")).toBeInTheDocument();
 
@@ -153,10 +153,10 @@ describe("App shell", () => {
 
   it("surfaces the typed domain error instead of guessing a job kind", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      /pasted text is empty; provide text before creating a job/i
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    // REC-08 F1: the typed empty-input refusal is PRESENTED in Spanish; the
+    // domain still refuses and no job is created.
+    expect(screen.getByRole("alert")).toHaveTextContent(/no hay texto/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(screen.queryByText("Text job")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Paste text")).toHaveValue("");
+    expect(screen.getByLabelText("Pegar texto")).toHaveValue("");
     expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
     expect(stepButton(2, "Configure")).toBeDisabled();
   });
@@ -179,7 +179,9 @@ describe("App shell", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Configure" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "New Job" }));
     expect(screen.getByText("No job yet")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "New Privacy Job" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
+    ).toBeInTheDocument();
     expect(stepButton(2, "Configure")).toBeDisabled();
   });
 
@@ -230,7 +232,9 @@ describe("App shell", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
 
     fireEvent.click(stepButton(1, "Input"));
-    expect(screen.getByRole("heading", { level: 2, name: "New Privacy Job" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
+    ).toBeInTheDocument();
     expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
 
     expect(window.location.href).toBe(urlBefore);
@@ -296,52 +300,57 @@ describe("App shell", () => {
 });
 
 // ---------------------------------------------------------------------------
-// UX-PILOT-01 (#52): the Input surface is framed as one "New Privacy Job"
+// UX-PILOT-01 (#52): the Input surface is framed as one "Nuevo trabajo de privacidad"
 // workspace. These oracles only observe presentation/accessibility; every
 // intake semantic stays frozen (the domain tests remain the authority).
 // ---------------------------------------------------------------------------
 describe("App input workspace (UX-PILOT-01 #52)", () => {
-  it("frames the empty Input as a single New Privacy Job task", () => {
+  it("frames the empty Input as a single Nuevo trabajo de privacidad task", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { level: 2, name: "New Privacy Job" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
+    ).toBeInTheDocument();
     expect(stepButton(1, "Input")).toHaveAttribute("aria-current", "step");
-    expect(screen.getByText(/start a privacy job by pasting clinical text/i)).toBeInTheDocument();
+    expect(screen.getByText(/el resto del proceso se organiza/i)).toBeInTheDocument();
   });
 
-  it("explains which input produces each job type", () => {
+  it("keeps the ordinary start quiet about internal job routing (REC-08 #80)", () => {
     render(<App />);
-    const guide = screen.getByRole("region", { name: "How the job type is chosen" });
-    expect(guide).toHaveTextContent("Text job");
-    expect(guide).toHaveTextContent("Document job");
-    expect(guide).toHaveTextContent("Document batch");
-    expect(guide).toHaveTextContent("Structured job");
-    expect(guide).toHaveTextContent("TXT, PDF or DOCX");
-    expect(guide).toHaveTextContent("CSV, XLS or XLSX");
+    // The permanent JobKind mapping section is removed from the start surface.
+    expect(screen.queryByRole("region", { name: "How the job type is chosen" })).toBeNull();
+    expect(screen.queryByText("How the job type is chosen")).toBeNull();
+    expect(screen.queryByText("Text job")).toBeNull();
+    expect(screen.queryByText("Document job")).toBeNull();
+    expect(screen.queryByText("Document batch")).toBeNull();
+    expect(screen.queryByText("Structured job")).toBeNull();
+    // Concise format help remains.
+    expect(screen.getByText(/documentos \(txt, pdf, docx\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/tablas estructuradas \(csv, xls, xlsx\)/i)).toBeInTheDocument();
   });
 
   it("summarizes selected files with their intake family", () => {
     render(<App />);
     selectFiles([new File(["nota"], "historia.txt"), new File(["a,b"], "labs.csv")]);
-    const files = screen.getByRole("list", { name: "Selected files" });
+    const files = screen.getByRole("list", { name: "Archivos seleccionados" });
     expect(within(files).getByText("historia.txt")).toBeInTheDocument();
     expect(within(files).getByText("labs.csv")).toBeInTheDocument();
-    expect(within(files).getByText("Document")).toBeInTheDocument();
-    expect(within(files).getByText("Structured")).toBeInTheDocument();
-    expect(screen.getByText("2 files selected")).toBeInTheDocument();
+    expect(within(files).getByText("Documento")).toBeInTheDocument();
+    expect(within(files).getByText("Estructurado")).toBeInTheDocument();
+    expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
   });
 
   it("exposes labelled, keyboard-focusable paste and file entry surfaces", () => {
     render(<App />);
     expect(
-      screen.getByRole("heading", { level: 3, name: "Paste clinical text" })
+      screen.getByRole("heading", { level: 3, name: "Pegar texto clínico" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Choose files" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Elegir archivos" })).toBeInTheDocument();
 
-    const textarea = screen.getByLabelText("Paste text");
+    const textarea = screen.getByLabelText("Pegar texto");
     textarea.focus();
     expect(textarea).toHaveFocus();
 
-    const fileInput = screen.getByLabelText(/select files/i) as HTMLInputElement;
+    const fileInput = screen.getByLabelText(/seleccionar archivos/i) as HTMLInputElement;
     fileInput.focus();
     expect(fileInput).toHaveFocus();
     expect(fileInput).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
@@ -349,18 +358,20 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
 
   it("keeps pasted text and files mutually exclusive with the typed message", () => {
     render(<App />);
-    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: "nota" } });
+    fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: "nota" } });
     selectFiles([new File(["nota"], "historia.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Use either pasted text or files for one job, not both."
+      "Use una sola entrada por trabajo: texto pegado o archivos, no ambos."
     );
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
   it("states the one-input-per-job constraint on the surface before submission", () => {
     render(<App />);
-    const helper = screen.getByText(/use one input per job: pasted text or files, not both\./i);
+    const helper = screen.getByText(
+      /use una sola entrada por trabajo: texto pegado o archivos, no ambos\./i
+    );
     expect(helper).toBeInTheDocument();
     // The helper is always-on guidance, never the typed input error alert.
     expect(helper).not.toHaveAttribute("role", "alert");
@@ -373,8 +384,8 @@ describe("App review workspace (T07)", () => {
     "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
   async function createReviewJob() {
-    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: REVIEW_NOTE } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
   }
@@ -416,10 +427,10 @@ describe("App review workspace (T07)", () => {
   it("explains that structured review happens in Configure without faking a review workspace", async () => {
     render(<App />);
     const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/select files/i), {
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [csvFile] },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
     const region = screen.getByRole("region", { name: "Review" });
@@ -441,8 +452,8 @@ describe("App privacy gate (T08 U3)", () => {
     "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
   async function createReviewJob() {
-    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: REVIEW_NOTE } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
   }
@@ -540,8 +551,8 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
   async function createReviewJob() {
-    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: REVIEW_NOTE } });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: REVIEW_NOTE } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
   }
@@ -666,29 +677,32 @@ describe("App document intake (T06)", () => {
 
   it("never advertises legacy .doc in the file input accept attribute", async () => {
     render(<App />);
-    const input = screen.getByLabelText(/select files/i) as HTMLInputElement;
+    const input = screen.getByLabelText(/seleccionar archivos/i) as HTMLInputElement;
     expect(input).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
   });
 
   it("creates a document job from a TXT fixture after extraction", async () => {
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => {
       expect(screen.getByText("Document job")).toBeInTheDocument();
     });
     expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     // Draft intake is cleared after the job is created.
-    expect(screen.getByLabelText("Paste text")).toHaveValue("");
+    expect(screen.getByLabelText("Pegar texto")).toHaveValue("");
   });
 
   it("surfaces a typed unsupported alert for legacy .doc and creates no job", async () => {
     render(<App />);
     selectFiles([fixtureFile("sample-legacy.doc")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/\.doc.*unsupported type/i);
+    // REC-08 F1: Spanish presentation; the offending ".doc" is still named and
+    // the legacy format is never advertised as supported.
+    expect(alert).toHaveTextContent(/\.doc/);
+    expect(alert).toHaveTextContent(/no se admite/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(screen.queryByText("Document job")).not.toBeInTheDocument();
   });
@@ -696,18 +710,21 @@ describe("App document intake (T06)", () => {
   it("surfaces a typed extraction-failed alert for a corrupt DOCX and creates no job", async () => {
     render(<App />);
     selectFiles([fixtureFile("corrupt.docx")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/could not be parsed/i);
+    // REC-08 F1: Spanish presentation (failure + remedy).
+    expect(alert).toHaveTextContent(/no se pudo leer/i);
+    expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
   it("surfaces the empty-input alert for an empty TXT and creates no job", async () => {
     render(<App />);
     selectFiles([new File(["   \n\t "], "empty.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/is empty/i);
+    // REC-08 F1: Spanish presentation (failure + remedy).
+    expect(alert).toHaveTextContent(/no contiene texto utilizable/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -715,12 +732,14 @@ describe("App document intake (T06)", () => {
     await seedRealPdfJs();
     render(<App />);
     selectFiles([fixtureFile("sample-scanned.pdf")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     // Real pdf.js extraction under parallel vitest workers can exceed the
     // default 1s poll budget on a loaded machine; the oracle disagrees on
     // alert CONTENT, not on millisecond latency.
     const alert = await screen.findByRole("alert", {}, { timeout: 10_000 });
-    expect(alert).toHaveTextContent(/no extractable text|no text layer/i);
+    // REC-08 F1: Spanish presentation (failure + remedy).
+    expect(alert).toHaveTextContent(/texto extraíble/i);
+    expect(alert).toHaveTextContent(/escaneo/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 
@@ -728,7 +747,7 @@ describe("App document intake (T06)", () => {
     await seedRealPdfJs();
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.pdf")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     // Same pdf.js latency budget as the scan-like-PDF oracle above.
     await waitFor(
       () => {
@@ -743,9 +762,10 @@ describe("App document intake (T06)", () => {
   it("still rejects a mixed structured/document selection with the typed ambiguous error", async () => {
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.txt"), new File(["a,b"], "labs.csv")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(/cannot be mixed/i);
+    // REC-08 F1: Spanish presentation of the typed ambiguous-input refusal.
+    expect(alert).toHaveTextContent(/no se pueden combinar/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 });
@@ -816,8 +836,8 @@ describe("App export step (T08 U4)", () => {
 
   /** Full flow: create a text job, complete its review, reach Export. */
   async function completeReviewToExport(note: string) {
-    fireEvent.change(screen.getByLabelText("Paste text"), { target: { value: note } });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: note } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
     acceptAllDetections();
@@ -950,12 +970,12 @@ describe("App document batch (T17 #21 WU-C2)", () => {
   /** Select files, create the job and wait until every read has settled. */
   async function createBatchAndSettle(files: File[]) {
     selectFiles(files);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     // The Create control is disabled while reads are in flight; it becomes
     // enabled again exactly when the read phase settled (isExtracting false).
     await waitFor(
       () => {
-        expect(screen.getByRole("button", { name: "Create job" })).toBeEnabled();
+        expect(screen.getByRole("button", { name: "Crear trabajo" })).toBeEnabled();
       },
       { timeout: 10_000 }
     );
@@ -988,7 +1008,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     ]);
 
     // The failed item is surfaced IMMEDIATELY on the input step (name + message).
-    const failedList = screen.getByRole("list", { name: "Failed documents" });
+    const failedList = screen.getByRole("list", { name: "Documentos con error" });
     expect(within(failedList).getByText("corrupt.docx")).toBeInTheDocument();
     expect(failedList).toHaveTextContent(/could not be parsed/i);
 
@@ -1112,9 +1132,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     const slowFile = { name: "doc-a.txt", text: () => deferred } as unknown as File;
 
     selectFiles([slowFile, new File([BATCH_NOTE_B], "doc-b.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
-    expect(screen.getByRole("status")).toHaveTextContent(/reading documents… 0 of 2 read/i);
+    expect(screen.getByRole("status")).toHaveTextContent(/leyendo documentos… 0 de 2 leídos/i);
 
     fireEvent.click(stepButton(2, "Configure"));
     await goToReviewStep();
@@ -1144,7 +1164,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     });
     const slowFile = { name: "doc-a.txt", text: () => deferred } as unknown as File;
     selectFiles([slowFile, new File([BATCH_NOTE_B], "doc-b.txt")]);
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
 
     // Clear the session mid-read: the job is gone before the read resolves.
@@ -1154,7 +1174,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     await act(async () => {
       resolveText(BATCH_NOTE_A);
     });
-    await waitFor(() => expect(screen.queryByText(/reading documents/i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText(/leyendo documentos/i)).not.toBeInTheDocument());
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(screen.queryByText("Document batch")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -1308,8 +1328,10 @@ describe("App structured Configure workspace (T20 #24)", () => {
   function createStructuredJob(csv: string) {
     render(<App />);
     const csvFile = new File([csv], "labs.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/select files/i), { target: { files: [csvFile] } });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [csvFile] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     fireEvent.click(stepButton(2, "Configure"));
   }
 
@@ -1382,11 +1404,11 @@ describe("App structured Configure workspace (T20 #24)", () => {
     render(<App />);
     const first = new File(["a,b\n1,2"], "one.csv", { type: "text/csv" });
     const second = new File(["c,d\n3,4"], "two.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/select files/i), {
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [first, second] },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create job" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/one table at a time/i);
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/una tabla cada vez/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 

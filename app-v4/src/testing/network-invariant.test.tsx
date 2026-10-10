@@ -28,10 +28,10 @@ function stepButton(stepNumber: number, label: string) {
 }
 
 function createTextJob() {
-  fireEvent.change(screen.getByLabelText("Paste text"), {
+  fireEvent.change(screen.getByLabelText("Pegar texto"), {
     target: { value: SYNTHETIC_NOTE },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+  fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
 }
 
 afterEach(cleanup);
@@ -157,10 +157,10 @@ describe("network invariant monitor", () => {
       render(<App />);
       expect(monitor.attempts()).toHaveLength(0);
 
-      fireEvent.change(screen.getByLabelText(/select files/i), {
+      fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
         target: { files: [fixture] },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+      fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
 
       // The document job is created from extracted text held in memory only.
       await waitFor(() => {
@@ -201,10 +201,10 @@ describe("network invariant monitor", () => {
 
     try {
       render(<App />);
-      fireEvent.change(screen.getByLabelText("Paste text"), {
+      fireEvent.change(screen.getByLabelText("Pegar texto"), {
         target: { value: REVIEW_NOTE },
       });
-      fireEvent.click(screen.getByRole("button", { name: "Create job" }));
+      fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
       expect(monitor.attempts()).toHaveLength(0);
 
       // Entering Review runs the local legacy engine and builds the session

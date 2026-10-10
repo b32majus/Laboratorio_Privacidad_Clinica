@@ -42,12 +42,12 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([DOC_1, CORRUPT_PDF, DOC_2]);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   // Input phase: the failed read is surfaced immediately, by name.
-  await expect(page.getByRole("list", { name: "Failed documents" })).toContainText("corrupt.pdf");
+  await expect(page.getByRole("list", { name: "Documentos con error" })).toContainText("corrupt.pdf");
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
@@ -96,9 +96,9 @@ test("navigation never fabricates review completion and a reviewed batch has no 
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([DOC_1, DOC_2]);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
@@ -158,9 +158,9 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([DOC_1, CORRUPT_PDF, DOC_2]);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
@@ -264,9 +264,9 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   await page.goto("/");
   // Both documents fail their read: an ALL-FAILED batch.
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([CORRUPT_PDF, SCANNED_PDF]);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
@@ -358,9 +358,9 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
     buffer: fs.readFileSync(source),
   }));
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([...synthetic, ...failures]);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
 

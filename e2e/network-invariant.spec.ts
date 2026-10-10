@@ -21,11 +21,11 @@ test.describe("network privacy invariant (enforcing)", () => {
   }) => {
     await page.goto("/");
 
-    await page.getByLabel("Paste text").fill(
+    await page.getByRole("textbox", { name: "Pegar texto" }).fill(
       "Informe de consulta externa. Documento del paciente: DNI 12345678A. " +
         "Telefono de contacto 600-123-456. Correo paciente1@example.com."
     );
-    await page.getByRole("button", { name: "Create job" }).click();
+    await page.getByRole("button", { name: "Crear trabajo" }).click();
     await page.getByRole("button", { name: "2. Configure" }).click();
     await page.getByRole("button", { name: "3. Review" }).click();
     await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(

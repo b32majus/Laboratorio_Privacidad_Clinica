@@ -21,8 +21,10 @@ const PDF_TEXT = "Nota clinica sintetica de prueba para el laboratorio.";
 
 test("a text-layer PDF extracts its text and reaches review", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(TEXT_PDF);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .setInputFiles(TEXT_PDF);
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   await expect(page.getByRole("banner")).toContainText("sample-clinical-note.pdf");
   await page.getByRole("button", { name: "2. Configure" }).click();
@@ -37,14 +39,15 @@ test("a text-layer PDF extracts its text and reaches review", async ({ page }) =
 test("a scanned PDF without text layer fails explicitly and creates no job", async ({ page }) => {
   await page.goto("/");
   await page
-    .getByLabel("Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles(SCANNED_PDF);
-  await page.getByRole("button", { name: "Create job" }).click();
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   const alert = page.getByRole("alert");
   await expect(alert).toBeVisible();
-  await expect(alert).toContainText("no extractable text");
-  await expect(alert).toContainText("scan");
+  // REC-08 F1: the typed pdf-no-text-layer refusal is presented in Spanish.
+  await expect(alert).toContainText("texto extraíble");
+  await expect(alert).toContainText("escaneo");
 
   // Fail-closed: no silent empty success, no job fabricated.
   await expect(page.getByRole("banner")).toContainText("No job yet");
