@@ -175,6 +175,59 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(draftTextarea()).toHaveValue(example.text);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
+
+  // CORA-80-03: a newer picker selection invalidates an older pending paste.
+  it("a stale clipboard read never overwrites a newer picker file selection", async () => {
+    const read = deferred<string>();
+    stubClipboardRead(() => read.promise);
+
+    render(<App />);
+    fireEvent.click(pegarButton());
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [new File(["nota sintética"], "sintetico.txt")] },
+    });
+    // The newer file selection is staged BEFORE the old read resolves.
+    expect(screen.getByText("1 archivo seleccionado")).toBeInTheDocument();
+    expect(draftTextarea()).toHaveValue("");
+    read.resolve("RESPUESTA ANTIGUA DEL PORTAPAPELES");
+    await waitFor(() => expect(pegarButton()).toBeEnabled());
+    expect(draftTextarea()).toHaveValue("");
+    const list = screen.getByRole("list", { name: "Archivos seleccionados" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("sintetico.txt");
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    fireEvent.click(createButton());
+    await waitFor(() => {
+      expect(screen.getByText("Document job")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // CORA-80-03: a newer nonempty drop invalidates an older pending paste.
+  it("a stale clipboard read never overwrites a newer nonempty file drop", async () => {
+    const read = deferred<string>();
+    stubClipboardRead(() => read.promise);
+
+    render(<App />);
+    fireEvent.click(pegarButton());
+    const heading = screen.getByRole("heading", { level: 3, name: "Elegir archivos" });
+    const section = heading.closest("section");
+    if (!section) throw new Error("expected the files card section");
+    fireEvent.drop(section, {
+      dataTransfer: { files: [new File(["b"], "doc-b.txt"), new File(["a"], "doc-a.txt")] },
+    });
+    read.resolve("RESPUESTA ANTIGUA DEL PORTAPAPELES");
+    await waitFor(() => expect(pegarButton()).toBeEnabled());
+    expect(draftTextarea()).toHaveValue("");
+    const list = screen.getByRole("list", { name: "Archivos seleccionados" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("doc-b.txt");
+    expect(items[1]).toHaveTextContent("doc-a.txt");
+    expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------

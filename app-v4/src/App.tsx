@@ -1196,6 +1196,8 @@ function InputStep(props: {
   const draftRevisionRef = useRef(0);
   const draftTextRef = useRef(props.draftText);
   draftTextRef.current = props.draftText;
+  const draftFilesRef = useRef(props.draftFiles);
+  draftFilesRef.current = props.draftFiles;
 
   const commitDraftText = (text: string) => {
     draftRevisionRef.current += 1;
@@ -1228,11 +1230,14 @@ function InputStep(props: {
     if (props.isExtracting || pasteBusy) return;
     const authorityRevision = draftRevisionRef.current;
     const authorityText = draftTextRef.current;
+    const authorityFiles = draftFilesRef.current;
     setPasteBusy(true);
     try {
       const text = await readTextFromClipboard();
       const draftStillHoldsCallerAuthority =
-        draftRevisionRef.current === authorityRevision && draftTextRef.current === authorityText;
+        draftRevisionRef.current === authorityRevision &&
+        draftTextRef.current === authorityText &&
+        draftFilesRef.current === authorityFiles;
       if (!draftStillHoldsCallerAuthority) return;
       commitDraftText(text);
       setPasteError(null);

@@ -106,6 +106,60 @@ test("a late clipboard read cannot overwrite a newer typed draft (CORA-80-01)", 
   await expect(page.getByRole("banner")).toContainText("No job yet");
 });
 
+/**
+ * CORA-80-03 production-build witness: a newer canonical picker selection made
+ * while `navigator.clipboard.readText()` is pending invalidates the older
+ * clipboard result. When the stale read resolves, the textarea stays empty,
+ * the staged TXT survives unchanged, and Crear trabajo yields a normal
+ * Document job with no false mixed-input refusal.
+ */
+test("a stale clipboard read cannot overwrite a newer picker file selection (CORA-80-03)", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const controller = window as unknown as { __resolveClipboardRead?: (text: string) => void };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        readText: () =>
+          new Promise<string>((resolve) => {
+            controller.__resolveClipboardRead = resolve;
+          }),
+      },
+    });
+  });
+
+  await page.goto("/");
+  const pegar = page.getByRole("button", { name: "Pegar desde el portapapeles" });
+  await pegar.click();
+
+  await selectFiles(page, {
+    name: "sintetico.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("NOTA SINTÉTICA"),
+  });
+  const textarea = page.getByRole("textbox", { name: "Pegar texto" });
+  await expect(page.getByText("1 archivo seleccionado")).toBeVisible();
+  await expect(textarea).toHaveValue("");
+
+  await page.evaluate(() => {
+    (
+      window as unknown as { __resolveClipboardRead?: (text: string) => void }
+    ).__resolveClipboardRead?.("RESPUESTA ANTIGUA DEL PORTAPAPELES");
+  });
+
+  // Wait until the pending read has settled before asserting the outcome.
+  await expect(pegar).toHaveAttribute("aria-busy", "false");
+  await expect(textarea).toHaveValue("");
+  const items = page.getByRole("list", { name: "Archivos seleccionados" }).getByRole("listitem");
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText("sintetico.txt");
+
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
+  await expect(page.getByRole("banner")).toContainText("Document job");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
 test("file entry offers selection and drag/drop into the same process", async ({ page }) => {
   await page.goto("/");
 
