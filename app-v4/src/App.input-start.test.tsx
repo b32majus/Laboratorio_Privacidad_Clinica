@@ -41,6 +41,21 @@ function removeClipboardStub(): void {
   Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
 }
 
+function pegarButton(): HTMLElement {
+  return screen.getByRole("button", { name: "Pegar desde el portapapeles" });
+}
+
+/** A promise whose settlement is controlled by the test (pending-async witness). */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 // ---------------------------------------------------------------------------
 // REC-08 evidence 1: synthetic examples load the draft, never a Job.
 // ---------------------------------------------------------------------------
@@ -130,6 +145,36 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(alert).toHaveTextContent(/Ctrl\+V/);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
+
+  // CORA-80-01: a late clipboard response must not overwrite a newer draft.
+  it("a late clipboard read never overwrites a newer typed draft", async () => {
+    const read = deferred<string>();
+    stubClipboardRead(() => read.promise);
+
+    render(<App />);
+    fireEvent.click(pegarButton());
+    // The user keeps typing while the platform read is still pending.
+    fireEvent.change(draftTextarea(), { target: { value: "TEXTO NUEVO ESCRITO POR EL USUARIO" } });
+    // The old clipboard response resolves late, after the newer user edit.
+    read.resolve("LECTURA ANTIGUA DEL PORTAPAPELES");
+    await waitFor(() => expect(pegarButton()).toBeEnabled());
+    expect(draftTextarea()).toHaveValue("TEXTO NUEVO ESCRITO POR EL USUARIO");
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("a late clipboard read never overwrites a newly chosen example", async () => {
+    const read = deferred<string>();
+    stubClipboardRead(() => read.promise);
+
+    render(<App />);
+    fireEvent.click(pegarButton());
+    const example = SYNTHETIC_EXAMPLES[0];
+    fireEvent.click(screen.getByRole("button", { name: example.label }));
+    read.resolve("LECTURA ANTIGUA DEL PORTAPAPELES");
+    await waitFor(() => expect(pegarButton()).toBeEnabled());
+    expect(draftTextarea()).toHaveValue(example.text);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -192,6 +237,45 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     // only the accepted formats (legacy .doc is never advertised).
     expect(alert).toHaveTextContent(/no se admite/i);
     expect(alert).toHaveTextContent(/\.doc/);
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  // CORA-80-02: a drop that carries zero files must not touch the staged list.
+  it("a zero-file drop preserves the existing staged selection and creates no job", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [new File(["sintético"], "sintetico.txt")] },
+    });
+    expect(screen.getByText("1 archivo seleccionado")).toBeInTheDocument();
+
+    // A drop carrying text but zero files is not a file selection.
+    fireEvent.drop(filesSection(), {
+      dataTransfer: { files: [], getData: () => "texto arrastrado sin archivos" },
+    });
+
+    const list = screen.getByRole("list", { name: "Archivos seleccionados" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("sintetico.txt");
+    expect(screen.getByText("1 archivo seleccionado")).toBeInTheDocument();
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
+  });
+
+  it("a real non-empty drop replaces the draft with the exact dropped files in order", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [new File(["previo"], "previo.txt")] },
+    });
+    expect(screen.getByText("1 archivo seleccionado")).toBeInTheDocument();
+
+    dropFiles([new File(["b"], "doc-b.txt"), new File(["a"], "doc-a.txt")]);
+
+    const list = screen.getByRole("list", { name: "Archivos seleccionados" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("doc-b.txt");
+    expect(items[1]).toHaveTextContent("doc-a.txt");
+    expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
     expect(screen.getByText("No job yet")).toBeInTheDocument();
   });
 });

@@ -1184,12 +1184,31 @@ function InputStep(props: {
   const [isDragging, setIsDragging] = useState(false);
 
   /**
+   * CORA-80-01 draft-authority guard. A pending clipboard read may fill the
+   * draft only while the draft still holds the same user authority it had when
+   * the read started. `draftRevisionRef` counts every user-driven draft write
+   * (typing, example selection) and `draftTextRef` tracks the live draft text,
+   * so an out-of-band replacement (e.g. a draft reset after job creation) also
+   * revokes an in-flight read. Comparing text alone is not enough: a
+   * type-then-undo would re-match a stale snapshot and allow an old read to
+   * overwrite the user's newer draft.
+   */
+  const draftRevisionRef = useRef(0);
+  const draftTextRef = useRef(props.draftText);
+  draftTextRef.current = props.draftText;
+
+  const commitDraftText = (text: string) => {
+    draftRevisionRef.current += 1;
+    props.onDraftTextChange(text);
+  };
+
+  /**
    * REC-08 example action: loads the synthetic `texto` into the ordinary
    * pasted-text draft. It creates NO job; creation still goes only through
    * `onCreate` (`handleCreateFromDraft`).
    */
   const handleExample = (text: string) => {
-    props.onDraftTextChange(text);
+    commitDraftText(text);
     setPasteError(null);
   };
 
@@ -1198,13 +1217,24 @@ function InputStep(props: {
    * pasted-text draft. Denial / unavailable clipboard is a visible Spanish
    * failure naming the Ctrl+V fallback; no network request, no storage
    * write, no raw exception leak, no Job creation.
+   *
+   * CORA-80-01: a late resolution never overwrites a newer draft. The read
+   * captures the draft authority at start and re-checks it after the await;
+   * any user edit in between (typing, example or other draft replacement)
+   * revokes this response's ability to write, so the newer draft survives and
+   * still no Job is created.
    */
   const handlePaste = async () => {
     if (props.isExtracting || pasteBusy) return;
+    const authorityRevision = draftRevisionRef.current;
+    const authorityText = draftTextRef.current;
     setPasteBusy(true);
     try {
       const text = await readTextFromClipboard();
-      props.onDraftTextChange(text);
+      const draftStillHoldsCallerAuthority =
+        draftRevisionRef.current === authorityRevision && draftTextRef.current === authorityText;
+      if (!draftStillHoldsCallerAuthority) return;
+      commitDraftText(text);
       setPasteError(null);
     } catch {
       setPasteError(
@@ -1301,7 +1331,7 @@ function InputStep(props: {
           <textarea
             id="paste-text"
             value={props.draftText}
-            onChange={(event) => props.onDraftTextChange(event.target.value)}
+            onChange={(event) => commitDraftText(event.target.value)}
             rows={7}
             className={`mt-1 w-full rounded-lg border border-primary bg-surface-light px-3 py-2 text-sm ${focusRing}`}
           />
@@ -1319,7 +1349,13 @@ function InputStep(props: {
             setIsDragging(false);
             // REC-08: drag/drop converges on the same draft-files staging as
             // file selection — no second classifier, no silent loss/reorder.
-            props.onFilesDropped(Array.from(event.dataTransfer.files));
+            // CORA-80-02: a drop carrying ZERO files (e.g. dropped text or a
+            // non-file payload) is not a file selection and must not replace,
+            // clear or reorder an existing staged selection. Only real
+            // non-empty drops reach the canonical staging path.
+            const droppedFiles = Array.from(event.dataTransfer.files);
+            if (droppedFiles.length === 0) return;
+            props.onFilesDropped(droppedFiles);
           }}
           className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
             isDragging ? "border-2 border-primary-dark" : "border-primary/40"

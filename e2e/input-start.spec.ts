@@ -13,7 +13,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+import type { Page } from "@playwright/test";
+
 import { expect, test } from "./harness/fixtures";
+import { selectFiles } from "./harness/flows";
 import { assertNoHorizontalOverflow } from "./harness/viewport";
 
 function ejemploTexto(file: string): string {
@@ -64,6 +67,45 @@ test("Pegar without clipboard permission shows the Spanish Ctrl+V fallback and c
   await expect(page.getByRole("banner")).toContainText("No job yet");
 });
 
+/**
+ * CORA-80-01 production-build witness: a controllable pending
+ * `navigator.clipboard.readText()` resolved LATE must never overwrite a newer
+ * user draft. This is the exact adversary Cora reproduced in the shipped
+ * bytes, run here against `vite preview` of the production build.
+ */
+test("a late clipboard read cannot overwrite a newer typed draft (CORA-80-01)", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const controller = window as unknown as { __resolveClipboardRead?: (text: string) => void };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        readText: () =>
+          new Promise<string>((resolve) => {
+            controller.__resolveClipboardRead = resolve;
+          }),
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Pegar desde el portapapeles" }).click();
+
+  const textarea = page.getByRole("textbox", { name: "Pegar texto" });
+  await textarea.fill("TEXTO NUEVO ESCRITO POR EL USUARIO");
+
+  await page.evaluate(() => {
+    (
+      window as unknown as { __resolveClipboardRead?: (text: string) => void }
+    ).__resolveClipboardRead?.("LECTURA ANTIGUA DEL PORTAPAPELES");
+  });
+
+  // The newer user text survives the stale response and no Job appears.
+  await expect(textarea).toHaveValue("TEXTO NUEVO ESCRITO POR EL USUARIO");
+  await expect(page.getByRole("banner")).toContainText("No job yet");
+});
+
 test("file entry offers selection and drag/drop into the same process", async ({ page }) => {
   await page.goto("/");
 
@@ -71,6 +113,67 @@ test("file entry offers selection and drag/drop into the same process", async ({
     page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
   ).toBeVisible();
   await expect(page.getByText(/arrastre y suelte archivos/i)).toBeVisible();
+});
+
+/**
+ * CORA-80-02 production-build witnesses: a real drop event carrying ZERO files
+ * (a dropped text payload) must not clear/ replace/reorder an existing staged
+ * selection, while a genuine non-empty file drop still stages the exact files
+ * in order on the canonical selection path.
+ */
+async function dispatchDropWithNoFiles(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const heading = Array.from(document.querySelectorAll("h3")).find(
+      (candidate) => candidate.textContent === "Elegir archivos"
+    );
+    const section = heading?.closest("section");
+    if (!section) throw new Error("files card section not found");
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData("text/plain", "texto arrastrado sin archivos");
+    section.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+  });
+}
+
+test("a drop carrying zero files preserves the staged selection (CORA-80-02)", async ({ page }) => {
+  await page.goto("/");
+  await selectFiles(page, {
+    name: "sintetico.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("contenido sintético"),
+  });
+  await expect(page.getByText("1 archivo seleccionado")).toBeVisible();
+
+  await dispatchDropWithNoFiles(page);
+
+  await expect(page.getByText("1 archivo seleccionado")).toBeVisible();
+  const items = page.getByRole("list", { name: "Archivos seleccionados" }).getByRole("listitem");
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText("sintetico.txt");
+  await expect(page.getByRole("banner")).toContainText("No job yet");
+});
+
+test("a real non-empty file drop stages the exact files in order (CORA-80-02)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const heading = Array.from(document.querySelectorAll("h3")).find(
+      (candidate) => candidate.textContent === "Elegir archivos"
+    );
+    const section = heading?.closest("section");
+    if (!section) throw new Error("files card section not found");
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File(["b"], "doc-b.txt", { type: "text/plain" }));
+    dataTransfer.items.add(new File(["a"], "doc-a.txt", { type: "text/plain" }));
+    section.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+  });
+
+  const items = page.getByRole("list", { name: "Archivos seleccionados" }).getByRole("listitem");
+  await expect(items).toHaveCount(2);
+  await expect(items.nth(0)).toContainText("doc-b.txt");
+  await expect(items.nth(1)).toContainText("doc-a.txt");
+  await expect(page.getByText("2 archivos seleccionados")).toBeVisible();
+  await expect(page.getByRole("banner")).toContainText("No job yet");
 });
 
 test("ordinary start is quiet about internal routing and exposes no pipeline override", async ({
