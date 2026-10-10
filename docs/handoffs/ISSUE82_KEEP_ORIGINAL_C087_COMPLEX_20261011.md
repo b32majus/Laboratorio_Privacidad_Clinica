@@ -1,0 +1,61 @@
+# C-087 hardened handoff — #82 / REC-09 — Mantener original
+
+**Status:** READY_TO_LAUNCH subject to exact fixed-point preflight
+**Selected frontier:** [GitHub #82](https://github.com/b32majus/Laboratorio_Privacidad_Clinica/issues/82) — *Keep-original direct-identifier contextual safeguard*
+**Cost policy:** `standard` (C-087 default, no new human-selected Go route)
+**Risk class:** `complex` (material privacy decision + temporal/current-entity authority across reused Review workspaces)
+**Coordinator:** `atenea-complex` · **Publication:** `LOCAL_ONLY`
+**Canonical pre-preparation base:** `origin/3.0-main@74daa8a2338c3ef458da9ae5a9a9ac5897e4de49`
+**Worktree:** `/srv/kairos-lab/qualification/laboratorio-issue82-keep-original-c087-complex-20261011`
+**Branch:** `work/issue82-keep-original-c087-complex-20261011`
+**Fixed execution anchor:** this committed handoff/preparation HEAD, supplied exactly in the human operator's launch prompt.
+
+## WHAT — bounded accepted product outcome
+
+Before **Mantener original** records a `restored` decision on a direct identifier, the reviewer must explicitly see and confirm in Spanish that **the original, identifiable text will remain unchanged in the prepared/shareable result**. The first click makes **zero ReviewSession mutations**; Cancel/escape/context change make **zero**; only Confirm against the still-current exact detection/session invokes the existing `onDecide(id, "restored")` once. Ordinary lower-risk Review decisions remain direct/correctable. No silent approval, no new review status, no alternate authority. The accepted factual warning must remain visible in Result when a kept original enters a prepared result, including composed supported Review consumers.
+
+Issue authority: #82; `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` HPD-06/07/11/14/15 + §6.2; `docs/RECOVERY_MASTER_PLAN_2026-10.md` REC-09; `docs/audits/2026-10-recovery-traceability-matrix.md` H-41; frozen `docs/audits/2026-09-ux-ui-product-flow-audit.md` UX-10; current D-004/005/008/009/013. Repository `AGENTS.md` and `CODING_STANDARDS.md` remain binding. Do not reread historical sessions.
+
+## CLOSED decisions (Cora pre-execution shaping)
+
+- Scope of identifier risk in **current accepted text taxonomy**: `NOMBRE` and `IDENTIFICADOR` need explicit confirmation. `SOSPECHOSO`, an unrecognized non-empty classification, or a custom manual classification that is **not affirmatively one of** `FECHA`, `EDAD`, `UBICACION` is treated conservatively and also requires confirmation. For those three known non-direct categories, existing one-click restored behavior remains unchanged. This is a presentation-only risk affordance, NOT a new classifier for the engine/Job/Gate and NOT a claim that all other sensitive values are safe.
+- Use a **small, contextual, accessible Spanish inline confirmation** adjacent to the selected entity's decision controls (not a global alert, new route or second Review step). Explain the consequence and offer distinguishable `Cancelar` / `Sí, mantener original` actions. Do not re-display/copy raw clinical values inside the confirmation. Keyboard/focus/visible-feedback behavior is part of acceptance; exact CSS/component mechanics are implementer-owned.
+- A pending confirmation is **transient UI intent**, never a domain decision. Bind it to the exact **immutable ReviewSession object and detection ID/type** that opened it. Re-selecting another detection, changing the current session (including batch document / structured cell), or unmounting the workspace invalidates it. On Confirm, re-check the *current* session + entity before invoking `onDecide`; stale confirm is zero mutation. Renders must not show an old confirmation as valid for a new session.
+- The domain `restored` decision remains legal after explicit confirmation; accepted output semantics do NOT change. Other actions (`accepted`, `modified`), editing/undo and low-confidence/pending behavior remain intact. No globally applied approval or confirmation bypass through the ordinary Review UI.
+- **Result warning** states a fact, not a safety guarantee. The single-item Result already derives kept originals from its `ReviewSession` through `singleResultModel`; preserve that. Batch and structured free-text paths also support `ReviewWorkspace/restored` but their Results lack equivalent contextual kept-original visibility today; cover those *existing supported consumers* using read-only canonical sessions, without creating new readiness/policy semantics. Show minimal Spanish aggregate warning/count/type, never original values or correspondence.
+
+## WHERE + REUSE — known source → consumer → decision map
+
+| Source or consumer | Existing authority / decision | Bounded permitted implementation |
+| --- | --- | --- |
+| `app-v4/src/review/ReviewWorkspace.tsx` | Shared inspector, one `onDecide` callback; `ReviewSession` immutable. **Primary** gap: button invokes `restored` immediately. | Introduce only transient contextual risk confirmation, current session/entity guard and Spanish copy. Existing decision callback remains the sole mutation bridge. |
+| `app-v4/src/review/ReviewWorkspace.test.tsx` | Real ReviewSession harness and 3-type synthetic fixture. | Adversarial no-confirm/cancel/confirm/switch entity/session and correctability oracles, preserving current tests with intentional accepted UX updates. |
+| `BatchReviewView.tsx`, `StructuredFreeTextReview.tsx` | Both render the **same** ReviewWorkspace with current item/cell ReviewSession and callback. | **No new review controller**. Test the exact context switches through existing wrappers; update wrappers only if a proven stale-authority guard requires it, else STOP. |
+| `app-v4/src/export/ExportStep.tsx` | Single Result `keptOriginals` from canonical model; Batch Result receives `batchSessions`; Structured Export receives current Job + preparation but not cell review state. | Preserve single warning; minimally derive factual batch warning across *all current non-removed included item sessions*, not just active item. Pass current structured free-text state read-only via the existing App → Result seam if necessary, guarded by Job/policy/preparation readiness. Never derive from DOM or invent stored warning state. |
+| `app-v4/src/App.tsx` | Already has `structuredFreeText`, `structuredGateInput` and Result wiring. | Read-only forward of current structured cell review state to Result **only** when necessary. No domain or action mutation. |
+| `ReviewSession.getProgress` / `getDecision` / `canFinalize` | Exact immutable restored facts and readiness semantics. | REUSE as read-only evidence. No second restored counter/state machine. Keep source text + replacement solely in domain. |
+
+**Protected downstream**: Safe TXT/DOCX/PDF and batch ZIP/consolidated PDF, structured CSV/XLSX, Confidential correspondence, existing Privacy Gate factual warnings, review ability to return/correct decisions. Result warning must reflect the *current* applicable session set, not stale/other Job state. No readiness or artifact bytes are changed.
+
+## PROOF — risk-proportionate, reuse-first
+
+1. **Hard privacy negative**: on a `NOMBRE` and `IDENTIFICADOR` detection, click Mantener original → a Spanish contextual warning appears but **zero** `onDecide`, restored count/progress or change in `getPreview/getFinalText`; Cancel → still zero. Confirm → exactly one restored decision; the original appears in prepared output *only then*; correct it later using existing accept/modify pathway without losing unrelated decisions.
+2. **Conservative/ordinary contrast**: `SOSPECHOSO` or unknown/manual type requires explicit confirmation; known `FECHA` (and `EDAD`/`UBICACION` as applicable) stays one-click. Pending/low-confidence candidates are never silently accepted.
+3. **Current-context adversaries**: open confirmation for detection A, select B → no A or B mutation; open for A, swap ReviewSession/Job or active batch document/structured cell, then attempt old Confirm → **zero** decision on both contexts. Cancel, unmount, re-open and repeat must not retain the old authorization. Do not trust visual disappearance alone: assert frozen domain decisions.
+4. **Existing consumer matrix**: text+single-document Review; batch *non-active* item kept-original fact survives switching and is warned in Result; structured process-as-text kept-original cell is warned in its current Result; switching Job/policy/structured preparation cannot show stale warnings. Each warning is factual Spanish, excludes raw source values and does not authorize Safe/Confidential outputs.
+5. **Rendered witness**: real SPA, synthetic identifier (e.g. DNI), one desktop (1280px) and one narrow viewport (~375px): initial action, contextual consequence, Cancel/Confirm and keyboard reachability/visible focus. Reuse `e2e/review-export.spec.ts` (existing real pipeline/safe-download proof) rather than creating a parallel app; adapt its existing restored-email assertion to explicitly Confirm. Existing `ReviewWorkspace.test.tsx`, `App.test.tsx`, `ExportStep.test.tsx`, `BatchReviewView.test.tsx`, `StructuredFreeTextReview.test.tsx` are the regression starting points.
+6. **Writer phase only**: focused affected Vitest/component + one composed Playwright witness, `typecheck:v4` and affected lint/format. Existing `check:positioning` is relevant because new Spanish risk copy must not falsely claim compliance/safety. Full V4 suite, full E2E, CodeQL and composed artifact gates belong to integration/publication unless the change proves they are needed earlier.
+
+## DO NOT TOUCH / STOP
+
+- No #81 manual-offset UX, #83 volume/shortcuts/bulk, #84 shell/stepper, #85 structured Configure redesign, REC-10 exhaustive localization or REC-11 full visual system.
+- No edits to `js/domain/review-session.js`, `app-v4/src/review/review-domain.ts`, engine recognizers/policy, `useJobSession.ts`, canonical `Safe`/Confidential serializers, Job model, package/lockfile, network/storage boundaries. If a required implementation **cannot** preserve these protected authorities, HUMAN STOP rather than invent a redesign.
+- If Result warning propagation needs new output semantics or introduces a consumer outside the mapped paths, HUMAN STOP with concrete source→consumer contradiction. Never silently narrow the issue to single text review.
+- No new dependencies, dialogs persisted in Job state, automatic confirmation, raw PHI logging, global type/enum changes or user-visible privacy certifications.
+- **Conditional safeguards (ACTIVE)**: product representation/no-silent-acceptance (HPD-06/07), current-session temporal/context guard, shared ReviewWorkspace consumers (single/batch/structured cell), Result factual warning propagation, adversarial unconfirmed/stale decisions, rendered interactive evidence. Cora already identified the supported paths above; the writer is NOT tasked with a repository-wide audit.
+- **Open material product questions: NONE** under this accepted bounded solution. New material domain/product ambiguity, impossible Result read-only propagation, invalid current session identity, unavailable bound model or needed forbidden mutation → HUMAN STOP.
+- Standard Complex lifecycle: one `atenea-implementer-complex`, one canonical independent Standards (`atenea-review-standards`) + Spec (`atenea-review-spec-complex`), at most two fresh finding-scoped `atenea-corrector-complex` attempts. No fallback/model swap/repeated review loop.
+
+**Verified existing preflight (2026-10-11):** baseline `ReviewWorkspace`, `BatchReviewView`, `StructuredFreeTextReview`, `ExportStep` and `singleResultModel` = **95/95 PASS** on the untouched canonical product; `npm ci` and local Vitest/Playwright binaries available; cached Chromium present; OpenCode 2.0.26 and exact Standard Complex model IDs visible (presence only, not provider quota/auth). Local Node 24.15.0/npm 11.12.1 differ from declared GitHub CI Node 20; do not claim local CI-runtime parity, and require exact-head CI for publication.
+
+**Closeout:** exact candidate SHA/commits vs fixed point, changed paths, per-criterion evidence, compositional source→consumer verification, rendered accessibility witness, review/correction outcomes, clean tree, `Publication: LOCAL_ONLY`. STOP for independent Cora integrated audit; no push/PR/merge/issue mutation/deploy.
