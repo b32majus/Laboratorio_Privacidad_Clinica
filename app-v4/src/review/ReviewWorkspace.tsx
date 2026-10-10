@@ -19,7 +19,15 @@
  * (never color alone), and there is no hover-only essential information.
  * No floating action bar (SPEC §5). No export surface (T08 owns it).
  */
-import { useMemo, useRef, useState, type ChangeEvent, type ReactElement, type Ref } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactElement,
+  type Ref,
+} from "react";
 
 import type { ReviewDetection, ReviewSession } from "../../../js/domain/review-session.js";
 import { getPreview, getProgress } from "../../../js/domain/review-session.js";
@@ -52,6 +60,12 @@ const STATUS_FILTERS: readonly { readonly value: StatusFilter; readonly label: s
   { value: "low-confidence", label: "Low confidence" },
 ];
 
+type KeepOriginalIntent = {
+  readonly session: ReviewSession;
+  readonly id: string;
+  readonly type: string;
+};
+
 export type ReviewWorkspaceProps = {
   /** The frozen domain session; the single review authority (D-004). */
   readonly session: ReviewSession;
@@ -78,6 +92,17 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const [manualEnd, setManualEnd] = useState("");
   const [manualType, setManualType] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [keepOriginalIntent, setKeepOriginalIntent] = useState<KeepOriginalIntent | null>(null);
+  const intentRef = useRef(keepOriginalIntent);
+  const keepOriginalRef = useRef<HTMLButtonElement>(null);
+  const disposedRef = useRef(false);
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+      intentRef.current = null;
+    };
+  }, []);
 
   /**
    * Programmatic focus target for the small-viewport wayfinding route. The
@@ -85,6 +110,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
    * decision controls; this only ever runs on an explicit user activation.
    */
   const inspectorRef = useRef<HTMLElement>(null);
+  const detectionListRef = useRef<HTMLElement>(null);
   const focusInspector = () => {
     inspectorRef.current?.focus();
   };
@@ -94,6 +120,23 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const selected = selectedId
     ? (session.detections.find((d) => d.id === selectedId) ?? null)
     : null;
+  const currentContextRef = useRef({ session, selected });
+  currentContextRef.current = { session, selected };
+  const keepOriginalPending =
+    keepOriginalIntent !== null &&
+    keepOriginalIntent.session === session &&
+    keepOriginalIntent.id === selected?.id &&
+    keepOriginalIntent.type === selected.type;
+  // Invalidate in render, not just after paint: intent cannot appear valid in
+  // another context, or revive if the caller switches away and back.
+  if (keepOriginalIntent !== null && !keepOriginalPending) {
+    setKeepOriginalIntent(null);
+  }
+  intentRef.current = keepOriginalPending ? keepOriginalIntent : null;
+  const clearKeepOriginal = () => {
+    intentRef.current = null;
+    setKeepOriginalIntent(null);
+  };
 
   /**
    * Single coherent detection-selection transition used by every selection
@@ -103,12 +146,14 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
    * change. Selection alone never touches review authority.
    */
   const selectDetection = (id: string | null) => {
+    clearKeepOriginal();
     setSelectedId(id);
     setReplacementDraft("");
     setNoteDraft("");
   };
 
   const decide = (id: string, decision: ExplicitDecisionStatus) => {
+    clearKeepOriginal();
     const note = noteDraft.trim().length > 0 ? { note: noteDraft.trim() } : {};
     try {
       if (decision === "modified") {
@@ -161,6 +206,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
 
       <div role="region" aria-label="Review workspace" className="mt-4 grid gap-4 lg:grid-cols-3">
         <FilterProgressPane
+          detectionListRef={detectionListRef}
           session={session}
           filters={filters}
           detections={detections}
@@ -187,6 +233,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           }}
         />
         <InspectorPane
+          onReturnToDetections={() => detectionListRef.current?.focus()}
           inspectorRef={inspectorRef}
           session={session}
           selected={selected}
@@ -199,6 +246,38 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           onReplacementDraft={setReplacementDraft}
           onNoteDraft={setNoteDraft}
           onDecide={decide}
+          keepOriginalRef={keepOriginalRef}
+          keepOriginalPending={keepOriginalPending}
+          onKeepOriginal={() => {
+            if (!selected) return;
+            if (["FECHA", "EDAD", "UBICACION"].includes(selected.type)) {
+              decide(selected.id, "restored");
+            } else {
+              setKeepOriginalIntent({ session, id: selected.id, type: selected.type });
+            }
+          }}
+          onCancelKeepOriginal={() => {
+            clearKeepOriginal();
+            keepOriginalRef.current?.focus();
+          }}
+          onConfirmKeepOriginal={() => {
+            const requested = keepOriginalIntent;
+            const current = currentContextRef.current;
+            if (
+              disposedRef.current ||
+              requested === null ||
+              intentRef.current !== requested ||
+              current.session !== requested.session ||
+              current.selected?.id !== requested.id ||
+              current.selected.type !== requested.type
+            )
+              return;
+            // Consume synchronously before the sole mutation bridge, including
+            // repeated activation before React has committed the next render.
+            clearKeepOriginal();
+            decide(requested.id, "restored");
+            keepOriginalRef.current?.focus();
+          }}
           onManualFormOpen={setManualFormOpen}
           onManualStart={setManualStart}
           onManualEnd={setManualEnd}
@@ -233,6 +312,7 @@ function boundaryOffset(node: Node | null, offset: number): number | null {
 }
 
 function FilterProgressPane(props: {
+  detectionListRef: Ref<HTMLElement>;
   session: ReviewSession;
   filters: WorkspaceFilters;
   detections: readonly ReviewDetection[];
@@ -339,7 +419,9 @@ function FilterProgressPane(props: {
 
       <section
         aria-label="Detection list"
-        className="rounded border border-primary bg-surface-light p-3"
+        ref={props.detectionListRef}
+        tabIndex={-1}
+        className={`rounded border border-primary bg-surface-light p-3 ${focusRing}`}
       >
         <h3 className="font-display text-base font-bold text-primary-dark">Detections</h3>
         {detections.length === 0 ? (
@@ -493,6 +575,7 @@ function truncate(text: string): string {
 }
 
 function InspectorPane(props: {
+  onReturnToDetections: () => void;
   /** Focus target handed to the small-viewport wayfinding route (outcome D). */
   inspectorRef: Ref<HTMLElement>;
   session: ReviewSession;
@@ -506,6 +589,11 @@ function InspectorPane(props: {
   onReplacementDraft: (value: string) => void;
   onNoteDraft: (value: string) => void;
   onDecide: (id: string, decision: ExplicitDecisionStatus) => void;
+  keepOriginalRef: Ref<HTMLButtonElement>;
+  keepOriginalPending: boolean;
+  onKeepOriginal: () => void;
+  onCancelKeepOriginal: () => void;
+  onConfirmKeepOriginal: () => void;
   onManualFormOpen: (open: boolean) => void;
   onManualStart: (value: string) => void;
   onManualEnd: (value: string) => void;
@@ -518,9 +606,16 @@ function InspectorPane(props: {
       ref={props.inspectorRef}
       tabIndex={-1}
       aria-label="Entity inspector"
-      className="rounded border border-primary bg-surface-light p-3 self-start"
+      className={`rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
     >
       <h3 className="font-display text-base font-bold text-primary-dark">Entity inspector</h3>
+      <button
+        type="button"
+        onClick={props.onReturnToDetections}
+        className={`mt-2 rounded border border-primary-dark px-3 py-2 text-sm font-semibold text-primary-dark lg:hidden ${focusRing}`}
+      >
+        Volver a detecciones
+      </button>
       {!selected ? (
         <p className="mt-2 text-sm text-neutral-700">
           Select a detection in the document or the detection list to inspect it and decide.
@@ -643,12 +738,55 @@ function InspectorPane(props: {
             </button>
           </div>
           <button
+            ref={props.keepOriginalRef}
             type="button"
-            onClick={() => props.onDecide(selected.id, "restored")}
+            onClick={props.onKeepOriginal}
+            aria-expanded={props.keepOriginalPending}
+            aria-controls={props.keepOriginalPending ? "keep-original-confirmation" : undefined}
             className={`w-full rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
           >
-            Keep original
+            Mantener original
           </button>
+          {props.keepOriginalPending && (
+            <div
+              id="keep-original-confirmation"
+              role="group"
+              aria-labelledby="keep-original-heading"
+              aria-describedby="keep-original-consequence"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  props.onCancelKeepOriginal();
+                }
+              }}
+              className="rounded border-2 border-primary-dark bg-white p-3 text-sm text-neutral-800"
+            >
+              <h4 id="keep-original-heading" className="font-bold">
+                Confirmar mantener original
+              </h4>
+              <p id="keep-original-consequence" className="mt-1 leading-relaxed">
+                El texto original, identificable, permanecerá sin cambios en el resultado preparado
+                para compartir.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={props.onCancelKeepOriginal}
+                  className={`rounded border border-primary-dark px-3 py-2 font-semibold ${focusRing}`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={props.onConfirmKeepOriginal}
+                  className={`rounded bg-primary-dark px-3 py-2 font-semibold text-white hover:bg-primary ${focusRing}`}
+                >
+                  Sí, mantener original
+                </button>
+              </div>
+            </div>
+          )}
           <div>
             <label htmlFor="decision-note" className="block text-sm font-semibold text-neutral-800">
               Note (optional)

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import "@testing-library/jest-dom/vitest";
 
 afterEach(() => cleanup());
@@ -104,6 +105,60 @@ function renderReview(activeCell: number | null) {
 }
 
 describe("StructuredFreeTextReview — bounded cell queue", () => {
+  it("invalidates keep-original intent when the active structured cell switches", () => {
+    const { state, configuration } = fixture();
+    const first = state.cells[0];
+    if (!first.ok) throw new Error("Expected synthetic session");
+    const secondSession = sessionFor("Seguimiento de Carmen Sánchez", "PACIENTE_2");
+    const current: StructuredFreeTextState = {
+      ...state,
+      cells: [
+        first,
+        {
+          ok: true,
+          cell: state.cells[1].cell,
+          session: secondSession,
+        },
+      ],
+    };
+    const plan = buildStructuredTransformPlan(configuration, {
+      policyId: "standard",
+      jobSeed: state.jobId,
+    });
+    const preparation = prepareStructuredOutput(configuration, plan, { freeText: current });
+    const onDecide = vi.fn();
+    function ContextHarness() {
+      const [activeCell, setActiveCell] = useState<number | null>(0);
+      return (
+        <StructuredFreeTextReview
+          configuration={configuration}
+          preparation={preparation}
+          freeText={current}
+          activeCell={activeCell}
+          runError={null}
+          onRun={vi.fn(async () => null)}
+          onSelectFreeTextCell={setActiveCell}
+          onDecide={onDecide}
+          onAddManual={vi.fn()}
+          onGoToStep={vi.fn()}
+        />
+      );
+    }
+    render(<ContextHarness />);
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
+    fireEvent.click(screen.getByRole("button", { name: /Notas, row 3/ }));
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    fireEvent.click(oldConfirm);
+    fireEvent.click(screen.getByRole("button", { name: /Notas, row 1/ }));
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(first.session.decisions).toEqual({});
+    expect(secondSession.decisions).toEqual({});
+  });
   it("names every cell by column and row with a text status (no session internals)", () => {
     renderReview(0);
     const queue = screen.getByRole("navigation", { name: "Free-text cells" });

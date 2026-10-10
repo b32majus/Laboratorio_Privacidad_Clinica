@@ -8,10 +8,12 @@ import {
   applyDecision,
   createReviewSession,
   getFinalText,
+  getPreview,
+  getProgress,
   type ManualDetectionInput,
   type ReviewSession,
 } from "./review-domain";
-import { ReviewWorkspace } from "./ReviewWorkspace";
+import { ReviewWorkspace, type ReviewWorkspaceProps } from "./ReviewWorkspace";
 
 /**
  * User-level oracles for the review workspace (Work Order T07): the
@@ -78,6 +80,156 @@ function detectionSpanButton(original: string) {
 }
 
 afterEach(cleanup);
+
+describe("Mantener original — explicit contextual intent", () => {
+  it("never silently accepts a low-confidence candidate while intent is pending or cancelled", () => {
+    const session = createReviewSession({
+      originalText: "Candidato sintético",
+      detections: [
+        {
+          type: "SOSPECHOSO",
+          start: 0,
+          end: 19,
+          proposed: "",
+          lowConfidence: true,
+          confidence: 0.2,
+        },
+      ],
+    });
+    const ref = { current: session };
+    render(<Harness initial={session} sessionRef={ref} />);
+    fireEvent.click(detectionSpanButton("Candidato sintético"));
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent(
+      "Low confidence: 1"
+    );
+    expect(ref.current).toBe(session);
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(ref.current.decisions).toEqual({});
+    expect(getProgress(ref.current).accepted).toBe(0);
+    expect(getProgress(ref.current).pending).toBe(1);
+  });
+  it.each(["SOSPECHOSO", "CUSTOM_MANUAL", "DESCONOCIDO", "FECHA", "EDAD", "UBICACION"])(
+    "%s distinguishes conservative confirmation from ordinary one-click decisions",
+    (type) => {
+      const initial = createReviewSession({
+        originalText: "Valor sintético",
+        detections: [],
+        sessionId: type,
+      });
+      const session = addManualDetection(initial, { start: 0, end: 15, type });
+      const onDecide = vi.fn();
+      render(<ReviewWorkspace session={session} onDecide={onDecide} onAddManual={vi.fn()} />);
+      fireEvent.click(detectionSpanButton("Valor sintético"));
+      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      if (["FECHA", "EDAD", "UBICACION"].includes(type)) {
+        expect(onDecide).toHaveBeenCalledExactlyOnceWith(session.detections[0].id, "restored", {});
+        expect(
+          screen.queryByRole("button", { name: "Sí, mantener original" })
+        ).not.toBeInTheDocument();
+      } else {
+        expect(onDecide).not.toHaveBeenCalled();
+        expect(screen.getByRole("button", { name: "Sí, mantener original" })).toBeInTheDocument();
+      }
+      expect(session.decisions).toEqual({});
+    }
+  );
+
+  it("invalidates intent on entity/session changes, including a reused detection ID", () => {
+    const first = buildSession();
+    const second = buildSession(); // Same sessionId and generated detection IDs; different immutable authority.
+    expect(second.detections[0].id).toBe(first.detections[0].id);
+    const onDecide = vi.fn();
+    const props = { onDecide, onAddManual: vi.fn() };
+    const view = render(<ReviewWorkspace session={first} {...props} />);
+    const open = () => {
+      fireEvent.click(detectionSpanButton("Carmen Sánchez"));
+      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      return screen.getByRole("button", { name: "Sí, mantener original" });
+    };
+    const entityConfirm = open();
+    fireEvent.click(detectionSpanButton("612345678"));
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    fireEvent.click(entityConfirm);
+    const sessionConfirm = open();
+    view.rerender(<ReviewWorkspace session={second} {...props} />);
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    fireEvent.click(sessionConfirm);
+    view.rerender(<ReviewWorkspace session={first} {...props} />);
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    open();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Cancelar" }), { key: "Escape" });
+    expect(screen.getByRole("button", { name: /^Mantener original$/ })).toHaveFocus();
+    const unmountedConfirm = open();
+    view.unmount();
+    fireEvent.click(unmountedConfirm);
+    render(<ReviewWorkspace session={first} {...props} />);
+    fireEvent.click(detectionSpanButton("Carmen Sánchez"));
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(first.decisions).toEqual({});
+    expect(second.decisions).toEqual({});
+    expect(getProgress(first)?.pending).toBe(3);
+    expect(getProgress(second)?.restored).toBe(0);
+  });
+
+  it.each(["NOMBRE", "IDENTIFICADOR"])(
+    "keeps %s unchanged until Confirm, then permits correction",
+    (type) => {
+      let session = buildSession();
+      const target = session.detections.find((d) => d.type === type)!;
+      for (const detection of session.detections) {
+        if (detection.id !== target.id) session = applyDecision(session, detection.id, "accepted");
+      }
+      const before = session;
+      const onDecide = vi.fn<ReviewWorkspaceProps["onDecide"]>((id, decision, extras) => {
+        session = applyDecision(session, id, decision, extras);
+        view.rerender(
+          <ReviewWorkspace session={session} onDecide={onDecide} onAddManual={vi.fn()} />
+        );
+      });
+      const view = render(
+        <ReviewWorkspace session={session} onDecide={onDecide} onAddManual={vi.fn()} />
+      );
+      fireEvent.click(detectionSpanButton(target.original));
+      fireEvent.change(screen.getByLabelText("Replacement"), { target: { value: "CORRECCIÓN" } });
+      fireEvent.change(screen.getByLabelText("Note (optional)"), {
+        target: { value: "Nota sintética" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      const warning = screen.getByRole("group", { name: "Confirmar mantener original" });
+      expect(warning).toHaveTextContent(
+        "El texto original, identificable, permanecerá sin cambios en el resultado preparado para compartir."
+      );
+      expect(warning).not.toHaveTextContent(target.original);
+      expect(onDecide).not.toHaveBeenCalled();
+      expect(session).toBe(before);
+      expect(getProgress(session)?.restored).toBe(0);
+      expect(getPreview(session)).toBe(getPreview(before));
+      expect(() => getFinalText(session)).toThrow(/mandatory review decision.*pending/);
+      fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      expect(session).toBe(before);
+      expect(onDecide).not.toHaveBeenCalled();
+      expect(screen.getByLabelText("Replacement")).toHaveValue("CORRECCIÓN");
+      expect(screen.getByLabelText("Note (optional)")).toHaveValue("Nota sintética");
+      expect(screen.getByRole("button", { name: /^Mantener original$/ })).toHaveFocus();
+      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      const confirm = screen.getByRole("button", { name: "Sí, mantener original" });
+      fireEvent.click(confirm);
+      fireEvent.click(confirm);
+      expect(onDecide).toHaveBeenCalledTimes(1);
+      expect(onDecide).toHaveBeenCalledWith(target.id, "restored", { note: "Nota sintética" });
+      expect(getProgress(session)?.restored).toBe(1);
+      expect(getFinalText(session)).toContain(target.original);
+      expect(screen.getByRole("button", { name: /^Mantener original$/ })).toHaveFocus();
+      fireEvent.change(screen.getByLabelText("Replacement"), { target: { value: "CORRECCIÓN" } });
+      fireEvent.click(screen.getByRole("button", { name: /apply modification/i }));
+      expect(getFinalText(session)).not.toContain(target.original);
+      expect(getFinalText(session)).toContain("CORRECCIÓN");
+      expect(getProgress(session)?.accepted).toBe(2);
+    }
+  );
+});
 
 describe("ReviewWorkspace — progress and detection list derived from the session", () => {
   it("shows factual progress counts (never a score)", () => {
@@ -198,10 +350,12 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
 
     // Complete the rest with explicit keep-original decisions.
     fireEvent.click(detectionSpanButton("612345678"));
-    fireEvent.click(screen.getByRole("button", { name: /keep original/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
     rerender(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     fireEvent.click(detectionSpanButton("2024/089756"));
-    fireEvent.click(screen.getByRole("button", { name: /keep original/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
 
     const expected = SOURCE.slice(0, NAME_START) + "PACIENTE REEMPLAZO" + SOURCE.slice(NAME_END);
     expect(getFinalText(sessionRef.current)).toBe(expected);
@@ -211,7 +365,8 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     const sessionRef = { current: buildSession() };
     render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
-    fireEvent.click(screen.getByRole("button", { name: /keep original/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
 
     const progress = screen.getByRole("status", { name: /review progress/i });
     expect(progress).toHaveTextContent("Restored: 1");
@@ -437,6 +592,27 @@ describe("ReviewWorkspace — keyboard operability and responsive surfaces", () 
 });
 
 describe("ReviewWorkspace — mobile route from selection to decision controls (outcome D)", () => {
+  it("returns focus to the existing detection list after Cancel and Confirm without changing selection", () => {
+    const sessionRef = { current: buildSession() };
+    render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
+    fireEvent.click(detectionSpanButton("Carmen Sánchez"));
+    for (const action of ["Cancelar", "Sí, mantener original"]) {
+      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      fireEvent.click(screen.getByRole("button", { name: action }));
+      const before = sessionRef.current;
+      const back = screen.getByRole("button", { name: "Volver a detecciones" });
+      expect(back).toHaveClass("lg:hidden", "focus-visible:ring-2");
+      fireEvent.click(back);
+      expect(screen.getByRole("region", { name: "Detection list" })).toHaveFocus();
+      expect(sessionRef.current).toBe(before);
+      expect(
+        within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+          name: /Carmen Sánchez/,
+        })
+      ).toHaveAttribute("aria-current", "true");
+    }
+    expect(getProgress(sessionRef.current)?.pending).toBe(2);
+  });
   /** Left-pane detection list button for one detection. */
   function leftListDetection(original: string): HTMLElement {
     return within(screen.getByRole("list", { name: /detections/i })).getByRole("button", {

@@ -670,6 +670,52 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
 });
 
 describe("App document intake (T06)", () => {
+  it("confirms a single-document identifier in place and cannot carry pending intent into a new Job", async () => {
+    render(<App />);
+    selectFiles([new File(["DNI 12345678A"], "sintetico.txt", { type: "text/plain" })]);
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    await screen.findByText("Document job");
+    fireEvent.click(stepButton(2, "Configure"));
+    await goToReviewStep();
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+        name: /12345678A/,
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent("Pending: 1");
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent(
+      "Restored: 0"
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(stepButton(5, "Export"));
+    expect(
+      screen.getByRole("region", { name: "Originales conservados deliberadamente" })
+    ).toHaveTextContent("IDENTIFICADOR");
+    fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+        name: /12345678A/,
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Accept detection" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
+    fireEvent.click(screen.getByRole("button", { name: "New Job" }));
+    fireEvent.click(oldConfirm);
+    fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: "DNI 12345678A" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    fireEvent.click(stepButton(2, "Configure"));
+    await goToReviewStep();
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent("Pending: 1");
+    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent(
+      "Restored: 0"
+    );
+    expect(stepButton(5, "Export")).toBeDisabled();
+  });
   afterEach(() => {
     delete window.pdfjsLib;
     delete (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker;
@@ -990,7 +1036,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
-      fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      const confirm = screen.queryByRole("button", { name: "Sí, mantener original" });
+      if (confirm) fireEvent.click(confirm);
     }
   }
 
@@ -1265,6 +1313,17 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     );
     // B (the active document) is still pending; the warning came from A.
     expect(screen.getByRole("alert")).toHaveTextContent(/mandatory review decision/i);
+    fireEvent.click(stepButton(5, "Export"));
+    const resultWarning = screen.getByRole("region", {
+      name: "Originales conservados deliberadamente",
+    });
+    expect(resultWarning).toHaveTextContent("Originales conservados:");
+    expect(resultWarning).not.toHaveTextContent("Carmen Sánchez");
+    expect(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), { target: { value: "strict" } });
+    expect(
+      screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
+    ).not.toBeInTheDocument();
   });
 
   it("reaches the ready batch Result for a completed error-free batch (REC-07 #87)", async () => {
@@ -1319,6 +1378,57 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 });
 
 describe("App structured Configure workspace (T20 #24)", () => {
+  it("forwards current structured kept-original facts to Result and re-derives after correction/policy replacement", async () => {
+    createStructuredJob("NHC,CampoLibre\nP-001,DNI 12345678A");
+    await screen.findByRole("list", { name: /column classification list/i });
+    fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
+      target: { value: "process-as-text" },
+    });
+    fireEvent.click(stepButton(3, "Review"));
+    fireEvent.click(screen.getByRole("button", { name: "Process free-text cells" }));
+    await screen.findByRole("list", { name: "Detections" }, { timeout: 10_000 });
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+        name: /12345678A/,
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    expect(screen.getByRole("status", { name: "Free-text review progress" })).toHaveTextContent(
+      "Pending decisions: 1"
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    expect(screen.getByRole("status", { name: "Free-text review progress" })).toHaveTextContent(
+      "Free-text review ready: Yes"
+    );
+    fireEvent.click(stepButton(4, "Privacy Gate"));
+    await waitFor(() => expect(stepButton(5, "Export")).toBeEnabled());
+    fireEvent.click(stepButton(5, "Export"));
+    const warning = screen.getByRole("region", { name: "Originales conservados deliberadamente" });
+    expect(warning).toHaveTextContent("IDENTIFICADOR: 1");
+    expect(warning).not.toHaveTextContent("12345678A");
+    expect(
+      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
+    ).toBeEnabled();
+    fireEvent.click(stepButton(3, "Review"));
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+        name: /12345678A/,
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Accept detection" }));
+    await waitFor(() => expect(stepButton(5, "Export")).toBeEnabled());
+    fireEvent.click(stepButton(5, "Export"));
+    expect(
+      screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
+    ).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), { target: { value: "strict" } });
+    expect(
+      screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
+    ).toBeDisabled();
+  });
   const CSV = [
     "NHC,Fecha_Nac,Diagnostico,CampoLibre",
     "00123,1990-05-01,Gripe A,rotación de sala",

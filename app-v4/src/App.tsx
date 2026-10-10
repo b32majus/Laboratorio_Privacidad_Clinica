@@ -931,6 +931,7 @@ export function App() {
             review={activeReview}
             batchSessions={batchSessions}
             structured={structuredGateInput}
+            structuredFreeText={structuredFreeText}
             onReturnToReview={() => void handleGoToStep("review")}
           />
         ) : (
