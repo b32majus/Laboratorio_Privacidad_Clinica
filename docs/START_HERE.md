@@ -2,7 +2,7 @@
 
 Status: **CURRENT PRODUCT / RECOVERY AUTHORITY**
 
-Last reconciled: 2026-10-07
+Last reconciled: 2026-10-11
 
 ## 1. Where we are
 
@@ -54,15 +54,15 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 5. `REC-05 — SINGLE-OUTPUT-PARITY-01` — **COMPLETED**, merged by PR #76 at `3.0-main@96e53ee9f390026eff2ff44cb405634517ffbe09`
 6. `REC-06 — BATCH-WORKFLOW-PARITY-01` — **COMPLETED**, closed by #78 + #86; #86 merged by PR #97 at `3.0-main@2941b666007062ad1c4aa8e967046705864e143d`
 7. `REC-07 — BATCH-OUTPUT-PARITY-01` — **COMPLETED**, closed by #79 + #87 + #88 + #89; #89 merged by PR #104 at `3.0-main@86dbd34d303e2c967063400bacd452e4780bae66`
-8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01`
+8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01` — **COMPLETED** by #80 + independently authorized #106, merged via PR #107 at `3.0-main@a5453930b87f472eb12170c2a5ff40ea3cc9f6dc`
 9. `REC-09 — APP-IA-REVIEW-PRODUCTIVITY-01`
 10. `REC-10 — SPANISH-LOCALIZATION-01`
 11. `REC-11 — VISUAL-SYSTEM-RECOVERY-01`
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
-REC-07 is now canonical and **COMPLETED**. #79 merged by PR #96 at `3.0-main@30edfc3ca3c5deb585af82cc2d45a4bf03643e0a` and closed the async-disposal prefactor; #87 merged by PR #100 at `3.0-main@ed61e319fe3d54529abe33d4d145454502e11257` restoring batch Result readiness + deterministic Safe summary CSV; #88 merged by PR #102 at `3.0-main@6f47192bd6be9892708cb01ab6c85abb479bed44` restoring the ordinal per-document Safe PDF ZIP + consolidated Safe PDF; and #89 merged by PR #104 at `3.0-main@86dbd34d303e2c967063400bacd452e4780bae66` restoring the separate batch Confidential Audit with deliberate confirmation and shared fail-closed session authority. Issues **#78, #79, #86, #87, #88 and #89 are CLOSED**. The remaining REC-08→REC-12 frontier stays published in issues #80–#85 and #90–#93. The hard-dependency graph makes #80–#85 executable; under the attended serial recovery choice, the selected frontier is now **#80 — REC-08 Direct human input start: examples, Pegar and quiet routing**. #81–#85 remain independently executable but unselected; scheduling preference is not a dependency edge.
+REC-07 is now canonical and **COMPLETED**. #79 merged by PR #96 at `3.0-main@30edfc3ca3c5deb585af82cc2d45a4bf03643e0a` and closed the async-disposal prefactor; #87 merged by PR #100 at `3.0-main@ed61e319fe3d54529abe33d4d145454502e11257` restoring batch Result readiness + deterministic Safe summary CSV; #88 merged by PR #102 at `3.0-main@6f47192bd6be9892708cb01ab6c85abb479bed44` restoring the ordinal per-document Safe PDF ZIP + consolidated Safe PDF; and #89 merged by PR #104 at `3.0-main@86dbd34d303e2c967063400bacd452e4780bae66` restoring the separate batch Confidential Audit with deliberate confirmation and shared fail-closed session authority. Issues **#78, #79, #86, #87, #88 and #89 are CLOSED**. The REC-08 work is now **COMPLETED**: #80 restored the Spanish synthetic clinical examples, browser-local Pegar with Ctrl+V fallback, drag/drop plus file selection, quiet deterministic routing and intended-use wording; separately authorized #106 closes the later discovered stale Clipboard-vs-files interleaving. Both issues are CLOSED and the combined product landed by PR #107 at `3.0-main@a5453930b87f472eb12170c2a5ff40ea3cc9f6dc`. REC-09 #81–#85 remain technically executable and independently unblocked, while REC-10 #90, REC-11 #91 and REC-12 #92–#93 retain their published prerequisites. **No next executable frontier is selected by this closeout**; scheduling returns to attended Cora + human choice, not a fake dependency edge.
 
-No new recovery ticket should be invented from memory. For the current frontier, use published issues #78–#93 plus the traceability matrix/master plan. Any newly discovered blocking obligation must first be reconciled into authority and ownership rather than silently appended to an implementation ticket.
+No new recovery ticket should be invented from memory. Use published issues #78–#93, the independently human-authorized #106 REC-08 repair, and the traceability matrix/master plan. Any newly discovered blocking obligation must first be reconciled into authority and ownership rather than silently appended to an implementation ticket.
 
 ## 5. Important current truths
 
@@ -73,7 +73,7 @@ No new recovery ticket should be invented from memory. For the current frontier,
 - Batch V4 now has the canonical REC-07 Result/output set: deterministic Safe summary CSV from #87 / PR #100; ordinal per-document Safe PDF ZIP + consolidated Safe PDF from #88 / PR #102; and the separate `auditoria-confidencial-lote.txt` from #89 / PR #104 behind deliberate warning/Confirm and one shared fail-closed session-aware availability authority. REC-07 is complete.
 - Structured output provides Safe CSV + Safe XLSX and separate Confidential TXT/XLSX with deliberate confirmation. REC-05 canonically restores single text/document Copy/TXT/DOCX/PDF plus deliberate Confidential confirmation, and REC-07 now completes the same prepared/shareable-vs-Confidential separation for document batches. The global deliberate Confidential-download safeguard (`H-42`) is therefore closed across structured, single-item and batch surfaces.
 - `Keep original` exists, but direct identifiers currently lack the frozen UX contextual confirmation/explanation before the original is kept in Safe Output; REC-09 owns that safeguard.
-- New Privacy Job inference remains deterministic/fail-closed. D-019 is now human-ratified (2026-10-10) as `DELIBERATELY_SUPERSEDED` for a generic pipeline override: no legitimate recovery case survived bounded falsation, mixed/unsupported input remains an error rather than a user-selectable semantic guess, and any future alternate treatment must be shaped as an explicit capability.
+- REC-08 is complete: Input now provides three Spanish no-PHI examples, browser-local Pegar with Ctrl+V fallback, exact file select/drop staging, contextual Spanish refusals, human-purpose guidance and quiet routing. The CORA-80-01/-02/-03 async/selection preservation guards are accepted through #80 + #106 / PR #107. Inference remains deterministic/fail-closed; D-019 stays human-ratified (2026-10-10) as `DELIBERATELY_SUPERSEDED` for a generic pipeline override. Mixed/unsupported input remains an error rather than a guessed route.
 - V4 retains Sophilux ingredients (rose/warm surface tokens, Inter and Cormorant), but the original visual composition/design contract was not preserved as acceptance criteria. **Baseline hierarchy/density is now foundational for every touched surface**; REC-11 owns exhaustive visual-system closeout rather than postponing all visual correctness until the end.
 - The current product UI is predominantly English despite `lang=es`. **Spanish human vocabulary is now foundational for every touched surface**; REC-10 owns exhaustive localization closeout rather than postponing all user-facing Spanish until the end.
 
