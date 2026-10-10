@@ -32,6 +32,8 @@ import { EngineError } from "./engine/types";
 import { PolicyError } from "./engine/policy";
 import { extractFile, extractFromPastedText } from "./input/extract";
 import { extensionOf, type ExtractedSource } from "./input/extracted-source";
+import { SYNTHETIC_EXAMPLES } from "./input/synthetic-examples";
+import { readTextFromClipboard } from "./output/clipboard";
 import { ExportStep } from "./export/ExportStep";
 import { PrivacyGate } from "./privacy-gate/PrivacyGate";
 import { BatchReviewView } from "./review/BatchReviewView";
@@ -48,6 +50,7 @@ import {
   isPolicySelectableForJobKind,
   NO_JOB_AVAILABILITY_NOTE,
   POLICY_AVAILABILITY_LABELS,
+  POLICY_IDS,
 } from "./policy-guidance";
 import { useJobSession } from "./useJobSession";
 
@@ -274,7 +277,10 @@ export function App() {
     if (isExtracting) return;
     const hasText = draftText.trim().length > 0;
     if (hasText && draftFiles.length > 0) {
-      setInputError("Use either pasted text or files for one job, not both.");
+      // REC-08: App-authored start-surface copy is Spanish-first (HPD-11).
+      // Typed domain failures below stay verbatim; only this view-owned
+      // mutual-exclusion message is translated here.
+      setInputError("Use una sola entrada por trabajo: texto pegado o archivos, no ambos.");
       return;
     }
     if (hasText) {
@@ -308,7 +314,7 @@ export function App() {
       // fail-closed instead of silently guessing which table to profile.
       if (draftFiles.length !== 1) {
         setInputError(
-          "Structured jobs classify one table at a time; create a separate job per CSV or Excel file."
+          "Los trabajos estructurados clasifican una tabla cada vez; cree un trabajo por cada archivo CSV o Excel."
         );
         return;
       }
@@ -329,8 +335,19 @@ export function App() {
     }
   };
 
+  /**
+   * Draft-files intake (REC-08): file selection AND drag/drop converge here.
+   * Both entry mechanisms only stage `File` objects in the draft; routing,
+   * extension classification and Job creation stay owned by
+   * `handleCreateFromDraft` and the domain. Neither mechanism invents a
+   * second extension classifier, reorders or drops files.
+   */
+  const handleDraftFiles = (files: File[]) => {
+    setDraftFiles(files);
+  };
+
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
-    setDraftFiles(Array.from(event.target.files ?? []));
+    handleDraftFiles(Array.from(event.target.files ?? []));
     event.target.value = "";
   };
 
@@ -710,6 +727,7 @@ export function App() {
             batchJob={job}
             onDraftTextChange={setDraftText}
             onFileSelection={handleFileSelection}
+            onFilesDropped={handleDraftFiles}
             onCreate={handleCreateFromDraft}
           />
         ) : currentStep === "configure" && job && job.kind === "structured" ? (
@@ -948,13 +966,91 @@ function StepNavigation(props: {
  * the SAME extension authorities as intake so the label cannot drift from the
  * routing rules, but it is purely informational: `handleCreateFromDraft` and
  * the domain remain the only intake authority. An unrecognized extension is
- * shown as "Unsupported" and still fails closed on create.
+ * shown as "No admitido" and still fails closed on create. REC-08: the chips
+ * are Spanish-first like the rest of the touched start surface.
  */
 function selectedFileFamilyLabel(fileName: string): string {
   const extension = extensionOf(fileName);
-  if (isDocumentExtension(extension)) return "Document";
-  if (isStructuredExtension(extension)) return "Structured";
-  return "Unsupported";
+  if (isDocumentExtension(extension)) return "Documento";
+  if (isStructuredExtension(extension)) return "Estructurado";
+  return "No admitido";
+}
+
+/**
+ * REC-08 start-surface intended-use wording (D-020, HPD-11).
+ *
+ * Spanish human-purpose presentation of the accepted Privacy Policies. This
+ * is presentation ONLY: policy IDs, order and availability derive from the
+ * single `policy-guidance.ts` seam (`POLICY_IDS` via `buildPolicyGuidance`
+ * and the same engine authorities); no second policy table, no semantic or
+ * availability change, and none of the forbidden claims (anonymity, GDPR/
+ * compliance, research approval, k-anonymity). Exhaustive app-wide
+ * localization remains REC-10; only this touched start surface is Spanish.
+ */
+const POLICY_PURPOSE_ES: Readonly<Record<PrivacyPolicyId, { name: string; purpose: string }>> = {
+  standard: {
+    name: "Estándar",
+    purpose:
+      "Uso general: prepara la información para compartirla protegiendo nombres, identificadores directos, fechas, lugares y edades.",
+  },
+  "external-ai": {
+    name: "IA externa",
+    purpose:
+      "Preparación local para usar el resultado con una IA externa: reduce la precisión de las fechas. Nada sale de este dispositivo.",
+  },
+  "longitudinal-research": {
+    name: "Investigación longitudinal",
+    purpose:
+      "Preparación local para el seguimiento en el tiempo: desplaza las fechas de forma coherente. No concede aprobación de investigación.",
+  },
+  strict: {
+    name: "Estricta",
+    purpose:
+      "Protección reforzada: como el uso general, con generalización más estricta de lugares y cuasi-identificadores.",
+  },
+};
+
+function IntendedUseGuidance({ jobKind }: { jobKind: JobKind | null }) {
+  const entries = buildPolicyGuidance(jobKind);
+  return (
+    <section
+      aria-labelledby="intended-use-heading"
+      className="mt-5 rounded-xl border border-primary/30 bg-surface-light p-4"
+    >
+      <h3
+        id="intended-use-heading"
+        className="text-sm font-bold uppercase tracking-wide text-neutral-800"
+      >
+        Uso previsto
+      </h3>
+      <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+        El resultado se prepara según el uso que vaya a darle. La disponibilidad exacta depende del
+        tipo de información y se confirma al crear el trabajo.
+      </p>
+      <ul
+        aria-label="Usos previstos"
+        className="mt-3 grid gap-2 text-sm text-neutral-700 sm:grid-cols-2"
+      >
+        {POLICY_IDS.map((policyId) => {
+          const entry = entries.find((candidate) => candidate.policyId === policyId);
+          const copy = POLICY_PURPOSE_ES[policyId];
+          return (
+            <li key={policyId}>
+              <span className="font-semibold text-neutral-800">{copy.name}</span>
+              {entry && entry.availability !== "unknown" && (
+                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
+                  {entry.availability === "available"
+                    ? "Disponible"
+                    : "No disponible para este tipo de trabajo"}
+                </span>
+              )}
+              <span className="block">{copy.purpose}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }
 
 function InputStep(props: {
@@ -966,6 +1062,7 @@ function InputStep(props: {
   batchJob: Job | null;
   onDraftTextChange: (text: string) => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
+  onFilesDropped: (files: File[]) => void;
   onCreate: () => void;
 }) {
   // Failed batch reads are surfaced HERE, as soon as each item outcome is
@@ -975,24 +1072,61 @@ function InputStep(props: {
       ? batchFailedItems(props.batchJob)
       : [];
   const selectedCount = props.draftFiles.length;
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const [pasteBusy, setPasteBusy] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  /**
+   * REC-08 example action: loads the synthetic `texto` into the ordinary
+   * pasted-text draft. It creates NO job; creation still goes only through
+   * `onCreate` (`handleCreateFromDraft`).
+   */
+  const handleExample = (text: string) => {
+    props.onDraftTextChange(text);
+    setPasteError(null);
+  };
+
+  /**
+   * REC-08 Pegar convenience: browser-local clipboard read into the same
+   * pasted-text draft. Denial / unavailable clipboard is a visible Spanish
+   * failure naming the Ctrl+V fallback; no network request, no storage
+   * write, no raw exception leak, no Job creation.
+   */
+  const handlePaste = async () => {
+    if (props.isExtracting || pasteBusy) return;
+    setPasteBusy(true);
+    try {
+      const text = await readTextFromClipboard();
+      props.onDraftTextChange(text);
+      setPasteError(null);
+    } catch {
+      setPasteError(
+        "No se pudo leer el portapapeles en este navegador. Pegue con Ctrl+V directamente en el campo de texto."
+      );
+    } finally {
+      setPasteBusy(false);
+    }
+  };
   return (
     <section aria-labelledby="input-step-heading">
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Input</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
+          Añadir información
+        </p>
         <h2
           id="input-step-heading"
           className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
         >
-          New Privacy Job
+          Nuevo trabajo de privacidad
         </h2>
         <p className="mt-2 text-base leading-relaxed text-neutral-700">
-          Start a privacy job by pasting clinical text or selecting files. One job type is inferred
-          from your input.
+          Añada información clínica pegando texto o seleccionando archivos. El resto del proceso se
+          organiza a partir de su entrada.
         </p>
       </header>
 
       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-neutral-600">
-        Use one input per job: pasted text or files, not both.
+        Use una sola entrada por trabajo: texto pegado o archivos, no ambos.
       </p>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
@@ -1001,13 +1135,61 @@ function InputStep(props: {
           className="flex flex-col rounded-xl border border-primary/40 bg-white p-5 shadow-sm"
         >
           <h3 id="paste-text-heading" className="font-display text-lg font-bold text-neutral-800">
-            Paste clinical text
+            Pegar texto clínico
           </h3>
           <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            Free text such as notes, reports or correspondence.
+            Texto libre, como notas, informes o correspondencia.
           </p>
+          <section aria-labelledby="synthetic-examples-heading" className="mt-4">
+            <h4 id="synthetic-examples-heading" className="text-sm font-bold text-neutral-800">
+              Ejemplos sintéticos
+            </h4>
+            <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+              Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el borrador; no crea
+              ningún trabajo.
+            </p>
+            <ul aria-labelledby="synthetic-examples-heading" className="mt-2 flex flex-wrap gap-2">
+              {SYNTHETIC_EXAMPLES.map((example) => (
+                <li key={example.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleExample(example.text)}
+                    title={example.description}
+                    className={`rounded-lg border border-primary bg-surface-light px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+                  >
+                    {example.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                void handlePaste();
+              }}
+              disabled={props.isExtracting || pasteBusy}
+              aria-busy={props.isExtracting || pasteBusy}
+              className={`rounded-lg border border-primary-dark bg-white px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-light disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
+            >
+              Pegar desde el portapapeles
+            </button>
+            <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+              Lee el contenido actual del portapapeles en este navegador. También puede usar Ctrl+V
+              directamente en el campo de texto.
+            </p>
+            {pasteError && (
+              <p
+                role="alert"
+                className="mt-2 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+              >
+                {pasteError}
+              </p>
+            )}
+          </div>
           <label htmlFor="paste-text" className="mt-4 block text-sm font-semibold text-neutral-800">
-            Paste text
+            Pegar texto
           </label>
           <textarea
             id="paste-text"
@@ -1020,19 +1202,37 @@ function InputStep(props: {
 
         <section
           aria-labelledby="select-files-heading"
-          className="flex flex-col rounded-xl border border-primary/40 bg-white p-5 shadow-sm"
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+            // REC-08: drag/drop converges on the same draft-files staging as
+            // file selection — no second classifier, no silent loss/reorder.
+            props.onFilesDropped(Array.from(event.dataTransfer.files));
+          }}
+          className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
+            isDragging ? "border-2 border-primary-dark" : "border-primary/40"
+          }`}
         >
           <h3 id="select-files-heading" className="font-display text-lg font-bold text-neutral-800">
-            Choose files
+            Elegir archivos
           </h3>
           <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            Documents (TXT, PDF, DOCX) or structured tables (CSV, XLS, XLSX).
+            Documentos (TXT, PDF, DOCX) o tablas estructuradas (CSV, XLS, XLSX).
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+            Arrastre y suelte archivos aquí o use el selector. Arrastrar y seleccionar siguen el
+            mismo proceso.
           </p>
           <label
             htmlFor="select-files"
             className="mt-4 block text-sm font-semibold text-neutral-800"
           >
-            Select files (TXT, PDF, DOCX, CSV, XLS, XLSX)
+            Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)
           </label>
           <input
             id="select-files"
@@ -1042,12 +1242,22 @@ function InputStep(props: {
             onChange={props.onFileSelection}
             className={`mt-1 block w-full text-sm ${focusRing}`}
           />
+          {isDragging && (
+            <p
+              role="status"
+              className="mt-2 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+            >
+              Suelte los archivos para añadirlos al borrador.
+            </p>
+          )}
           {selectedCount > 0 && (
             <div className="mt-3 rounded-lg border border-primary/40 bg-surface-light p-3">
               <p className="text-sm font-semibold text-neutral-800">
-                {selectedCount === 1 ? "1 file selected" : `${selectedCount} files selected`}
+                {selectedCount === 1
+                  ? "1 archivo seleccionado"
+                  : `${selectedCount} archivos seleccionados`}
               </p>
-              <ul aria-label="Selected files" className="mt-2 space-y-1.5">
+              <ul aria-label="Archivos seleccionados" className="mt-2 space-y-1.5">
                 {props.draftFiles.map((file, index) => (
                   <li
                     key={`${file.name}-${index}`}
@@ -1065,37 +1275,7 @@ function InputStep(props: {
         </section>
       </div>
 
-      <section
-        aria-labelledby="job-type-inference-heading"
-        className="mt-5 rounded-xl border border-primary/30 bg-surface-light p-4"
-      >
-        <h3
-          id="job-type-inference-heading"
-          className="text-sm font-bold uppercase tracking-wide text-neutral-800"
-        >
-          How the job type is chosen
-        </h3>
-        <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-          Each supported input maps to one job type. Mixed or unsupported combinations are rejected.
-        </p>
-        <ul className="mt-3 grid gap-2 text-sm text-neutral-700 sm:grid-cols-2">
-          <li>
-            <span className="font-semibold text-neutral-800">Pasted clinical text</span> → Text job
-          </li>
-          <li>
-            <span className="font-semibold text-neutral-800">One TXT, PDF or DOCX</span> → Document
-            job
-          </li>
-          <li>
-            <span className="font-semibold text-neutral-800">Two or more documents</span> → Document
-            batch
-          </li>
-          <li>
-            <span className="font-semibold text-neutral-800">One CSV, XLS or XLSX</span> →
-            Structured job
-          </li>
-        </ul>
-      </section>
+      <IntendedUseGuidance jobKind={props.batchJob ? props.batchJob.kind : null} />
 
       <div className="mt-5 max-w-3xl space-y-4">
         {props.batchRead && (
@@ -1103,7 +1283,7 @@ function InputStep(props: {
             role="status"
             className="rounded border border-primary bg-white px-3 py-2 text-sm font-semibold text-neutral-800"
           >
-            Reading documents… {props.batchRead.done} of {props.batchRead.total} read.
+            Leyendo documentos… {props.batchRead.done} de {props.batchRead.total} leídos.
           </p>
         )}
         {failedItems.length > 0 && (
@@ -1112,10 +1292,10 @@ function InputStep(props: {
             className="rounded border border-primary-dark bg-surface-light px-3 py-2"
           >
             <h3 id="batch-read-failures-heading" className="text-sm font-bold text-primary-dark">
-              Documents that could not be read
+              Documentos que no se pudieron leer
             </h3>
             <ul
-              aria-label="Failed documents"
+              aria-label="Documentos con error"
               className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
             >
               {failedItems.map((item) => (
@@ -1141,7 +1321,7 @@ function InputStep(props: {
           aria-busy={props.isExtracting}
           className={`rounded-lg bg-primary-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
         >
-          Create job
+          Crear trabajo
         </button>
       </div>
     </section>

@@ -42,3 +42,30 @@ export async function copyTextToClipboard(safeText: string): Promise<void> {
     );
   }
 }
+
+/**
+ * Read the current clipboard text (issue #80, REC-08 Pegar convenience).
+ *
+ * Browser-local only: the platform Clipboard API, no network request, no
+ * storage write. Rejects with {@link ClipboardError} when the clipboard is
+ * unavailable or the read is denied; the caller surfaces a visible Spanish
+ * failure with the Ctrl+V fallback. The raw platform exception is never
+ * exposed to the user. It never creates a Job.
+ */
+export async function readTextFromClipboard(): Promise<string> {
+  const clipboard = typeof navigator === "undefined" ? undefined : navigator.clipboard;
+  if (!clipboard || typeof clipboard.readText !== "function") {
+    throw new ClipboardError(
+      "CLIPBOARD_UNAVAILABLE",
+      "El portapapeles no está disponible en este navegador."
+    );
+  }
+  try {
+    return await clipboard.readText();
+  } catch {
+    throw new ClipboardError(
+      "CLIPBOARD_REJECTED",
+      "El navegador no permitió leer el portapapeles."
+    );
+  }
+}
