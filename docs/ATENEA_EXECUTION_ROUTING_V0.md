@@ -23,7 +23,7 @@ The NaN provider ID `nan/deepseek-v4-flash` is intentionally retained even when 
 ## Routing dimensions
 
 ```text
-cost_policy = standard | free_only | go
+cost_policy = standard | free_only | go | openai_experimental (explicit, unqualified opt-in)
 risk_class  = volume | complex
 ```
 
@@ -40,7 +40,18 @@ Human/project authority owns cost policy. Cora recommends risk class from accept
 
 Free bindings: `docs/ATENEA_FREE_PROFILE_V0.md` + `docs/ATENEA_FREE_MODEL_CATALOG_V0.md`.
 
-Go bindings: `docs/ATENEA_GO_PROFILE_V0.md` + `docs/ATENEA_GO_MODEL_CATALOG_V0.md`. Go remains a qualification candidate. Neither profile has silent fallback.
+Go bindings: `docs/ATENEA_GO_PROFILE_V0.md` + `docs/ATENEA_GO_MODEL_CATALOG_V0.md`. Go is **operationally qualified for bounded volume and complex**, with evidence in `docs/ATENEA_GO_OPERATIONAL_QUALIFICATION_C087_20261010.md`. Neither profile has silent fallback.
+
+### Experimental OpenAI opt-in (post-C-087 field trial; not qualified)
+
+The human may select `cost_policy: openai_experimental` at a **clean** work-unit boundary. This is additive; the C-087 accepted Standard / Free / Go assignments and default remain unchanged.
+
+| Risk class | Experimental primary agent | Strategy |
+| --- | --- | --- |
+| `volume` | `atenea-openai-sprint` | GPT-6 Luna High implementation; GPT-6.1 Sol High Spec and fresh correction when needed |
+| `complex` | `atenea-openai-frontier` | GPT-6.1 Sol High implementation / fresh correction; GPT-6 Luna High Spec |
+
+Both reuse NaN MiMo coordinator, NaN Qwen 3.8 explorer and MiMo merger. Standards is NaN DeepSeek V4 Flash in Sprint and NaN GLM 5.3 Flash High in Frontier. See `docs/ATENEA_OPENAI_EXPERIMENTAL_PROFILE_V0.md` for the exact seven-role map, preflight, limitations and field-evidence requirements. No silent fallback or mid-run profile switch.
 
 ## Risk selection
 
