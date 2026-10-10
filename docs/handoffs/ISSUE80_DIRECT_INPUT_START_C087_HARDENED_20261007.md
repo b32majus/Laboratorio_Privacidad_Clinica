@@ -1,7 +1,7 @@
 # Issue #80 — REC-08 Direct human input start — C-087 hardened handoff
 
 Status: **READY_TO_LAUNCH**
-Date: 2026-10-07
+Prepared: 2026-10-07; human-ratified D-019 and C-087 preflight refresh: 2026-10-10
 
 ## Identity
 
@@ -46,7 +46,7 @@ Do not reopen historical UX/product decisions already reconciled here.
 
 ### D-019 — generic pipeline override is deliberately superseded
 
-The fixed point already resolves D-019 as `DELIBERATELY_SUPERSEDED`.
+D-019 was proposed as `DELIBERATELY_SUPERSEDED` during shaping and was **explicitly ratified by the human on 2026-10-10**. There is no pending product choice on this override. Do not ask the implementer to adjudicate it again.
 
 Do **not** add a global “process as text/document/batch/structured” selector or another routing authority.
 
@@ -137,6 +137,8 @@ Do not invent a second policy table. Exhaustive app-wide Spanish localization re
 - `app-v4/src/policy-guidance.ts`
   - presentation seam derived from policy authorities
 
+**Reuse-first oracle map (existing before #80):** `app-v4/src/domain/job.test.ts` already exercises `inferJobKind` supported families, mixed-input and unsupported-format refusal; `app-v4/src/App.test.tsx` exercises current creation/intake and `.doc`/extraction failures; `app-v4/src/App.policy.test.tsx` and `app-v4/src/policy-guidance.test.ts` cover policy availability/copy; `app-v4/src/input/extract.test.ts` covers extraction; `e2e/harness/flows.ts`, `e2e/batch.spec.ts` and `e2e/policy-guidance.spec.ts` provide composed user journeys. Reuse the relevant existing witness where it proves the accepted behavior, then add only falsifiable missing interaction evidence for examples, Pegar, drop convergence and responsive reachability.
+
 The implementation may refactor locally if needed, but no second Job-creation, routing, extension or policy authority may emerge.
 
 ## Required evidence
@@ -182,6 +184,19 @@ Writer phase: focused evidence only.
    - no detached prototype is required.
 
 Use the smallest relevant Vitest / component / composed browser tests plus typecheck/lint/format needed by the changed surface. Broad repository suites belong to publication unless a concrete integration risk requires them earlier.
+
+## Conditional safeguards and readiness
+
+**Conditional safeguards (explicit C-087):**
+
+- **Representation narrowing — ACTIVE at the input boundary.** The visible file controls must not collapse multiple documents to one, silently reorder/drop selected files, treat mixed document+structured input as a valid pipeline or advertise `.doc`. This preserves accepted input family/cardinality/unsupported distinctions rather than designing new routing.
+- **Affected shared seam — CONDITIONAL.** If the implementation materially changes the existing Job creation, extraction, extension or policy authority shared by Input/other flows, use the above known consumers and smallest meaningful sibling regression; report an out-of-envelope material consumer and HUMAN STOP rather than starting a broad repo audit.
+- **Rendered interaction — ACTIVE.** Since controls and drag/drop are new user-visible behavior, verify in the real app at desktop and narrow/mobile widths including visibility, keyboard operation and click/drop reachability, using the existing browser harness when possible.
+- **Adversarial evidence — BOUNDED to the supplied refusal/privacy claims.** Reuse existing fail-closed tests; add targeted negative witnesses only for a real unproven claim.
+
+**Open material product questions: NONE.** D-019 has explicit human approval and all material output/scope decisions are fixed above. The implementer chooses local implementation mechanics, not product policy.
+
+**Writer-environment preflight (2026-10-10):** Node `v24.15.0`, npm `11.12.1`, installed dependencies via `npm ci` from the committed lockfile, local Vitest binary and cached Chromium present. OpenCode `2.0.26` is the promoted C-087 runtime; exact Go bound-model presence check passed from the canonical Atenea checkout. These are environment facts, not product authority.
 
 ## Non-goals
 

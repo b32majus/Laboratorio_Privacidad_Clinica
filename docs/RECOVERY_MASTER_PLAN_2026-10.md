@@ -253,7 +253,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 
 ### REC-08 — INPUT-PRODUCTIVITY-PARITY-01
 
-**Status — SELECTED FRONTIER: #80 (2026-10-07).** D-019 is resolved `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override before implementation: the original audit supplied no legitimate case, v3 had no global selector, deterministic V4 input-family routing already covers the supported families, and mixed/unsupported input must remain fail-closed rather than becoming an arbitrary route choice. #80 therefore owns the remaining REC-08 product work without adding a generic pipeline override.
+**Status — SELECTED FRONTIER: #80 (2026-10-07; D-019 ratified by the human 2026-10-10).** D-019 is resolved `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override before implementation: the original audit supplied no legitimate case, v3 had no global selector, deterministic V4 input-family routing already covers the supported families, and mixed/unsupported input must remain fail-closed rather than becoming an arbitrary route choice. #80 therefore owns the remaining REC-08 product work without adding a generic pipeline override.
 
 **Reshaped goal:** make starting work direct and human, recovering useful input conveniences while keeping routing deterministic/fail-closed underneath.
 
