@@ -73,7 +73,7 @@ async function acceptOpenDetection(page: Page): Promise<void> {
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /12345678A/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
 }
 
 test("12-document batch: blocked Result downloads nothing, recovery + review reach one Safe manifest", async ({

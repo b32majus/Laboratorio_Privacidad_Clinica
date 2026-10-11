@@ -84,7 +84,7 @@ for (const width of [375, 1280]) {
 
     // Modified: the reviewer rewrites the DNI replacement.
     await selectDetection(new RegExp(DNI));
-    await page.getByLabel("Replacement").fill(DNI_REPLACEMENT);
+    await page.getByLabel("Sustitución").fill(DNI_REPLACEMENT);
     const inspector = page.getByRole("complementary", { name: "Entity inspector" });
     const keep = page.getByRole("button", { name: "Mantener original", exact: true });
     const back = page.getByRole("button", { name: "Volver a detecciones" });
@@ -120,14 +120,14 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Cancelar", exact: true }).press("Escape");
     await expect(confirmation).toHaveCount(0);
     await expect(keep).toBeFocused();
-    await expect(page.getByLabel("Replacement")).toHaveValue(DNI_REPLACEMENT);
+    await expect(page.getByLabel("Sustitución")).toHaveValue(DNI_REPLACEMENT);
     await expect(progress).toContainText("Restored: 0");
     if (width === 375) await returnToList();
     await keep.focus();
     await keep.press("Enter");
     await page.getByRole("button", { name: "Sí, mantener original" }).press("Enter");
     await expect(keep).toBeFocused();
-    await expect(inspector).toContainText(/Current decision\s*Restored/);
+    await expect(inspector).toContainText(/Decisión actual\s*Original conservado/);
     await expect(progress).toContainText("Restored: 1");
     await expect(progress).toContainText("Pending: 3");
     await capture("confirmed-current-decision");
@@ -136,8 +136,8 @@ for (const width of [375, 1280]) {
       await capture("keyboard-return-to-detections");
     }
     // Confirmed decisions remain correctable using the ordinary controls.
-    await page.getByLabel("Replacement").fill(DNI_REPLACEMENT);
-    await page.getByRole("button", { name: "Apply modification" }).click();
+    await page.getByLabel("Sustitución").fill(DNI_REPLACEMENT);
+    await page.getByRole("button", { name: "Aplicar modificación" }).click();
     await expect(progress).toContainText("Modified: 1");
 
     // Restored: the email original is EXPLICITLY kept by reviewer decision.
@@ -149,9 +149,9 @@ for (const width of [375, 1280]) {
 
     // Accepted: phone and NHC disappear from the final text (deletion proposals).
     await selectDetection(new RegExp(TELEFONO.replace("-", "-")));
-    await page.getByRole("button", { name: "Accept detection" }).click();
+    await page.getByRole("button", { name: "Aceptar detección" }).click();
     await selectDetection(new RegExp(NHC));
-    await page.getByRole("button", { name: "Accept detection" }).click();
+    await page.getByRole("button", { name: "Aceptar detección" }).click();
     await expect(progress).toContainText("Pending: 0");
 
     // --- Manual detection affects the final output --------------------------
@@ -217,8 +217,8 @@ for (const width of [375, 1280]) {
     await reviewMarked.press("Enter");
     await expect(inspector).toBeFocused();
     await expect(inspector).toContainText(MANUAL_SPAN);
-    await page.getByLabel("Replacement").fill(MANUAL_REPLACEMENT);
-    await page.getByRole("button", { name: "Apply modification" }).click();
+    await page.getByLabel("Sustitución").fill(MANUAL_REPLACEMENT);
+    await page.getByRole("button", { name: "Aplicar modificación" }).click();
 
     await expect(progress).toContainText("All mandatory decisions complete: yes");
 

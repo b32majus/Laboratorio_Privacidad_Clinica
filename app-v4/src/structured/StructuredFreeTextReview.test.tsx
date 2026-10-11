@@ -108,6 +108,48 @@ function renderReview(activeCell: number | null) {
 }
 
 describe("StructuredFreeTextReview — bounded cell queue", () => {
+  it("revokes drafts and keyboard target on a cell change even when IDs and source text repeat", () => {
+    const { state, configuration } = fixture();
+    const first = state.cells[0];
+    if (!first.ok) throw new Error("Expected synthetic session");
+    const secondSession = sessionFor(first.cell.original, "PACIENTE_1");
+    expect(secondSession.detections[0].id).toBe(first.session.detections[0].id);
+    const current: StructuredFreeTextState = {
+      ...state,
+      cells: [first, { ok: true, cell: state.cells[1].cell, session: secondSession }],
+    };
+    const plan = buildStructuredTransformPlan(configuration, {
+      policyId: "standard",
+      jobSeed: state.jobId,
+    });
+    const preparation = prepareStructuredOutput(configuration, plan, { freeText: current });
+    const props = {
+      configuration,
+      preparation,
+      freeText: current,
+      runError: null,
+      onRun: vi.fn(async () => null),
+      onSelectFreeTextCell: vi.fn(),
+      onDecide: vi.fn(),
+      onAddManual: vi.fn(),
+      onGoToStep: vi.fn(),
+    };
+    const view = render(<StructuredFreeTextReview {...props} activeCell={0} />);
+    fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "CELDA A" } });
+    fireEvent.change(screen.getByLabelText("Nota (opcional)"), { target: { value: "NOTA A" } });
+    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    inspector.focus();
+    view.rerender(<StructuredFreeTextReview {...props} activeCell={1} />);
+    expect(screen.getByLabelText("Sustitución")).toHaveValue("");
+    expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("");
+    expect(inspector).not.toHaveFocus();
+    fireEvent.keyDown(inspector, { key: "a" });
+    expect(props.onDecide).not.toHaveBeenCalled();
+    view.rerender(<StructuredFreeTextReview {...props} activeCell={0} />);
+    expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("");
+    expect(first.session.decisions).toEqual({});
+    expect(secondSession.decisions).toEqual({});
+  });
   it.each(["keep-original", "manual"])(
     "invalidates %s intent when the active structured cell switches",
     (mode) => {

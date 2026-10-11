@@ -27,6 +27,20 @@ export const REVIEW_TELEFONO = "600-123-456";
 export const REVIEW_EMAIL = "paciente1@example.com";
 export const REVIEW_NHC = "NHC 00442315";
 
+/** Existing REC-05 density fixture: six synthetic blocks, four identifiers each. */
+export function buildHighVolumeText(): string {
+  const blocks: string[] = [];
+  for (let i = 0; i < 6; i += 1) {
+    const dniLetter = "ABCDEFGH"[i];
+    blocks.push(
+      `Informe de seguimiento ${i + 1}. Documento del paciente: DNI 1234567${i}${dniLetter}. ` +
+        `Telefono de contacto 600-123-45${i}. Correo paciente${i}@example.com. ` +
+        `Historia numero NHC 0044231${i}. Diagnostico: hipertension arterial controlada.`
+    );
+  }
+  return blocks.join("\n");
+}
+
 /** Select one or more files through the canonical input picker. */
 export async function selectFiles(
   page: Page,
@@ -94,19 +108,20 @@ export async function gotoReviewWithDetections(page: Page): Promise<void> {
 /** Keep the selected original through the current UI, including contextual confirmation. */
 export async function keepOriginalThroughUi(page: Page): Promise<void> {
   const inspector = page.getByRole("complementary", { name: "Entity inspector" });
-  const decision = inspector.locator('dt:text-is("Current decision") + dd');
+  const decision = inspector.locator('dt:text-is("Decisión actual") + dd');
   const confirmation = inspector.getByRole("group", { name: "Confirmar mantener original" });
   await inspector.getByRole("button", { name: "Mantener original", exact: true }).click();
   await expect
     .poll(
-      async () => (await confirmation.isVisible()) || (await decision.innerText()) === "Restored"
+      async () =>
+        (await confirmation.isVisible()) || (await decision.innerText()) === "Original conservado"
     )
     .toBe(true);
   if ((await confirmation.count()) > 0) {
     await expect(confirmation).toBeVisible();
     await confirmation.getByRole("button", { name: "Sí, mantener original", exact: true }).click();
   }
-  await expect(decision).toHaveText("Restored");
+  await expect(decision).toHaveText("Original conservado");
   await expect(confirmation).toHaveCount(0);
 }
 
@@ -117,14 +132,14 @@ export async function completeReview(page: Page): Promise<void> {
     await detections.getByRole("button", { name: label }).click();
   };
   await select(new RegExp(REVIEW_DNI));
-  await page.getByLabel("Replacement").fill("[DNI-REVISADO]");
-  await page.getByRole("button", { name: "Apply modification" }).click();
+  await page.getByLabel("Sustitución").fill("[DNI-REVISADO]");
+  await page.getByRole("button", { name: "Aplicar modificación" }).click();
   await select(new RegExp(REVIEW_EMAIL.replace(".", "\\.")));
   await keepOriginalThroughUi(page);
   await select(new RegExp(REVIEW_TELEFONO));
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await select(new RegExp(REVIEW_NHC));
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending: 0");
 }
 
