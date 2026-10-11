@@ -116,7 +116,7 @@ describe("App shell", () => {
     expect(taskButton("Privacy Gate")).toBeEnabled();
   });
 
-  it("shows the persistent top-bar facts: job, type, policy, local-only processing", async () => {
+  it("shows the persistent top-bar facts: job, policy, local-only processing — never the internal job kind", async () => {
     render(<App />);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();
@@ -125,13 +125,19 @@ describe("App shell", () => {
       "selected",
       true
     );
+    // Issue #84 correction (spec F): the internal job kind is not permanent
+    // chrome — not even as a placeholder while no job exists.
+    expect(screen.queryByText("Type:")).not.toBeInTheDocument();
   });
 
-  it("creates a text job, shows its name and type in the top bar, and lands directly on Review", async () => {
+  it("creates a text job, shows its name (not its internal kind) in the top bar, and lands directly on Review", async () => {
     render(<App />);
     createTextJob();
     expect(screen.getByText("Pasted text")).toBeInTheDocument();
-    expect(screen.getByText("Text job")).toBeInTheDocument();
+    // Issue #84 correction (spec F): the internal job kind is not permanent
+    // chrome on any task surface; kind stays contextual (intake confirmation,
+    // policy guidance).
+    expect(screen.queryByText("Text job")).not.toBeInTheDocument();
     // Quiet shell: a text job reaches its real review work without visiting
     // the no-op Configure stop (issue #84 acceptance B). The draft intake is
     // unmounted on landing; the cleared-draft end state is witnessed by the
@@ -155,7 +161,6 @@ describe("App shell", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(screen.getByText("labs.csv")).toBeInTheDocument();
-    expect(screen.getByText("Structured job")).toBeInTheDocument();
 
     // The structured job lands directly in its real Configure workspace (the
     // parsed canonical configuration arrives asynchronously).
@@ -179,10 +184,8 @@ describe("App shell", () => {
     render(<App />);
     createTextJob();
     await waitForReviewWorkspace();
-    expect(screen.getByText("Text job")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
     expect(screen.getByText("No job yet")).toBeInTheDocument();
-    expect(screen.queryByText("Text job")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Pegar texto")).toHaveValue("");
     expectNoResultAction();
     expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
@@ -611,6 +614,43 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(facts).toHaveTextContent("Safe output: Ready");
   });
 
+  it("a policy change from the direct Result keeps a truthful way back to Review (issue #84 correction)", async () => {
+    render(<App />);
+    await createReviewJob();
+    acceptAllDetections();
+    expect(pendingCount()).toBe(0);
+    // D-024 direct path: Review → Result without a mandatory Gate stop.
+    fireEvent.click(taskButton("Ver resultado"));
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+
+    // REAL policy change from the Result: the session-dependent authorization
+    // is invalidated (setPolicy keeps the flow position, the hook drops the
+    // session), so ExportStep unmounts into the unavailable state.
+    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      target: { value: "strict" },
+    });
+
+    // No stale Safe download surface remains.
+    expect(screen.queryByRole("heading", { level: 2, name: "Resultado" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Descargar documento preparado/ })
+    ).not.toBeInTheDocument();
+    // The unavailable state states its fact in professional Spanish (the copy
+    // this ticket authored; acceptance I).
+    expect(screen.getByText(/Este paso no está disponible/i)).toBeInTheDocument();
+
+    // The shell still offers the truthful way back to Review — gated by the
+    // domain's own backward-navigation authority (Review was visited), never a
+    // new ad-hoc enable rule (Gate 2). The former five-step nav was the only
+    // recovery path before this correction.
+    fireEvent.click(taskButton("Volver a la revisión"));
+
+    // The review can be redone under the new policy: a fresh session, every
+    // decision pending again, no stale result.
+    await waitForReviewWorkspace();
+    expect(pendingCount()).toBeGreaterThan(0);
+  });
+
   it("an unchanged policy selection is an exact no-op: the completed review survives", async () => {
     render(<App />);
     await createReviewJob();
@@ -683,7 +723,6 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([new File(["DNI 12345678A"], "sintetico.txt", { type: "text/plain" })]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await screen.findByText("Document job");
     await waitForReviewWorkspace();
     fireEvent.click(
       within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
@@ -739,10 +778,11 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    // The header's persistent job fact is the job NAME (issue #84 correction:
+    // the internal kind is not permanent chrome).
     await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
+      expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
     });
-    expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     // Quiet shell (#84): the document job lands directly on Review, so the
     // draft intake surface is unmounted. The cleared-draft end state is
@@ -760,7 +800,6 @@ describe("App document intake (T06)", () => {
     expect(alert).toHaveTextContent(/\.doc/);
     expect(alert).toHaveTextContent(/no se admite/i);
     expect(screen.getByText("No job yet")).toBeInTheDocument();
-    expect(screen.queryByText("Document job")).not.toBeInTheDocument();
   });
 
   it("surfaces a typed extraction-failed alert for a corrupt DOCX and creates no job", async () => {
@@ -804,14 +843,14 @@ describe("App document intake (T06)", () => {
     render(<App />);
     selectFiles([fixtureFile("sample-clinical-note.pdf")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    // Same pdf.js latency budget as the scan-like-PDF oracle above.
+    // Same pdf.js latency budget as the scan-like-PDF oracle above. The
+    // header's persistent job fact is the job NAME (issue #84 correction).
     await waitFor(
       () => {
-        expect(screen.getByText("Document job")).toBeInTheDocument();
+        expect(screen.getByText("sample-clinical-note.pdf")).toBeInTheDocument();
       },
       { timeout: 10_000 }
     );
-    expect(screen.getByText("sample-clinical-note.pdf")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -1029,7 +1068,6 @@ describe("App document batch (T17 #21 WU-C2)", () => {
   async function createBatchAndSettle(files: File[]) {
     selectFiles(files);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    expect(screen.getByText("Document batch")).toBeInTheDocument();
     await waitForReviewWorkspace();
   }
 
@@ -1107,6 +1145,20 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(documentSelector()).toHaveTextContent(/corrupt\.docx — Error/);
   });
 
+  it("offers no no-op review-start action once the batch review exists (issue #84 correction)", async () => {
+    render(<App />);
+    // Once the batch sessions exist, the reads-settle effect owns the one
+    // processing attempt and handleGoToStep skips the start branch for a
+    // batch: a visible "Iniciar revisión" here would only re-navigate to the
+    // step already shown — an affordance that does nothing (acceptance G:
+    // batch affordances remain reachable and TRUTHFUL).
+    await createBatchAndSettle([
+      new File([BATCH_NOTE_A], "lote-a.txt"),
+      new File([BATCH_NOTE_B], "lote-b.txt"),
+    ]);
+    expect(screen.queryByRole("button", { name: "Iniciar revisión" })).not.toBeInTheDocument();
+  });
+
   it("selecting and navigating between documents never marks one reviewed (FUNC-002, SD-5)", async () => {
     render(<App />);
     await createBatchAndSettle([
@@ -1167,7 +1219,10 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
     selectFiles([slowFile, new File([BATCH_NOTE_B], "doc-b.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
+    // The batch lands on Review with the queue visible while reads run
+    // (issue #84 correction: the internal kind is not header chrome, so the
+    // creation witness here is the batch queue itself).
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt/));
     // The factual read progress from the former start surface follows the
     // queue onto Review (issue #84).
     await waitFor(() =>
@@ -1201,7 +1256,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     const slowFile = { name: "doc-a.txt", text: () => deferred } as unknown as File;
     selectFiles([slowFile, new File([BATCH_NOTE_B], "doc-b.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
+    await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt/));
 
     // Clear the session mid-read: the job is gone before the read resolves.
     fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
@@ -1212,7 +1267,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     });
     await waitFor(() => expect(screen.queryByText(/leyendo documentos/i)).not.toBeInTheDocument());
     expect(screen.getByText("No job yet")).toBeInTheDocument();
-    expect(screen.queryByText("Document batch")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Batch documents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

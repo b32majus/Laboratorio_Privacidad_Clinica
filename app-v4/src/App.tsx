@@ -841,10 +841,11 @@ export function App() {
               <span className="font-semibold text-neutral-800">Job:</span>{" "}
               {job ? job.name : "No job yet"}
             </p>
-            <p>
-              <span className="font-semibold text-neutral-800">Type:</span>{" "}
-              {job ? KIND_LABELS[job.kind] : "—"}
-            </p>
+            {/* Issue #84 correction (spec F): the internal job kind is not
+                permanent chrome on any task surface. The kind stays a factual,
+                contextual fact where it is meaningful (e.g. the intake
+                confirmation and policy guidance); the header keeps only the
+                truthful persistent facts below. */}
             <label className="flex items-center gap-2">
               <span className="font-semibold text-neutral-800">Privacy Policy:</span>
               <select
@@ -1009,6 +1010,7 @@ export function App() {
          */}
         <TaskActionBar
           job={job}
+          exportResultHasOwnReturn={isBatch || activeReview !== null}
           reviewActive={review !== null}
           reviewStartInFlight={reviewStartInFlight}
           onStartReview={handleStartReview}
@@ -1116,13 +1118,27 @@ function PolicyGuidance({ job }: { job: Job | null }) {
  */
 function TaskActionBar(props: {
   job: Job | null;
+  /**
+   * Whether the workspace rendered at the Export step already provides its own
+   * in-workspace return control (the single-item and batch Results do; the
+   * structured Result and the unavailable fallback do not). The shell only
+   * supplies its own return action when this is false.
+   */
+  exportResultHasOwnReturn: boolean;
   /** Whether the single-item review session currently exists (T15 authority). */
   reviewActive: boolean;
   reviewStartInFlight: boolean;
   onStartReview: () => void;
   onGoToStep: (step: FlowStep) => void;
 }): ReactElement | null {
-  const { job, reviewActive, reviewStartInFlight, onStartReview, onGoToStep } = props;
+  const {
+    job,
+    exportResultHasOwnReturn,
+    reviewActive,
+    reviewStartInFlight,
+    onStartReview,
+    onGoToStep,
+  } = props;
   if (job === null) return null;
   const step = job.currentStep;
   const primaryAction = `rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
@@ -1131,11 +1147,15 @@ function TaskActionBar(props: {
 
   if (step === "review") {
     // The explicit review (re)start: offered only while no session exists and
-    // no attempt is running (a failed or policy-invalidated attempt). Batches
-    // and structured work never auto-start here (their own surfaces own the
-    // attempt), so the restart action only exists for text/document jobs.
+    // no attempt is running (a failed or policy-invalidated attempt), and only
+    // where the click performs a REAL start (issue #84 correction, acceptance
+    // G): a document-batch's one attempt is owned by the reads-settle effect
+    // and `handleGoToStep` deliberately skips the start branch for a batch, so
+    // the button would be a no-op re-navigation; structured work never
+    // auto-starts here either.
     if (
       job.kind !== "structured" &&
+      job.kind !== "document-batch" &&
       !reviewActive &&
       !reviewStartInFlight &&
       job.processing !== "running" &&
@@ -1164,7 +1184,10 @@ function TaskActionBar(props: {
     // The Privacy Gate stays an optional, visitable destination from Review
     // for EVERY kind — including a structured job whose export gate is still
     // closed (the gate reports the factual blockers; G-HP2: never hidden,
-    // deleted or disabled — D-023/D-024).
+    // deleted or disabled — D-023/D-024). "Privacy Gate" is the accepted
+    // product term, deliberately untranslated:
+    // docs/specs/SPEC_V4_APP_AND_REVIEW.md §2/§6 establish it as the step's
+    // name, and every gate surface (headings, guidance, tests) uses it.
     if (isStepAccessible(job, "privacy-gate")) {
       actions.push(
         <button
@@ -1214,6 +1237,9 @@ function TaskActionBar(props: {
   if (step === "export") {
     // The optional Privacy Gate stays reachable from the Result (the former
     // pipeline allowed the gate round-trip; G-HP2: never hidden or deleted).
+    // "Privacy Gate" is the accepted product term, deliberately untranslated:
+    // docs/specs/SPEC_V4_APP_AND_REVIEW.md §2/§6 establish it as the step's
+    // name, and every gate surface (headings, guidance, tests) uses it.
     if (isStepAccessible(job, "privacy-gate")) {
       actions.push(
         <button
@@ -1226,10 +1252,16 @@ function TaskActionBar(props: {
         </button>
       );
     }
-    // The structured Result has no in-workspace return control (the batch and
-    // single-item Results render their own), so the shell supplies the return
-    // action without duplicating an accessible name.
-    if (job.kind === "structured") {
+    // The truthful way back to Review (issue #84 correction, spec §5): the
+    // single-item and batch Results render their own in-workspace return
+    // control; the structured Result and an UNMOUNTED workspace (e.g. a real
+    // policy change invalidated the review-dependent authorization from the
+    // Result) do not, so the shell supplies the return action there — gated by
+    // the domain's backward-navigation authority (`isStepAccessible`, which
+    // reads `visitedSteps`), never a new ad-hoc enable rule (Gate 2). Without
+    // it a real policy change from the Result strands the operator with only
+    // destructive session controls and no visible recovery path.
+    if (!exportResultHasOwnReturn && isStepAccessible(job, "review")) {
       actions.push(
         <button
           key="back-to-review"
@@ -1870,8 +1902,8 @@ function StepUnavailableState({
         </p>
       )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        This step is not available for the current job state. Return to an available step with the
-        task actions or the session controls above.
+        Este paso no está disponible para el estado actual del trabajo. Vuelva a un paso disponible
+        con las acciones de tarea o los controles de sesión de arriba.
       </p>
     </section>
   );

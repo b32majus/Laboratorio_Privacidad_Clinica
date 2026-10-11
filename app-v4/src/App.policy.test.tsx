@@ -112,7 +112,9 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
     render(<App />);
     selectFiles([new File([SYNTHETIC_NOTE], "nota.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await waitFor(() => expect(screen.getByText("Document job")).toBeInTheDocument());
+    // Issue #84 correction: the internal kind is not header chrome, so the
+    // created-job witness is the real Review landing itself.
+    await waitForReviewWorkspace();
 
     for (const name of POLICY_NAMES) {
       expect(screen.getByRole("option", { name })).toBeEnabled();
@@ -126,7 +128,6 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
     render(<App />);
     selectFiles([new File([SYNTHETIC_NOTE], "doc-a.txt"), new File([SYNTHETIC_NOTE], "doc-b.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
     // Quiet shell (#84): the batch queue lands directly on Review; the review
     // workspace is installed exactly when the read phase settles, so no async
     // intake outlives the test.
@@ -204,7 +205,9 @@ describe("Policy guidance on structured jobs (POLICY-01 #56)", () => {
     render(<App />);
     selectFiles([new File([CSV], "labs.csv", { type: "text/csv" })]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await waitFor(() => expect(screen.getByText("Structured job")).toBeInTheDocument());
+    // Issue #84 correction: the internal kind is not header chrome; the job
+    // NAME is the persistent header fact.
+    await waitFor(() => expect(screen.getByText("labs.csv")).toBeInTheDocument());
 
     for (const name of ["Standard", "External AI", "Longitudinal Research", "Strict"]) {
       expect(screen.getByRole("option", { name })).toBeEnabled();
@@ -278,7 +281,9 @@ describe("Policy guidance copy guardrails (POLICY-01 #56)", () => {
     const csv = ["NHC,Fecha_Nac,Diagnostico", "00123,1990-05-01,Gripe A"].join("\n");
     selectFiles([new File([csv], "labs.csv", { type: "text/csv" })]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await waitFor(() => expect(screen.getByText("Structured job")).toBeInTheDocument());
+    // Issue #84 correction: the internal kind is not header chrome; the job
+    // NAME is the persistent header fact.
+    await waitFor(() => expect(screen.getByText("labs.csv")).toBeInTheDocument());
 
     expect(guidanceRegion().textContent ?? "").not.toMatch(FORBIDDEN_CLAIM);
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();

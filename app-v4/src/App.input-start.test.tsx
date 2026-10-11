@@ -92,7 +92,6 @@ describe("Input start examples (REC-08 #80)", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[0].label }));
     fireEvent.click(createButton());
-    expect(screen.getByText("Text job")).toBeInTheDocument();
     expect(screen.getByText("Pasted text")).toBeInTheDocument();
     // Quiet shell (#84): creation lands directly on Review, so the draft
     // surface is unmounted. The fresh-Input end state (no stale example text)
@@ -198,9 +197,15 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     // The undo-restored ordinary draft still creates a normal Document job.
     fireEvent.click(createButton());
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Issue #84 correction: the internal kind is not header chrome, so the
+        // created-job witness is the real Review landing itself (async engine
+        // completion — same latency budget as the other async oracles).
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
   });
 
   it("a late clipboard read never overwrites a newly chosen example", async () => {
@@ -239,9 +244,15 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(items[0]).toHaveTextContent("sintetico.txt");
     expect(screen.getByText("No job yet")).toBeInTheDocument();
     fireEvent.click(createButton());
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Issue #84 correction: the internal kind is not header chrome, so the
+        // created-job witness is the real Review landing itself (async engine
+        // completion — same latency budget as the other async oracles).
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -302,9 +313,15 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     render(<App />);
     dropFiles([new File(["Nota clínica sintética."], "nota.txt")]);
     fireEvent.click(createButton());
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Issue #84 correction: the internal kind is not header chrome, so the
+        // created-job witness is the real Review landing itself (async engine
+        // completion — same latency budget as the other async oracles).
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -387,7 +404,15 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     if (!section) throw new Error("expected the files card section");
     fireEvent.drop(section, { dataTransfer: { files } });
     fireEvent.click(createButton());
-    return screen.findByRole("alert");
+    // The typed refusal arrives after the ASYNC document extraction settles;
+    // under load the default 1s query budget is tighter than the extraction
+    // itself (same latency rationale as the other async oracles). This only
+    // widens the wait, never the assertion.
+    return waitFor(() => {
+      const alertElement = screen.queryByRole("alert");
+      if (alertElement === null) throw new Error("refusal alert not rendered yet");
+      return alertElement;
+    });
   }
 
   it("presents the mixed document+structured refusal in Spanish with a remedy", async () => {

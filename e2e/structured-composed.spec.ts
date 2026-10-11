@@ -31,8 +31,10 @@ async function createComposedJob(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  // Quiet shell (#84): the structured job lands in its real Configure workspace.
-  await expect(page.locator("header")).toContainText("Structured job");
+  // Quiet shell (#84): the structured job lands in its real Configure
+  // workspace. Issue #84 correction: the internal kind is not header chrome,
+  // so the persistent header fact asserted here is the job NAME.
+  await expect(page.locator("header")).toContainText(path.basename(CSV));
 }
 
 function columnCard(page: Page, header: string) {

@@ -8,6 +8,7 @@
  * names, contours); no assertion is weakened by moving it.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+import path from "node:path";
 
 /** A file the input picker accepts: a committed path or an in-memory payload. */
 export type FileInput = string | { name: string; mimeType: string; buffer: Buffer };
@@ -56,23 +57,29 @@ export async function createTextJob(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(PLAIN_TEXT_FIXTURE);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Text job");
+  // Issue #84 correction (spec F): the internal job kind is not permanent
+  // header chrome, so the persistent header fact asserted here is the job NAME.
+  await expect(page.getByRole("banner")).toContainText("Pasted text");
 }
 
-/** Create a single-document job and assert the shell fact. */
+/** Create a single-document job and assert the real Review landing. */
 export async function createDocumentJob(page: Page, file: FileInput): Promise<void> {
   await page.goto("/");
   await selectFiles(page, file);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Document job");
+  // Issue #84 correction: the internal kind is not header chrome; the created
+  // job's landing workspace is the witness.
+  await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
 }
 
-/** Create a document-batch job and assert the shell fact. */
+/** Create a document-batch job and wait for the reads to settle onto Review. */
 export async function createBatchJob(page: Page, files: readonly FileInput[]): Promise<void> {
   await page.goto("/");
   await selectFiles(page, files);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Document batch");
+  // Issue #84 correction: the internal kind is not header chrome; the created
+  // batch's landing workspace (installed once the reads settle) is the witness.
+  await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
 }
 
 /** Create a structured job from a committed CSV and assert the shell fact. */
@@ -80,7 +87,9 @@ export async function createStructuredJob(page: Page, csvPath: string): Promise<
   await page.goto("/");
   await selectFiles(page, csvPath);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Structured job");
+  // Issue #84 correction: the internal kind is not header chrome; the job NAME
+  // (the structured file's name) is the persistent header fact.
+  await expect(page.getByRole("banner")).toContainText(path.basename(csvPath));
 }
 
 /** The Privacy Policy guidance list (POLICY-01 workspace). */

@@ -153,8 +153,10 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles(xlsx);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  // Quiet shell (#84): the structured job lands in its real Configure workspace.
-  await expect(page.locator("header")).toContainText("Structured job");
+  // Quiet shell (#84): the structured job lands in its real Configure
+  // workspace. Issue #84 correction: the internal kind is not header chrome,
+  // so the persistent header fact asserted here is the job NAME.
+  await expect(page.locator("header")).toContainText("hospital-urgencias.xlsx");
 
   // No new step/mode appears: the quiet shell (#84) has no universal
   // navigation and offers exactly the canonical onward task action.

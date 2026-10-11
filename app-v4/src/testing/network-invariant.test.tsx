@@ -163,10 +163,11 @@ describe("network invariant monitor", () => {
       fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
 
       // The document job is created from extracted text held in memory only.
+      // Issue #84 correction: the internal kind is not header chrome, so the
+      // created-job witness is the job NAME header fact.
       await waitFor(() => {
-        expect(screen.getByText("Document job")).toBeInTheDocument();
+        expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
       });
-      expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
 
       // Walk the reached surfaces (review → optional gate → back) and reset;
       // nothing may leave the process.
