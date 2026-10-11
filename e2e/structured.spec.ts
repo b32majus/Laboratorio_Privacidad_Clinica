@@ -31,23 +31,24 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   // surface's authority (handoff §B.3; reconcile ONLY this selector).
   await expect(page.locator("header")).toContainText("Trabajo: structured-unknown.csv");
   await expect(page.locator("header")).not.toContainText("Structured job");
-  // The structured Configure workspace IS the structured review surface.
+  // The structured comparative Configure workspace IS the structured review
+  // surface (issue #85): the four-field comparison table carries the facts.
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns: 3");
   await expect(summary).toContainText("Columns requiring review: 1");
   await expect(summary).toContainText("Structured export ready: No");
 
-  const freeColumn = page
-    .getByRole("list", { name: "Column classification list" })
-    .locator("li")
-    .filter({ hasText: "CampoLibre1" });
-  await expect(freeColumn).toContainText("Review required");
-  await expect(freeColumn).toContainText("Classification:Unknown");
-  // Secondary facts are grouped behind the column's disclosure. Expand it
-  // explicitly so this asserts a reviewer can reveal the fact, not merely that
-  // it exists in collapsed DOM content.
-  await freeColumn.locator("summary").click();
-  await expect(freeColumn).toContainText("Proposed action:Review required");
+  const table = page.getByRole("table", { name: "Column classification list" });
+  const freeRow = table.locator("tbody tr").filter({ hasText: "CampoLibre1" });
+  await expect(freeRow).toContainText("Review required");
+  await expect(freeRow).toContainText("Unknown");
+  // Secondary facts are grouped behind the inspector's disclosure. Select the
+  // row and expand it explicitly so this asserts a reviewer can reveal the
+  // fact, not merely that it exists in collapsed DOM content.
+  await freeRow.getByRole("button", { name: "CampoLibre1" }).click();
+  const inspector = page.getByRole("complementary", { name: "Inspector de columna" });
+  await inspector.locator("summary").click();
+  await expect(inspector).toContainText("Proposed action:Review required");
 
   // Fail-closed gate message: unknown is never kept or exported as-is.
   await expect(page.getByRole("alert", { name: "Structured export block reasons" })).toContainText(
@@ -55,16 +56,17 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   );
 
   // Explicit reviewer classification through the domain override control.
-  await freeColumn
-    .getByLabel("Reviewer classification for CampoLibre1")
-    .selectOption("insensitive");
+  await page.getByLabel("Reviewer classification for CampoLibre1").selectOption("insensitive");
   await expect(summary).toContainText("Columns requiring review: 0");
   await expect(summary).toContainText("Structured export ready: Yes");
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(freeColumn).toContainText("Classification:Insensitive (reviewer override)");
+  await expect(freeRow).toContainText("Insensitive");
+  await expect(freeRow).toContainText("clasificación modificada");
 
-  // HARDEN-01 WU-A: reach the gate and export the Safe CSV + separate Confidential.
-  await page.getByRole("button", { name: "Continuar a la revisión" }).click();
+  // Issue #85 §3.4: no free-text cells — no «Continuar a la revisión» detour
+  // and no rendered no-op Review; the factual privacy check is the onward
+  // destination from Configure.
+  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
   await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
   await expect(page.getByRole("status", { name: "Structured export facts" })).toContainText(
     "Unsupported columns: 0"

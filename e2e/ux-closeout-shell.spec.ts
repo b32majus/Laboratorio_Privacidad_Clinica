@@ -134,24 +134,24 @@ test.describe("canonical flow traversal by Job kind", () => {
     await expect(page.getByRole("heading", { name: "Requiere tu atención" })).toBeVisible();
   });
 
-  test("structured job: structured Configure, its Review notice and the structured Gate", async ({
-    page,
-  }) => {
+  test("structured job: comparative Configure and the structured Gate", async ({ page }) => {
     await createStructuredJob(page, STRUCTURED_CSV);
 
-    // The structured job lands directly in its REAL Configure workspace (#85
-    // owns that surface; issue #84 only removes the no-op stops).
+    // The structured job lands directly in its REAL comparative Configure
+    // workspace (#85 owns that surface; issue #84 only removes the no-op
+    // stops).
     await expect(
       page.getByRole("status", { name: "Structured configuration facts" })
     ).toBeVisible();
     await expectNoMigrationCopy(page, "structured Configure");
 
-    await page.getByRole("button", { name: "Continuar a la revisión" }).click();
-    await expect(page.getByText(/Structured review happens in Configure/i)).toBeVisible();
-    await expectNoMigrationCopy(page, "structured Review");
-
+    // Issue #85 §3.4: with no cell routed to `process-as-text` there is no
+    // «Continuar a la revisión» detour and the no-op Review never renders;
+    // the canonical onward action is the factual privacy check.
+    await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
     await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await expect(page.getByRole("status", { name: "Structured export facts" })).toBeVisible();
+    await expectNoMigrationCopy(page, "structured Privacy Gate");
   });
 });
 
@@ -186,11 +186,13 @@ for (const width of [375, 768, 1280]) {
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `Export @${width}px`);
 
-    // Structured Review notice.
+    // Structured comparative Configure + its factual gate (issue #85 changed
+    // state): no overflow on either changed surface.
     await createStructuredJob(page, STRUCTURED_CSV);
-    await page.getByRole("button", { name: "Continuar a la revisión" }).click();
-    await expect(page.getByText(/Structured review happens in Configure/i)).toBeVisible();
-    await assertNoHorizontalOverflow(page, `structured Review @${width}px`);
+    await assertNoHorizontalOverflow(page, `structured Configure @${width}px`);
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
+    await expect(page.getByRole("status", { name: "Structured export facts" })).toBeVisible();
+    await assertNoHorizontalOverflow(page, `structured Privacy Gate @${width}px`);
   });
 }
 
@@ -313,27 +315,34 @@ test("structured Configure keeps UNKNOWN, blockers and authority facts reachable
     "Structured export is blocked while 1 column requires review."
   );
 
-  const freeColumn = page
-    .getByRole("list", { name: "Column classification list" })
-    .locator("li")
+  const freeRow = page
+    .getByRole("table", { name: "Column classification list" })
+    .locator("tbody tr")
     .filter({ hasText: "CampoLibre1" });
 
   // Authority facts that must never read as a false-ready state:
-  await expect(freeColumn).toContainText("Review required");
-  await expect(freeColumn).toContainText("Classification:Unknown");
-  await expect(freeColumn.getByText("Date role:")).toBeVisible();
+  await expect(freeRow).toContainText("Review required");
+  await expect(freeRow).toContainText("Unknown");
 
-  // Secondary evidence is only behind the disclosure, and is reachable when opened.
-  await expect(freeColumn.getByText("Proposed action:")).toBeHidden();
-  await freeColumn.locator("summary").click();
-  await expect(freeColumn.getByText("Proposed action:")).toBeVisible();
-  await expect(freeColumn).toContainText("Proposed action:Review required");
+  // The date-role fact and secondary evidence live in the selected column's
+  // inspector; the date role stays outside the disclosure, the proposed
+  // action only behind it.
+  await freeRow.getByRole("button", { name: "CampoLibre1" }).click();
+  const inspector = page.getByRole("complementary", { name: "Inspector de columna" });
+  await expect(inspector.getByText("Date role:")).toBeVisible();
+
+  await expect(inspector.getByText("Proposed action:")).toBeHidden();
+  await inspector.locator("summary").click();
+  await expect(inspector.getByText("Proposed action:")).toBeVisible();
+  await expect(inspector).toContainText("Proposed action:Review required");
 
   // The single patient-ID authority and its current status stay shown once.
-  const authority = page.getByRole("region", { name: "Patient ID authority" });
+  const authority = page.getByRole("region", {
+    name: "Autoridad de identificación del paciente",
+  });
   await expect(authority).toBeVisible();
-  await expect(authority.getByLabel("Patient ID column")).toBeVisible();
-  await expect(authority).toContainText(/No column selected yet|Selected:/);
+  await expect(authority.getByLabel("Columna de identificación del paciente")).toBeVisible();
+  await expect(authority).toContainText(/Aún no hay columna seleccionada|Seleccionada:/);
 
   await expectNoMigrationCopy(page, "structured Configure");
 });

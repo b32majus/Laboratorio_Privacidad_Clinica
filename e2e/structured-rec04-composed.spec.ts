@@ -138,11 +138,16 @@ function materializeWorkbook(): string {
   return file;
 }
 
-function columnCard(page: Page, header: string) {
+function columnRow(page: Page, header: string) {
   return page
-    .getByRole("list", { name: "Column classification list" })
-    .locator("li")
-    .filter({ has: page.getByRole("heading", { name: header, exact: true }) });
+    .getByRole("table", { name: "Column classification list" })
+    .locator("tbody tr")
+    .filter({ has: page.getByRole("button", { name: header }) });
+}
+
+/** Select one comparative row so its contextual inspector controls render. */
+async function selectColumn(page: Page, header: string): Promise<void> {
+  await columnRow(page, header).getByRole("button", { name: header }).click();
 }
 
 /** Upload the workbook, pick the sheet + header row explicitly, configure fully. */
@@ -159,8 +164,14 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   await expect(page.locator("header")).toContainText("hospital-urgencias.xlsx");
 
   // No new step/mode appears: the quiet shell (#84) has no universal
-  // navigation and offers exactly the canonical onward task action.
-  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(1);
+  // navigation. Before any cell is routed to free text there is NO «Continuar
+  // a la revisión» detour (issue #85 §3.4): the canonical onward action is
+  // the factual privacy check.
+  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
+  // Issue #85 F1 (CORA-85-01 correction 2): no structured configuration exists
+  // yet (no sheet loaded, no header row confirmed), so the Privacy Gate is NOT
+  // reachable — the action is never offered and the handler would no-op.
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
 
   // Explicit multi-sheet selection first: never the silent first sheet.
   await expect(page.getByRole("heading", { name: "Select a worksheet" })).toBeVisible();
@@ -170,31 +181,48 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   // Ambiguous cover line + real header: explicit header-row choice, never a
   // silent first row. Row 4 (0-based index 3) is the real header.
   await expect(page.getByRole("heading", { name: "Select the header row" })).toBeVisible();
+  // Issue #85 F1: still no resolved configuration (header row pending) — the
+  // Privacy Gate action remains absent through sheet selection.
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
   await page.getByLabel("Header row", { exact: true }).selectOption("3");
   await page.getByRole("button", { name: "Use row 4 as header" }).click();
 
   // The resolved schema reaches Configure: 10 hospital columns.
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns: 10");
+  // Issue #85 F1: the resolved configuration makes the Privacy Gate reachable
+  // again and the factual onward action is offered once more.
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(1);
 
-  await page.getByLabel("Patient ID column").selectOption("NHC");
+  await page.getByLabel("Columna de identificación del paciente").selectOption("NHC");
+  await selectColumn(page, "Fecha_Visita");
   await page.getByLabel("Date role for Fecha_Visita").selectOption("visit");
+  await selectColumn(page, "Fecha_Nacimiento");
   await page.getByLabel("Date role for Fecha_Nacimiento").selectOption("birth");
+  await selectColumn(page, "Notas");
   await page.getByLabel("Reviewer action for Notas").selectOption("process-as-text");
+  await selectColumn(page, "Edad_Num");
   await page.getByLabel("Reviewer classification for Edad_Num").selectOption("insensitive");
+  await selectColumn(page, "Atiende");
   await page.getByLabel("Reviewer classification for Atiende").selectOption("insensitive");
+  await selectColumn(page, "Observaciones");
   await page.getByLabel("Reviewer classification for Observaciones").selectOption("insensitive");
   await expect(summary).toContainText("Columns requiring review: 0");
 
   // Stronger authorities visibly lock their derived action.
-  await expect(columnCard(page, "NHC")).toContainText("Study ID");
-  await expect(columnCard(page, "Fecha_Visita")).toContainText("Date policy");
-  await expect(columnCard(page, "Centro")).toContainText("Pseudonymize");
-  await expect(columnCard(page, "Diagnostico")).toContainText("Keep");
-  await expect(columnCard(page, "Notas")).toContainText("Process as text");
+  await expect(columnRow(page, "NHC")).toContainText("Study ID");
+  await expect(columnRow(page, "NHC")).toContainText("derivado/bloqueado");
+  await expect(columnRow(page, "Fecha_Visita")).toContainText("Date policy");
+  await expect(columnRow(page, "Centro")).toContainText("Pseudonymize");
+  await expect(columnRow(page, "Diagnostico")).toContainText("Keep");
+  await expect(columnRow(page, "Notas")).toContainText("Process as text");
 
   // Output options: custom prefix; visit numbering is enabled by the
-  // patient-ID heritage default.
+  // patient-ID heritage default. (Issue #85 composed-hierarchy correction:
+  // the options area now sits below the comparison table, collapsed behind a
+  // native disclosure — this selector-only expansion keeps every control
+  // reachable; the assertions themselves are unchanged.)
+  await page.locator("summary").filter({ hasText: "Output options" }).click();
   await page.getByLabel("Study-ID prefix").fill("hs1");
   await expect(page.getByLabel("Visit numbering (Visita_Num)")).toBeChecked();
   const facts = page.getByRole("status", { name: "Structured output facts" });

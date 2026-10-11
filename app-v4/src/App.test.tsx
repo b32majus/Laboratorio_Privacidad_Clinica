@@ -34,6 +34,12 @@ function taskButton(name: string) {
   return screen.getByRole("button", { name });
 }
 
+/** The comparative-row selection button for one structured column (issue #85). */
+function rowSelectButton(header: string) {
+  const table = screen.getByRole("table", { name: /column classification list/i });
+  return within(table).getByRole("button", { name: header });
+}
+
 /** Wait until the single/batch review workspace is actually installed. */
 async function waitForReviewWorkspace(timeout = 10_000) {
   await screen.findByRole("region", { name: /review workspace/i }, { timeout });
@@ -164,9 +170,9 @@ describe("App shell", () => {
 
     // The structured job lands directly in its real Configure workspace (the
     // parsed canonical configuration arrives asynchronously).
-    const list = await screen.findByRole("list", { name: /column classification list/i });
-    expect(list).toHaveTextContent("NHC");
-    expect(list).toHaveTextContent("CampoLibre");
+    const table = await screen.findByRole("table", { name: /column classification list/i });
+    expect(table).toHaveTextContent("NHC");
+    expect(table).toHaveTextContent("CampoLibre");
     const facts = screen.getByRole("status", { name: /structured configuration facts/i });
     expect(facts).toHaveTextContent("Structured export ready: No");
   });
@@ -428,20 +434,76 @@ describe("App review workspace (T07)", () => {
     expect(progress).not.toHaveTextContent(`Pending: ${pendingBefore}`);
   });
 
-  it("explains that structured review happens in Configure without faking a review workspace", async () => {
+  it("never routes a structured job without free-text cells through the no-op review and returns from the gate to Configure", async () => {
     render(<App />);
     const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [csvFile] },
     });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await screen.findByRole("list", { name: /column classification list/i });
-    fireEvent.click(taskButton("Continuar a la revisión"));
-    const region = screen.getByRole("region", { name: "Review" });
-    expect(within(region).getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
-    expect(region).toHaveTextContent(/structured review happens in configure/i);
-    expect(region).not.toHaveTextContent(/not implemented|later V4 migration/i);
+    await screen.findByRole("table", { name: /column classification list/i });
+
+    // No detour: the «Continuar a la revisión» action and the no-op notice
+    // are gone (issue #85 §3.4).
+    expect(screen.queryByRole("button", { name: "Continuar a la revisión" })).toBeNull();
+    expect(screen.queryByText(/structured review happens in configure/i)).toBeNull();
+
+    // The factual privacy check is reached within the same intentional
+    // navigation (canonical internal order preserved; no rendered Review).
+    fireEvent.click(taskButton("Privacy Gate"));
+    expect(
+      await screen.findByRole("status", { name: /structured export facts/i })
+    ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+
+    // `Volver` from the gate returns to meaningful Configure, never the
+    // no-op Review.
+    fireEvent.click(taskButton("Volver a la configuración"));
+    expect(
+      await screen.findByRole("table", { name: /column classification list/i })
+    ).toBeInTheDocument();
+  });
+
+  it("routes real free-text cells to the review and never resurrects the no-op review after the action changes back", async () => {
+    render(<App />);
+    const csvFile = new File(["NHC,CampoLibre\nP-001,DNI 12345678A"], "labs.csv", {
+      type: "text/csv",
+    });
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [csvFile] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    await screen.findByRole("table", { name: /column classification list/i });
+
+    // Route the text column through the text engine; the review detour is real.
+    fireEvent.click(rowSelectButton("CampoLibre"));
+    fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
+      target: { value: "process-as-text" },
+    });
+    fireEvent.click(taskButton("Continuar a la revisión"));
+    expect(
+      await screen.findByRole("button", { name: "Process free-text cells" })
+    ).toBeInTheDocument();
+
+    // Back in Configure, take the column back out of free-text routing.
+    fireEvent.click(screen.getByRole("button", { name: "Back to Configure" }));
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
+    fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
+      target: { value: "review-required" },
+    });
+
+    // The detour is gone although `review` is an already-visited step: the
+    // stored visitedSteps never resurrect the no-op Review (issue #85 §3.5).
+    expect(screen.queryByRole("button", { name: "Continuar a la revisión" })).toBeNull();
+    fireEvent.click(taskButton("Privacy Gate"));
+    expect(
+      await screen.findByRole("status", { name: /structured export facts/i })
+    ).toBeInTheDocument();
+    fireEvent.click(taskButton("Volver a la configuración"));
+    expect(
+      await screen.findByRole("table", { name: /column classification list/i })
+    ).toBeInTheDocument();
   });
 
   it("keeps export fail-closed while mandatory review decisions are pending", async () => {
@@ -1465,7 +1527,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 describe("App structured Configure workspace (T20 #24)", () => {
   it("forwards current structured kept-original facts to Result and re-derives after correction/policy replacement", async () => {
     createStructuredJob("NHC,CampoLibre\nP-001,DNI 12345678A");
-    await screen.findByRole("list", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
     fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
       target: { value: "process-as-text" },
     });
@@ -1535,16 +1598,22 @@ describe("App structured Configure workspace (T20 #24)", () => {
 
   it("shows the five-class classification, unknown review and the single patient-ID authority", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("list", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("NHC"));
     expect(screen.getByLabelText("Reviewer classification for NHC")).toHaveValue("identifier");
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
     expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
       "quasi-identifier"
     );
+    fireEvent.click(rowSelectButton("Diagnostico"));
     expect(screen.getByLabelText("Reviewer classification for Diagnostico")).toHaveValue(
       "sensitive"
     );
+    fireEvent.click(rowSelectButton("CampoLibre"));
     expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
-    expect(screen.getAllByRole("region", { name: /patient id authority/i })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("region", { name: /autoridad de identificación del paciente/i })
+    ).toHaveLength(1);
     expect(
       screen.getByRole("status", { name: /structured configuration facts/i })
     ).toHaveTextContent("Structured export ready: No");
@@ -1552,11 +1621,12 @@ describe("App structured Configure workspace (T20 #24)", () => {
 
   it("resolves the unknown review gate only through an explicit override and an explicit date role", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("list", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /column classification list/i });
     // Unknown is not KEEP and keeps the gate closed until the human decides.
     expect(
       screen.getByRole("status", { name: /structured configuration facts/i })
     ).toHaveTextContent("Structured export ready: No");
+    fireEvent.click(rowSelectButton("CampoLibre"));
     fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
       target: { value: "insensitive" },
     });
@@ -1565,6 +1635,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
     expect(
       screen.getByRole("status", { name: /structured configuration facts/i })
     ).toHaveTextContent("Structured export ready: No");
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
     fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
       target: { value: "birth" },
     });
@@ -1575,17 +1646,19 @@ describe("App structured Configure workspace (T20 #24)", () => {
 
   it("exposes the exact structured gate facts at the Privacy Gate", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("list", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
     fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
       target: { value: "insensitive" },
     });
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
     fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
       target: { value: "birth" },
     });
-    // The structured job reaches the gate with no review session (it is not a
-    // ReviewSession job); the gate derives its facts from the configuration.
-    fireEvent.click(taskButton("Continuar a la revisión"));
-    fireEvent.click(screen.getByRole("button", { name: "Continue to Privacy Gate" }));
+    // No free-text cells: the privacy check is reached from Configure within
+    // one intentional navigation (issue #85 §3.4); no review detour exists.
+    expect(screen.queryByRole("button", { name: "Continuar a la revisión" })).toBeNull();
+    fireEvent.click(taskButton("Privacy Gate"));
     const facts = screen.getByRole("status", { name: /structured export facts/i });
     expect(facts).toHaveTextContent("Columns: 4");
     expect(facts).toHaveTextContent("Columns requiring review: 0");
@@ -1596,6 +1669,55 @@ describe("App structured Configure workspace (T20 #24)", () => {
     expect(screen.getByRole("list", { name: /structured column dispositions/i })).toHaveTextContent(
       "Fecha_Nac: date-age (birth)"
     );
+  });
+
+  it("never offers a stale structured Result after readiness is invalidated again (issue #85 §3.6)", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("table", { name: /column classification list/i });
+    // Reach the ready structured Result once: explicit Unknown resolution and
+    // an explicit date role make the preparation ready.
+    fireEvent.click(rowSelectButton("CampoLibre"));
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "insensitive" },
+    });
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
+    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+      target: { value: "birth" },
+    });
+    fireEvent.click(taskButton("Privacy Gate"));
+    await waitFor(() => expect(taskButton("Ir al resultado")).toBeEnabled());
+    fireEvent.click(taskButton("Ir al resultado"));
+    // The structured Result workspace (heading «Export») is reached once.
+    await screen.findByRole("heading", { level: 2, name: "Export" });
+
+    // Historical Result visit: return to meaningful Configure (issue #85
+    // §3.4) and resolve a column back to Unknown so the preparation blocks
+    // again (§3.6: policy/readiness later invalidates Result).
+    fireEvent.click(taskButton("Volver a la configuración"));
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "unknown" },
+    });
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+
+    // The Privacy Gate itself stays reachable and enabled (G-HP2), but the
+    // Result affordance does NOT resurrect from the historical visit: for a
+    // structured job `review.complete` is the CURRENT derived output gate
+    // (`withDerivedStructuredState`), and it is false again.
+    fireEvent.click(taskButton("Privacy Gate"));
+    expect(
+      await screen.findByRole("status", { name: /structured export facts/i })
+    ).toBeInTheDocument();
+    const resultAction = taskButton("Ir al resultado");
+    expect(resultAction).toBeDisabled();
+    // A click on the disabled affordance performs NO navigation: the shell
+    // stays on the Privacy Gate, never on a stale Result.
+    fireEvent.click(resultAction);
+    expect(screen.getByRole("status", { name: /structured export facts/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Export" })).not.toBeInTheDocument();
   });
 
   it("refuses a multi-file structured selection fail-closed", async () => {
@@ -1612,19 +1734,25 @@ describe("App structured Configure workspace (T20 #24)", () => {
 
   it("keeps structured classification and date-role state when navigating away and back", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("list", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
     fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
       target: { value: "sensitive" },
     });
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
     fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
       target: { value: "visit" },
     });
-    fireEvent.click(taskButton("Continuar a la revisión"));
-    fireEvent.click(screen.getByRole("button", { name: "Back to Configure" }));
-    await screen.findByRole("list", { name: /column classification list/i });
+    // No free-text cells: onward to the gate, then back to meaningful
+    // Configure (issue #85 §3.4).
+    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Volver a la configuración"));
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
     expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
       "sensitive"
     );
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
     expect(screen.getByLabelText("Date role for Fecha_Nac")).toHaveValue("visit");
     expect(
       screen.getByRole("status", { name: /structured configuration facts/i })
