@@ -25,7 +25,12 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-  await expect(page.locator("header")).toContainText("Structured job");
+  // Issue #84 removed the permanent internal job-kind chrome: the persistent
+  // header fact is the job's own file identity, never a "Structured job"
+  // label. The Unknown classification facts below remain the structured
+  // surface's authority (handoff §B.3; reconcile ONLY this selector).
+  await expect(page.locator("header")).toContainText("Trabajo: structured-unknown.csv");
+  await expect(page.locator("header")).not.toContainText("Structured job");
   // The structured Configure workspace IS the structured review surface.
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns: 3");

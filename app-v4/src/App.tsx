@@ -9,7 +9,7 @@
  *
  * Sensitive job data stays memory-only (D-013); "Borrar sesión" discards it.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ChangeEvent, ReactElement } from "react";
 import { flushSync } from "react-dom";
 
@@ -541,6 +541,23 @@ export function App() {
   };
 
   const currentStep: FlowStep = job ? job.currentStep : "input";
+  /**
+   * Step landing anchor (issue #84 PR #114 CI, review-export 1280px): the app
+   * is ONE scrolling document, so a step transition otherwise carries the
+   * previous step's scroll position into the next one and clamps the new
+   * step's landing to its own bottom — the composed Result then opens pinned
+   * to its download zone with the kept-original warning and the state summary
+   * above the fold. Every step change lands at the top of the new workspace
+   * (the same landing rule the Review workspace already applies for itself),
+   * so the state, the factual warnings and the primary action are perceptible
+   * together (HPD-09/HPD-10 hierarchy; #142 composed-screen gate). Layout
+   * effect: the anchor applies before the landing paints, with no scroll
+   * flicker. The guard keeps jsdom unit runs untouched (scrollY is always 0
+   * there) and skips pointless same-position scrolls in real browsers.
+   */
+  useLayoutEffect(() => {
+    if (window.scrollY !== 0) window.scrollTo(0, 0);
+  }, [currentStep]);
   /**
    * The review session the gate/export steps consume: the single session for
    * text/document jobs, the ACTIVE item's session for a batch (or `null` when
