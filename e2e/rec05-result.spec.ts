@@ -327,11 +327,25 @@ test("a needs-attention Result states what remains, returns to the pending revie
   // (a deliberate correction — HPD-07/HPD-14, never silent acceptance).
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
   expect(await currentStep(page)).toBe("3. Review");
-  await page.getByRole("button", { name: "Add manual detection" }).click();
-  await page.getByLabel("Start offset").fill("0");
-  await page.getByLabel("End offset").fill("5");
-  await page.getByLabel("Detection type").fill("PRUEBA");
-  await page.getByRole("button", { name: "Add detection", exact: true }).click();
+  const source = page.getByRole("group", { name: "Document text with detections" });
+  const mark = page.getByRole("button", { name: "Marcar dato no detectado" });
+  await mark.focus();
+  await source.evaluate((group) => {
+    const anchor = group.querySelector('[data-source-start="0"]');
+    if (!anchor?.firstChild) throw new Error("Missing original source segment");
+    const range = document.createRange();
+    range.setStart(anchor.firstChild, 0);
+    range.setEnd(anchor.firstChild, 5);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+  await mark.press("Enter");
+  await expect(page.getByRole("region", { name: "Texto seleccionado" })).toHaveText("Infor");
+  await expect(page.getByLabel("Tipo de dato")).toBeFocused();
+  await page.getByLabel("Tipo de dato").fill("PRUEBA");
+  await page.getByRole("button", { name: "Añadir dato marcado" }).click();
+  await expect(page.getByText("Dato añadido. Pendiente de revisar")).toBeVisible();
   const progress = page.getByRole("status", { name: "Review progress" });
   await expect(progress).toContainText("Pending: 1");
 

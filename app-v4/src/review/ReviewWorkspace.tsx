@@ -21,6 +21,7 @@
  */
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -66,6 +67,16 @@ type KeepOriginalIntent = {
   readonly type: string;
 };
 
+type ManualCapture = {
+  readonly session: ReviewSession;
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+};
+
+type ManualReceipt = { readonly capture: ManualCapture; readonly type: string };
+type ManualAdded = { readonly session: ReviewSession; readonly id: string };
+
 export type ReviewWorkspaceProps = {
   /** The frozen domain session; the single review authority (D-004). */
   readonly session: ReviewSession;
@@ -87,10 +98,29 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const [filters, setFilters] = useState<WorkspaceFilters>({ status: "all", type: null });
   const [replacementDraft, setReplacementDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
-  const [manualFormOpen, setManualFormOpen] = useState(false);
-  const [manualStart, setManualStart] = useState("");
-  const [manualEnd, setManualEnd] = useState("");
+  const [manualCapture, setManualCapture] = useState<ManualCapture | null>(null);
   const [manualType, setManualType] = useState("");
+  const [manualError, setManualError] = useState<string | null>(null);
+  const [manualReceipt, setManualReceipt] = useState<ManualReceipt | null>(null);
+  const [manualAdded, setManualAdded] = useState<ManualAdded | null>(null);
+  const manualAuthorityRef = useRef(manualCapture);
+  const sourceRef = useRef<HTMLDivElement>(null);
+  const markRef = useRef<HTMLButtonElement>(null);
+  const manualPanelRef = useRef<HTMLFormElement>(null);
+  const manualTypeRef = useRef<HTMLInputElement>(null);
+  const manualNextRef = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    const source = sourceRef.current;
+    return () => {
+      const selection = window.getSelection();
+      if (
+        selection &&
+        (source?.contains(selection.anchorNode) || source?.contains(selection.focusNode))
+      ) {
+        selection.removeAllRanges();
+      }
+    };
+  }, [session]);
   const [error, setError] = useState<string | null>(null);
   const [keepOriginalIntent, setKeepOriginalIntent] = useState<KeepOriginalIntent | null>(null);
   const intentRef = useRef(keepOriginalIntent);
@@ -101,6 +131,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     return () => {
       disposedRef.current = true;
       intentRef.current = null;
+      manualAuthorityRef.current = null;
     };
   }, []);
 
@@ -122,6 +153,61 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     : null;
   const currentContextRef = useRef({ session, selected });
   currentContextRef.current = { session, selected };
+  const currentManual = manualCapture?.session === session ? manualCapture : null;
+  if (manualCapture !== null && currentManual === null) {
+    manualAuthorityRef.current = null;
+    setManualCapture(null);
+    setManualType("");
+    setManualError(
+      "El documento ha cambiado. Selecciona de nuevo un fragmento del texto original."
+    );
+  }
+  if (manualAdded !== null && manualAdded.session !== session) setManualAdded(null);
+  useEffect(() => {
+    if (!currentManual) return;
+    manualPanelRef.current?.scrollIntoView?.({ block: "start" });
+    manualTypeRef.current?.focus({ preventScroll: true });
+  }, [currentManual]);
+  useEffect(() => {
+    if (!manualReceipt) return;
+    const { capture, type } = manualReceipt;
+    const previous = capture.session;
+    const added = session.detections.filter(
+      (d) => !previous.detections.some((old) => old.id === d.id)
+    );
+    const detection = added[0];
+    // A void bridge callback is not proof of success. Announce only the actual
+    // canonical append, preserving the immutable source and prior review work.
+    const applied =
+      session !== previous &&
+      session.originalText === previous.originalText &&
+      session.sessionId === previous.sessionId &&
+      session.decisions === previous.decisions &&
+      session.detections.length === previous.detections.length + 1 &&
+      previous.detections.every((old, i) => session.detections[i] === old) &&
+      added.length === 1 &&
+      detection.source === "manual" &&
+      detection.requiresReview === true &&
+      detection.start === capture.start &&
+      detection.end === capture.end &&
+      detection.original === capture.text &&
+      detection.type === type;
+    setManualReceipt(null);
+    if (applied) {
+      setManualCapture(null);
+      setManualType("");
+      setManualError(null);
+      setManualAdded({ session, id: detection.id });
+    } else if (session === previous) {
+      manualAuthorityRef.current = capture;
+      setManualError("No se pudo añadir el dato. Revisa el tipo y vuelve a intentarlo.");
+    }
+  }, [manualReceipt, session]);
+  useEffect(() => {
+    if (!manualAdded) return;
+    manualNextRef.current?.scrollIntoView?.({ block: "nearest" });
+    manualNextRef.current?.focus();
+  }, [manualAdded]);
   const keepOriginalPending =
     keepOriginalIntent !== null &&
     keepOriginalIntent.session === session &&
@@ -171,17 +257,33 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
 
   const submitManual = (event: { preventDefault(): void }) => {
     event.preventDefault();
-    const start = Number(manualStart);
-    const end = Number(manualEnd);
+    const capture = manualCapture;
+    if (
+      disposedRef.current ||
+      !capture ||
+      manualAuthorityRef.current !== capture ||
+      currentContextRef.current.session !== capture.session
+    )
+      return;
+    if (manualType.trim().length === 0) {
+      setManualError("Escribe un tipo de dato para continuar.");
+      return;
+    }
+    if (!validCapture(capture)) {
+      setManualError(
+        "No se puede comprobar el texto seleccionado. Selecciona de nuevo el texto original."
+      );
+      return;
+    }
+    manualAuthorityRef.current = null;
     try {
-      onAddManual({ start, end, type: manualType });
-      setError(null);
-      setManualFormOpen(false);
-      setManualStart("");
-      setManualEnd("");
-      setManualType("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The manual detection could not be added.");
+      onAddManual({ start: capture.start, end: capture.end, type: manualType.trim() });
+      setManualReceipt({ capture, type: manualType.trim() });
+    } catch {
+      if (currentContextRef.current.session === capture.session && !disposedRef.current) {
+        manualAuthorityRef.current = capture;
+        setManualError("No se pudo añadir el dato. Revisa el tipo y vuelve a intentarlo.");
+      }
     }
   };
 
@@ -192,8 +294,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
       </h2>
       <p className="mt-2 max-w-3xl text-base leading-relaxed">
         Review every detection in the document. Decisions are recorded in the job's review session;
-        nothing is final until all mandatory decisions are complete. Manual detections are anchored
-        to exact text offsets.
+        nothing is final until all mandatory decisions are complete.
       </p>
       {error && (
         <p
@@ -217,19 +318,22 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           onJumpToInspector={focusInspector}
         />
         <DocumentPane
+          sourceRef={sourceRef}
+          markRef={markRef}
+          manualError={currentManual ? null : manualError}
           session={session}
           segments={segments}
           selectedId={selectedId}
           onSelect={selectDetection}
           onUseSelection={() => {
-            const offsets = selectionOffsets();
-            if (offsets) {
-              setManualFormOpen(true);
-              setManualStart(String(offsets.start));
-              setManualEnd(String(offsets.end));
-            } else {
-              setManualFormOpen(true);
-            }
+            const capture = selectionOffsets(sourceRef.current, session);
+            manualAuthorityRef.current = capture;
+            setManualCapture(capture);
+            setManualType("");
+            setManualAdded(null);
+            setManualError(
+              capture ? null : "Selecciona un fragmento del texto original y vuelve a marcarlo."
+            );
           }}
         />
         <InspectorPane
@@ -239,9 +343,12 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           selected={selected}
           replacementDraft={replacementDraft}
           noteDraft={noteDraft}
-          manualFormOpen={manualFormOpen}
-          manualStart={manualStart}
-          manualEnd={manualEnd}
+          manualCapture={currentManual}
+          manualPanelRef={manualPanelRef}
+          manualTypeRef={manualTypeRef}
+          manualNextRef={manualNextRef}
+          manualError={currentManual ? manualError : null}
+          manualAdded={manualAdded?.session === session ? manualAdded : null}
           manualType={manualType}
           onReplacementDraft={setReplacementDraft}
           onNoteDraft={setNoteDraft}
@@ -278,9 +385,20 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
             decide(requested.id, "restored");
             keepOriginalRef.current?.focus();
           }}
-          onManualFormOpen={setManualFormOpen}
-          onManualStart={setManualStart}
-          onManualEnd={setManualEnd}
+          onCancelManual={() => {
+            manualAuthorityRef.current = null;
+            setManualCapture(null);
+            setManualType("");
+            setManualError(null);
+            markRef.current?.scrollIntoView?.({ block: "nearest" });
+            markRef.current?.focus();
+          }}
+          onReviewManual={() => {
+            if (manualAdded?.session !== currentContextRef.current.session) return;
+            selectDetection(manualAdded.id);
+            inspectorRef.current?.scrollIntoView?.({ block: "start" });
+            focusInspector();
+          }}
           onManualType={setManualType}
           onSubmitManual={submitManual}
         />
@@ -289,26 +407,78 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   );
 }
 
-/** Map the current document selection to explicit source offsets. */
-function selectionOffsets(): { start: number; end: number } | null {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
-  const range = selection.getRangeAt(0);
-  const from = boundaryOffset(range.startContainer, range.startOffset);
-  const to = boundaryOffset(range.endContainer, range.endOffset);
-  if (from === null || to === null) return null;
-  return { start: Math.min(from, to), end: Math.max(from, to) };
+function validCapture(capture: ManualCapture): boolean {
+  const { session, start, end, text } = capture;
+  return (
+    Number.isInteger(start) &&
+    Number.isInteger(end) &&
+    start >= 0 &&
+    end > start &&
+    end <= session.originalText.length &&
+    session.originalText.slice(start, end) === text
+  );
 }
 
-function boundaryOffset(node: Node | null, offset: number): number | null {
-  if (!node || node.nodeType !== Node.TEXT_NODE) return null;
-  const anchor = node.parentElement?.closest("[data-source-start]");
-  if (!anchor) return null;
-  const base = Number(anchor.getAttribute("data-source-start"));
-  if (!Number.isInteger(base)) return null;
-  // Each segment renders one text node, so the DOM offset maps 1:1 onto the
-  // segment's source range: explicit offsets, never reconstructed markup.
-  return base + offset;
+/** Prove a single Range against this workspace's complete source rendering. */
+function selectionOffsets(
+  source: HTMLDivElement | null,
+  session: ReviewSession
+): ManualCapture | null {
+  const selection = window.getSelection();
+  if (!source || !selection || selection.rangeCount !== 1 || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  let cursor = 0;
+  // No unanchored interstitial text, nested decoration, missing segment or
+  // fabricated/stale anchor can authorize even an apparently matching range.
+  for (const child of source.childNodes) {
+    if (
+      !(child instanceof HTMLElement) ||
+      child.childNodes.length !== 1 ||
+      child.firstChild?.nodeType !== Node.TEXT_NODE
+    )
+      return null;
+    const raw = child.getAttribute("data-source-start");
+    if (raw === null || !/^\d+$/.test(raw) || Number(raw) !== cursor) return null;
+    const text = child.firstChild.textContent ?? "";
+    if (!text || session.originalText.slice(cursor, cursor + text.length) !== text) return null;
+    cursor += text.length;
+  }
+  if (cursor !== session.originalText.length) return null;
+  const start = boundaryOffset(range.startContainer, range.startOffset, source);
+  const end = boundaryOffset(range.endContainer, range.endOffset, source);
+  if (start === null || end === null) return null;
+  const capture = { session, start, end, text: range.toString() };
+  return validCapture(capture) ? capture : null;
+}
+
+function boundaryOffset(node: Node, offset: number, source: HTMLDivElement): number | null {
+  if (!Number.isInteger(offset) || offset < 0) return null;
+  // Element boundaries are child positions, never text-length guesses. The
+  // entire source's direct one-text-node segments were proved above.
+  if (node === source) {
+    if (offset > source.childNodes.length) return null;
+    if (offset === source.childNodes.length) {
+      const last = source.lastChild;
+      return last instanceof HTMLElement
+        ? Number(last.dataset.sourceStart) + (last.textContent?.length ?? 0)
+        : null;
+    }
+    const child = source.childNodes[offset];
+    return child instanceof HTMLElement ? Number(child.dataset.sourceStart) : null;
+  }
+  if (node instanceof HTMLElement && node.parentElement === source) {
+    if (offset > 1) return null;
+    return Number(node.dataset.sourceStart) + (offset === 1 ? (node.textContent?.length ?? 0) : 0);
+  }
+  if (
+    node.nodeType !== Node.TEXT_NODE ||
+    node.parentElement?.parentElement !== source ||
+    !Number.isInteger(offset) ||
+    offset < 0 ||
+    offset > (node.textContent?.length ?? 0)
+  )
+    return null;
+  return Number(node.parentElement.getAttribute("data-source-start")) + offset;
 }
 
 function FilterProgressPane(props: {
@@ -479,6 +649,9 @@ function FilterProgressPane(props: {
 }
 
 function DocumentPane(props: {
+  sourceRef: Ref<HTMLDivElement>;
+  markRef: Ref<HTMLButtonElement>;
+  manualError: string | null;
   session: ReviewSession;
   segments: readonly DocumentSegment[];
   selectedId: string | null;
@@ -492,14 +665,17 @@ function DocumentPane(props: {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-base font-bold text-primary-dark">Document</h3>
           <button
+            ref={props.markRef}
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={onUseSelection}
             className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
           >
-            Add manual detection
+            Marcar dato no detectado
           </button>
         </div>
         <div
+          ref={props.sourceRef}
           role="group"
           aria-label="Document text with detections"
           className="mt-2 whitespace-pre-wrap font-mono text-sm leading-relaxed text-neutral-900"
@@ -532,10 +708,13 @@ function DocumentPane(props: {
           })}
         </div>
         <p className="mt-2 text-xs text-neutral-700">
-          Select text and use “Add manual detection” to anchor a manual detection to exact offsets.
-          Status is underlined and labeled: pending (dashed), accepted (solid), modified (double),
-          restored/keep-original (dotted).
+          Selecciona un fragmento del texto original y pulsa «Marcar dato no detectado».
         </p>
+        {props.manualError && (
+          <p role="alert" className="mt-2 text-sm font-semibold text-primary-dark">
+            {props.manualError}
+          </p>
+        )}
       </section>
 
       <section aria-label="Preview" className="rounded border border-primary bg-surface-light p-3">
@@ -582,9 +761,12 @@ function InspectorPane(props: {
   selected: ReviewDetection | null;
   replacementDraft: string;
   noteDraft: string;
-  manualFormOpen: boolean;
-  manualStart: string;
-  manualEnd: string;
+  manualCapture: ManualCapture | null;
+  manualPanelRef: Ref<HTMLFormElement>;
+  manualTypeRef: Ref<HTMLInputElement>;
+  manualNextRef: Ref<HTMLButtonElement>;
+  manualError: string | null;
+  manualAdded: ManualAdded | null;
   manualType: string;
   onReplacementDraft: (value: string) => void;
   onNoteDraft: (value: string) => void;
@@ -594,9 +776,8 @@ function InspectorPane(props: {
   onKeepOriginal: () => void;
   onCancelKeepOriginal: () => void;
   onConfirmKeepOriginal: () => void;
-  onManualFormOpen: (open: boolean) => void;
-  onManualStart: (value: string) => void;
-  onManualEnd: (value: string) => void;
+  onCancelManual: () => void;
+  onReviewManual: () => void;
   onManualType: (value: string) => void;
   onSubmitManual: (event: { preventDefault(): void }) => void;
 }): ReactElement {
@@ -606,7 +787,7 @@ function InspectorPane(props: {
       ref={props.inspectorRef}
       tabIndex={-1}
       aria-label="Entity inspector"
-      className={`rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
+      className={`min-w-0 rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
     >
       <h3 className="font-display text-base font-bold text-primary-dark">Entity inspector</h3>
       <button
@@ -802,49 +983,31 @@ function InspectorPane(props: {
         </div>
       )}
 
-      {props.manualFormOpen && (
+      {props.manualCapture && (
         <form
-          aria-label="Add manual detection"
+          ref={props.manualPanelRef}
+          aria-label="Marcar dato"
           onSubmit={props.onSubmitManual}
-          className="mt-3 space-y-2 border-t border-primary pt-3"
+          className="mt-3 scroll-mt-2 space-y-2 border-t border-primary pt-3"
         >
-          <h4 className="text-sm font-bold text-primary-dark">Manual detection</h4>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label
-                htmlFor="manual-start"
-                className="block text-sm font-semibold text-neutral-800"
-              >
-                Start offset
-              </label>
-              <input
-                id="manual-start"
-                type="number"
-                min={0}
-                value={props.manualStart}
-                onChange={(event) => props.onManualStart(event.target.value)}
-                className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
-              />
-            </div>
-            <div>
-              <label htmlFor="manual-end" className="block text-sm font-semibold text-neutral-800">
-                End offset
-              </label>
-              <input
-                id="manual-end"
-                type="number"
-                min={0}
-                value={props.manualEnd}
-                onChange={(event) => props.onManualEnd(event.target.value)}
-                className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
-              />
-            </div>
+          <h4 className="text-sm font-bold text-primary-dark">Marcar dato</h4>
+          <p id="manual-text-label" className="text-sm font-semibold">
+            Texto seleccionado
+          </p>
+          <div
+            aria-labelledby="manual-text-label"
+            role="region"
+            tabIndex={0}
+            className={`max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-primary bg-white p-2 text-sm ${focusRing}`}
+          >
+            {props.manualCapture.text}
           </div>
           <div>
             <label htmlFor="manual-type" className="block text-sm font-semibold text-neutral-800">
-              Detection type
+              Tipo de dato
             </label>
             <input
+              ref={props.manualTypeRef}
               id="manual-type"
               type="text"
               value={props.manualType}
@@ -852,13 +1015,41 @@ function InspectorPane(props: {
               className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
             />
           </div>
+          <p className="text-xs text-neutral-700">
+            Escribe el tipo que describa el dato, por ejemplo «Nombre» o «Contacto».
+          </p>
+          {props.manualError && (
+            <p role="alert" className="text-sm font-semibold text-primary-dark">
+              {props.manualError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={props.onCancelManual}
+            className={`w-full rounded border border-primary-dark px-3 py-2 text-sm font-semibold ${focusRing}`}
+          >
+            Cancelar
+          </button>
           <button
             type="submit"
             className={`w-full rounded bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
           >
-            Add detection
+            Añadir dato marcado
           </button>
         </form>
+      )}
+      {props.manualAdded && (
+        <div className="mt-3 space-y-2">
+          <p role="status">Dato añadido. Pendiente de revisar</p>
+          <button
+            ref={props.manualNextRef}
+            type="button"
+            onClick={props.onReviewManual}
+            className={`w-full rounded border border-primary-dark px-3 py-2 text-sm font-semibold ${focusRing}`}
+          >
+            Revisar dato marcado
+          </button>
+        </div>
       )}
     </aside>
   );

@@ -178,6 +178,7 @@ async function renderView(overrides: RenderProps) {
 }
 
 afterEach(() => {
+  window.getSelection()?.removeAllRanges();
   seamControl.hold = false;
   seamControl.pending = [];
   seamControl.markerTexts = null;
@@ -190,38 +191,54 @@ function statusWith(pattern: RegExp): HTMLElement | undefined {
 }
 
 describe("BatchReviewView failure recovery (#78, REC-06)", () => {
-  it("does not transfer unconfirmed keep-original intent to another active document", async () => {
-    const job = processingFailureJob();
-    const sessions = { 0: await sessionFor(job, 0), 1: await sessionFor(job, 1) };
-    const onDecide = vi.fn();
-    function ContextHarness() {
-      const [activeIndex, setActiveIndex] = useState<number | null>(0);
-      return (
-        <BatchReviewView
-          job={job}
-          sessions={sessions}
-          activeIndex={activeIndex}
-          onSelectDocument={setActiveIndex}
-          onDecide={onDecide}
-          onAddManual={vi.fn()}
-        />
+  it.each(["keep-original", "manual"])(
+    "does not transfer unconfirmed %s intent to another active document",
+    async (mode) => {
+      const job = processingFailureJob();
+      const sessions = { 0: await sessionFor(job, 0), 1: await sessionFor(job, 1) };
+      const onDecide = vi.fn();
+      const onAddManual = vi.fn();
+      function ContextHarness() {
+        const [activeIndex, setActiveIndex] = useState<number | null>(0);
+        return (
+          <BatchReviewView
+            job={job}
+            sessions={sessions}
+            activeIndex={activeIndex}
+            onSelectDocument={setActiveIndex}
+            onDecide={onDecide}
+            onAddManual={onAddManual}
+          />
+        );
+      }
+      render(<ContextHarness />);
+      fireEvent.click(
+        within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
       );
+      if (mode === "manual") {
+        const range = document.createRange();
+        range.selectNodeContents(
+          screen.getByRole("group", { name: "Document text with detections" }).firstChild!
+        );
+        window.getSelection()?.addRange(range);
+        fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+        fireEvent.change(screen.getByLabelText("Tipo de dato"), {
+          target: { value: "Dato de documento A" },
+        });
+      } else fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, mantener original";
+      const oldConfirm = screen.getByRole("button", { name: confirmName });
+      fireEvent.click(screen.getByRole("button", { name: /doc-b\.txt/ }));
+      expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();
+      fireEvent.click(oldConfirm);
+      fireEvent.click(screen.getByRole("button", { name: /doc-a\.txt/ }));
+      expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();
+      expect(onDecide).not.toHaveBeenCalled();
+      expect(onAddManual).not.toHaveBeenCalled();
+      expect(sessions[0].decisions).toEqual({});
+      expect(sessions[1].decisions).toEqual({});
     }
-    render(<ContextHarness />);
-    fireEvent.click(
-      within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
-    );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
-    fireEvent.click(screen.getByRole("button", { name: /doc-b\.txt/ }));
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
-    fireEvent.click(oldConfirm);
-    fireEvent.click(screen.getByRole("button", { name: /doc-a\.txt/ }));
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
-    expect(onDecide).not.toHaveBeenCalled();
-    expect(sessions[0].decisions).toEqual({});
-    expect(sessions[1].decisions).toEqual({});
-  });
+  );
   it("renders the composed Spanish work queue: recovery controls co-located, unrelated documents usable (witness 8)", async () => {
     // One document already finished its review (the only path to
     // `completed`), one still requires review, one failed processing.

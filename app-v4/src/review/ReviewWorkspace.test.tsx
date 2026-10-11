@@ -79,7 +79,32 @@ function detectionSpanButton(original: string) {
   return candidates[0];
 }
 
-afterEach(cleanup);
+/** Real DOM Range: only source-anchored text nodes, not simulated offset input. */
+function selectSource(start: number, end: number) {
+  const group = screen.getByRole("group", { name: "Document text with detections" });
+  const anchors = Array.from(group.querySelectorAll<HTMLElement>("[data-source-start]"));
+  const boundary = (position: number, isEnd: boolean) => {
+    const anchor = anchors.find((element) => {
+      const base = Number(element.dataset.sourceStart);
+      const limit = base + (element.textContent?.length ?? 0);
+      return isEnd ? position > base && position <= limit : position >= base && position < limit;
+    });
+    if (!anchor?.firstChild) throw new Error("Missing synthetic source boundary");
+    return { node: anchor.firstChild, offset: position - Number(anchor.dataset.sourceStart) };
+  };
+  const from = boundary(start, false);
+  const to = boundary(end, true);
+  const range = document.createRange();
+  range.setStart(from.node, from.offset);
+  range.setEnd(to.node, to.offset);
+  window.getSelection()?.removeAllRanges();
+  window.getSelection()?.addRange(range);
+}
+
+afterEach(() => {
+  window.getSelection()?.removeAllRanges();
+  cleanup();
+});
 
 describe("Mantener original — explicit contextual intent", () => {
   it("never silently accepts a low-confidence candidate while intent is pending or cancelled", () => {
@@ -382,24 +407,42 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     expect(filtered).not.toHaveTextContent("612345678");
   });
 
-  it("manual detection via explicit offsets affects the same session without corrupting decisions", () => {
+  it("captures original text without offsets and adds one pending manual datum without corrupting decisions", () => {
     const sessionRef = { current: buildSession() };
     render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     // Make one explicit decision first.
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
     fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /add manual detection/i }));
-    fireEvent.change(screen.getByLabelText("Start offset"), {
-      target: { value: String(WORD_START) },
+    const before = sessionRef.current;
+    selectSource(WORD_START, WORD_END);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    const form = screen.getByRole("form", { name: "Marcar dato" });
+    expect(within(form).getByLabelText("Texto seleccionado")).toHaveTextContent("Teléfono");
+    expect(screen.queryByLabelText(/offset/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Tipo de dato")).toHaveFocus();
+    window.getSelection()?.removeAllRanges(); // Focus collapse cannot erase captured authority.
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), {
+      target: { value: "Palabra clínica libre" },
     });
-    fireEvent.change(screen.getByLabelText("End offset"), {
-      target: { value: String(WORD_END) },
+    expect(sessionRef.current).toBe(before);
+    fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
+    expect(sessionRef.current.detections).toHaveLength(4);
+    expect(sessionRef.current.detections[3]).toMatchObject({
+      start: 23,
+      end: 31,
+      original: "Teléfono",
+      type: "Palabra clínica libre",
+      source: "manual",
+      requiresReview: true,
     });
-    fireEvent.change(screen.getByLabelText("Detection type"), {
-      target: { value: "PALABRA_CLAVE" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Add detection$/i }));
+    expect(sessionRef.current.decisions).toEqual(before.decisions);
+    expect(getPreview(sessionRef.current)).toBe(getPreview(before));
+    expect(screen.getByText("Dato añadido. Pendiente de revisar")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Revisar dato marcado" }));
+    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+      "Teléfono"
+    );
 
     const progress = screen.getByRole("status", { name: /review progress/i });
     expect(progress).toHaveTextContent("Manual: 1");
@@ -409,36 +452,336 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     expect(list).toHaveTextContent("Teléfono");
   });
 
-  it("manual detection via document text selection prefills explicit offsets", () => {
+  it("Cancel preserves the selected detection, notes, filters and decisions and returns focus to marking", () => {
     const sessionRef = { current: buildSession() };
     render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
-    const segment = screen.getByText(
-      (_, element) =>
-        element?.tagName === "SPAN" && (element.textContent ?? "").includes("Teléfono")
+    fireEvent.click(detectionSpanButton("Carmen Sánchez"));
+    fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    fireEvent.change(screen.getByLabelText("Note (optional)"), {
+      target: { value: "Nota conservada" },
+    });
+    fireEvent.change(screen.getByLabelText("Replacement"), {
+      target: { value: "Borrador conservado" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Accepted" }));
+    const before = sessionRef.current;
+    selectSource(0, 31); // Faithful cross-segment selection; never silently narrowed.
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    expect(screen.getByLabelText("Texto seleccionado").textContent).toBe(
+      "Nombre: Carmen Sánchez\nTeléfono"
     );
-    const textNode = segment.firstChild as Text;
-    const fakeSelection = {
-      rangeCount: 1,
-      isCollapsed: false,
-      getRangeAt: () => ({
-        startContainer: textNode,
-        startOffset: 1, // "T" of Teléfono inside the segment starting at 22
-        endContainer: textNode,
-        endOffset: 9, // end of "Teléfono"
-      }),
-    };
-    const spy = vi
-      .spyOn(window, "getSelection")
-      .mockReturnValue(fakeSelection as unknown as Selection);
-    try {
-      const surface = screen.getByRole("group", { name: /document text with detections/i });
-      fireEvent.mouseUp(surface);
-      fireEvent.click(screen.getByRole("button", { name: /add manual detection/i }));
-      expect(screen.getByLabelText("Start offset")).toHaveValue(WORD_START);
-      expect(screen.getByLabelText("End offset")).toHaveValue(WORD_END);
-    } finally {
-      spy.mockRestore();
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Texto libre" } });
+    fireEvent.click(
+      within(screen.getByRole("form", { name: "Marcar dato" })).getByRole("button", {
+        name: "Cancelar",
+      })
+    );
+    expect(screen.queryByRole("form", { name: "Marcar dato" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Marcar dato no detectado" })).toHaveFocus();
+    expect(screen.getByLabelText("Note (optional)")).toHaveValue("Nota conservada");
+    expect(screen.getByLabelText("Replacement")).toHaveValue("Borrador conservado");
+    expect(screen.getByRole("button", { name: "Accepted" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(
+      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+        name: /Carmen Sánchez/,
+      })
+    ).toHaveAttribute("aria-current", "true");
+    expect(sessionRef.current).toBe(before);
+  });
+});
+
+describe("ReviewWorkspace — manual source authorization", () => {
+  it("shows the entire long captured fragment in a keyboard-reachable scrollable preview", () => {
+    const text = "Fragmento sintético sin truncar.\n".repeat(80);
+    const initial = createReviewSession({ originalText: text, detections: [], sessionId: "long" });
+    const ref = { current: initial };
+    render(<Harness initial={initial} sessionRef={ref} />);
+    selectSource(0, text.length);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    const preview = screen.getByRole("region", { name: "Texto seleccionado" });
+    expect(preview.textContent).toBe(text);
+    expect(preview).toHaveAttribute("tabindex", "0");
+    expect(preview).toHaveClass("max-h-40", "overflow-auto", "break-all");
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Texto extenso" } });
+    expect(ref.current).toBe(initial);
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(ref.current).toBe(initial);
+  });
+
+  it("consumes Add once even when re-entered before the controlled session render", () => {
+    let session = buildSession();
+    const onAddManual = vi.fn<ReviewWorkspaceProps["onAddManual"]>((input) => {
+      fireEvent.submit(form); // Repeated activation while the first bridge call is still running.
+      session = addManualDetection(session, input);
+      view.rerender(
+        <ReviewWorkspace session={session} onDecide={vi.fn()} onAddManual={onAddManual} />
+      );
+    });
+    const view = render(
+      <ReviewWorkspace session={session} onDecide={vi.fn()} onAddManual={onAddManual} />
+    );
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Dato" } });
+    const form = screen.getByRole("form", { name: "Marcar dato" });
+    fireEvent.submit(form);
+    expect(onAddManual).toHaveBeenCalledTimes(1);
+    expect(session.detections).toHaveLength(4);
+    expect(getProgress(session).pending).toBe(4);
+  });
+
+  it("revokes a captured draft on unrelated immutable review revisions and unmount", () => {
+    const first = buildSession();
+    const revised = applyDecision(first, first.detections[0].id, "accepted");
+    const onAddManual = vi.fn();
+    const handlers = { onAddManual, onDecide: vi.fn() };
+    const view = render(<ReviewWorkspace session={first} {...handlers} />);
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    const oldForm = screen.getByRole("form", { name: "Marcar dato" });
+    view.rerender(<ReviewWorkspace session={revised} {...handlers} />);
+    fireEvent.submit(oldForm);
+    expect(screen.queryByRole("form", { name: "Marcar dato" })).not.toBeInTheDocument();
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    expect(screen.getByLabelText("Tipo de dato")).toHaveValue("");
+    const unmounted = screen.getByRole("form", { name: "Marcar dato" });
+    view.unmount();
+    fireEvent.submit(unmounted);
+    render(<ReviewWorkspace session={first} {...handlers} />);
+    expect(screen.queryByRole("form", { name: "Marcar dato" })).not.toBeInTheDocument();
+    expect(onAddManual).not.toHaveBeenCalled();
+    expect(revised.decisions[first.detections[0].id].status).toBe("accepted");
+    expect(first.detections).toHaveLength(3);
+    expect(revised.detections).toHaveLength(3);
+  });
+
+  it.each([
+    "empty",
+    "collapsed",
+    "preview",
+    "forged outside",
+    "cross-container",
+    "missing anchor",
+    "negative anchor",
+    "wrong source anchor",
+    "changed text",
+    "nested text",
+    "unanchored interstitial",
+    "malformed boundary",
+    "multiple ranges",
+  ])("refuses %s provenance clearly without opening a form or changing review state", (kind) => {
+    const initial = buildSession();
+    const ref = { current: initial };
+    render(<Harness initial={initial} sessionRef={ref} />);
+    const source = screen.getByRole("group", { name: "Document text with detections" });
+    const range = document.createRange();
+    selectSource(23, 31);
+    const selection = window.getSelection()!;
+    const anchor = source.querySelector<HTMLElement>('[data-source-start="22"]')!;
+    let spy: ReturnType<typeof vi.spyOn> | undefined;
+    let outside: HTMLElement | undefined;
+    if (kind === "empty") selection.removeAllRanges();
+    if (kind === "collapsed") selection.collapse(anchor.firstChild, 1);
+    if (kind === "preview") {
+      range.selectNodeContents(screen.getByLabelText("Preview derived from the review session"));
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
+    if (kind === "forged outside") {
+      outside = document.createElement("span");
+      outside.dataset.sourceStart = "23";
+      outside.textContent = "Teléfono";
+      document.body.append(outside);
+      range.selectNodeContents(outside);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    if (kind === "cross-container") {
+      range.setStart(anchor.firstChild!, 1);
+      range.setEnd(
+        screen.getByLabelText("Preview derived from the review session").firstChild!,
+        31
+      );
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    if (kind === "missing anchor") anchor.removeAttribute("data-source-start");
+    if (kind === "negative anchor") anchor.dataset.sourceStart = "-1";
+    if (kind === "wrong source anchor") anchor.dataset.sourceStart = "0";
+    if (kind === "changed text") anchor.firstChild!.textContent = "\nTeléfonX ";
+    if (kind === "nested text") {
+      const nested = document.createElement("span");
+      nested.textContent = anchor.textContent;
+      anchor.replaceChildren(nested);
+      range.selectNodeContents(nested);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    if (kind === "unanchored interstitial")
+      source.insertBefore(document.createTextNode(" "), anchor);
+    if (kind === "malformed boundary")
+      Object.defineProperty(selection.getRangeAt(0), "endOffset", { value: 999 });
+    if (kind === "multiple ranges")
+      spy = vi.spyOn(selection, "rangeCount", "get").mockReturnValue(2);
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+      expect(screen.queryByRole("form", { name: "Marcar dato" })).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Selecciona un fragmento del texto original"
+      );
+      expect(screen.getByRole("alert")).not.toHaveTextContent(/offset|999|ReviewSession/);
+      expect(ref.current).toBe(initial);
+      expect(initial.detections).toHaveLength(3);
+      expect(initial.decisions).toEqual({});
+    } finally {
+      spy?.mockRestore();
+      outside?.remove();
+    }
+  });
+
+  it("retains source/type on missing-type and domain refusal, then allows explicit same-context retry", () => {
+    let session = buildSession();
+    const before = session;
+    let refuse = true;
+    const onAddManual = vi.fn<ReviewWorkspaceProps["onAddManual"]>((input) => {
+      if (refuse) throw new Error("Internal offsets must never appear in the UI: 23–31");
+      session = addManualDetection(session, input);
+      view.rerender(
+        <ReviewWorkspace session={session} onDecide={vi.fn()} onAddManual={onAddManual} />
+      );
+    });
+    const view = render(
+      <ReviewWorkspace session={session} onDecide={vi.fn()} onAddManual={onAddManual} />
+    );
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
+    expect(onAddManual).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Escribe un tipo de dato");
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Dato abierto" } });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
+    expect(session).toBe(before);
+    expect(screen.getByLabelText("Tipo de dato")).toHaveValue("Dato abierto");
+    expect(screen.getByLabelText("Texto seleccionado").textContent).toBe("Teléfono");
+    expect(screen.getByRole("alert")).toHaveTextContent("No se pudo añadir el dato");
+    expect(screen.getByRole("alert")).not.toHaveTextContent(/offset|23|31/);
+    refuse = false;
+    const form = screen.getByRole("form", { name: "Marcar dato" });
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(session.detections).toHaveLength(4);
+    expect(onAddManual).toHaveBeenCalledTimes(2); // One refused attempt, one successful append.
+  });
+
+  it("never claims success for a bridge no-op and preserves a correctable current draft", () => {
+    const initial = buildSession();
+    render(<ReviewWorkspace session={initial} onDecide={vi.fn()} onAddManual={vi.fn()} />);
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Dato" } });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
+    expect(screen.queryByText("Dato añadido. Pendiente de revisar")).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("No se pudo añadir el dato");
+    expect(screen.getByLabelText("Tipo de dato")).toHaveValue("Dato");
+    expect(initial.detections).toHaveLength(3);
+  });
+
+  it("keeps hidden pending additions discoverable without resetting filters or unrelated notes and permits correction", () => {
+    let initial = buildSession();
+    for (const detection of initial.detections)
+      initial = applyDecision(initial, detection.id, "accepted");
+    const ref = { current: initial };
+    render(<Harness initial={initial} sessionRef={ref} />);
+    fireEvent.click(detectionSpanButton("Carmen Sánchez"));
+    fireEvent.change(screen.getByLabelText("Note (optional)"), {
+      target: { value: "Nota sin perder" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Accepted" }));
+    fireEvent.change(screen.getByLabelText("Filter by type"), { target: { value: "NOMBRE" } });
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Palabra" } });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
+    expect(screen.getByLabelText("Note (optional)")).toHaveValue("Nota sin perder");
+    expect(screen.getByRole("list", { name: "Detections" })).not.toHaveTextContent("Teléfono");
+    const next = screen.getByRole("button", { name: "Revisar dato marcado" });
+    expect(next).toHaveFocus();
+    fireEvent.click(next);
+    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveFocus();
+    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+      /Current decisionPending/
+    );
+    expect(screen.getByRole("button", { name: "Accepted" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByLabelText("Filter by type")).toHaveValue("NOMBRE");
+    fireEvent.change(screen.getByLabelText("Replacement"), { target: { value: "PALABRA" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply modification" }));
+    expect(ref.current.decisions).toMatchObject(initial.decisions);
+    expect(getProgress(ref.current).pending).toBe(0);
+    expect(getProgress(ref.current).modified).toBe(1);
+    expect(getFinalText(ref.current)).toBe("Nombre: PACIENTE-1\nPALABRA . NHC ID-1.");
+  });
+
+  it("preserves UTF-16 and repeated non-ASCII text across segments, including proven element boundaries", () => {
+    const initial = createReviewSession({
+      originalText: "Á🙂 Ana y Ana",
+      sessionId: "unicode",
+      detections: [{ start: 4, end: 7, type: "NOMBRE", proposed: "PERSONA" }],
+    });
+    const ref = { current: initial };
+    render(<Harness initial={initial} sessionRef={ref} />);
+    const range = document.createRange();
+    range.selectNodeContents(screen.getByRole("group", { name: "Document text with detections" }));
+    window.getSelection()?.addRange(range);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    expect(screen.getByLabelText("Texto seleccionado").textContent).toBe("Á🙂 Ana y Ana");
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), {
+      target: { value: "Fragmento libre" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
+    expect(ref.current.detections[1]).toMatchObject({
+      start: 0,
+      end: 13,
+      original: "Á🙂 Ana y Ana",
+      source: "manual",
+      requiresReview: true,
+    });
+    expect(ref.current.detections[0]).toBe(initial.detections[0]);
+    expect(ref.current.decisions).toEqual({});
+    expect(getPreview(ref.current)).toBe("Á🙂 Ana y Ana");
+  });
+
+  it("revokes both the draft and the live Range on an identical Job/session replacement and never revives them", async () => {
+    const first = buildSession();
+    const second = buildSession();
+    const onAddManual = vi.fn();
+    const handlers = { onAddManual, onDecide: vi.fn() };
+    const view = render(<ReviewWorkspace session={first} {...handlers} />);
+    selectSource(23, 31);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Tipo anterior" } });
+    const oldForm = screen.getByRole("form", { name: "Marcar dato" });
+    selectSource(23, 31); // A live source highlight must also be revoked, even if DOM is reused.
+    await Promise.resolve(); // A later context transition, not the capture event.
+    view.rerender(<ReviewWorkspace session={second} {...handlers} />);
+    expect(screen.queryByRole("form", { name: "Marcar dato" })).not.toBeInTheDocument();
+    fireEvent.submit(oldForm);
+    fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
+    expect(screen.queryByRole("form", { name: "Marcar dato" })).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Selecciona un fragmento del texto original"
+    );
+    view.rerender(<ReviewWorkspace session={first} {...handlers} />);
+    fireEvent.submit(oldForm);
+    expect(onAddManual).not.toHaveBeenCalled();
+    expect(first.detections).toHaveLength(3);
+    expect(second.detections).toHaveLength(3);
   });
 });
 
