@@ -19,6 +19,7 @@
  * All content is synthetic; no real PHI anywhere.
  */
 import { expect, test } from "./harness/fixtures";
+import { keepOriginalThroughUi } from "./harness/flows";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -65,7 +66,7 @@ async function decideActiveCell(page: Page): Promise<void> {
     await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
     const accept = page.getByRole("button", { name: "Accept detection" });
     if (await accept.isEnabled()) await accept.click();
-    else await page.getByRole("button", { name: "Keep original" }).click();
+    else await keepOriginalThroughUi(page);
   }
   await expect(pendingCount).toHaveText("0");
 }

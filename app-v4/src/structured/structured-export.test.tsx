@@ -12,12 +12,15 @@ import { CONFIDENTIAL_AUDIT_WARNING_LINE } from "../output/confidential-audit-se
 import {
   createStructuredConfiguration,
   overrideColumnClass,
+  overrideColumnAction,
   setStructuredDateRole,
 } from "./configuration";
 import type { StructuredGrid } from "./grid";
 import { buildStructuredTransformPlan } from "./transform-plan";
 import { prepareStructuredOutput } from "./transformed-dataset";
 import { resetXlsxLoaderForTests, type XlsxCell, type XlsxLib } from "./xlsx-loader";
+import { applyDecision, createReviewSession } from "../review/review-domain";
+import type { StructuredFreeTextState } from "./free-text";
 
 /**
  * REC-04 WU-C oracles for the structured export surface: Safe CSV + XLSX
@@ -188,6 +191,80 @@ afterEach(() => {
 });
 
 describe("ExportStep — structured", () => {
+  it("warns for current process-as-text kept originals, never for another Job/policy/preparation", async () => {
+    const grid: StructuredGrid = { headers: ["NHC", "Notas"], rows: [["P-001", "DNI 12345678A"]] };
+    const configuration = overrideColumnAction(
+      createStructuredConfiguration(grid),
+      1,
+      "process-as-text"
+    );
+    const plan = buildStructuredTransformPlan(configuration, {
+      policyId: "standard",
+      jobSeed: "job-free-text",
+    });
+    const pending = createReviewSession({
+      originalText: "DNI 12345678A",
+      detections: [{ type: "IDENTIFICADOR", start: 4, end: 13, proposed: "" }],
+    });
+    const session = applyDecision(pending, pending.detections[0].id, "restored");
+    const state: StructuredFreeTextState = {
+      kind: "structured-free-text-state",
+      jobId: "job-free-text",
+      policyId: "standard",
+      cells: [
+        {
+          ok: true,
+          cell: { columnIndex: 1, rowIndex: 0, header: "Notas", original: "DNI 12345678A" },
+          session,
+        },
+      ],
+    };
+    const structured = {
+      configuration,
+      plan,
+      preparation: prepareStructuredOutput(configuration, plan, { freeText: state }),
+    };
+    expect(structured.preparation.status).toBe("ready");
+    const job = jobFor("job-free-text", true);
+    const capture = captureDownloads();
+    try {
+      const view = render(
+        <ExportStep job={job} review={null} structured={structured} structuredFreeText={state} />
+      );
+      const warning = screen.getByRole("region", {
+        name: "Originales conservados deliberadamente",
+      });
+      expect(warning).toHaveTextContent("Originales conservados: 1");
+      expect(warning).toHaveTextContent("IDENTIFICADOR: 1");
+      expect(warning).not.toHaveTextContent("12345678A");
+      expect(
+        warning.compareDocumentPosition(screen.getByRole("button", { name: SAFE_CSV_BUTTON })) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(capture.downloads).toHaveLength(0);
+      fireEvent.click(screen.getByRole("button", { name: SAFE_CSV_BUTTON }));
+      expect(await textOf(capture.downloads[0])).toContain("DNI 12345678A");
+      expect(screen.getByRole("button", { name: CONF_TXT_BUTTON })).toBeEnabled();
+      for (const next of [
+        { job: jobFor("other-job", true), structured, structuredFreeText: state },
+        { job: { ...job, policyId: "strict" as const }, structured, structuredFreeText: state },
+        {
+          job,
+          structured: { ...structured, preparation: prepareStructuredOutput(configuration, plan) },
+          structuredFreeText: state,
+        },
+        { job, structured: readyInput(), structuredFreeText: state },
+        { job, structured, structuredFreeText: null },
+      ]) {
+        view.rerender(<ExportStep {...next} review={null} />);
+        expect(
+          screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
+        ).not.toBeInTheDocument();
+      }
+    } finally {
+      capture.restore();
+    }
+  });
   it("produces a Safe CSV without originals and a separate marked Confidential Audit", async () => {
     seedWindow();
     const capture = captureDownloads();

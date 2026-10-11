@@ -190,6 +190,38 @@ function statusWith(pattern: RegExp): HTMLElement | undefined {
 }
 
 describe("BatchReviewView failure recovery (#78, REC-06)", () => {
+  it("does not transfer unconfirmed keep-original intent to another active document", async () => {
+    const job = processingFailureJob();
+    const sessions = { 0: await sessionFor(job, 0), 1: await sessionFor(job, 1) };
+    const onDecide = vi.fn();
+    function ContextHarness() {
+      const [activeIndex, setActiveIndex] = useState<number | null>(0);
+      return (
+        <BatchReviewView
+          job={job}
+          sessions={sessions}
+          activeIndex={activeIndex}
+          onSelectDocument={setActiveIndex}
+          onDecide={onDecide}
+          onAddManual={vi.fn()}
+        />
+      );
+    }
+    render(<ContextHarness />);
+    fireEvent.click(
+      within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
+    fireEvent.click(screen.getByRole("button", { name: /doc-b\.txt/ }));
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    fireEvent.click(oldConfirm);
+    fireEvent.click(screen.getByRole("button", { name: /doc-a\.txt/ }));
+    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(sessions[0].decisions).toEqual({});
+    expect(sessions[1].decisions).toEqual({});
+  });
   it("renders the composed Spanish work queue: recovery controls co-located, unrelated documents usable (witness 8)", async () => {
     // One document already finished its review (the only path to
     // `completed`), one still requires review, one failed processing.

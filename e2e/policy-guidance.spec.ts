@@ -21,7 +21,12 @@ import path from "node:path";
 import { expect, test } from "./harness/fixtures";
 import { expectContrast, type ContrastResult } from "./harness/contrast";
 import { assertNoHorizontalOverflow } from "./harness/viewport";
-import { createStructuredJob, createTextJob, guidanceItem } from "./harness/flows";
+import {
+  createStructuredJob,
+  createTextJob,
+  guidanceItem,
+  keepOriginalThroughUi,
+} from "./harness/flows";
 
 const STRUCTURED_CSV = path.resolve(__dirname, "fixtures/policy-structured.csv");
 
@@ -93,7 +98,7 @@ async function completeAllPending(page: import("@playwright/test").Page): Promis
     await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
     const accept = page.getByRole("button", { name: "Accept detection" });
     if (await accept.isEnabled()) await accept.click();
-    else await page.getByRole("button", { name: "Keep original" }).click();
+    else await keepOriginalThroughUi(page);
   }
   await expect(pendingCount).toHaveText("0");
 }

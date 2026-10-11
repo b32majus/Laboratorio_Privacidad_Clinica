@@ -91,6 +91,25 @@ export async function gotoReviewWithDetections(page: Page): Promise<void> {
   await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
 }
 
+/** Keep the selected original through the current UI, including contextual confirmation. */
+export async function keepOriginalThroughUi(page: Page): Promise<void> {
+  const inspector = page.getByRole("complementary", { name: "Entity inspector" });
+  const decision = inspector.locator('dt:text-is("Current decision") + dd');
+  const confirmation = inspector.getByRole("group", { name: "Confirmar mantener original" });
+  await inspector.getByRole("button", { name: "Mantener original", exact: true }).click();
+  await expect
+    .poll(
+      async () => (await confirmation.isVisible()) || (await decision.innerText()) === "Restored"
+    )
+    .toBe(true);
+  if ((await confirmation.count()) > 0) {
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "Sí, mantener original", exact: true }).click();
+  }
+  await expect(decision).toHaveText("Restored");
+  await expect(confirmation).toHaveCount(0);
+}
+
 /** Apply the terminal decisions to the four known detections of the text flow. */
 export async function completeReview(page: Page): Promise<void> {
   const detections = page.getByRole("list", { name: "Detections" });
@@ -101,7 +120,7 @@ export async function completeReview(page: Page): Promise<void> {
   await page.getByLabel("Replacement").fill("[DNI-REVISADO]");
   await page.getByRole("button", { name: "Apply modification" }).click();
   await select(new RegExp(REVIEW_EMAIL.replace(".", "\\.")));
-  await page.getByRole("button", { name: "Keep original" }).click();
+  await keepOriginalThroughUi(page);
   await select(new RegExp(REVIEW_TELEFONO));
   await page.getByRole("button", { name: "Accept detection" }).click();
   await select(new RegExp(REVIEW_NHC));

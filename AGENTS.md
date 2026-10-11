@@ -63,7 +63,7 @@ Matt skills own their methodology. Do not copy their TDD loop, task-graph proced
 
 Atenea adds stable repository constraints, explicit role/model bindings, deterministic evidence boundaries and human publication control.
 
-Atenea separates **risk class** (`volume|complex`) from **cost policy** (`standard|free_only|go`). Cora may recommend risk class; human/project authority owns cost policy. `free_only` and `go` have no silent provider/model fallback. See the profile documents for their replaceable bindings.
+Atenea separates **risk class** (`volume|complex`) from **cost policy** (`standard|free_only|go|openai_experimental`). Cora may recommend risk class; human/project authority owns cost policy. `free_only`, `go` and the explicitly human-opted-in **experimental** OpenAI Sprint/Frontier profiles have no silent provider/model fallback. The experimental profiles are additive, unqualified, selected only at a clean work-unit boundary and governed by `docs/ATENEA_OPENAI_EXPERIMENTAL_PROFILE_V0.md`; existing Standard/Free/Go bindings and default remain unchanged.
 
 C-087 retains C-086/C-085 routing/runtime economics over the C-084 native-V2 lifecycle: OpenCode 2.0.22 known-good runtime, standard Volume writer DeepSeek V4 Flash, standard Complex writer GLM 5.3 Flash high, and the 220k effective writer context guard with automatic compaction around ~198k and ~15k recent verbatim retention. Routing changes only at a clean work-unit boundary.
 

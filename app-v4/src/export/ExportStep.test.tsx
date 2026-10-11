@@ -381,18 +381,28 @@ describe("REC-05 WU-B single-item Result — needs attention and blocked", () =>
     expect(pending.container.querySelector('[data-result-state="needs-attention"]')).not.toBeNull();
   });
 
-  it("renders the factual kept-original warning and the kept original in the Safe text", () => {
-    const session = restoredSession();
-    const kept = getProgress(session).restoredDetections[0];
-    expect(kept).toBeDefined();
-    render(<ExportStep job={bridgeJob(session)} review={session} />);
+  it.each([bridgeJob, documentBridgeJob])(
+    "renders the factual kept-original warning and the kept original in the Safe text (%#)",
+    (jobForSession) => {
+      const session = restoredSession();
+      const kept = getProgress(session).restoredDetections[0];
+      expect(kept).toBeDefined();
+      const view = render(<ExportStep job={jobForSession(session)} review={session} />);
 
-    const warning = screen.getByRole("region", { name: "Originales conservados deliberadamente" });
-    expect(warning).toHaveTextContent(`«${kept.type}»`);
-    expect(warning).toHaveTextContent(/por una decisión de revisión/i);
-    // The canonical Safe text keeps the deliberately restored original exactly.
-    expect(getFinalText(session)).toContain("612345678");
-  });
+      const warning = screen.getByRole("region", {
+        name: "Originales conservados deliberadamente",
+      });
+      expect(warning).toHaveTextContent(`«${kept.type}»`);
+      expect(warning).toHaveTextContent(/por una decisión de revisión/i);
+      expect(warning).not.toHaveTextContent("612345678");
+      const primary = view.container.querySelector('[data-variant="primary"]')!;
+      expect(
+        warning.compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      // The canonical Safe text keeps the deliberately restored original exactly.
+      expect(getFinalText(session)).toContain("612345678");
+    }
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -952,6 +962,58 @@ function policyUnsupportedBatchJob(): Job {
 }
 
 describe("document batch Result (REC-07 #87): readiness + Safe summary CSV", () => {
+  it("warns from every included session, not the active item, and drops removed/foreign/stale facts", () => {
+    let job = buildBatchJob(["a.txt", "b.txt", "removed.txt"]);
+    job = completeBatchItem(job, 0, SOURCE);
+    job = completeBatchItem(job, 1, SOURCE);
+    job = derivedBatch(removeBatchItem(readBatchFail(job, 2, "Synthetic failure"), 2));
+    const sessions = {
+      0: restoredSession(),
+      1: completedSession(),
+      2: restoredSession(),
+      99: restoredSession(),
+    };
+    const capture = captureDownloads();
+    try {
+      const view = render(<ExportStep job={job} review={sessions[1]} batchSessions={sessions} />);
+      const warning = screen.getByRole("region", {
+        name: "Originales conservados deliberadamente",
+      });
+      expect(warning).toHaveTextContent("Originales conservados: 1");
+      expect(warning).toHaveTextContent("IDENTIFICADOR: 1");
+      expect(warning).not.toHaveTextContent("612345678");
+      expect(warning).not.toHaveTextContent("Carmen Sánchez");
+      const primary = screen.getByRole("button", { name: "Descargar documentos seguros (.zip)" });
+      expect(primary).toBeEnabled();
+      expect(
+        warning.compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(capture.downloads).toHaveLength(0);
+      view.rerender(<ExportStep job={job} review={sessions[0]} batchSessions={sessions} />);
+      expect(
+        screen.getByRole("region", { name: "Originales conservados deliberadamente" })
+      ).toHaveTextContent("Originales conservados: 1");
+      view.rerender(
+        <ExportStep
+          job={job}
+          review={sessions[1]}
+          batchSessions={{ 0: completedSession(), 1: sessions[1] }}
+        />
+      );
+      expect(
+        screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
+      ).not.toBeInTheDocument();
+      view.rerender(<ExportStep job={buildBatchJob()} review={null} batchSessions={null} />);
+      expect(
+        screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })
+      ).toBeDisabled();
+    } finally {
+      capture.restore();
+    }
+  });
   it("renders needs-attention with the CSV unavailable and a return path that downloads nothing", () => {
     const capture = captureDownloads();
     try {

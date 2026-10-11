@@ -47,9 +47,9 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { type ReviewSession } from "../review/review-domain";
+import { getProgress, type ReviewSession } from "../review/review-domain";
 import type { Job } from "../domain/job";
-import { batchConfidentialAuditReady } from "../privacy-gate/privacyGateModel";
+import { batchConfidentialAuditReady, deriveBatchFacts } from "../privacy-gate/privacyGateModel";
 import {
   serializeConfidentialAudit,
   CONFIDENTIAL_AUDIT_WARNING_LINE,
@@ -77,6 +77,7 @@ import {
 } from "../structured/transformed-dataset";
 import type { StructuredConfiguration } from "../structured/configuration";
 import type { StructuredTransformPlan } from "../structured/transform-plan";
+import { isFreeTextCellSetCurrent, type StructuredFreeTextState } from "../structured/free-text";
 import {
   BATCH_CONFIDENTIAL_AUDIT_FILENAME,
   BatchConfidentialAuditError,
@@ -123,6 +124,44 @@ const blockedNote =
   "mt-3 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800";
 const primaryButton = `mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
 const secondaryButton = `mt-3 rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-primary-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
+
+/** Presentation-only aggregation of canonical restored facts; never output authority. */
+function KeptOriginalsWarning({
+  sessions,
+}: {
+  sessions: readonly ReviewSession[];
+}): ReactElement | null {
+  const types = new Map<string, number>();
+  let count = 0;
+  for (const session of sessions) {
+    for (const detection of getProgress(session).restoredDetections) {
+      count += 1;
+      types.set(detection.type, (types.get(detection.type) ?? 0) + 1);
+    }
+  }
+  if (count === 0) return null;
+  return (
+    <section
+      aria-labelledby="composed-kept-originals-heading"
+      className="mt-3 rounded border border-amber-500 bg-amber-50 px-3 py-2"
+    >
+      <h4 id="composed-kept-originals-heading" className="text-sm font-bold text-neutral-800">
+        Originales conservados deliberadamente
+      </h4>
+      <p className="mt-1 text-sm text-neutral-800">
+        Originales conservados: {count}. El texto original permanece sin cambios por decisiones de
+        revisión.
+      </p>
+      <ul className="mt-1 list-disc pl-6 text-sm text-neutral-800">
+        {[...types].map(([type, total]) => (
+          <li key={type}>
+            {type}: {total}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /**
  * Client-side, network-free download of a UTF-8 text artifact. Extracted
@@ -214,6 +253,8 @@ export type ExportStepProps = {
    * disabled; the #87 CSV manifest is unaffected.
    */
   readonly batchSessions?: Readonly<Record<number, ReviewSession>> | null;
+  /** Current structured cell authority, forwarded read-only; never download readiness. */
+  readonly structuredFreeText?: StructuredFreeTextState | null;
 };
 
 /**
@@ -238,13 +279,26 @@ type StructuredConfidentialFormat = "txt" | "xlsx";
 function StructuredExport({
   job,
   structured,
+  freeText,
 }: {
   job: Job;
   structured: NonNullable<ExportStepProps["structured"]> | null;
+  freeText: StructuredFreeTextState | null;
 }): ReactElement {
   const preparation = structured === null ? null : structured.preparation;
   const blocked =
     preparation === null || preparation.status !== "ready" || !job.outputs.safeOutputReady;
+  const currentCellSessions =
+    !blocked &&
+    structured !== null &&
+    freeText !== null &&
+    freeText.jobId === job.id &&
+    freeText.policyId === job.policyId &&
+    structured.plan.policyId === job.policyId &&
+    structured.plan.jobSeed === job.id &&
+    isFreeTextCellSetCurrent(structured.configuration, freeText, job.policyId)
+      ? freeText.cells.flatMap((cell) => (cell.ok ? [cell.session] : []))
+      : [];
   const reasons = preparation === null ? [] : preparation.reasons;
   // Fail-closed, per artifact: the Confidential Audit additionally honors its
   // OWN readiness flag (same authority as the document path below).
@@ -484,10 +538,9 @@ function StructuredExport({
         </div>
         <div className="p-4">
           <p className={zoneBody}>
-            The reviewed structured table with date/age and pseudonymized columns transformed,
-            identifier columns removed and the selected patient-ID column replaced with a Study ID
-            (ID_ESTUDIO). It contains no original↔transformed mapping and no original identifier or
-            sensitive values.
+            La tabla preparada según la configuración y las decisiones de revisión. No incluye
+            correspondencia original↔transformado. Los textos conservados deliberadamente permanecen
+            sin cambios.
           </p>
           {blocked && reasons.length > 0 && (
             <ul
@@ -500,6 +553,7 @@ function StructuredExport({
               ))}
             </ul>
           )}
+          <KeptOriginalsWarning sessions={currentCellSessions} />
           <button
             type="button"
             onClick={handleDownloadSafe}
@@ -710,6 +764,10 @@ function BatchResult({
   onReturnToReview: (() => void) | undefined;
 }): ReactElement {
   const view = deriveBatchResultView(job);
+  const includedSessions = deriveBatchFacts(job).items.flatMap((item, index) => {
+    const session = batchSessions?.[index];
+    return item.removed !== true && session !== undefined ? [session] : [];
+  });
   const [feedback, setFeedback] = useState<BatchSafeFeedback | null>(null);
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
   // REC-07 #89: the one-time deliberate batch Confidential confirmation.
@@ -1077,6 +1135,8 @@ function BatchResult({
             Documentos: {view.totalCount} · Completados: {view.completedCount} · Pendientes:{" "}
             {view.pendingCount} · Con error: {view.failedCount} · Retirados: {view.removedCount}
           </p>
+
+          <KeptOriginalsWarning sessions={includedSessions} />
 
           {view.state === "ready" ? (
             <>
@@ -1898,7 +1958,13 @@ function SingleItemResult({
 export function ExportStep(props: ExportStepProps): ReactElement {
   const { job, review } = props;
   if (job.kind === "structured") {
-    return <StructuredExport job={job} structured={props.structured ?? null} />;
+    return (
+      <StructuredExport
+        job={job}
+        structured={props.structured ?? null}
+        freeText={props.structuredFreeText ?? null}
+      />
+    );
   }
   if (job.kind === "document-batch") {
     return (
