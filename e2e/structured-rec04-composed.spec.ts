@@ -29,6 +29,7 @@
  * ./harness/fixtures applies to every test).
  */
 import { expect, test } from "./harness/fixtures";
+import { keepOriginalThroughUi } from "./harness/flows";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -148,7 +149,9 @@ function columnCard(page: Page, header: string) {
 async function createAndConfigureComposedJob(page: Page): Promise<void> {
   const xlsx = materializeWorkbook();
   await page.goto("/");
-  await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(xlsx);
+  await page
+    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    .setInputFiles(xlsx);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByRole("button", { name: "2. Configure" }).click();
   await expect(page.locator("header")).toContainText("Structured job");
@@ -208,7 +211,7 @@ async function decideActiveCell(page: Page): Promise<void> {
     await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
     const accept = page.getByRole("button", { name: "Accept detection" });
     if (await accept.isEnabled()) await accept.click();
-    else await page.getByRole("button", { name: "Keep original" }).click();
+    else await keepOriginalThroughUi(page);
   }
   await expect(pendingCount).toHaveText("0");
 }

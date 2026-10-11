@@ -32,7 +32,7 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./harness/fixtures";
-import { completeReview, createDocumentJob } from "./harness/flows";
+import { completeReview, createDocumentJob, keepOriginalThroughUi } from "./harness/flows";
 
 // ---------------------------------------------------------------------------
 // Synthetic fixtures (no real PHI/PII)
@@ -161,7 +161,7 @@ async function decideAllPendingThroughUi(page: Page): Promise<void> {
     if (await accept.isEnabled()) {
       await accept.click();
     } else {
-      await page.getByRole("button", { name: "Keep original" }).click();
+      await keepOriginalThroughUi(page);
     }
   }
   await expect(progress).toContainText("Pending: 0");
