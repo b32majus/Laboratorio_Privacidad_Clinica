@@ -293,6 +293,21 @@ Binding rules:
 
 Exact global navigation is deliberately not frozen by V1.
 
+### 7.1 Human-approved expressive Sophilux visual direction B (2026-10-11)
+
+**Binding human product decision** after rendered comparison of original V3 (`331bcaf4a624659c77823a0c4b427d46347ea104`) and candidate V4 (`7e9f7409dac531ddbf101fe708a302e3fbe6990f`): adopt **B — a more expressive Sophilux editorial heritage**, rather than the restrained-A default. This supplements the accepted 2026-10-05 reconciliation on visual expression; it does **not** reverse its task-first interaction design or reinstate old page routes.
+
+- **Visible family resemblance is required**, not optional: the original dusty/powder rose, warm stone/cream neutrals, deliberate typography contrast, elegant spacing/section rhythm and signature shield/brand treatment must be recognizable together in V4. Matching color tokens alone is not proof.
+- **Where expression is strongest:** app entry/add-information orientation, brief task-orientation contexts and the human Result ending. Selective Cormorant Garamond display/italic moments, a rose typographic emphasis and polished hierarchy are permitted and desired here *as branded presentation*, where they improve the composition without making users scroll through ceremony.
+- **Where operation remains primary:** Review, dense Structured comparisons, Batch queue, decision controls, long clinical text, warnings, states and data labels use clear Inter operational typography, accessible contrast, compact scanning and predictable action placement. Editorial display must never compete with the current decision, document/table or factual readiness.
+- **Result in particular:** the editorial signature may enrich the heading/framing, but ready/needs-attention/blocked facts, kept-original warnings, prepared primary action and separately confirmed Confidential Audit must remain immediately understandable. Decorative cues may never imply an unauthorized Safe output.
+- **Never restore the old friction:** no second mandatory landing, giant hero in a clinical task, obsolete five-step topology, permanent legal/upgrade banners, repeated marketing cards, false claims, unsafe pale rose buttons, lost keyboard/viewport access or reduced table/document working area.
+- **Marketing/public-facing context may be richer** than the clinical app while belonging to the same family; separation of hosting/origins remains an existing governance question, not an instruction to change deployments.
+
+**Evidence within the existing G-HP1/G-HP5/G-HP8/G-HP9/G-HP10 and Atenea #142 (no additional gate):** compare source V3 screenshot references with populated V4 Input, Review, Structured, Batch and Result in the **real application**. Confirm that editorial distinctiveness is perceptible specifically in entry/orientation/Result, and not purchased by lowering desktop operational density, hiding the next action or losing 375px continuity. The first runnable material redesign is checked early; #91 owns final cross-surface identity approval. If precise composition/typographic placement remains open, use a bounded rendered witness and human choice instead of a worker-invented product decision.
+
+**Traceability:** 2026-10-11 original-heritage addendum and frozen screenshots; REC-11/#91 owns final expression, REC-09/#85 must adopt its foundations without expanding the worker into a whole-app reskin. This later explicit human decision controls over prior **optional/minimal editorial-expression wording** only. All protected HPD §2 authorities, task prominence and language/privacy invariants continue unchanged.
+
 ## 8. Human-product acceptance gates
 
 Any user-facing REC-05→REC-11 candidate must provide evidence proportional to the claims it makes.

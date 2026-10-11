@@ -345,12 +345,12 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - professional desktop density is intentional; more whitespace is not automatically better;
 - state, pending/success/failure and destructive/sensitive actions are visually distinguishable without color-only meaning;
 - Safe/prepared Result and Confidential Audit are deliberately asymmetric;
-- current rose/warm-surface identity may be reused, but branding never outranks operational clarity.
+- **human-approved Direction B (2026-10-11): more expressive Sophilux editorial heritage must be visibly recognizable in entry/orientation/Result**, while branding never outranks operational clarity; see `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` §7.1.
 
 **Closeout owns**
 - formal V4 design tokens/components using accepted product identity;
 - warm stone/rose Sophilux identity with darker accessible operational rose where retained;
-- Inter operational typography; mono only where technical values genuinely benefit; Cormorant only as restrained brand accent if retained;
+- Inter operational typography and legible data/controls; mono only where technical values genuinely benefit; **selective expressive Cormorant Garamond and rose-italic display in app entry/orientation/Result is desired under human-approved Direction B**, never for dense Review/Structured decision text;
 - professional density and hierarchy across Input/Review/Structured/Batch/Result;
 - consistent semantic states: success, needs review, blocking, info, neutral;
 - responsive/mobile/tablet behavior remains functional while desktop remains the primary professional surface;
@@ -360,7 +360,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - text/document/batch/structured unmistakably look like one finished application;
 - no reintroduction of giant marketing cards/heroes inside clinical workflow;
 - WCAG contrast/focus and no-color-only status remain green;
-- screenshots/reference states are acceptance evidence;
+- screenshots/reference states are acceptance evidence, including side-by-side historical V3 aesthetic references and populated V4 Input/Review/Structured/Batch/Result proof that **Direction B is materially present**, not just matching token colors;
 - realistic-density review/structured/batch surfaces remain legible and task-oriented rather than degenerating into repeated equivalent cards or long explanatory documents;
 - user-facing actions provide perceptible pending/success/failure feedback where latency exists.
 

@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Input",
+    "mainHeadings": [
+      "Nuevo trabajo de privacidad",
+      "Pegar texto clínico",
+      "Elegir archivos",
+      "Uso previsto"
+    ],
+    "scrollHeight": 1457
+  },
+  {
+    "name": "Review24",
+    "progress": "Total:\n24\nPending:\n24\nDecided:\n0\nAccepted:\n0\nModified:\n0\nRestored:\n0\nManual:\n0\nLow confidence:\n0\nAll mandatory decisions complete: no",
+    "detections": 24,
+    "scrollHeight": 2483,
+    "mainHeadings": [
+      "Revisión",
+      "Decisión actual",
+      "Document",
+      "Preview",
+      "Progress",
+      "Filters",
+      "Detections"
+    ]
+  },
+  {
+    "name": "Structured32",
+    "columns": 192,
+    "tableCount": 0,
+    "detailsCount": 32,
+    "scrollHeight": 8615,
+    "headings": [
+      "Configure",
+      "Configuration summary",
+      "Patient ID authority",
+      "Output options",
+      "Columns"
+    ],
+    "firstLabels": [
+      "NHCClassification:IdentifierAction:RemoveDate role:NoneEvidence and detected details for NHCDetected class:IdentifierProposed action:RemoveInferred type:TextCon",
+      "header matches patient-ID-like header (NHC/historia/identificador de paciente)",
+      "2 data row(s)"
+    ]
+  },
+  {
+    "name": "Batch12",
+    "visibleRows": 12,
+    "filterText": "Todos (12)\nNecesitan atención (12)\nEn curso (0)\nListos (0)\nRetirados (0)",
+    "scrollHeight": 1976,
+    "headings": [
+      "Revisión",
+      "Documentos",
+      "Revisión",
+      "Decisión actual",
+      "Document",
+      "Preview",
+      "Progress",
+      "Filters",
+      "Detections"
+    ]
+  },
+  {
+    "name": "Result",
+    "status": "ready",
+    "warning": 1,
+    "headings": [
+      "Resultado",
+      "Listo para usar",
+      "Auditoría confidencial"
+    ],
+    "scrollHeight": 1251
+  }
+]
