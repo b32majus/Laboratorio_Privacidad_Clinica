@@ -1,6 +1,6 @@
 # Addendum — original visual heritage vs current V4 (2026-10-11)
 
-> **Status: EVIDENCE ADDENDUM, not a new product authority or a new train.** Follows `2026-10-11-product-fidelity-freeze.md` without rewriting its time-stamped conclusions. Human aesthetic preference and final prominence choices remain subject to explicit sign-off. LOCAL_ONLY (not merged/pushed).
+> **Status: VISUAL EVIDENCE ADDENDUM + LATER HUMAN DIRECTION B APPROVAL.** Follows `2026-10-11-product-fidelity-freeze.md` without rewriting its time-stamped conclusions. The binding visual decision is now in `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` §7.1. LOCAL_ONLY (not merged/pushed).
 
 ## References genuinely compared
 
@@ -33,4 +33,12 @@
 - #85 still owns the urgent 32-column comparative grid and no-op structured Review removal; apply the already-accepted identity without preemptively adding an independent reskin train. #90 owns Spanish and accessible copy. #92 owns composed completeness, not taste/brand.
 - **Do not** resurrect old screens, landing-as-prerequisite, upgrade banners, constant legal disclaimers, legacy workflows, unsafe contrast or old processing/security semantics.
 - This addendum does **not** retroactively mean the 2026-10-11 freeze compared V3 screenshots. It explicitly records that the omission was discovered and corrected in a supplemental comparison.
-- There is no new GitHub issue, no revised task priority and no code change. Human approval is still required before treating any **new specific** aesthetic choice as a binding design instruction.
+- There is no new GitHub issue, no revised task priority and no code change. The human later approved **Direction B** expressly; see the subsequent decision record below and HPD §7.1 for what is now binding. Further *specific* undecided compositions still need bounded evidence rather than worker discretion.
+
+## Subsequent explicit human decision — Direction B approved (2026-10-11)
+
+The human owner expressly chose **B: a more expressive Sophilux heritage for Laboratorio V4** and instructed that it be incorporated into current product design authority before further implementation. This choice **supersedes the proposed default A (contained editorial expression)** and the addendum's previously provisional visual preference; it does not replace the accepted 2026-10-05 task-first architecture.
+
+Binding implementation location: `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` §7.1. Execution owner: REC-11/#91 for final across-app expression; #85 must keep this foundation while rebuilding the comparative Structured workspace. See `docs/handoffs/ISSUE85_DESIGN_PREP_FREEZE_B_20261011.md` for the frozen next step. No worker launch, new train, code mutation or GitHub issue edit is authorized by this record.
+
+**Direct human preference, not an audited fact:** historical visual warmth and editorial elegance should be **more strongly perceptible** in Input, brief orientation and Result than under option A. Rendered proof and exact spatial choices remain to be determined at the existing product-review checkpoints.
