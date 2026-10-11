@@ -194,6 +194,40 @@ export function App() {
   const [inputError, setInputError] = useState<InputAlert | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  /**
+   * Issue #84 correction (REC-05 journey A): browser-memory-only provenance of
+   * the last legitimately entered single-item Result. It records ONLY the
+   * identity triple of the moment the shell actually navigated INTO the Result
+   * through the domain-gated transition (never merely because a ReviewSession
+   * exists, and never from a render effect): the domain Job id, the policy id
+   * and the ReviewSession's own `sessionId`. Before the Review step may offer
+   * an already-visited Result whose mandatory decisions are pending again, the
+   * CURRENT triple must match exactly:
+   *  - a REAL policy change drops the session (`updatePolicy` → review null)
+   *    and any redone review runs the engine again, which generates a NEW
+   *    `sessionId` — so the stale visit can never be reused;
+   *  - `sessionId` is stable across decisions and manual-detection additions
+   *    within one session, so the ordinary correction path (journey A) keeps
+   *    the revisit while the Result itself truthfully reports needs-attention;
+   *  - returning to a previous policy NAME (A→B→A) cannot restore obsolete
+   *    authority: the identity is the session, not the policy label, and the
+   *    A-again session is a different one;
+   *  - a new Job has a different domain-generated id, so provenance is never
+   *    inherited across jobs.
+   * Render-effect recording is deliberately NOT used: an async review restart
+   * installs the fresh session while the flow position still reads `export`
+   * (the post-invalidation intermediate state), which is a state transition,
+   * never a Result access. Result navigation stays navigation only
+   * (CORA-84-02): safe downloads and prepared output remain controlled
+   * exclusively by the canonical readiness authorities (`review.complete`,
+   * `outputs.safeOutputReady`, `deriveSingleResultView`); this provenance only
+   * ever gates whether the revisit action is OFFERED.
+   */
+  const [singleResultProvenance, setSingleResultProvenance] = useState<{
+    readonly jobId: string;
+    readonly policyId: PrivacyPolicyId;
+    readonly reviewSessionId: string;
+  } | null>(null);
   const [batchRead, setBatchRead] = useState<{
     readonly total: number;
     readonly done: number;
@@ -522,6 +556,26 @@ export function App() {
         }
       }
       session.navigate(step);
+      // Provenance recording (issue #84 correction, journey A): a SUCCESSFUL
+      // navigation INTO the Result is the one legitimate single-item Result
+      // access, so the identity triple is captured exactly here — at the
+      // domain-gated transition (forward gated on `review.complete`/D-024,
+      // backward on `visitedSteps`), never from a render effect. An async
+      // review restart installs its fresh session while the flow position
+      // still reads `export`; that intermediate state is a state transition,
+      // NOT a Result access, and must never record provenance (otherwise a
+      // redone review could resurrect the visited-Result action the CORA-84-02
+      // contract forbids). Batches are excluded (their Result access is
+      // decoupled, REC-07 #87) and structured work has no ReviewSession, so
+      // neither can record. Pure navigation fact: no output authorization
+      // changes here.
+      if (step === "export" && job !== null && job.kind !== "document-batch" && review !== null) {
+        setSingleResultProvenance({
+          jobId: job.id,
+          policyId: job.policyId,
+          reviewSessionId: review.sessionId,
+        });
+      }
       setInputError(null);
       setReviewError(null);
     } catch (error) {
@@ -569,6 +623,22 @@ export function App() {
       : null;
   const activeReview = review ?? activeBatchSession;
   const isBatch = job !== null && job.kind === "document-batch";
+  /**
+   * Issue #84 correction (REC-05 journey A): whether the CURRENT
+   * Job/policy/ReviewSession triple still matches the last legitimately
+   * entered single-item Result. This is the ONLY extra fact that may offer an
+   * already-visited Result while mandatory decisions are pending again; every
+   * invalidation (real policy change, replaced ReviewSession, new Job,
+   * A→B→A policy cycling) fails the exact-identity comparison. It widens
+   * nothing else: output authorization stays untouched.
+   */
+  const singleResultRevisitAuthorized =
+    singleResultProvenance !== null &&
+    job !== null &&
+    review !== null &&
+    singleResultProvenance.jobId === job.id &&
+    singleResultProvenance.policyId === job.policyId &&
+    singleResultProvenance.reviewSessionId === review.sessionId;
   /** The canonical structured configuration for the CURRENT structured job. */
   const structuredConfiguration =
     session.structured !== null && job !== null && session.structured.jobId === job.id
@@ -1031,6 +1101,7 @@ export function App() {
           job={job}
           exportResultHasOwnReturn={isBatch || activeReview !== null}
           reviewActive={review !== null}
+          singleResultRevisitAuthorized={singleResultRevisitAuthorized}
           reviewStartInFlight={reviewStartInFlight}
           onStartReview={handleStartReview}
           onGoToStep={handleGoToStep}
@@ -1175,6 +1246,18 @@ function TaskActionBar(props: {
   exportResultHasOwnReturn: boolean;
   /** Whether the single-item review session currently exists (T15 authority). */
   reviewActive: boolean;
+  /**
+   * Issue #84 correction (REC-05 journey A): whether the last legitimately
+   * entered single-item Result belongs to the CURRENT Job/policy/ReviewSession
+   * triple (browser-memory-only provenance, exact identity match). When true,
+   * an already-visited Result whose mandatory decisions are pending again may
+   * be offered as a revisit action even though `review.complete` is false —
+   * the Result itself truthfully renders needs-attention and every download
+   * stays governed by the canonical readiness authorities. Any real policy
+   * change, replaced ReviewSession, new Job or A→B→A policy cycling fails the
+   * identity match, so this can never resurrect a stale visit.
+   */
+  singleResultRevisitAuthorized: boolean;
   reviewStartInFlight: boolean;
   onStartReview: () => void;
   onGoToStep: (step: FlowStep) => void;
@@ -1183,6 +1266,7 @@ function TaskActionBar(props: {
     job,
     exportResultHasOwnReturn,
     reviewActive,
+    singleResultRevisitAuthorized,
     reviewStartInFlight,
     onStartReview,
     onGoToStep,
@@ -1222,13 +1306,24 @@ function TaskActionBar(props: {
     // current review, a historic `export` visit would still advertise a
     // «Ver resultado» action the current review does not authorize. The shell
     // therefore offers the action only while the CURRENT export authorization
-    // holds — the exact D-004 fact the domain's own export gate reads
-    // (`review.complete`, public on Job; no new ad-hoc enable rule, no second
-    // mapping, Gate 2). The batch distinction is preserved untouched: accessing
-    // the batch Result is decoupled from artifact authorization (REC-07 #87),
-    // so the batch action keeps the plain `isStepAccessible` authority.
+    // holds (`review.complete`, the exact D-004 fact the domain's own export
+    // gate reads) — plus the single bounded revisit exception below (issue #84
+    // correction, journey A): when the retained provenance proves the operator
+    // legitimately entered THIS Result under THIS exact Job/policy/
+    // ReviewSession triple, revisiting it with mandatory decisions pending
+    // again is offered — the Result then truthfully renders needs-attention
+    // and stays a navigation action only (no output authorization). Any real
+    // policy change, replaced session, new Job or A→B→A policy cycling fails
+    // the identity match. No new ad-hoc enable rule beyond this navigation
+    // exception, no second mapping (Gate 2). The batch distinction is
+    // preserved untouched: accessing the batch Result is decoupled from
+    // artifact authorization (REC-07 #87), so the batch action keeps the
+    // plain `isStepAccessible` authority.
     const batchResultAccessDecoupled = job.kind === "document-batch";
-    if (isStepAccessible(job, "export") && (batchResultAccessDecoupled || job.review.complete)) {
+    if (
+      isStepAccessible(job, "export") &&
+      (batchResultAccessDecoupled || job.review.complete || singleResultRevisitAuthorized)
+    ) {
       actions.push(
         <button
           key="result"

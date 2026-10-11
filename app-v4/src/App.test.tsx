@@ -728,6 +728,58 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
   });
 });
 
+/**
+ * Issue #84 correction, journey C: the single-item Result revisit provenance
+ * is bound to the exact Job/policy/ReviewSession identity, so a NEW Job never
+ * inherits the previous Job's Result visit. (The replaced-ReviewSession half
+ * of journey C is already falsified by "a policy change from the direct
+ * Result keeps a truthful way back to Review" above: the fresh session's
+ * pending review offers no «Ver resultado» CTA.)
+ */
+describe("App single-item Result revisit provenance (issue #84 correction)", () => {
+  const PROVENANCE_NOTE =
+    "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
+
+  async function createReviewJob() {
+    fireEvent.change(screen.getByLabelText("Pegar texto"), {
+      target: { value: PROVENANCE_NOTE },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    await waitForReviewWorkspace();
+  }
+
+  function acceptAllDetections() {
+    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    for (;;) {
+      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
+      if (!first) break;
+      fireEvent.click(first);
+      fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
+    }
+  }
+
+  it("a new Job never inherits the previous Job's Result provenance: its pending review offers no Result action", async () => {
+    render(<App />);
+
+    // Job 1: complete review and enter the single-item Result legitimately
+    // (this is the only visit whose provenance may ever be retained).
+    await createReviewJob();
+    acceptAllDetections();
+    fireEvent.click(taskButton("Ver resultado"));
+    expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
+
+    // A brand-new Job replaces the current one entirely (fresh domain id).
+    fireEvent.click(taskButton("Nuevo trabajo"));
+    await createReviewJob();
+
+    // The retained provenance is bound to Job 1: Job 2's still-pending review
+    // keeps the Result affordance fail-closed — the previous visit cannot be
+    // resurrected through the new Job.
+    expectNoResultAction();
+  });
+});
+
 describe("App document intake (T06)", () => {
   it("confirms a single-document identifier in place and cannot carry pending intent into a new Job", async () => {
     render(<App />);
