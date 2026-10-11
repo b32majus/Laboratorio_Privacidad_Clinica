@@ -168,7 +168,10 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   // a la revisión» detour (issue #85 §3.4): the canonical onward action is
   // the factual privacy check.
   await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(1);
+  // Issue #85 F1 (CORA-85-01 correction 2): no structured configuration exists
+  // yet (no sheet loaded, no header row confirmed), so the Privacy Gate is NOT
+  // reachable — the action is never offered and the handler would no-op.
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
 
   // Explicit multi-sheet selection first: never the silent first sheet.
   await expect(page.getByRole("heading", { name: "Select a worksheet" })).toBeVisible();
@@ -178,12 +181,18 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   // Ambiguous cover line + real header: explicit header-row choice, never a
   // silent first row. Row 4 (0-based index 3) is the real header.
   await expect(page.getByRole("heading", { name: "Select the header row" })).toBeVisible();
+  // Issue #85 F1: still no resolved configuration (header row pending) — the
+  // Privacy Gate action remains absent through sheet selection.
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
   await page.getByLabel("Header row", { exact: true }).selectOption("3");
   await page.getByRole("button", { name: "Use row 4 as header" }).click();
 
   // The resolved schema reaches Configure: 10 hospital columns.
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns: 10");
+  // Issue #85 F1: the resolved configuration makes the Privacy Gate reachable
+  // again and the factual onward action is offered once more.
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(1);
 
   await page.getByLabel("Columna de identificación del paciente").selectOption("NHC");
   await selectColumn(page, "Fecha_Visita");

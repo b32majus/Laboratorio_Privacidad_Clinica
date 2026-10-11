@@ -727,6 +727,12 @@ export function App() {
    * moves are immediate-next canonical transitions and cannot throw.
    */
   const handleStructuredConfigureToGate = () => {
+    // Issue #85 F1 (CORA-85-01 correction 2): without a resolved structured
+    // configuration the Privacy Gate is not a reachable state — no sheet has
+    // been loaded and no header row confirmed yet. The guard makes the
+    // intentional navigation a no-op instead of landing on an impossible
+    // privacy check; the canonical transitions themselves are untouched.
+    if (structuredConfiguration === null) return;
     session.navigate("review");
     session.navigate("privacy-gate");
   };
@@ -1150,6 +1156,7 @@ export function App() {
           reviewStartInFlight={reviewStartInFlight}
           onStartReview={handleStartReview}
           onProceedToPrivacyGate={handleStructuredConfigureToGate}
+          structuredConfigurationExists={structuredConfiguration !== null}
           onGoToStep={handleGoToStep}
         />
       </main>
@@ -1318,6 +1325,14 @@ function TaskActionBar(props: {
    * intentional navigation; see `handleStructuredConfigureToGate`).
    */
   onProceedToPrivacyGate: () => void;
+  /**
+   * Issue #85 F1 (CORA-85-01 correction 2): true exactly when a resolved
+   * structured configuration exists (sheet loaded AND header row confirmed).
+   * Until then the Configure onward action must not be offered at all — the
+   * Privacy Gate is not a reachable state and an impossible action is never
+   * surfaced (the handler also guards defensively).
+   */
+  structuredConfigurationExists: boolean;
   onGoToStep: (step: FlowStep) => void;
 }): ReactElement | null {
   const {
@@ -1329,6 +1344,7 @@ function TaskActionBar(props: {
     reviewStartInFlight,
     onStartReview,
     onProceedToPrivacyGate,
+    structuredConfigurationExists,
     onGoToStep,
   } = props;
   if (job === null) return null;
@@ -1544,7 +1560,12 @@ function TaskActionBar(props: {
     }
   }
 
-  if (step === "configure" && job.kind === "structured" && isStepAccessible(job, "review")) {
+  if (
+    step === "configure" &&
+    job.kind === "structured" &&
+    structuredConfigurationExists &&
+    isStepAccessible(job, "review")
+  ) {
     if (structuredNoFreeText) {
       // Issue #85 §3.4: with NO cell routed to `process-as-text` there is no
       // «Continuar a la revisión» detour and no rendered no-op Review. The
