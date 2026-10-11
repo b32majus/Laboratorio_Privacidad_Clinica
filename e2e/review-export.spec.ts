@@ -155,18 +155,68 @@ for (const width of [375, 1280]) {
     await expect(progress).toContainText("Pending: 0");
 
     // --- Manual detection affects the final output --------------------------
-    await page.getByRole("button", { name: "Add manual detection" }).click();
-    await page.getByLabel("Start offset").fill(String(FIXTURE_TEXT.indexOf(MANUAL_SPAN)));
-    await page
-      .getByLabel("End offset")
-      .fill(String(FIXTURE_TEXT.indexOf(MANUAL_SPAN) + MANUAL_SPAN.length));
-    await page.getByLabel("Detection type").fill("FARMACO");
-    await page.getByRole("button", { name: "Add detection", exact: true }).click();
+    const mark = page.getByRole("button", { name: "Marcar dato no detectado" });
+    const source = page.getByRole("group", { name: "Document text with detections" });
+    const form = page.getByRole("form", { name: "Marcar dato" });
+    const captureSource = async () => {
+      await mark.scrollIntoViewIfNeeded();
+      await mark.focus();
+      // Native browser selection of the known synthetic source span 218–227.
+      // This witnesses Range/Selection mapping, not a claimed pointer drag.
+      await source.evaluate((group) => {
+        const anchor = Array.from(group.querySelectorAll<HTMLElement>("[data-source-start]")).find(
+          (element) =>
+            Number(element.dataset.sourceStart) <= 218 &&
+            Number(element.dataset.sourceStart) + (element.textContent?.length ?? 0) >= 227
+        );
+        if (!anchor?.firstChild) throw new Error("Missing original enalapril source segment");
+        const range = document.createRange();
+        range.setStart(anchor.firstChild, 218 - Number(anchor.dataset.sourceStart));
+        range.setEnd(anchor.firstChild, 227 - Number(anchor.dataset.sourceStart));
+        const selection = window.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
+      const beforeScroll = await page.evaluate(() => window.scrollY);
+      await mark.press("Enter");
+      await expect(page.getByLabel("Tipo de dato")).toBeFocused();
+      await expect(form).toBeInViewport({ ratio: 1 });
+      await expect(form.getByRole("region", { name: "Texto seleccionado" })).toHaveText(
+        MANUAL_SPAN
+      );
+      await expect(form.locator('input[type="number"]')).toHaveCount(0);
+      await expect(form.getByRole("button", { name: "Cancelar", exact: true })).toBeInViewport();
+      await expect(form.getByRole("button", { name: "Añadir dato marcado" })).toBeInViewport();
+      if (width === 375)
+        expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(beforeScroll);
+      await noOverflow();
+    };
+    await captureSource();
+    await page.getByLabel("Tipo de dato").fill("Tipo cancelado");
+    await capture("manual-captured-panel");
+    await form.getByRole("button", { name: "Cancelar", exact: true }).press("Enter");
+    await expect(form).toHaveCount(0);
+    await expect(mark).toBeFocused();
+    await expect(mark).toBeInViewport();
+    await expect(progress).toContainText("Total: 4");
+    await expect(progress).toContainText("Pending: 0");
+    await noOverflow();
+    await captureSource();
+    await page.getByLabel("Tipo de dato").fill("FARMACO");
+    await form.getByRole("button", { name: "Añadir dato marcado" }).press("Enter");
+    await expect(page.getByText("Dato añadido. Pendiente de revisar")).toBeVisible();
+    const reviewMarked = page.getByRole("button", { name: "Revisar dato marcado" });
+    await expect(reviewMarked).toBeFocused();
+    await expect(reviewMarked).toBeInViewport();
+    await noOverflow();
+    await capture("manual-pending-next-action");
     await expect(progress).toContainText("Total: 5");
     await expect(progress).toContainText("Manual: 1");
     await expect(progress).toContainText("Pending: 1");
 
-    await selectDetection(new RegExp(MANUAL_SPAN));
+    await reviewMarked.press("Enter");
+    await expect(inspector).toBeFocused();
+    await expect(inspector).toContainText(MANUAL_SPAN);
     await page.getByLabel("Replacement").fill(MANUAL_REPLACEMENT);
     await page.getByRole("button", { name: "Apply modification" }).click();
 
