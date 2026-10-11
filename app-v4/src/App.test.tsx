@@ -1671,6 +1671,55 @@ describe("App structured Configure workspace (T20 #24)", () => {
     );
   });
 
+  it("never offers a stale structured Result after readiness is invalidated again (issue #85 §3.6)", async () => {
+    createStructuredJob(CSV);
+    await screen.findByRole("table", { name: /column classification list/i });
+    // Reach the ready structured Result once: explicit Unknown resolution and
+    // an explicit date role make the preparation ready.
+    fireEvent.click(rowSelectButton("CampoLibre"));
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "insensitive" },
+    });
+    fireEvent.click(rowSelectButton("Fecha_Nac"));
+    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+      target: { value: "birth" },
+    });
+    fireEvent.click(taskButton("Privacy Gate"));
+    await waitFor(() => expect(taskButton("Ir al resultado")).toBeEnabled());
+    fireEvent.click(taskButton("Ir al resultado"));
+    // The structured Result workspace (heading «Export») is reached once.
+    await screen.findByRole("heading", { level: 2, name: "Export" });
+
+    // Historical Result visit: return to meaningful Configure (issue #85
+    // §3.4) and resolve a column back to Unknown so the preparation blocks
+    // again (§3.6: policy/readiness later invalidates Result).
+    fireEvent.click(taskButton("Volver a la configuración"));
+    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(rowSelectButton("CampoLibre"));
+    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+      target: { value: "unknown" },
+    });
+    expect(
+      screen.getByRole("status", { name: /structured configuration facts/i })
+    ).toHaveTextContent("Structured export ready: No");
+
+    // The Privacy Gate itself stays reachable and enabled (G-HP2), but the
+    // Result affordance does NOT resurrect from the historical visit: for a
+    // structured job `review.complete` is the CURRENT derived output gate
+    // (`withDerivedStructuredState`), and it is false again.
+    fireEvent.click(taskButton("Privacy Gate"));
+    expect(
+      await screen.findByRole("status", { name: /structured export facts/i })
+    ).toBeInTheDocument();
+    const resultAction = taskButton("Ir al resultado");
+    expect(resultAction).toBeDisabled();
+    // A click on the disabled affordance performs NO navigation: the shell
+    // stays on the Privacy Gate, never on a stale Result.
+    fireEvent.click(resultAction);
+    expect(screen.getByRole("status", { name: /structured export facts/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Export" })).not.toBeInTheDocument();
+  });
+
   it("refuses a multi-file structured selection fail-closed", async () => {
     render(<App />);
     const first = new File(["a,b\n1,2"], "one.csv", { type: "text/csv" });

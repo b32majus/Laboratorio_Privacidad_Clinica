@@ -209,7 +209,11 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   await expect(columnRow(page, "Notas")).toContainText("Process as text");
 
   // Output options: custom prefix; visit numbering is enabled by the
-  // patient-ID heritage default.
+  // patient-ID heritage default. (Issue #85 composed-hierarchy correction:
+  // the options area now sits below the comparison table, collapsed behind a
+  // native disclosure — this selector-only expansion keeps every control
+  // reachable; the assertions themselves are unchanged.)
+  await page.locator("summary").filter({ hasText: "Output options" }).click();
   await page.getByLabel("Study-ID prefix").fill("hs1");
   await expect(page.getByLabel("Visit numbering (Visita_Num)")).toBeChecked();
   const facts = page.getByRole("status", { name: "Structured output facts" });

@@ -1,20 +1,38 @@
 {
-  "witness": "issue85 composed visual checkpoint (handoff ISSUE85_STRUCTURED_COMPARATIVE_C087_20261011 §5)",
-  "captured": "2026-10-11",
+  "witness": "issue85 composed visual checkpoint (handoff ISSUE85_STRUCTURED_COMPARATIVE_C087_20261011 §5; regenerated for review correction #1, finding 2 — composed hierarchy)",
+  "captured": "2026-10-12",
   "branch": "work/issue85-structured-workspace-c087-20261011",
   "productBase": "a9eee80306ae8382a71e16e8b860b1eb8df98100",
   "viewports": [
-    { "width": 1280, "height": 800, "file": "structured-32-cols-full.png", "note": "full-page screenshot: dominant four-field comparative grid (32 rows, row identity = columnIndex), contextual inspector alongside for the selected column fecha_nacimiento, global blockers + next action (Privacy Gate), legible Sophilux B" },
-    { "width": 375, "height": 812, "file": "structured-32-cols-375.png", "note": "changed table/inspector navigation: explicitly labeled scrollable table region, inspector stacked below, no whole-page horizontal overflow (asserted with e2e/harness/viewport assertNoHorizontalOverflow), controls reachable, selection kept (aria-pressed)" }
+    {
+      "width": 1280,
+      "height": 800,
+      "file": "structured-32-cols-viewport-1280x800.png",
+      "note": "INITIAL-VIEWPORT clip (not full page): compact one-band readiness header (facts + global block reasons + next-step guidance) and the single patient-ID authority sit directly under the task heading/intro; the dominant comparative table STARTS inside the first screen with >=4 full rows visible; the selected inspector (fecha_nacimiento) starts alongside with its facts and classification control inside the fold. Asserted with measured bounding boxes in the temporary one-off spec."
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "file": "structured-32-cols-full.png",
+      "note": "full-page screenshot: dominant four-field comparative grid (32 rows, row identity = columnIndex), contextual inspector alongside for the selected column fecha_nacimiento, Output options moved BELOW the table/inspector collapsed behind a native disclosure, then the shell task actions (Privacy Gate onward action) and policy guidance; legible Sophilux B"
+    },
+    {
+      "width": 375,
+      "height": 812,
+      "file": "structured-32-cols-375.png",
+      "note": "changed table/inspector navigation: explicitly labeled scrollable table region (tabindex=0), inspector stacked below, no whole-page horizontal overflow (asserted with e2e/harness/viewport assertNoHorizontalOverflow), controls reachable, selection kept (aria-pressed)"
+    }
   ],
+  "nextActionPosition": "The shell's onward «Privacy Gate» task action is asserted present and enabled in the witness, but it stays in document flow BELOW the 32-row dominant comparison table (~y1990 at 1280x800): 32 comparative rows alone exceed the 800px fold, and the shell action bar renders after the workspace in app-v4/src/App.tsx (outside the correction's prescribed file/edit list). The first screen therefore carries the global blockers + the fail-closed next-step guidance (block-reason alert: 28 columns require review; fecha_nacimiento has no accepted structured transformation) plus the selected column's immediate actionable controls. Making the shell action bar sticky/moved would be a whole-screen shell change and was NOT improvised.",
   "syntheticHeaderSeed": "NHC,fecha_nacimiento,sexo,diagnostico,centro,notas_libres,CampoLibre01..CampoLibre26 (32 columns; 3 synthetic rows; no PHI)",
-  "syntheticCsv": "generated OUTSIDE the repo at /tmp/opencode/issue85-witness/estructurado-32.csv (not committed)",
+  "syntheticCsv": "regenerated OUTSIDE the repo at /tmp/opencode/issue85-witness/estructurado-32.csv (not committed)",
   "commands": [
     "npm run build",
     "npx playwright test e2e/issue85-witness.spec.ts  # TEMPORARY one-off spec, deleted after the run; no committed spec",
-    "npx playwright test e2e/structured.spec.ts e2e/structured-composed.spec.ts e2e/structured-rec04-composed.spec.ts e2e/ux-closeout-shell.spec.ts  # 17 passed"
+    "npx playwright test e2e/structured.spec.ts e2e/structured-composed.spec.ts e2e/structured-rec04-composed.spec.ts e2e/ux-closeout-shell.spec.ts",
+    "npx vitest run app-v4/src/structured/StructuredConfigureWorkspace.test.tsx app-v4/src/App.test.tsx"
   ],
-  "comparison": "docs/audits/evidence/product-freeze-20261011/03b-structured-32-cols-full.png — evidence of TASK COMPOSITION (comparative table replaces the 32-card wall), not pixel-perfect or height-threshold evidence",
+  "comparison": "docs/audits/evidence/product-freeze-20261011/03b-structured-32-cols-full.png — evidence of TASK COMPOSITION (comparative table replaces the 32-card wall; readiness band compacted into one header band; output options collapsed below the table), not pixel-perfect or height-threshold evidence",
   "expectedFacts": {
     "columns": 32,
     "columnsRequiringReview": 29,

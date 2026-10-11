@@ -572,6 +572,16 @@ export function App() {
       ) {
         return;
       }
+      // Issue #85 §3.6: refuse a structured Result navigation whose readiness
+      // was later invalidated. `withDerivedStructuredState` derives the
+      // structured `review.complete` from the CURRENT preparation status, so
+      // this is the same fail-closed gate the disabled button above exposes —
+      // the transition is refused, not merely visually disabled. No structured
+      // provenance exception exists (batches are decoupled, REC-07 #87;
+      // structured work records none).
+      if (step === "export" && job !== null && job.kind === "structured" && !job.review.complete) {
+        return;
+      }
       session.navigate(step);
       // Provenance recording (issue #84 correction, journey A): a SUCCESSFUL
       // navigation INTO the Result is the one legitimate single-item Result
@@ -1438,7 +1448,15 @@ function TaskActionBar(props: {
           !isStepAccessible(job, "export") ||
           ((job.kind === "text" || job.kind === "document") &&
             !job.review.complete &&
-            !singleResultRevisitAuthorized)
+            !singleResultRevisitAuthorized) ||
+          // Issue #85 §3.6: a structured Result becomes stale when a later
+          // readiness invalidation re-blocks the preparation. For structured
+          // jobs `withDerivedStructuredState` (useJobSession.ts) derives
+          // `review.complete` from `preparation.status === "ready"`, so it IS
+          // the current structured output gate — no second readiness source is
+          // consulted here. Historical Result visits never authorize a stale
+          // one (no structured provenance exception exists).
+          (job.kind === "structured" && !job.review.complete)
         }
         className={primaryAction}
       >

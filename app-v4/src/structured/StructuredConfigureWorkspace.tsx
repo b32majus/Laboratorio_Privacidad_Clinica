@@ -221,7 +221,7 @@ export function StructuredConfigureWorkspace(
       <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
         Preparar datos estructurados
       </h2>
-      <p className="mt-2 max-w-3xl text-base leading-relaxed">
+      <p className="mt-1.5 text-sm leading-relaxed">
         Compare todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y
         lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puede cambiar
         cualquiera. Las columnas desconocidas (Unknown) siempre requieren revisión y nunca se tratan
@@ -445,13 +445,20 @@ function ConfigurationView(props: {
   const handleInspectorDateRole = withSelection(onSetDateRole);
 
   return (
-    <div className="mt-4 space-y-4">
-      <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
-      <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
-      {outputOptions !== null && outputOptions !== undefined && (
-        <OutputOptionsSection outputOptions={outputOptions} />
-      )}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
+    <div className="mt-3 space-y-3">
+      {/*
+        Issue #85 composed-hierarchy correction (review finding 2): ONE short
+        header band directly under the task heading/intro — compact readiness
+        facts + block-reason alerts and the single patient-ID authority — so
+        the dominant comparison table starts immediately beneath it and stays
+        inside the initial 1280×800 fold. Pure layout/compaction: every fact,
+        control id, callback and fail-closed alert below is unchanged.
+      */}
+      <div className="grid items-start gap-x-4 gap-y-2 rounded border border-primary bg-surface-light px-3 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(300px,1.1fr)]">
+        <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
+        <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
+      </div>
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
         <ColumnComparisonTable
           configuration={configuration}
           patientIdIndex={
@@ -480,11 +487,36 @@ function ConfigurationView(props: {
           />
         )}
       </div>
+      {outputOptions !== null && outputOptions !== undefined && (
+        <details className="rounded border border-primary bg-surface-light">
+          {/*
+            Issue #85 composed-hierarchy correction (review finding 2): the
+            bounded output options sit BELOW the dominant comparison table,
+            collapsed behind a native, keyboard-operable disclosure (same
+            pattern as the inspector's evidence disclosure). Nothing is
+            removed: expanding reveals the same controls, ids, hints and
+            fail-closed alerts, and the heading stays the summary label.
+          */}
+          <summary
+            className={`cursor-pointer select-none px-3 py-2 font-display text-base font-bold text-primary-dark ${focusRing}`}
+          >
+            <h3>Output options</h3>
+          </summary>
+          <div className="px-3 pb-3">
+            <OutputOptionsSection outputOptions={outputOptions} />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
 
-/** Factual summary: counts and the structured export gate (never a score). */
+/**
+ * Factual summary: counts and the structured export gate (never a score).
+ * Issue #85 composed-hierarchy correction (review finding 2): compacted into
+ * the single header band — same facts, same `role="status"`/`role="alert"`
+ * oracles, tighter layout.
+ */
 function ConfigurationSummary(props: {
   configuration: StructuredConfiguration;
   exportReadiness: { readonly ready: boolean; readonly reasons: readonly string[] } | null;
@@ -494,28 +526,31 @@ function ConfigurationSummary(props: {
   const ready = exportReadiness === null ? configuration.exportReady : exportReadiness.ready;
   const reasons = exportReadiness === null ? [] : exportReadiness.reasons;
   return (
-    <section
-      aria-label="Structured configuration summary"
-      className="rounded border border-primary bg-surface-light p-3"
-    >
-      <h3 className="font-display text-base font-bold text-primary-dark">Configuration summary</h3>
+    <section aria-label="Structured configuration summary" className="min-w-0">
+      <h3 className="font-display text-sm font-bold text-primary-dark">Configuration summary</h3>
       <dl
         role="status"
         aria-label="Structured configuration facts"
-        className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
+        className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-neutral-800"
       >
-        <dt className="font-semibold">Columns:</dt>
-        <dd> {configuration.columns.length}</dd>
-        <dt className="font-semibold">Columns requiring review:</dt>
-        <dd> {pending}</dd>
-        <dt className="font-semibold">Structured export ready:</dt>
-        <dd> {ready ? "Yes" : "No"}</dd>
+        <div className="flex gap-1">
+          <dt className="font-semibold">Columns:</dt>
+          <dd> {configuration.columns.length}</dd>
+        </div>
+        <div className="flex gap-1">
+          <dt className="font-semibold">Columns requiring review:</dt>
+          <dd> {pending}</dd>
+        </div>
+        <div className="flex gap-1">
+          <dt className="font-semibold">Structured export ready:</dt>
+          <dd> {ready ? "Yes" : "No"}</dd>
+        </div>
       </dl>
       {reasons.length > 0 ? (
         <ul
           role="alert"
           aria-label="Structured export block reasons"
-          className="mt-3 list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
+          className="mt-2 list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
         >
           {reasons.map((reason, index) => (
             <li key={index}>{reason}</li>
@@ -525,7 +560,7 @@ function ConfigurationSummary(props: {
         pending > 0 && (
           <p
             role="alert"
-            className="mt-3 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
+            className="mt-2 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
           >
             {pending === 1
               ? "Structured export is blocked while 1 column requires review."
@@ -538,7 +573,12 @@ function ConfigurationSummary(props: {
   );
 }
 
-/** The single patient-ID authority (SPEC §6), shown exactly once. */
+/**
+ * The single patient-ID authority (SPEC §6), shown exactly once. Issue #85
+ * composed-hierarchy correction (review finding 2): compacted into the header
+ * band beside the readiness facts — same selector (`patient-id-column`), same
+ * callbacks, same status/alert notes.
+ */
 function PatientIdAuthority(props: {
   configuration: StructuredConfiguration;
   onSelectPatientId: (header: string | null) => void;
@@ -548,19 +588,19 @@ function PatientIdAuthority(props: {
   return (
     <section
       aria-label="Autoridad de identificación del paciente"
-      className="rounded border border-primary bg-surface-light p-3"
+      className="min-w-0 border-neutral-300 lg:border-l lg:pl-4"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">
+      <h3 className="font-display text-sm font-bold text-primary-dark">
         Autoridad de identificación del paciente
       </h3>
-      <p className="mt-2 text-sm text-neutral-800">
+      <p className="mt-1 text-xs text-neutral-800">
         Exactamente una columna es la autoridad de identificación del paciente para este trabajo
         estructurado. Se elige aquí una sola vez; la tabla comparativa nunca re-declara ese
         significado.
       </p>
       <label
         htmlFor="patient-id-column"
-        className="mt-3 block text-sm font-semibold text-neutral-800"
+        className="mt-2 block text-sm font-semibold text-neutral-800"
       >
         Columna de identificación del paciente
       </label>
@@ -570,7 +610,7 @@ function PatientIdAuthority(props: {
         onChange={(event) =>
           onSelectPatientId(event.target.value === "" ? null : event.target.value)
         }
-        className={`mt-1 w-full max-w-sm rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+        className={`mt-1 w-full max-w-xs rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
       >
         <option value="">Sin seleccionar</option>
         {configuration.columns.map((column) => (
@@ -580,19 +620,19 @@ function PatientIdAuthority(props: {
         ))}
       </select>
       {patientId.status === "resolved" && (
-        <p className="mt-2 text-sm text-neutral-800">
+        <p className="mt-1 text-xs text-neutral-800">
           <span className="font-semibold">Seleccionada:</span> {patientId.column}
         </p>
       )}
       {patientId.status === "not-selected" && (
-        <p className="mt-2 text-sm text-neutral-800">
+        <p className="mt-1 text-xs text-neutral-800">
           {patientId.candidates.length > 0
             ? `Aún no hay columna seleccionada. Columnas detectadas como posibles identificadores de paciente: ${patientId.candidates.join(", ")}.`
             : "Aún no hay columna seleccionada y no se detectó ninguna columna parecida a un identificador de paciente. Elija una explícitamente."}
         </p>
       )}
       {patientId.status === "selection-error" && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-primary-dark">
+        <p role="alert" className="mt-1 text-xs font-semibold text-primary-dark">
           {patientId.message}
         </p>
       )}
@@ -600,19 +640,21 @@ function PatientIdAuthority(props: {
   );
 }
 
-/** Bounded structured output options (REC-04 WU-B, D-022): prefix + visit numbering + facts. */
+/**
+ * Bounded structured output options (REC-04 WU-B, D-022): prefix + visit numbering + facts.
+ * Issue #85 composed-hierarchy correction (review finding 2): rendered below
+ * the comparison table, collapsed behind the native disclosure whose summary
+ * carries the section heading — every control, id, hint and fail-closed
+ * alert here is unchanged and reachable after expanding.
+ */
 function OutputOptionsSection(props: {
   outputOptions: NonNullable<StructuredConfigureWorkspaceProps["outputOptions"]>;
 }): ReactElement {
   const { outputOptions } = props;
   const { summary } = outputOptions;
   return (
-    <section
-      aria-label="Structured output options"
-      className="rounded border border-primary bg-surface-light p-3"
-    >
-      <h3 className="font-display text-base font-bold text-primary-dark">Output options</h3>
-      <p className="mt-2 text-sm text-neutral-800">
+    <section aria-label="Structured output options">
+      <p className="mt-1 text-sm text-neutral-800">
         How generated Study IDs are formatted. Changing these options never changes patient grouping
         or row order — only the generated token text.
       </p>
@@ -713,7 +755,7 @@ function ColumnComparisonTable(props: {
 }): ReactElement {
   const { configuration, patientIdIndex, selectedColumnIndex, onSelectColumn } = props;
   return (
-    <section className="min-w-0 rounded border border-primary bg-surface-light p-3">
+    <section className="min-w-0 rounded border border-primary bg-surface-light px-3 py-2">
       <h3 className="font-display text-base font-bold text-primary-dark">
         Comparativa de columnas
       </h3>
@@ -726,7 +768,7 @@ function ColumnComparisonTable(props: {
         role="region"
         aria-label="Tabla comparativa de columnas (desplazable en pantallas estrechas)"
         tabIndex={0}
-        className={`mt-3 overflow-x-auto ${focusRing}`}
+        className={`mt-2 overflow-x-auto ${focusRing}`}
       >
         <table
           aria-label="Column classification list"
