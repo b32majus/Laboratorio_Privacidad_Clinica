@@ -288,7 +288,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 - high-volume Review interaction: content/current decision/remaining work dominate; exact pane count is not frozen;
 - efficient next/previous attention flow and correction/undo behavior;
 - evaluate explicit grouped/bulk confirmation only if useful, with scope clarity, no silent acceptance and appropriate treatment of low-confidence/exceptional items;
-- `Keep original` safety affordance: direct identifiers require contextual explanation/confirmation before the original remains in prepared output;
+- `Keep original` safety affordance: **COMPLETED #82 / PR #109** — direct identifiers require contextual explanation/confirmation before the original remains in prepared output; canonical Review decision and factual Result notices preserved;
 - manual missed-entity marking through text selection + human category/confirmation; source offsets remain internal and never become an ordinary form field;
 - reshape Structured Configure into the accepted comparative column × interpretation/treatment/state workspace while preserving REC-03/04 semantics; effective treatment and blockers remain visible, with evidence/confidence/override detail contextual;
 - remove the no-op Structured Review destination when no free-text cell review exists; free-text cell review remains a concrete subtask when it does exist;
@@ -442,14 +442,14 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-06 | #78, #86 | #86 ← #78 |
 | REC-07 | #79, #87, #88, #89 | #87 ← #78 + #79; #88/#89 ← #87 |
 | REC-08 | #80, separately human-authorized #106 | completed through PR #107; #106 closes CORA-80-03 without reviving #80 correction budget |
-| REC-09 | #81, #82, #83, #84, #85 | native frontier; intentionally split for context-fit |
+| REC-09 | #81, #82, #83, #84, #85 | #82 completed through PR #109 (H-41); #81/#83/#84/#85 remain open, no new dependency edges |
 | REC-10 | #90 | blocked by stable product-surface set #80–#89 |
 | REC-11 | #91 | blocked by stable product-surface set #80–#89; **not** blocked by #90 |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
-Current state after PR #107: **#78, #79, #80, #86, #87, #88, #89 and #106 are closed**. REC-06, REC-07 and REC-08 are complete. REC-09 issues #81–#85 are technically executable; #90/#91 still wait for the stable remaining product-surface set and REC-12 remains downstream. **This closeout selects no next frontier**. Serial scheduling preference is not a semantic blocker, and #106 is a recorded human-authorized repair rather than an invented hard-dependency edge.
+Current state after PR #109: **#78, #79, #80, #82, #86, #87, #88, #89 and #106 are closed**. REC-06, REC-07 and REC-08 remain complete. REC-09 has completed only #82; #81/#83–#85 are open and technically executable. #90/#91 still await the stable remaining product-surface set, and REC-12 remains downstream. **No new next frontier is selected.** Serial scheduling preference is not a semantic blocker, and experimental OpenAI Frontier does not replace the `standard` default.
 
-**Next selected Train (2026-10-11): #82 / REC-09 — Keep-original direct-identifier contextual safeguard.** This post-closeout attended selection is risk-prioritized: direct identifiers can currently be restored through ordinary Review without contextual confirmation, while ReviewWorkspace is reused by single, batch and structured free-text consumers. #81/#83/#84/#85 remain independently executable and unselected, with NO newly invented dependency edges. Current C-087 route is human-selected `openai_experimental + complex` / `atenea-openai-frontier` (privacy/current-context risk; unqualified experiment, standard remains default), publication `LOCAL_ONLY`, with bounded source→consumer decisions and deterministic/rendered adversarial witnesses in `docs/handoffs/ISSUE82_KEEP_ORIGINAL_C087_COMPLEX_20261011.md`. Not yet implemented.
+**#82 / REC-09 completed and merged 2026-10-11** through PR #109 at `3.0-main@0c5741cba1cc123fbf8cb29016366ac2a37f1730`. The previously selected privacy safeguard H-41 now blocks unconfirmed direct/uncertain identifier restoration, invalidates stale entity/session confirmations, preserves next-action navigation and derives kept-original Result facts from current canonical sessions across single, batch and structured consumers. Accepted C-087 cost route was explicitly human-selected `openai_experimental + complex` / `atenea-openai-frontier`; this remains an **unqualified experiment**, with `standard` still the repository default. CORA-82-01 shared-E2E integration corrected in one bounded fresh correction attempt; Cora GO and exact-head CI/CodeQL passed. **REC-09 is not complete**: #81/#83/#84/#85 remain open and independently executable; no artificial hard dependencies or new next frontier are selected.
 
 D-019 is human-ratified `DELIBERATELY_SUPERSEDED` for a generic input-pipeline override; #80/#106 preserved deterministic/fail-closed `inferJobKind` behavior without introducing a global escape hatch. `DISC-01` was closed by #79 before #87. #88 applies the disposal/current-authority invariant to async batch Safe ZIP/PDF generation, and #89 preserves the same invariant for async batch Confidential generation: authority change or Result unmount before completion produces zero download.
 
@@ -484,7 +484,7 @@ REC-05 + REC-06 + REC-07 + REC-08 + REC-09
                                          REC-12 recovery closeout + governance
 ```
 
-REC-01 through REC-08 are complete. In the published REC-06→REC-12 ticket graph, #78 + #86 close REC-06; #79 closes the REC-07 `DISC-01` async-disposal prefactor; #87 is canonical for batch Result readiness + Safe summary CSV via PR #100; #88 is canonical for the Safe PDF ZIP + consolidated PDF via PR #102; and #89 is canonical for batch Confidential Audit + deliberate confirmation via PR #104. REC-08 #80 + #106 are completed via PR #107; REC-09 #81–#85 remain technically executable, and **no next frontier is selected by the REC-08 closeout**. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
+REC-01 through REC-08 are complete. In the published REC-06→REC-12 ticket graph, #78 + #86 close REC-06; #79 closes the REC-07 `DISC-01` async-disposal prefactor; #87 is canonical for batch Result readiness + Safe summary CSV via PR #100; #88 is canonical for the Safe PDF ZIP + consolidated PDF via PR #102; and #89 is canonical for batch Confidential Audit + deliberate confirmation via PR #104. REC-08 #80 + #106 are completed via PR #107; REC-09 #82 / H-41 has been completed by PR #109 but #81/#83–#85 remain technically executable and open; **no next frontier is selected by the #82 closeout**. REC-10/11 foundations apply immediately to every touched surface; exhaustive closeouts remain #90/#91 with no dependency edge between them. REC-12 proof/governance are #92→#93.
 
 ## 6. Fixed authorities that survive recovery
 
