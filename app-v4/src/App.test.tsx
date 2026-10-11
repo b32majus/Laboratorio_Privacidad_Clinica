@@ -229,7 +229,7 @@ describe("App shell", () => {
     expect(stepButton(1, "Input")).toBeEnabled();
 
     await goToReviewStep();
-    expect(screen.getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Revisión" })).toBeInTheDocument();
 
     fireEvent.click(stepButton(1, "Input"));
     expect(
@@ -412,7 +412,7 @@ describe("App review workspace (T07)", () => {
       .getAllByRole("list", { name: /detections/i })[0]
       .querySelector("button") as HTMLElement;
     fireEvent.click(firstDetection);
-    fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
       "Accepted: 1"
     );
@@ -473,7 +473,7 @@ describe("App privacy gate (T08 U3)", () => {
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
-      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     }
   }
 
@@ -511,7 +511,7 @@ describe("App privacy gate (T08 U3)", () => {
     await createReviewJob();
     const list = screen.getAllByRole("list", { name: /detections/i })[0];
     fireEvent.click(within(list).queryAllByRole("button")[0] as HTMLElement);
-    fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     const pending = pendingCount();
     expect(pending).toBeGreaterThan(0);
 
@@ -570,7 +570,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
-      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     }
   }
 
@@ -700,7 +700,7 @@ describe("App document intake (T06)", () => {
         name: /12345678A/,
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Accept detection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
     const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
     fireEvent.click(screen.getByRole("button", { name: "New Job" }));
@@ -876,7 +876,7 @@ describe("App export step (T08 U4)", () => {
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
-      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     }
   }
 
@@ -1415,7 +1415,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
         name: /12345678A/,
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Accept detection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     await waitFor(() => expect(stepButton(5, "Export")).toBeEnabled());
     fireEvent.click(stepButton(5, "Export"));
     expect(
