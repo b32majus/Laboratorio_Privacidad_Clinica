@@ -191,6 +191,37 @@ function statusWith(pattern: RegExp): HTMLElement | undefined {
 }
 
 describe("BatchReviewView failure recovery (#78, REC-06)", () => {
+  it("revokes current selection, drafts and keyboard target when the active batch document changes", async () => {
+    const job = processingFailureJob();
+    const sessions = { 0: await sessionFor(job, 0), 1: await sessionFor(job, 1) };
+    const handlers = { onSelectDocument: vi.fn(), onDecide: vi.fn(), onAddManual: vi.fn() };
+    const view = render(
+      <BatchReviewView job={job} sessions={sessions} activeIndex={0} {...handlers} />
+    );
+    const items = within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button");
+    fireEvent.click(items[items.length - 1]);
+    fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "DOCUMENTO A" } });
+    fireEvent.change(screen.getByLabelText("Nota (opcional)"), { target: { value: "NOTA A" } });
+    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    inspector.focus();
+    view.rerender(<BatchReviewView job={job} sessions={sessions} activeIndex={1} {...handlers} />);
+    expect(screen.getByLabelText("Sustitución")).toHaveValue("");
+    expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("");
+    expect(inspector).not.toHaveFocus();
+    fireEvent.keyDown(inspector, { key: "a" });
+    expect(handlers.onDecide).not.toHaveBeenCalled();
+    const current = within(screen.getByRole("list", { name: "Detections" })).getAllByRole(
+      "button"
+    )[0];
+    expect(current).toHaveAttribute("aria-current", "true");
+    view.rerender(<BatchReviewView job={job} sessions={sessions} activeIndex={0} {...handlers} />);
+    expect(
+      within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
+    ).toHaveAttribute("aria-current", "true");
+    expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("");
+    expect(sessions[0].decisions).toEqual({});
+    expect(sessions[1].decisions).toEqual({});
+  });
   it.each(["keep-original", "manual"])(
     "does not transfer unconfirmed %s intent to another active document",
     async (mode) => {

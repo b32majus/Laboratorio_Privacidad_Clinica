@@ -73,7 +73,7 @@ async function acceptOpenDetection(page: Page): Promise<void> {
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /12345678A/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
 }
 
 test("12-document batch: blocked Result downloads nothing, recovery + review reach one Safe manifest", async ({
@@ -115,9 +115,12 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   page.on("download", () => {
     downloads += 1;
   });
-  // The corrective action returns to Review and downloads nothing.
+  // The corrective action returns to Review and downloads nothing. #78 gives
+  // BOTH the batch step and its embedded single-document ReviewWorkspace the
+  // Spanish "Revisión" heading, so address the batch header by its own labelled
+  // id — a bare name query now matches two headers.
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
-  await expect(page.getByRole("heading", { name: "Revisión" })).toBeVisible();
+  await expect(page.locator("#batch-review-step-heading")).toBeVisible();
   await page.waitForTimeout(300);
   expect(downloads).toBe(0);
 

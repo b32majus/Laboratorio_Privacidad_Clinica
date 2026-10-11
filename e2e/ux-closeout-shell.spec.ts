@@ -236,7 +236,7 @@ test("mobile selection routes directly to the decision controls without recordin
   // Focus is handed to the inspector, so the decision controls are directly operable.
   const inspector = page.getByRole("complementary", { name: "Entity inspector" });
   await expect(inspector).toBeFocused();
-  await expect(inspector.getByRole("button", { name: "Accept detection" })).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Aceptar detección" })).toBeVisible();
 
   // The route is navigation only: selection never records a decision.
   await expect(progress).toContainText("Pending: 4");

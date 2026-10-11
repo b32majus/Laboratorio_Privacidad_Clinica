@@ -32,7 +32,12 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./harness/fixtures";
-import { completeReview, createDocumentJob, keepOriginalThroughUi } from "./harness/flows";
+import {
+  buildHighVolumeText,
+  completeReview,
+  createDocumentJob,
+  keepOriginalThroughUi,
+} from "./harness/flows";
 
 // ---------------------------------------------------------------------------
 // Synthetic fixtures (no real PHI/PII)
@@ -44,19 +49,6 @@ import { completeReview, createDocumentJob, keepOriginalThroughUi } from "./harn
  * Every identifier is unique so the rendered detection list cannot be mistaken
  * for a single repeated span.
  */
-function buildHighVolumeText(): string {
-  const blocks: string[] = [];
-  for (let i = 0; i < 6; i += 1) {
-    const dniLetter = "ABCDEFGH"[i];
-    blocks.push(
-      `Informe de seguimiento ${i + 1}. Documento del paciente: DNI 1234567${i}${dniLetter}. ` +
-        `Telefono de contacto 600-123-45${i}. Correo paciente${i}@example.com. ` +
-        `Historia numero NHC 0044231${i}. Diagnostico: hipertension arterial controlada.`
-    );
-  }
-  return blocks.join("\n");
-}
-
 const HIGH_VOLUME_TEXT = buildHighVolumeText();
 const HIGH_VOLUME_TOTAL = 24;
 const HIGH_VOLUME_RAW_IDENTIFIERS = [
@@ -157,7 +149,7 @@ async function decideAllPendingThroughUi(page: Page): Promise<void> {
   for (let guard = 0; guard < 200; guard += 1) {
     if ((await detections.count()) === 0) break;
     await detections.first().click();
-    const accept = page.getByRole("button", { name: "Accept detection" });
+    const accept = page.getByRole("button", { name: "Aceptar detección" });
     if (await accept.isEnabled()) {
       await accept.click();
     } else {

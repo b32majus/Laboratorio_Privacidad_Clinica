@@ -209,7 +209,7 @@ async function decideActiveCell(page: Page): Promise<void> {
   for (let guard = 0; guard < 30; guard += 1) {
     if ((await pendingCount.innerText()).trim() === "0") break;
     await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
-    const accept = page.getByRole("button", { name: "Accept detection" });
+    const accept = page.getByRole("button", { name: "Aceptar detección" });
     if (await accept.isEnabled()) await accept.click();
     else await keepOriginalThroughUi(page);
   }

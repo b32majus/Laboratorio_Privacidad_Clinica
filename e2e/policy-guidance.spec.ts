@@ -88,6 +88,18 @@ function proposedReplacement(page: import("@playwright/test").Page) {
   return page.getByLabel("Entity inspector").locator('dt:text-is("Proposed replacement") + dd');
 }
 
+/**
+ * #78 moved «Proposed replacement» into the collapsed «Detalles de la detección»
+ * disclosure of the Entity Inspector. Open it (idempotently) before reading the
+ * value; the real date transformation it reveals is asserted unchanged.
+ */
+async function openDetectionDetails(page: import("@playwright/test").Page): Promise<void> {
+  const details = page.getByLabel("Entity inspector").locator("details");
+  if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await details.locator("summary").click();
+  }
+}
+
 /** Accept/keep every pending decision until the review reports zero pending. */
 async function completeAllPending(page: import("@playwright/test").Page): Promise<void> {
   const progress = page.getByRole("status", { name: "Review progress" });
@@ -96,7 +108,7 @@ async function completeAllPending(page: import("@playwright/test").Page): Promis
   for (let guard = 0; guard < 40; guard += 1) {
     if ((await pendingCount.innerText()).trim() === "0") break;
     await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
-    const accept = page.getByRole("button", { name: "Accept detection" });
+    const accept = page.getByRole("button", { name: "Aceptar detección" });
     if (await accept.isEnabled()) await accept.click();
     else await keepOriginalThroughUi(page);
   }
@@ -112,6 +124,7 @@ test("text job: External AI is selected and processes with reduced date precisio
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /FECHA/ })
     .click();
+  await openDetectionDetails(page);
   await expect(proposedReplacement(page)).toHaveText("01/2024");
 
   await completeAllPending(page);
@@ -129,6 +142,7 @@ test("text job: Longitudinal Research is selected and processes with a consisten
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /FECHA/ })
     .click();
+  await openDetectionDetails(page);
   const shifted = (await proposedReplacement(page).innerText()).trim();
   expect(shifted).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   expect(shifted).not.toBe(POLICY_DATE_SOURCE);

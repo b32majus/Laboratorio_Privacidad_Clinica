@@ -2,12 +2,17 @@
  * Review workspace (Work Order T07; SPEC_V4_APP_AND_REVIEW.md §4/§5/§9).
  *
  * Three-pane desktop layout, single-column stacked on tablet/mobile:
- *   left   — factual progress (counts from getProgress, never a score) and
- *            filters (status/type; D-008 keeps candidates visible);
+ *   first  — current entity, pending navigation and explicit decisions;
  *   center — document surface rendering the immutable source text with
  *            detection spans from session offsets (never parsed back into
  *            state), plus the preview derived from the session;
- *   right  — entity inspector with decision controls and manual detection.
+ *   last   — factual progress and filters, followed by the detection list.
+ * On entry the local Review task is revealed without moving keyboard focus.
+ *
+ * Issue #83 evaluates but does not adopt grouped confirmation: identifiers,
+ * low-confidence candidates, manual data and contextual retention need
+ * item-specific review; no demonstrated benefit justifies another authority.
+ * This is a bounded non-adoption, not a permanent prohibition.
  *
  * The component is CONTROLLED: the ReviewSession comes in as a prop and all
  * decisions go out through `onDecide`/`onAddManual` to the domain state
@@ -26,6 +31,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type KeyboardEvent,
   type ReactElement,
   type Ref,
 } from "react";
@@ -50,6 +56,13 @@ import {
 
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+
+const CURRENT_DECISION_LABELS = {
+  pending: "Pendiente",
+  accepted: "Aceptada",
+  modified: "Modificada",
+  restored: "Original conservado",
+};
 
 const STATUS_FILTERS: readonly { readonly value: StatusFilter; readonly label: string }[] = [
   { value: "all", label: "All statuses" },
@@ -77,6 +90,14 @@ type ManualCapture = {
 type ManualReceipt = { readonly capture: ManualCapture; readonly type: string };
 type ManualAdded = { readonly session: ReviewSession; readonly id: string };
 
+type DecisionReceipt = {
+  readonly session: ReviewSession;
+  readonly id: string;
+  readonly decision: ExplicitDecisionStatus;
+  readonly replacement: string;
+  readonly note: string | undefined;
+};
+
 export type ReviewWorkspaceProps = {
   /** The frozen domain session; the single review authority (D-004). */
   readonly session: ReviewSession;
@@ -93,11 +114,23 @@ export type ReviewWorkspaceProps = {
 export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const { session, onDecide, onAddManual } = props;
 
+  const ordered = useMemo(
+    () => [...session.detections].sort((a, b) => a.start - b.start || a.end - b.end),
+    [session.detections]
+  );
+  const pending = ordered.filter((d) => decisionStatusOf(session, d.id) === "pending");
+
   // Transient UI state — never review authority.
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [contextSession, setContextSession] = useState(session);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const replacementRef = useRef<HTMLInputElement>(null);
+  const shortcutHelpRef = useRef<HTMLButtonElement>(null);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(() => pending[0]?.id ?? null);
   const [filters, setFilters] = useState<WorkspaceFilters>({ status: "all", type: null });
   const [replacementDraft, setReplacementDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const [manualCapture, setManualCapture] = useState<ManualCapture | null>(null);
   const [manualType, setManualType] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
@@ -122,7 +155,40 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     };
   }, [session]);
   const [error, setError] = useState<string | null>(null);
+  const [decisionReceipt, setDecisionReceipt] = useState<DecisionReceipt | null>(null);
   const [keepOriginalIntent, setKeepOriginalIntent] = useState<KeepOriginalIntent | null>(null);
+  // Canonical decisions retain detection identity; manual appends retain the
+  // existing prefix. A new session with repeated IDs/text is NOT continuity.
+  const sameContext =
+    contextSession === session ||
+    (contextSession.sessionId === session.sessionId &&
+      contextSession.originalText === session.originalText &&
+      (contextSession.detections === session.detections ||
+        ((contextSession.detections.length > 0 || session.decisions === contextSession.decisions) &&
+          session.detections.length >= contextSession.detections.length &&
+          contextSession.detections.every((d, i) => session.detections[i] === d))));
+  if (!sameContext) {
+    setContextSession(session);
+    setSelectedId(pending[0]?.id ?? null);
+    setReplacementDraft("");
+    setNoteDraft("");
+    setError(null);
+    setNavigationError(null);
+    setKeepOriginalIntent(null);
+    setDecisionReceipt(null);
+    setShortcutHelpOpen(false);
+  }
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && workspaceRef.current?.contains(active)) active.blur();
+    // Entering Review (or a new source) reveals its local task, not the shell
+    // or a long queue. No focus theft and no scrolling on decisions/rerenders.
+    if (
+      contextSession.detections.some((d) => decisionStatusOf(contextSession, d.id) === "pending")
+    ) {
+      workspaceRef.current?.scrollIntoView?.({ block: "start" });
+    }
+  }, [contextSession]);
   const intentRef = useRef(keepOriginalIntent);
   const keepOriginalRef = useRef<HTMLButtonElement>(null);
   const disposedRef = useRef(false);
@@ -151,6 +217,14 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const selected = selectedId
     ? (session.detections.find((d) => d.id === selectedId) ?? null)
     : null;
+  const selectedIndex = ordered.findIndex((d) => d.id === selectedId);
+  const previousPending = ordered
+    .slice(0, Math.max(0, selectedIndex))
+    .reverse()
+    .find((d) => decisionStatusOf(session, d.id) === "pending");
+  const nextPending = ordered
+    .slice(selectedIndex + 1)
+    .find((d) => decisionStatusOf(session, d.id) === "pending");
   const currentContextRef = useRef({ session, selected });
   currentContextRef.current = { session, selected };
   const currentManual = manualCapture?.session === session ? manualCapture : null;
@@ -224,18 +298,48 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     setKeepOriginalIntent(null);
   };
 
+  useEffect(() => {
+    if (!decisionReceipt) return;
+    const result = session.decisions[decisionReceipt.id];
+    const applied =
+      sameContext &&
+      session !== decisionReceipt.session &&
+      result?.status === decisionReceipt.decision &&
+      result.note === decisionReceipt.note &&
+      (result.status !== "modified" || result.replacement === decisionReceipt.replacement);
+    setDecisionReceipt(null);
+    if (applied) {
+      setError(null);
+      setNavigationError(null);
+      setReplacementDraft("");
+      setNoteDraft("");
+    } else {
+      setError("No se pudo aplicar la decisión. El borrador se conserva; vuelve a intentarlo.");
+    }
+  }, [decisionReceipt, session, sameContext]);
+
   /**
    * Single coherent detection-selection transition used by every selection
    * path (left detection list, document surface). Transient inspector drafts
-   * belong to the previously selected detection identity and must never
-   * migrate to another detection, so they are cleared on every identity
-   * change. Selection alone never touches review authority.
+   * belong to the current detection. Refuse navigation until the reviewer
+   * submits or explicitly discards them; never silently lose typed work.
    */
   const selectDetection = (id: string | null) => {
+    if (id === selectedId) return true;
+    if (replacementDraft !== "" || noteDraft !== "") {
+      setNavigationError(
+        "Hay un borrador sin guardar. Aplica la decisión o descarta el borrador antes de cambiar de detección."
+      );
+      focusInspector();
+      return false;
+    }
     clearKeepOriginal();
+    setNavigationError(null);
+    setError(null);
     setSelectedId(id);
     setReplacementDraft("");
     setNoteDraft("");
+    return true;
   };
 
   const decide = (id: string, decision: ExplicitDecisionStatus) => {
@@ -247,11 +351,9 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
       } else {
         onDecide(id, decision, note);
       }
-      setError(null);
-      setReplacementDraft("");
-      setNoteDraft("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The decision could not be applied.");
+      setDecisionReceipt({ session, id, decision, replacement: replacementDraft, note: note.note });
+    } catch {
+      setError("No se pudo aplicar la decisión. El borrador se conserva; vuelve a intentarlo.");
     }
   };
 
@@ -287,57 +389,125 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     }
   };
 
-  return (
-    <section aria-labelledby="review-step-heading">
-      <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Review
-      </h2>
-      <p className="mt-2 max-w-3xl text-base leading-relaxed">
-        Review every detection in the document. Decisions are recorded in the job's review session;
-        nothing is final until all mandatory decisions are complete.
-      </p>
-      {error && (
-        <p
-          role="alert"
-          className={`mt-3 max-w-3xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
-        >
-          {error}
-        </p>
-      )}
+  const keepOriginal = () => {
+    if (!selected) return;
+    if (["FECHA", "EDAD", "UBICACION"].includes(selected.type)) {
+      decide(selected.id, "restored");
+    } else {
+      setKeepOriginalIntent({ session, id: selected.id, type: selected.type });
+    }
+  };
 
+  const captureSelection = () => {
+    const capture = selectionOffsets(sourceRef.current, session);
+    manualAuthorityRef.current = capture;
+    setManualCapture(capture);
+    setManualType("");
+    setManualAdded(null);
+    setManualError(
+      capture ? null : "Selecciona un fragmento del texto original y vuelve a marcarlo."
+    );
+  };
+
+  const handleShortcut = (event: KeyboardEvent<HTMLElement>) => {
+    const active = document.activeElement;
+    if (
+      !sameContext ||
+      disposedRef.current ||
+      !active ||
+      !workspaceRef.current?.contains(active) ||
+      !(event.target instanceof HTMLElement) ||
+      event.target.closest(
+        "input, textarea, select, [contenteditable]:not([contenteditable='false'])"
+      ) ||
+      active.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])") ||
+      event.nativeEvent.isComposing ||
+      event.keyCode === 229 ||
+      event.repeat ||
+      currentManual ||
+      keepOriginalPending ||
+      decisionReceipt ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    )
+      return;
+    if (event.altKey) {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const target = event.key === "ArrowDown" ? nextPending : previousPending;
+      if (target) selectDetection(target.id);
+      return;
+    }
+    switch (event.key.toLowerCase()) {
+      case "a":
+        if (!selected || selected.proposed === undefined) return;
+        event.preventDefault();
+        decide(selected.id, "accepted");
+        break;
+      case "m":
+        if (!selected) return;
+        event.preventDefault();
+        replacementRef.current?.focus();
+        break;
+      case "k":
+        if (!selected) return;
+        event.preventDefault();
+        keepOriginal();
+        break;
+      case "f":
+        if (!selectionOffsets(sourceRef.current, session)) return;
+        event.preventDefault();
+        captureSelection();
+        break;
+    }
+  };
+
+  return (
+    <section ref={workspaceRef} onKeyDown={handleShortcut} aria-labelledby="review-step-heading">
+      <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
+        Revisión
+      </h2>
+      <p className="mt-1 max-w-3xl text-sm">
+        Revisa cada dato y decide explícitamente qué conservar o sustituir.
+      </p>
+      <p role="status" className="mt-2 text-sm font-semibold text-primary-dark">
+        {pending.length === 0
+          ? "Sin pendientes. Puedes corregir las decisiones desde la lista o el texto original."
+          : `Pendientes de revisar: ${pending.length}.`}
+      </p>
       <div role="region" aria-label="Review workspace" className="mt-4 grid gap-4 lg:grid-cols-3">
-        <FilterProgressPane
-          detectionListRef={detectionListRef}
-          session={session}
-          filters={filters}
-          detections={detections}
-          selectedId={selectedId}
-          onFilterStatus={(status) => setFilters((current) => ({ ...current, status }))}
-          onFilterType={(type) => setFilters((current) => ({ ...current, type }))}
-          onSelect={selectDetection}
-          onJumpToInspector={focusInspector}
-        />
-        <DocumentPane
-          sourceRef={sourceRef}
-          markRef={markRef}
-          manualError={currentManual ? null : manualError}
-          session={session}
-          segments={segments}
-          selectedId={selectedId}
-          onSelect={selectDetection}
-          onUseSelection={() => {
-            const capture = selectionOffsets(sourceRef.current, session);
-            manualAuthorityRef.current = capture;
-            setManualCapture(capture);
-            setManualType("");
-            setManualAdded(null);
-            setManualError(
-              capture ? null : "Selecciona un fragmento del texto original y vuelve a marcarlo."
-            );
-          }}
-        />
         <InspectorPane
+          error={error}
+          onViewSource={() => {
+            sourceRef.current?.focus();
+            sourceRef.current
+              ?.querySelector<HTMLElement>('[aria-current="true"]')
+              ?.scrollIntoView?.({ block: "nearest" });
+          }}
+          replacementRef={replacementRef}
+          shortcutHelpRef={shortcutHelpRef}
+          shortcutHelpOpen={shortcutHelpOpen}
+          onToggleShortcutHelp={() => setShortcutHelpOpen((open) => !open)}
+          onCloseShortcutHelp={() => {
+            setShortcutHelpOpen(false);
+            shortcutHelpRef.current?.focus();
+          }}
           onReturnToDetections={() => detectionListRef.current?.focus()}
+          previousPending={previousPending ?? null}
+          nextPending={nextPending ?? null}
+          onNavigate={(id) => selectDetection(id)}
+          navigationError={navigationError}
+          onDiscardDraft={() => {
+            setReplacementDraft("");
+            setNoteDraft("");
+            setNavigationError(null);
+          }}
+          hiddenByFilter={selected !== null && !detections.some((d) => d.id === selected.id)}
+          onShowAll={() => {
+            setFilters({ status: "all", type: null });
+            detectionListRef.current?.focus();
+          }}
           inspectorRef={inspectorRef}
           session={session}
           selected={selected}
@@ -355,14 +525,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           onDecide={decide}
           keepOriginalRef={keepOriginalRef}
           keepOriginalPending={keepOriginalPending}
-          onKeepOriginal={() => {
-            if (!selected) return;
-            if (["FECHA", "EDAD", "UBICACION"].includes(selected.type)) {
-              decide(selected.id, "restored");
-            } else {
-              setKeepOriginalIntent({ session, id: selected.id, type: selected.type });
-            }
-          }}
+          onKeepOriginal={keepOriginal}
           onCancelKeepOriginal={() => {
             clearKeepOriginal();
             keepOriginalRef.current?.focus();
@@ -395,12 +558,33 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           }}
           onReviewManual={() => {
             if (manualAdded?.session !== currentContextRef.current.session) return;
-            selectDetection(manualAdded.id);
+            if (!selectDetection(manualAdded.id)) return;
             inspectorRef.current?.scrollIntoView?.({ block: "start" });
             focusInspector();
           }}
           onManualType={setManualType}
           onSubmitManual={submitManual}
+        />
+        <DocumentPane
+          sourceRef={sourceRef}
+          markRef={markRef}
+          manualError={currentManual ? null : manualError}
+          session={session}
+          segments={segments}
+          selectedId={selectedId}
+          onSelect={selectDetection}
+          onUseSelection={captureSelection}
+        />
+        <FilterProgressPane
+          detectionListRef={detectionListRef}
+          session={session}
+          filters={filters}
+          detections={detections}
+          selectedId={selectedId}
+          onFilterStatus={(status) => setFilters((current) => ({ ...current, status }))}
+          onFilterType={(type) => setFilters((current) => ({ ...current, type }))}
+          onSelect={selectDetection}
+          onJumpToInspector={focusInspector}
         />
       </div>
     </section>
@@ -507,7 +691,7 @@ function FilterProgressPane(props: {
   const progress = getProgress(session);
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <section
         aria-label="Review filters and progress"
         className="rounded border border-primary bg-surface-light p-3"
@@ -660,7 +844,7 @@ function DocumentPane(props: {
 }): ReactElement {
   const { session, segments, selectedId, onSelect, onUseSelection } = props;
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <section aria-label="Document" className="rounded border border-primary bg-white p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-base font-bold text-primary-dark">Document</h3>
@@ -678,7 +862,8 @@ function DocumentPane(props: {
           ref={props.sourceRef}
           role="group"
           aria-label="Document text with detections"
-          className="mt-2 whitespace-pre-wrap font-mono text-sm leading-relaxed text-neutral-900"
+          tabIndex={-1}
+          className={`mt-2 max-h-[32rem] overflow-y-auto whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-neutral-900 ${focusRing}`}
         >
           {segments.map((segment, index) => {
             if (segment.kind === "text") {
@@ -688,7 +873,8 @@ function DocumentPane(props: {
                 </span>
               );
             }
-            const detectionId = segment.detectionIds[0];
+            const isCurrent = selectedId !== null && segment.detectionIds.includes(selectedId);
+            const detectionId = isCurrent ? selectedId : segment.detectionIds[0];
             const detection = session.detections.find((d) => d.id === detectionId);
             const status = detection ? decisionStatusOf(session, detection.id) : "pending";
             return (
@@ -697,9 +883,10 @@ function DocumentPane(props: {
                 type="button"
                 data-source-start={segment.start}
                 onClick={() => onSelect(detectionId)}
+                aria-current={isCurrent ? "true" : undefined}
                 aria-label={`${detection?.type ?? "Detection"}: "${segment.text}" — decision status: ${statusLabel(status)}`}
                 className={`mx-px rounded-sm px-0.5 underline decoration-2 underline-offset-2 ${statusDecor(status)} ${
-                  selectedId === detectionId ? "ring-2 ring-primary-dark" : ""
+                  isCurrent ? "ring-2 ring-primary-dark" : ""
                 } ${focusRing}`}
               >
                 {segment.text}
@@ -721,7 +908,7 @@ function DocumentPane(props: {
         <h3 className="font-display text-base font-bold text-primary-dark">Preview</h3>
         <p
           aria-label="Preview derived from the review session"
-          className="mt-2 whitespace-pre-wrap font-mono text-sm leading-relaxed text-neutral-900"
+          className="mt-2 max-h-[32rem] overflow-y-auto whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-neutral-900"
         >
           {previewOf(session)}
         </p>
@@ -754,6 +941,20 @@ function truncate(text: string): string {
 }
 
 function InspectorPane(props: {
+  error: string | null;
+  onViewSource: () => void;
+  replacementRef: Ref<HTMLInputElement>;
+  shortcutHelpRef: Ref<HTMLButtonElement>;
+  shortcutHelpOpen: boolean;
+  onToggleShortcutHelp: () => void;
+  onCloseShortcutHelp: () => void;
+  previousPending: ReviewDetection | null;
+  nextPending: ReviewDetection | null;
+  onNavigate: (id: string) => void;
+  navigationError: string | null;
+  onDiscardDraft: () => void;
+  hiddenByFilter: boolean;
+  onShowAll: () => void;
   onReturnToDetections: () => void;
   /** Focus target handed to the small-viewport wayfinding route (outcome D). */
   inspectorRef: Ref<HTMLElement>;
@@ -787,85 +988,191 @@ function InspectorPane(props: {
       ref={props.inspectorRef}
       tabIndex={-1}
       aria-label="Entity inspector"
-      className={`min-w-0 rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
+      className={`min-w-0 break-words rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Entity inspector</h3>
-      <button
-        type="button"
-        onClick={props.onReturnToDetections}
-        className={`mt-2 rounded border border-primary-dark px-3 py-2 text-sm font-semibold text-primary-dark lg:hidden ${focusRing}`}
-      >
-        Volver a detecciones
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-base font-bold text-primary-dark">Decisión actual</h3>
+        <button
+          ref={props.shortcutHelpRef}
+          type="button"
+          aria-expanded={props.shortcutHelpOpen}
+          aria-controls={props.shortcutHelpOpen ? "review-shortcut-help" : undefined}
+          onClick={props.onToggleShortcutHelp}
+          className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold ${focusRing}`}
+        >
+          Atajos de revisión
+        </button>
+      </div>
+      {props.shortcutHelpOpen && (
+        <section
+          id="review-shortcut-help"
+          aria-label="Atajos de revisión"
+          className="mt-2 rounded border border-primary bg-white p-2 text-sm"
+        >
+          <ul>
+            <li>A: aceptar la propuesta actual.</li>
+            <li>M: editar sustitución, sin aplicar.</li>
+            <li>K: mantener original, con la confirmación correspondiente.</li>
+            <li>F: marcar texto seleccionado en el original.</li>
+            <li>Alt + ↓ / ↑: siguiente / anterior pendiente, sin volver al inicio.</li>
+          </ul>
+          <p className="mt-1">
+            No se activan al escribir, durante una confirmación ni fuera de esta revisión.
+          </p>
+          <button
+            type="button"
+            onClick={props.onCloseShortcutHelp}
+            className={`mt-2 rounded border border-primary-dark px-2 py-1 font-semibold ${focusRing}`}
+          >
+            Cerrar ayuda de atajos
+          </button>
+        </section>
+      )}
+      <div role="group" aria-label="Navegar por pendientes" className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={!props.previousPending}
+          onClick={() => props.previousPending && props.onNavigate(props.previousPending.id)}
+          aria-describedby="pending-boundaries"
+          className={`rounded border border-primary-dark px-2 py-2 text-sm font-semibold disabled:opacity-50 ${focusRing}`}
+        >
+          Anterior pendiente
+        </button>
+        <button
+          type="button"
+          disabled={!props.nextPending}
+          onClick={() => props.nextPending && props.onNavigate(props.nextPending.id)}
+          aria-describedby="pending-boundaries"
+          className={`rounded border border-primary-dark px-2 py-2 text-sm font-semibold disabled:opacity-50 ${focusRing}`}
+        >
+          Siguiente pendiente
+        </button>
+      </div>
+      <p id="pending-boundaries" className="mt-1 text-xs text-neutral-700">
+        {!props.previousPending && "No hay pendientes anteriores. "}
+        {!props.nextPending && "No hay pendientes siguientes."}
+      </p>
+      {props.navigationError && (
+        <div className="mt-2 text-sm">
+          <p role="alert">{props.navigationError}</p>
+          <button
+            type="button"
+            onClick={props.onDiscardDraft}
+            className={`mt-2 rounded border border-primary-dark px-3 py-2 font-semibold ${focusRing}`}
+          >
+            Descartar borrador
+          </button>
+        </div>
+      )}
+      {props.hiddenByFilter && (
+        <div className="mt-2 text-sm">
+          <p>La detección actual no aparece en la lista filtrada.</p>
+          <button
+            type="button"
+            onClick={props.onShowAll}
+            className={`mt-1 rounded border border-primary-dark px-2 py-2 font-semibold ${focusRing}`}
+          >
+            Mostrar todas las detecciones
+          </button>
+        </div>
+      )}
+      {props.error && (
+        <p
+          role="alert"
+          className="mt-2 rounded border border-primary-dark bg-white p-2 text-sm font-semibold"
+        >
+          {props.error}
+        </p>
+      )}
       {!selected ? (
         <p className="mt-2 text-sm text-neutral-700">
-          Select a detection in the document or the detection list to inspect it and decide.
+          Selecciona una detección en la lista o el texto original para revisar o corregir su
+          decisión.
         </p>
       ) : (
-        <dl className="mt-2 space-y-2 text-sm text-neutral-800">
-          <div>
-            <dt className="font-semibold">Type</dt>
-            <dd>
-              {selected.type}
-              {selected.subtype ? ` / ${selected.subtype}` : ""}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Original</dt>
-            <dd>
-              <code className="font-mono">{selected.original}</code>
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Proposed replacement</dt>
-            <dd>
-              {selected.proposed === undefined ? (
-                <span>None proposed</span>
-              ) : selected.proposed === "" ? (
-                <span>
-                  <code className="font-mono">(empty)</code> — deletion
-                </span>
-              ) : (
-                <code className="font-mono">{selected.proposed}</code>
+        <>
+          <dl className="mt-2 space-y-1 text-sm text-neutral-800">
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="font-semibold">Original</dt>
+              <dd>
+                <code className="font-mono">{selected.original}</code>
+              </dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Contexto</dt>
+              <dd className="font-mono">
+                {session.originalText.slice(Math.max(0, selected.start - 24), selected.start)}[
+                {selected.original}]{session.originalText.slice(selected.end, selected.end + 24)}
+              </dd>
+            </div>
+            <div className="flex flex-wrap gap-x-2">
+              <dt className="font-semibold">Decisión actual</dt>
+              <dd>{CURRENT_DECISION_LABELS[decisionStatusOf(session, selected.id)]}</dd>
+            </div>
+          </dl>
+          <details className="mt-2 text-sm">
+            <summary className={`cursor-pointer font-semibold ${focusRing}`}>
+              Detalles de la detección
+            </summary>
+            <dl className="mt-2 space-y-2 text-sm text-neutral-800">
+              <div>
+                <dt className="font-semibold">Type</dt>
+                <dd>
+                  {selected.type}
+                  {selected.subtype ? ` / ${selected.subtype}` : ""}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Proposed replacement</dt>
+                <dd>
+                  {selected.proposed === undefined ? (
+                    <span>None proposed</span>
+                  ) : selected.proposed === "" ? (
+                    <span>
+                      <code className="font-mono">(empty)</code> — deletion
+                    </span>
+                  ) : (
+                    <code className="font-mono">{selected.proposed}</code>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Confidence</dt>
+                <dd>
+                  {typeof selected.confidence === "number"
+                    ? `${Math.round(selected.confidence * 100)}%`
+                    : "Not provided"}
+                </dd>
+              </div>
+              {selected.reason !== undefined && (
+                <div>
+                  <dt className="font-semibold">Detection reason</dt>
+                  <dd className="font-mono">{selected.reason}</dd>
+                </div>
               )}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Confidence</dt>
-            <dd>
-              {typeof selected.confidence === "number"
-                ? `${Math.round(selected.confidence * 100)}%`
-                : "Not provided"}
-            </dd>
-          </div>
-          {selected.reason !== undefined && (
-            <div>
-              <dt className="font-semibold">Detection reason</dt>
-              <dd className="font-mono">{selected.reason}</dd>
-            </div>
-          )}
-          {selected.lowConfidence === true && (
-            <div>
-              <dt className="font-semibold">Low confidence</dt>
-              <dd>Yes — below-threshold candidate</dd>
-            </div>
-          )}
-          <div>
-            <dt className="font-semibold">Context</dt>
-            <dd className="font-mono">
-              {session.originalText.slice(Math.max(0, selected.start - 40), selected.start)}[
-              {selected.original}]{session.originalText.slice(selected.end, selected.end + 40)}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold">Current decision</dt>
-            <dd>{statusLabel(decisionStatusOf(session, selected.id))}</dd>
-          </div>
-        </dl>
+              {selected.lowConfidence === true && (
+                <div>
+                  <dt className="font-semibold">Low confidence</dt>
+                  <dd>Yes — below-threshold candidate</dd>
+                </div>
+              )}
+            </dl>
+          </details>
+        </>
       )}
 
       {selected && (
         <div className="mt-3 space-y-3 border-t border-primary pt-3">
+          {selected.proposed !== undefined && (
+            <p className="text-sm">
+              Propuesta: {selected.proposed === "" ? "eliminar este dato" : selected.proposed}.
+            </p>
+          )}
+          {selected.lowConfidence === true && (
+            <p className="text-sm font-semibold">
+              Candidato de baja confianza: requiere una decisión explícita.
+            </p>
+          )}
           {selected.proposed === undefined ? (
             <>
               {/*
@@ -881,10 +1188,10 @@ function InspectorPane(props: {
                 aria-describedby="accept-no-proposal-note"
                 className={`w-full cursor-not-allowed rounded bg-neutral-200 px-3 py-1.5 text-sm font-semibold text-neutral-600 ${focusRing}`}
               >
-                Accept detection
+                Aceptar detección
               </button>
               <p id="accept-no-proposal-note" className="text-xs text-neutral-700">
-                No proposal to accept: apply a modification or keep the original.
+                No hay propuesta que aceptar: aplica una modificación o mantén el original.
               </p>
             </>
           ) : (
@@ -893,7 +1200,7 @@ function InspectorPane(props: {
               onClick={() => props.onDecide(selected.id, "accepted")}
               className={`w-full rounded bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
             >
-              Accept detection
+              Aceptar detección
             </button>
           )}
           <div>
@@ -901,9 +1208,10 @@ function InspectorPane(props: {
               htmlFor="replacement-input"
               className="block text-sm font-semibold text-neutral-800"
             >
-              Replacement
+              Sustitución
             </label>
             <input
+              ref={props.replacementRef}
               id="replacement-input"
               type="text"
               value={props.replacementDraft}
@@ -915,7 +1223,7 @@ function InspectorPane(props: {
               onClick={() => props.onDecide(selected.id, "modified")}
               className={`mt-1 w-full rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
             >
-              Apply modification
+              Aplicar modificación
             </button>
           </div>
           <button
@@ -970,7 +1278,7 @@ function InspectorPane(props: {
           )}
           <div>
             <label htmlFor="decision-note" className="block text-sm font-semibold text-neutral-800">
-              Note (optional)
+              Nota (opcional)
             </label>
             <textarea
               id="decision-note"
@@ -1051,6 +1359,22 @@ function InspectorPane(props: {
           </button>
         </div>
       )}
+      <div className="mt-3 flex flex-wrap gap-2 border-t border-primary pt-2">
+        <button
+          type="button"
+          onClick={props.onViewSource}
+          className={`rounded border border-primary-dark px-2 py-2 text-sm font-semibold ${focusRing}`}
+        >
+          Ver texto original
+        </button>
+        <button
+          type="button"
+          onClick={props.onReturnToDetections}
+          className={`rounded border border-primary-dark px-2 py-2 text-sm font-semibold text-primary-dark lg:hidden ${focusRing}`}
+        >
+          Volver a detecciones
+        </button>
+      </div>
     </aside>
   );
 }

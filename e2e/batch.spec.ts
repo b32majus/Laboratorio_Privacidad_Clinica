@@ -47,7 +47,9 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   // Input phase: the failed read is surfaced immediately, by name.
-  await expect(page.getByRole("list", { name: "Documentos con error" })).toContainText("corrupt.pdf");
+  await expect(page.getByRole("list", { name: "Documentos con error" })).toContainText(
+    "corrupt.pdf"
+  );
   await page.getByRole("button", { name: "2. Configure" }).click();
   await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
@@ -64,7 +66,7 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /12345678A/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
 
   // Privacy Gate: the failed item and the real per-item counts are factual.
@@ -118,7 +120,7 @@ test("navigation never fabricates review completion and a reviewed batch has no 
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /12345678A/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
   await expect(docList.filter({ hasText: "batch-doc-2.txt" })).toContainText("Requiere revisión");
 
@@ -128,7 +130,7 @@ test("navigation never fabricates review completion and a reviewed batch has no 
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /87654321B/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-2.txt" })).toContainText("Completado");
 
   // A completed batch review reaches the ready batch Result: exactly one
@@ -179,14 +181,14 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /12345678A/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
   await docList.getByRole("button", { name: /batch-doc-2\.txt/ }).click();
   await page
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /87654321B/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-2.txt" })).toContainText("Completado");
 
   // Acknowledge is immediate and never claims resolution: the control
@@ -383,7 +385,7 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
     .getByRole("list", { name: "Detections" })
     .getByRole("button", { name: /12345678A/ })
     .click();
-  await page.getByRole("button", { name: "Accept detection" }).click();
+  await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(filterButton(/^Listos \(1\)/)).toBeVisible();
   await expect(filterButton(/^Necesitan atención \(11\)/)).toBeVisible();
   await expect(page.getByText(/no pertenece al filtro actual/i)).toBeVisible();
