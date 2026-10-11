@@ -86,15 +86,17 @@ describe("network invariant monitor", () => {
 
       // Steps 2-4: Configure → Review → Privacy Gate.
       const forwardSteps = [
-        [2, "Configure"],
-        [3, "Review"],
-        [4, "Privacy Gate"],
+        [2, "Configure", "Configure"],
+        [3, "Review", "Revisión"],
+        [4, "Privacy Gate", "Privacy Gate"],
       ] as const;
-      for (const [stepNumber, label] of forwardSteps) {
+      for (const [stepNumber, label, heading] of forwardSteps) {
         fireEvent.click(stepButton(stepNumber, label));
         // T22 #26 WU-D: the Review transition runs the engine asynchronously;
         // wait for the step heading instead of racing the async seam.
-        await screen.findByRole("heading", { level: 2, name: label }, { timeout: 10_000 });
+        // #78: the nav button keeps "3. Review" while the Review surface now
+        // renders the Spanish level-2 heading "Revisión".
+        await screen.findByRole("heading", { level: 2, name: heading }, { timeout: 10_000 });
         expect(monitor.attempts()).toHaveLength(0);
       }
 
@@ -225,7 +227,7 @@ describe("network invariant monitor", () => {
         .querySelector("button");
       expect(firstDetectionButton).not.toBeNull();
       fireEvent.click(firstDetectionButton as HTMLElement);
-      fireEvent.click(screen.getByRole("button", { name: /accept detection/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
       expect(progress).toHaveTextContent("Accepted: 1");
       expect(monitor.attempts()).toHaveLength(0);
 
