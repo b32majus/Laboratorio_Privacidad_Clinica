@@ -138,11 +138,16 @@ function materializeWorkbook(): string {
   return file;
 }
 
-function columnCard(page: Page, header: string) {
+function columnRow(page: Page, header: string) {
   return page
-    .getByRole("list", { name: "Column classification list" })
-    .locator("li")
-    .filter({ has: page.getByRole("heading", { name: header, exact: true }) });
+    .getByRole("table", { name: "Column classification list" })
+    .locator("tbody tr")
+    .filter({ has: page.getByRole("button", { name: header }) });
+}
+
+/** Select one comparative row so its contextual inspector controls render. */
+async function selectColumn(page: Page, header: string): Promise<void> {
+  await columnRow(page, header).getByRole("button", { name: header }).click();
 }
 
 /** Upload the workbook, pick the sheet + header row explicitly, configure fully. */
@@ -159,8 +164,11 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   await expect(page.locator("header")).toContainText("hospital-urgencias.xlsx");
 
   // No new step/mode appears: the quiet shell (#84) has no universal
-  // navigation and offers exactly the canonical onward task action.
-  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(1);
+  // navigation. Before any cell is routed to free text there is NO «Continuar
+  // a la revisión» detour (issue #85 §3.4): the canonical onward action is
+  // the factual privacy check.
+  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(1);
 
   // Explicit multi-sheet selection first: never the silent first sheet.
   await expect(page.getByRole("heading", { name: "Select a worksheet" })).toBeVisible();
@@ -177,21 +185,28 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns: 10");
 
-  await page.getByLabel("Patient ID column").selectOption("NHC");
+  await page.getByLabel("Columna de identificación del paciente").selectOption("NHC");
+  await selectColumn(page, "Fecha_Visita");
   await page.getByLabel("Date role for Fecha_Visita").selectOption("visit");
+  await selectColumn(page, "Fecha_Nacimiento");
   await page.getByLabel("Date role for Fecha_Nacimiento").selectOption("birth");
+  await selectColumn(page, "Notas");
   await page.getByLabel("Reviewer action for Notas").selectOption("process-as-text");
+  await selectColumn(page, "Edad_Num");
   await page.getByLabel("Reviewer classification for Edad_Num").selectOption("insensitive");
+  await selectColumn(page, "Atiende");
   await page.getByLabel("Reviewer classification for Atiende").selectOption("insensitive");
+  await selectColumn(page, "Observaciones");
   await page.getByLabel("Reviewer classification for Observaciones").selectOption("insensitive");
   await expect(summary).toContainText("Columns requiring review: 0");
 
   // Stronger authorities visibly lock their derived action.
-  await expect(columnCard(page, "NHC")).toContainText("Study ID");
-  await expect(columnCard(page, "Fecha_Visita")).toContainText("Date policy");
-  await expect(columnCard(page, "Centro")).toContainText("Pseudonymize");
-  await expect(columnCard(page, "Diagnostico")).toContainText("Keep");
-  await expect(columnCard(page, "Notas")).toContainText("Process as text");
+  await expect(columnRow(page, "NHC")).toContainText("Study ID");
+  await expect(columnRow(page, "NHC")).toContainText("derivado/bloqueado");
+  await expect(columnRow(page, "Fecha_Visita")).toContainText("Date policy");
+  await expect(columnRow(page, "Centro")).toContainText("Pseudonymize");
+  await expect(columnRow(page, "Diagnostico")).toContainText("Keep");
+  await expect(columnRow(page, "Notas")).toContainText("Process as text");
 
   // Output options: custom prefix; visit numbering is enabled by the
   // patient-ID heritage default.

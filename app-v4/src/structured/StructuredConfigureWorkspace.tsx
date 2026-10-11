@@ -1,32 +1,48 @@
 /**
- * Structured Configure workspace (Work Order T20 #24; SPEC_V4_BATCH_AND_
- * STRUCTURED.md §5-§7, SPEC_V4_APP_AND_REVIEW.md §4/§9, DEBT UX-015/
- * PRODUCT-006).
+ * Structured comparative Configure workspace (issue #85; Work Order T20 #24;
+ * SPEC_V4_BATCH_AND_STRUCTURED.md §5-§7, SPEC_V4_APP_AND_REVIEW.md §4/§9,
+ * DEBT UX-015/PRODUCT-006).
  *
  * Renders the canonical structured configuration (`configuration.ts`) as the
- * "Configure" step of the common app shell:
- *   - every column is visibly classified as Identifier / Quasi-Identifier /
- *     Sensitive / Insensitive / Unknown (D-012), with its effective productive
- *     Action (D-021, REC-03 WU-B): Class and Action are separate facts;
+ * "Configure" step of the common app shell as a COMPARATIVE, scannable column
+ * workspace (issue #85 approved design), not repeated cards:
+ *   - one dominant comparison table shows every column in source order, row
+ *     identity is the original `columnIndex` (duplicate/blank headers remain
+ *     distinguishable), with four always-visible factual fields:
+ *     `Columna | Clasificación vigente | Tratamiento efectivo |
+ *     Estado / acción pendiente`;
+ *   - text markers (never color alone): `clasificación modificada`,
+ *     `tratamiento elegido`, `derivado/bloqueado`, `columna identificadora`,
+ *     and the explicit date role where relevant;
+ *   - selecting a row opens a contextual inspector alongside the table at
+ *     desktop width with ONLY that column's current allowed class, permitted
+ *     action choices, explicit date role, confidence/proposal/evidence on
+ *     demand and current derived locks. Inspectable facts never include
+ *     patient values;
  *   - an Unknown column, and a non-date quasi-identifier with no bounded
  *     explicit action, are visibly "Review required" and keep the structured
- *     export gate closed (D-009; UNKNOWN is not KEEP);
+ *     export gate closed (D-009; UNKNOWN is not KEEP). Neither the row state
+ *     nor the global readiness summary may claim output ready from
+ *     `requiresReview=false` alone;
  *   - stronger authorities (patient-ID selection, explicit date role) visibly
  *     lock/derive the Action instead of offering a contradicting choice;
- *   - confidence and value-free evidence are inspectable for human review;
  *   - the reviewer can override any column's class, which goes back to the
  *     domain bridge and rebuilds the canonical configuration (never a
- *     label-only change);
+ *     label-only change); the selection stays visible and the next unresolved
+ *     column stays reachable without auto-acceptance;
  *   - the single patient-ID authority (SPEC §6) is shown ONCE; this component
  *     never re-derives it, it renders the domain resolution verbatim.
  *
  * The component is CONTROLLED: the frozen configuration comes in as a prop and
  * every change goes out through a callback to the domain state bridge. Local
- * state is limited to transient view concerns (the pending sheet selection).
+ * state is limited to transient view concerns (the selected column, the
+ * pending sheet selection) — selection is NEVER a second classification or
+ * export authority.
  *
  * Accessibility (SPEC §9): native `label`/`select`/`button` semantics, visible
  * focus rings, status conveyed as text (never color alone), and a responsive
- * layout that stacks on narrow screens.
+ * layout where the table is an explicitly labeled scrollable region and the
+ * inspector stacks below it on narrow screens.
  */
 import { useState, type ReactElement } from "react";
 
@@ -89,6 +105,19 @@ const DATE_ROLE_LABELS: Record<StructuredDateRole, string> = {
   visit: "Visit date",
   birth: "Birth date",
 };
+
+/** Row text marker for a reviewer-overridden classification (issue #85, Spanish-first). */
+const OVERRIDDEN_MARKER = "clasificación modificada";
+/** Row text marker for an explicit reviewer Action choice (issue #85, Spanish-first). */
+const EXPLICIT_ACTION_MARKER = "tratamiento elegido";
+/** Row text marker for a proposed (not yet chosen) Action (issue #85, Spanish-first). */
+const PROPOSED_ACTION_MARKER = "propuesta";
+/** Row text marker for a derived, locked Action (issue #85, Spanish-first). */
+const LOCKED_ACTION_MARKER = "derivado/bloqueado";
+/** Row text marker for the single patient-ID authority column (issue #85, Spanish-first). */
+const PATIENT_ID_MARKER = "columna identificadora";
+/** Factual per-row state when nothing is pending (never an output-ready claim). */
+const ROW_SETTLED_LABEL = "Sin pendientes";
 
 export type StructuredConfigureWorkspaceProps = {
   /**
@@ -190,12 +219,13 @@ export function StructuredConfigureWorkspace(
   return (
     <section aria-labelledby="configure-step-heading">
       <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Configure
+        Preparar datos estructurados
       </h2>
       <p className="mt-2 max-w-3xl text-base leading-relaxed">
-        Review how each column has been classified before review. Classes are proposals with
-        confidence and evidence; you can change any of them. Unknown columns always require review
-        and are never treated as safe to keep.
+        Compare todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y
+        lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puede cambiar
+        cualquiera. Las columnas desconocidas (Unknown) siempre requieren revisión y nunca se tratan
+        como seguras para conservar.
       </p>
 
       {errorMessage !== null && (
@@ -360,6 +390,11 @@ function SheetSelection(props: {
   );
 }
 
+/**
+ * The comparative configuration view (issue #85): compact readiness facts,
+ * the single patient-ID authority, the bounded output options, and the
+ * dominant four-field comparison table with a contextual inspector.
+ */
 function ConfigurationView(props: {
   configuration: StructuredConfiguration;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
@@ -378,8 +413,36 @@ function ConfigurationView(props: {
     exportReadiness,
     outputOptions,
   } = props;
-  const patientIdIndex =
-    configuration.patientId.status === "resolved" ? configuration.patientId.columnIndex : null;
+
+  /**
+   * Transient UI selection ONLY (issue #85): which column the inspector
+   * shows. It never feeds classification, action, patient-ID or export
+   * authority. `null` means "no explicit choice yet" and falls back to the
+   * first unresolved column (or the first column when nothing is unresolved),
+   * so the workspace opens on a useful first unresolved column. Any
+   * inspector edit pins the selection, so the edited column stays visible
+   * after the canonical rebuild.
+   */
+  const [selectedColumnIndex, setSelectedColumnIndex] = useState<number | null>(null);
+  const pendingIndices = new Set(configuration.columnsRequiringReview);
+  const fallbackColumn =
+    configuration.columns.find((column) => pendingIndices.has(column.columnIndex)) ??
+    configuration.columns[0] ??
+    null;
+  const effectiveSelectedIndex = selectedColumnIndex ?? fallbackColumn?.columnIndex ?? null;
+  const selectedColumn =
+    configuration.columns.find((column) => column.columnIndex === effectiveSelectedIndex) ?? null;
+
+  /** Pin the selection to the edited column, then run the canonical callback. */
+  const withSelection =
+    <A extends unknown[]>(callback: ((columnIndex: number, ...args: A) => void) | undefined) =>
+    (columnIndex: number, ...args: A): void => {
+      setSelectedColumnIndex(columnIndex);
+      callback?.(columnIndex, ...args);
+    };
+  const handleInspectorClass = withSelection(onOverrideClass);
+  const handleInspectorAction = withSelection(onOverrideAction);
+  const handleInspectorDateRole = withSelection(onSetDateRole);
 
   return (
     <div className="mt-4 space-y-4">
@@ -388,24 +451,35 @@ function ConfigurationView(props: {
       {outputOptions !== null && outputOptions !== undefined && (
         <OutputOptionsSection outputOptions={outputOptions} />
       )}
-      <section
-        aria-label="Column classifications"
-        className="rounded border border-primary bg-surface-light p-3"
-      >
-        <h3 className="font-display text-base font-bold text-primary-dark">Columns</h3>
-        <ul aria-label="Column classification list" className="mt-3 grid gap-3 md:grid-cols-2">
-          {configuration.columns.map((column) => (
-            <ColumnCard
-              key={column.columnIndex}
-              column={column}
-              isPatientId={patientIdIndex === column.columnIndex}
-              onOverrideClass={onOverrideClass}
-              onOverrideAction={onOverrideAction}
-              onSetDateRole={onSetDateRole}
-            />
-          ))}
-        </ul>
-      </section>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
+        <ColumnComparisonTable
+          configuration={configuration}
+          patientIdIndex={
+            configuration.patientId.status === "resolved"
+              ? configuration.patientId.columnIndex
+              : null
+          }
+          selectedColumnIndex={selectedColumn?.columnIndex ?? null}
+          onSelectColumn={setSelectedColumnIndex}
+        />
+        {selectedColumn !== null && (
+          <ColumnInspector
+            column={selectedColumn}
+            isPatientId={
+              configuration.patientId.status === "resolved" &&
+              configuration.patientId.columnIndex === selectedColumn.columnIndex
+            }
+            isPending={pendingIndices.has(selectedColumn.columnIndex)}
+            otherPendingIndices={configuration.columnsRequiringReview.filter(
+              (index) => index !== selectedColumn.columnIndex
+            )}
+            onSelectColumn={setSelectedColumnIndex}
+            onOverrideClass={handleInspectorClass}
+            onOverrideAction={handleInspectorAction}
+            onSetDateRole={handleInspectorDateRole}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -473,19 +547,22 @@ function PatientIdAuthority(props: {
   const { patientId } = configuration;
   return (
     <section
-      aria-label="Patient ID authority"
+      aria-label="Autoridad de identificación del paciente"
       className="rounded border border-primary bg-surface-light p-3"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Patient ID authority</h3>
+      <h3 className="font-display text-base font-bold text-primary-dark">
+        Autoridad de identificación del paciente
+      </h3>
       <p className="mt-2 text-sm text-neutral-800">
-        Exactly one patient-ID column is authoritative for this structured job. It is chosen here
-        once; columns below never re-declare their own patient-ID meaning.
+        Exactamente una columna es la autoridad de identificación del paciente para este trabajo
+        estructurado. Se elige aquí una sola vez; la tabla comparativa nunca re-declara ese
+        significado.
       </p>
       <label
         htmlFor="patient-id-column"
         className="mt-3 block text-sm font-semibold text-neutral-800"
       >
-        Patient ID column
+        Columna de identificación del paciente
       </label>
       <select
         id="patient-id-column"
@@ -495,7 +572,7 @@ function PatientIdAuthority(props: {
         }
         className={`mt-1 w-full max-w-sm rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
       >
-        <option value="">Not set</option>
+        <option value="">Sin seleccionar</option>
         {configuration.columns.map((column) => (
           <option key={column.columnIndex} value={column.header}>
             {column.header === "" ? "(unnamed column)" : column.header}
@@ -504,14 +581,14 @@ function PatientIdAuthority(props: {
       </select>
       {patientId.status === "resolved" && (
         <p className="mt-2 text-sm text-neutral-800">
-          <span className="font-semibold">Selected:</span> {patientId.column}
+          <span className="font-semibold">Seleccionada:</span> {patientId.column}
         </p>
       )}
       {patientId.status === "not-selected" && (
         <p className="mt-2 text-sm text-neutral-800">
           {patientId.candidates.length > 0
-            ? `No column selected yet. Detected patient-ID-like columns: ${patientId.candidates.join(", ")}.`
-            : "No column selected yet; no patient-ID-like column was detected. Choose one explicitly."}
+            ? `Aún no hay columna seleccionada. Columnas detectadas como posibles identificadores de paciente: ${patientId.candidates.join(", ")}.`
+            : "Aún no hay columna seleccionada y no se detectó ninguna columna parecida a un identificador de paciente. Elija una explícitamente."}
         </p>
       )}
       {patientId.status === "selection-error" && (
@@ -622,56 +699,228 @@ function OutputOptionsSection(props: {
     </section>
   );
 }
-/** One column card with class, effective Action, evidence and override controls. */
-function ColumnCard(props: {
+
+/**
+ * The dominant four-field comparison table (issue #85): every column in
+ * source order, row identity = original `columnIndex`, all four factual
+ * fields always visible, text markers instead of color-only semantics.
+ */
+function ColumnComparisonTable(props: {
+  configuration: StructuredConfiguration;
+  patientIdIndex: number | null;
+  selectedColumnIndex: number | null;
+  onSelectColumn: (columnIndex: number) => void;
+}): ReactElement {
+  const { configuration, patientIdIndex, selectedColumnIndex, onSelectColumn } = props;
+  return (
+    <section className="min-w-0 rounded border border-primary bg-surface-light p-3">
+      <h3 className="font-display text-base font-bold text-primary-dark">
+        Comparativa de columnas
+      </h3>
+      {/*
+        Explicitly labeled, keyboard-focusable scrollable region (issue #85
+        375 px contract): the table may scroll horizontally INSIDE this region
+        on narrow screens; the page itself never overflows horizontally.
+      */}
+      <div
+        role="region"
+        aria-label="Tabla comparativa de columnas (desplazable en pantallas estrechas)"
+        tabIndex={0}
+        className={`mt-3 overflow-x-auto ${focusRing}`}
+      >
+        <table
+          aria-label="Column classification list"
+          className="w-full min-w-[36rem] border-collapse text-sm"
+        >
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="border-b border-primary-dark px-2 py-2 text-left text-xs font-bold uppercase tracking-wide text-primary-dark"
+              >
+                Columna
+              </th>
+              <th
+                scope="col"
+                className="border-b border-primary-dark px-2 py-2 text-left text-xs font-bold uppercase tracking-wide text-primary-dark"
+              >
+                Clasificación vigente
+              </th>
+              <th
+                scope="col"
+                className="border-b border-primary-dark px-2 py-2 text-left text-xs font-bold uppercase tracking-wide text-primary-dark"
+              >
+                Tratamiento efectivo
+              </th>
+              <th
+                scope="col"
+                className="border-b border-primary-dark px-2 py-2 text-left text-xs font-bold uppercase tracking-wide text-primary-dark"
+              >
+                Estado / acción pendiente
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {configuration.columns.map((column) => (
+              <ComparisonRow
+                key={column.columnIndex}
+                column={column}
+                isPatientId={patientIdIndex === column.columnIndex}
+                isSelected={selectedColumnIndex === column.columnIndex}
+                onSelect={onSelectColumn}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/** One comparative row: the four approved factual fields, no editing controls. */
+function ComparisonRow(props: {
   column: StructuredColumnState;
   isPatientId: boolean;
+  isSelected: boolean;
+  onSelect: (columnIndex: number) => void;
+}): ReactElement {
+  const { column, isPatientId, isSelected, onSelect } = props;
+  const columnName = column.header === "" ? "(unnamed column)" : column.header;
+  const cellClass = "border-t border-primary/40 px-2 py-2 align-top";
+  return (
+    <tr className={isSelected ? "bg-white" : undefined}>
+      <td className={cellClass}>
+        {/*
+          Row selection is a real button with `aria-pressed` (keyboard
+          operable, state conveyed to assistive technology). The source-order
+          ordinal keeps duplicate/blank headers distinguishable; the button's
+          accessible name stays exactly the column header.
+        */}
+        <span className="mr-1 text-xs font-normal text-neutral-500">{column.columnIndex + 1}.</span>
+        <button
+          type="button"
+          aria-pressed={isSelected}
+          onClick={() => onSelect(column.columnIndex)}
+          className={`rounded text-left font-semibold text-primary-dark hover:underline ${focusRing}`}
+        >
+          {columnName}
+        </button>
+        {isPatientId && (
+          <p className="mt-1 text-xs font-semibold text-primary-dark">{PATIENT_ID_MARKER}</p>
+        )}
+      </td>
+      <td className={cellClass}>
+        {CLASS_LABELS[column.effectiveClass]}
+        {column.overridden && (
+          <p className="mt-1 text-xs font-semibold text-primary-dark">{OVERRIDDEN_MARKER}</p>
+        )}
+      </td>
+      <td className={cellClass}>
+        {ACTION_LABELS[column.effectiveAction]}
+        {column.actionSource === "explicit" && (
+          <p className="mt-1 text-xs font-semibold text-primary-dark">{EXPLICIT_ACTION_MARKER}</p>
+        )}
+        {column.actionSource === "proposed" &&
+          column.effectiveAction === "pseudonymize" &&
+          column.effectiveClass === "quasi-identifier" && (
+            <p className="mt-1 text-xs font-semibold text-primary-dark">{PROPOSED_ACTION_MARKER}</p>
+          )}
+        {column.actionLocked && (
+          <p className="mt-1 text-xs font-semibold text-primary-dark">{LOCKED_ACTION_MARKER}</p>
+        )}
+        {/*
+          The explicit date role stays visible in the comparison where it is
+          relevant (never inferred, never color-only).
+        */}
+        {column.dateRole !== "none" && (
+          <p className="mt-1 text-xs font-semibold text-primary-dark">
+            {DATE_ROLE_LABELS[column.dateRole]}
+          </p>
+        )}
+      </td>
+      {/*
+        Pending state as text. "Review required" is the canonical fail-closed
+        marker; "Sin pendientes" is a factual per-row statement and never an
+        output-ready claim (readiness stays with the global gate facts).
+      */}
+      <td className={`${cellClass} font-semibold`}>
+        {column.requiresReview ? (
+          <span className="text-primary-dark">Review required</span>
+        ) : (
+          <span className="text-neutral-800">{ROW_SETTLED_LABEL}</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * The contextual inspector (issue #85): ONLY the selected column's editing
+ * surface, alongside the table at desktop width and stacked below it on
+ * narrow screens. It renders the same bounded controls the former per-column
+ * cards offered — the canonical callbacks stay the only write path.
+ */
+function ColumnInspector(props: {
+  column: StructuredColumnState;
+  isPatientId: boolean;
+  isPending: boolean;
+  otherPendingIndices: readonly number[];
+  onSelectColumn: (columnIndex: number) => void;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
   onOverrideAction?: (columnIndex: number, action: StructuredAction) => void;
   onSetDateRole?: (columnIndex: number, role: StructuredDateRole) => void;
 }): ReactElement {
-  const { column, isPatientId, onOverrideClass, onOverrideAction, onSetDateRole } = props;
+  const {
+    column,
+    isPatientId,
+    isPending,
+    otherPendingIndices,
+    onSelectColumn,
+    onOverrideClass,
+    onOverrideAction,
+    onSetDateRole,
+  } = props;
   const selectId = `structured-class-${column.columnIndex}`;
   const actionSelectId = `structured-action-${column.columnIndex}`;
   const dateRoleSelectId = `structured-date-role-${column.columnIndex}`;
   const columnName = column.header === "" ? "(unnamed column)" : column.header;
   return (
-    <li className="rounded border border-primary bg-white p-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h4 className="font-display text-base font-bold text-primary-dark">{columnName}</h4>
-        {column.requiresReview && (
-          <span className="rounded border border-primary-dark bg-surface-light px-2 py-0.5 text-xs font-semibold text-primary-dark">
-            Review required
-          </span>
-        )}
-      </div>
+    <aside
+      aria-label="Inspector de columna"
+      className="rounded border border-primary bg-surface-light p-3 lg:sticky lg:top-4"
+    >
+      <h3 className="font-display text-base font-bold text-primary-dark">{columnName}</h3>
+      {isPatientId && (
+        <p className="mt-1 text-xs font-semibold text-primary-dark">{PATIENT_ID_MARKER}</p>
+      )}
 
       {/*
-        Outcome F: authority facts stay immediately visible. Effective
-        classification (with its reviewer-override marker), the effective
-        productive Action (with its source), the current date role and the
-        patient-ID note are never behind a disclosure, so a safety fact
-        can never be hidden as a false-ready state.
+        Outcome F (issue #85 keeps it): authority facts stay immediately
+        visible in the inspector — effective classification (with its
+        reviewer-override marker), the effective productive Action (with its
+        source), the current date role and the patient-ID note are never
+        behind a disclosure, so a safety fact can never be hidden as a
+        false-ready state.
       */}
       <dl className="mt-2 space-y-1 text-sm text-neutral-800">
         <div className="flex flex-wrap gap-2">
           <dt className="font-semibold">Classification:</dt>
           <dd>
             {CLASS_LABELS[column.effectiveClass]}
-            {column.overridden ? " (reviewer override)" : ""}
+            {column.overridden ? ` (${OVERRIDDEN_MARKER})` : ""}
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
           <dt className="font-semibold">Action:</dt>
           <dd>
             {ACTION_LABELS[column.effectiveAction]}
-            {column.actionSource === "explicit" ? " (reviewer choice)" : ""}
+            {column.actionSource === "explicit" ? ` (${EXPLICIT_ACTION_MARKER})` : ""}
             {column.actionSource === "proposed" &&
             column.effectiveAction === "pseudonymize" &&
             column.effectiveClass === "quasi-identifier"
-              ? " (proposed)"
+              ? ` (${PROPOSED_ACTION_MARKER})`
               : ""}
-            {column.actionLocked ? " (derived, locked)" : ""}
+            {column.actionLocked ? ` (${LOCKED_ACTION_MARKER})` : ""}
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -691,7 +940,7 @@ function ColumnCard(props: {
         cut all-at-once density. `<summary>` is a real keyboard control with a
         visible focus ring; nothing safety-relevant is only here.
       */}
-      <details className="mt-2 rounded border border-neutral-300 bg-surface-light p-2">
+      <details className="mt-2 rounded border border-neutral-300 bg-white p-2">
         <summary
           className={`cursor-pointer rounded text-sm font-semibold text-primary-dark ${focusRing}`}
         >
@@ -721,7 +970,7 @@ function ColumnCard(props: {
         </dl>
 
         <div className="mt-2">
-          <h5 className="text-xs font-bold text-primary-dark">Evidence</h5>
+          <h4 className="text-xs font-bold text-primary-dark">Evidence</h4>
           <ul
             aria-label={`Evidence for column ${columnName}`}
             className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-700"
@@ -836,6 +1085,27 @@ function ColumnCard(props: {
             above to resolve this column.
           </p>
         ))}
-    </li>
+
+      {/*
+        Resolution acknowledgment + reachable next action (issue #85): when
+        the inspected column drops out of the pending set, the inspector says
+        so factually and offers the next unresolved column WITHOUT auto-
+        acceptance and without ever claiming output readiness from that fact.
+      */}
+      {!isPending && otherPendingIndices.length > 0 && (
+        <div className="mt-3 rounded border border-primary/40 bg-white p-2">
+          <p role="status" className="text-sm font-semibold text-neutral-800">
+            Esta columna ya no tiene pendientes.
+          </p>
+          <button
+            type="button"
+            onClick={() => onSelectColumn(otherPendingIndices[0])}
+            className={`mt-2 rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+          >
+            Ir a la siguiente columna pendiente
+          </button>
+        </div>
+      )}
+    </aside>
   );
 }

@@ -37,20 +37,28 @@ async function createComposedJob(page: Page): Promise<void> {
   await expect(page.locator("header")).toContainText(path.basename(CSV));
 }
 
-function columnCard(page: Page, header: string) {
-  // Scope by the card heading: evidence items also mention the header text,
-  // so a bare hasText filter would match nested evidence rows as well.
+function columnRow(page: Page, header: string) {
+  // Scope by the row's select button: a bare hasText filter would also match
+  // nested content, and the comparative row is identified by its column.
   return page
-    .getByRole("list", { name: "Column classification list" })
-    .locator("li")
-    .filter({ has: page.getByRole("heading", { name: header, exact: true }) });
+    .getByRole("table", { name: "Column classification list" })
+    .locator("tbody tr")
+    .filter({ has: page.getByRole("button", { name: header }) });
+}
+
+/** Select one comparative row so its contextual inspector controls render. */
+async function selectColumn(page: Page, header: string): Promise<void> {
+  await columnRow(page, header).getByRole("button", { name: header }).click();
 }
 
 /** Fully configure the composed job: patient ID, date roles, free-text action. */
 async function configureComposedJob(page: Page): Promise<void> {
-  await page.getByLabel("Patient ID column").selectOption("NHC");
+  await page.getByLabel("Columna de identificación del paciente").selectOption("NHC");
+  await selectColumn(page, "Fecha_Visita");
   await page.getByLabel("Date role for Fecha_Visita").selectOption("visit");
+  await selectColumn(page, "Fecha_Nacimiento");
   await page.getByLabel("Date role for Fecha_Nacimiento").selectOption("birth");
+  await selectColumn(page, "Notas");
   await page.getByLabel("Reviewer action for Notas").selectOption("process-as-text");
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns requiring review: 0");
@@ -90,12 +98,12 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   await configureComposedJob(page);
 
   // Stronger authorities visibly lock their derived action.
-  await expect(columnCard(page, "NHC")).toContainText("Study ID");
-  await expect(columnCard(page, "NHC")).toContainText("(derived, locked)");
-  await expect(columnCard(page, "Fecha_Visita")).toContainText("Date policy");
-  await expect(columnCard(page, "Centro")).toContainText("Pseudonymize");
-  await expect(columnCard(page, "Diagnostico")).toContainText("Keep");
-  await expect(columnCard(page, "Notas")).toContainText("Process as text");
+  await expect(columnRow(page, "NHC")).toContainText("Study ID");
+  await expect(columnRow(page, "NHC")).toContainText("derivado/bloqueado");
+  await expect(columnRow(page, "Fecha_Visita")).toContainText("Date policy");
+  await expect(columnRow(page, "Centro")).toContainText("Pseudonymize");
+  await expect(columnRow(page, "Diagnostico")).toContainText("Keep");
+  await expect(columnRow(page, "Notas")).toContainText("Process as text");
 
   // No new step/mode appears: the quiet shell (#84) has no universal
   // navigation and offers exactly the canonical onward task action.

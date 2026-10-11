@@ -46,8 +46,6 @@ import { ReviewWorkspace } from "./review/ReviewWorkspace";
 import { ReviewSessionError, jobSupportsReview } from "./review/review-domain";
 import { StructuredConfigureWorkspace } from "./structured/StructuredConfigureWorkspace";
 import { StructuredFreeTextReview } from "./structured/StructuredFreeTextReview";
-import type { StructuredConfiguration } from "./structured/configuration";
-import type { StructuredOutputPreparation } from "./structured/transformed-dataset";
 import { deriveStructuredSummary } from "./structured/transformed-dataset";
 import { readStructuredFile, readStructuredSheet } from "./structured/intake";
 import {
@@ -65,13 +63,6 @@ const STEP_LABELS: Record<FlowStep, string> = {
   review: "Review",
   "privacy-gate": "Privacy Gate",
   export: "Export",
-};
-
-const KIND_LABELS: Record<JobKind, string> = {
-  text: "Text job",
-  document: "Document job",
-  "document-batch": "Document batch",
-  structured: "Structured job",
 };
 
 const POLICY_LABELS: Record<PrivacyPolicyId, string> = {
@@ -707,6 +698,30 @@ export function App() {
     structuredConfiguration !== null &&
     structuredConfiguration.columns.some((column) => column.effectiveAction === "process-as-text");
   /**
+   * Issue #85 §3.4: whether the CURRENT structured job has NO cell routed to
+   * `process-as-text` — the case where the no-op Review stop must never
+   * render and the «Continuar a la revisión» detour must never be offered.
+   * A missing configuration counts as no free text (fail-safe: nothing known
+   * to review as text).
+   */
+  const structuredNoFreeText = job !== null && job.kind === "structured" && !hasFreeTextColumns;
+
+  /**
+   * Issue #85 §3.4: from Configure, a structured job WITHOUT free-text cells
+   * proceeds to the factual privacy check within ONE intentional navigation.
+   * The canonical internal order (`configure → review → privacy-gate`) is
+   * preserved by performing BOTH immediate-next transitions through the same
+   * domain navigation authority (`session.navigate`, the `landCreatedJob`
+   * precedent): the no-op Review stop is passed through internally and never
+   * renders — no new ad-hoc `goToStep` rule, no altered domain gate. Both
+   * moves are immediate-next canonical transitions and cannot throw.
+   */
+  const handleStructuredConfigureToGate = () => {
+    session.navigate("review");
+    session.navigate("privacy-gate");
+  };
+
+  /**
    * Last free-text run failure, job-scoped so a stale message can never
    * leak onto another job (the bridge drops the state itself on
    * policy/config changes; this only carries the run's own failure text).
@@ -1002,6 +1017,7 @@ export function App() {
           />
         ) : currentStep === "configure" && job && job.kind === "structured" ? (
           <StructuredConfigureWorkspace
+            key={job.id}
             configuration={structuredConfiguration}
             errorMessage={structuredError}
             sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
@@ -1069,12 +1085,14 @@ export function App() {
               onGoToStep={handleGoToStep}
             />
           ) : (
-            <StructuredReviewNotice
-              job={job}
-              configuration={structuredConfiguration}
-              preparation={structuredPreparation}
-              onGoToStep={handleGoToStep}
-            />
+            // Issue #85: the empty/no-op structured Review screen no longer
+            // exists. The only rendered Review surface for structured work is
+            // the REAL free-text review above; this fallback is defensive
+            // only (the internal configure → review → privacy-gate sequence
+            // renders nothing at Review, and the quiet shell never offers the
+            // step when no free-text cell exists), so a no-op state can never
+            // become a rendered ceremonial screen.
+            <StepUnavailableState step="review" reviewError={reviewError} />
           )
         ) : currentStep === "review" && job ? (
           <ReviewPendingState
@@ -1115,11 +1133,13 @@ export function App() {
          */}
         <TaskActionBar
           job={job}
+          structuredNoFreeText={structuredNoFreeText}
           exportResultHasOwnReturn={isBatch || activeReview !== null}
           reviewActive={review !== null}
           singleResultRevisitAuthorized={singleResultRevisitAuthorized}
           reviewStartInFlight={reviewStartInFlight}
           onStartReview={handleStartReview}
+          onProceedToPrivacyGate={handleStructuredConfigureToGate}
           onGoToStep={handleGoToStep}
         />
       </main>
@@ -1254,6 +1274,12 @@ function PolicyGuidance({ job }: { job: Job | null }) {
 function TaskActionBar(props: {
   job: Job | null;
   /**
+   * Issue #85: true exactly for a structured job with NO cell routed to
+   * `process-as-text` — the case where the no-op Review stop must never
+   * render and the «Continuar a la revisión» detour must never be offered.
+   */
+  structuredNoFreeText: boolean;
+  /**
    * Whether the workspace rendered at the Export step already provides its own
    * in-workspace return control (the single-item and batch Results do; the
    * structured Result and the unavailable fallback do not). The shell only
@@ -1276,15 +1302,23 @@ function TaskActionBar(props: {
   singleResultRevisitAuthorized: boolean;
   reviewStartInFlight: boolean;
   onStartReview: () => void;
+  /**
+   * Issue #85 §3.4: Configure → Privacy Gate for a structured job with no
+   * free-text cells (performs the canonical internal transitions within one
+   * intentional navigation; see `handleStructuredConfigureToGate`).
+   */
+  onProceedToPrivacyGate: () => void;
   onGoToStep: (step: FlowStep) => void;
 }): ReactElement | null {
   const {
     job,
+    structuredNoFreeText,
     exportResultHasOwnReturn,
     reviewActive,
     singleResultRevisitAuthorized,
     reviewStartInFlight,
     onStartReview,
+    onProceedToPrivacyGate,
     onGoToStep,
   } = props;
   if (job === null) return null;
@@ -1312,6 +1346,22 @@ function TaskActionBar(props: {
       actions.push(
         <button key="start-review" type="button" onClick={onStartReview} className={primaryAction}>
           Iniciar revisión
+        </button>
+      );
+    }
+    // Issue #85: a structured job without free-text cells never renders the
+    // no-op Review workspace. Should the flow position nevertheless be Review
+    // (defensive only — the shell never offers the step), the canonical
+    // backward transition to Configure keeps the operator unstranded.
+    if (structuredNoFreeText && isStepAccessible(job, "configure")) {
+      actions.push(
+        <button
+          key="back-to-configure"
+          type="button"
+          onClick={() => onGoToStep("configure")}
+          className={secondaryAction}
+        >
+          Volver a la configuración
         </button>
       );
     }
@@ -1395,7 +1445,23 @@ function TaskActionBar(props: {
         Ir al resultado
       </button>
     );
-    if (job.visitedSteps.includes("review")) {
+    if (structuredNoFreeText) {
+      // Issue #85 §3.4: from the Privacy Gate, `Volver` returns to meaningful
+      // Configure — never the no-op Review (configure is an already-visited
+      // step: canonical backward navigation, no new enable rule).
+      if (isStepAccessible(job, "configure")) {
+        actions.push(
+          <button
+            key="back-to-configure"
+            type="button"
+            onClick={() => onGoToStep("configure")}
+            className={secondaryAction}
+          >
+            Volver a la configuración
+          </button>
+        );
+      }
+    } else if (job.visitedSteps.includes("review")) {
       actions.push(
         <button
           key="back-to-review"
@@ -1436,33 +1502,57 @@ function TaskActionBar(props: {
     // reads `visitedSteps`), never a new ad-hoc enable rule (Gate 2). Without
     // it a real policy change from the Result strands the operator with only
     // destructive session controls and no visible recovery path.
-    if (!exportResultHasOwnReturn && isStepAccessible(job, "review")) {
+    if (
+      !exportResultHasOwnReturn &&
+      isStepAccessible(job, structuredNoFreeText ? "configure" : "review")
+    ) {
+      // Issue #85 §3.4: for structured work WITHOUT free-text cells the
+      // truthful way back from the Result is meaningful Configure (the no-op
+      // Review must never render); with free-text cells the real review is
+      // still the return destination. Both targets are canonical backward
+      // transitions gated by `isStepAccessible` (which reads `visitedSteps`),
+      // never a new ad-hoc enable rule (Gate 2).
+      const backTarget = structuredNoFreeText ? "configure" : "review";
       actions.push(
         <button
-          key="back-to-review"
+          key="back"
           type="button"
-          onClick={() => onGoToStep("review")}
+          onClick={() => onGoToStep(backTarget)}
           className={secondaryAction}
         >
-          Volver a la revisión
+          {structuredNoFreeText ? "Volver a la configuración" : "Volver a la revisión"}
         </button>
       );
     }
   }
 
   if (step === "configure" && job.kind === "structured" && isStepAccessible(job, "review")) {
-    // Structured Configure is real column work; Review (free-text routing or
-    // the #85-owned notice) is its onward destination. #85 owns that surface.
-    actions.push(
-      <button
-        key="to-review"
-        type="button"
-        onClick={() => onGoToStep("review")}
-        className={primaryAction}
-      >
-        Continuar a la revisión
-      </button>
-    );
+    if (structuredNoFreeText) {
+      // Issue #85 §3.4: with NO cell routed to `process-as-text` there is no
+      // «Continuar a la revisión» detour and no rendered no-op Review. The
+      // onward destination is the factual privacy check; the handler performs
+      // the canonical internal configure → review → privacy-gate transitions
+      // within ONE intentional navigation. The offer authority is the same
+      // `isStepAccessible(job, "review")` the former review action used.
+      actions.push(
+        <button key="gate" type="button" onClick={onProceedToPrivacyGate} className={primaryAction}>
+          Privacy Gate
+        </button>
+      );
+    } else {
+      // Free-text cells exist: Review is the REAL next task (the existing
+      // `StructuredFreeTextReview`, unchanged).
+      actions.push(
+        <button
+          key="to-review"
+          type="button"
+          onClick={() => onGoToStep("review")}
+          className={primaryAction}
+        >
+          Continuar a la revisión
+        </button>
+      );
+    }
   }
 
   if (actions.length === 0) return null;
@@ -1945,116 +2035,11 @@ function InputStep(props: {
 }
 
 /**
- * Honest structured Review state (UX-CLOSEOUT-01 outcome B) for jobs WITHOUT
- * free-text routing. Structured human review already happens in Configure
- * (column classification, the single patient-ID authority and explicit date
- * roles); this step never creates a ReviewSession, detection review or any
- * new structured semantics. (Jobs WITH `process-as-text` columns render
- * `StructuredFreeTextReview` instead.) Readiness and blockers are summarized
- * from the existing structured configuration/preparation facts only, and the
- * operator is directed back to Configure when action is required or onward
- * to the Privacy Gate when the existing readiness permits.
- */
-function StructuredReviewNotice({
-  job,
-  configuration,
-  preparation,
-  onGoToStep,
-}: {
-  job: Job;
-  configuration: StructuredConfiguration | null;
-  preparation: StructuredOutputPreparation | null;
-  onGoToStep: (step: FlowStep) => void;
-}): ReactElement {
-  const blockedReasons =
-    configuration !== null && preparation !== null && preparation.status === "blocked"
-      ? preparation.reasons
-      : [];
-  const ready =
-    configuration !== null &&
-    (preparation === null ? configuration.exportReady : preparation.status === "ready");
-  return (
-    <section aria-labelledby="review-step-heading">
-      <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Review
-      </h2>
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Structured review happens in Configure. For a {KIND_LABELS[job.kind].toLowerCase()}, column
-        classification, the single patient-ID authority and explicit date roles are reviewed there;
-        this step does not create a text review session.
-      </p>
-      {configuration === null ? (
-        <p
-          role="status"
-          className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
-        >
-          The structured source has not been configured yet. Return to Configure to read it and
-          review its columns before continuing.
-        </p>
-      ) : (
-        <>
-          <dl
-            role="status"
-            aria-label="Structured review readiness"
-            className="mt-3 grid max-w-2xl grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
-          >
-            <dt className="font-semibold">Columns:</dt>
-            <dd> {configuration.columns.length}</dd>
-            <dt className="font-semibold">Columns requiring review:</dt>
-            <dd> {configuration.columnsRequiringReview.length}</dd>
-            <dt className="font-semibold">Structured export ready:</dt>
-            <dd> {ready ? "Yes" : "No"}</dd>
-            <dt className="font-semibold">Patient-ID column:</dt>
-            <dd> {patientIdSummary(configuration)}</dd>
-          </dl>
-          {blockedReasons.length > 0 && (
-            <ul
-              role="alert"
-              aria-label="Structured review blockers"
-              className="mt-3 max-w-2xl list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
-            >
-              {blockedReasons.map((reason, index) => (
-                <li key={index}>{reason}</li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onGoToStep("configure")}
-          className={`rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
-        >
-          Back to Configure
-        </button>
-        {ready && (
-          <button
-            type="button"
-            onClick={() => onGoToStep("privacy-gate")}
-            className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
-          >
-            Continue to Privacy Gate
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** Factual patient-ID selection summary from the canonical configuration only. */
-function patientIdSummary(configuration: StructuredConfiguration): string {
-  const { patientId } = configuration;
-  if (patientId.status === "resolved") return patientId.column;
-  if (patientId.status === "selection-error") return "Selection error";
-  return "Not selected";
-}
-
-/**
  * Defensive fallback for a step that has no renderable job state (for example
- * Privacy Gate or Export reached before an active review exists). It states
- * the runtime fact only: no migration-placeholder copy (UX-CLOSEOUT-01
- * outcome B).
+ * Privacy Gate or Export reached before an active review exists, or the
+ * structured Review position that issue #85 no longer renders as a no-op
+ * screen). It states the runtime fact only: no migration-placeholder copy
+ * (UX-CLOSEOUT-01 outcome B).
  */
 function StepUnavailableState({
   step,

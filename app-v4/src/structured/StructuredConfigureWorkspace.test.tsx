@@ -8,6 +8,7 @@ import {
   overrideColumnAction,
   overrideColumnClass,
   selectPatientIdColumn,
+  setStructuredDateRole,
   type StructuredAction,
   type StructuredConfiguration,
 } from "./configuration";
@@ -16,10 +17,11 @@ import type { StructuredGrid } from "./grid";
 import { StructuredConfigureWorkspace } from "./StructuredConfigureWorkspace";
 
 /**
- * T20 #24 user-level oracles for the structured Configure workspace. The
- * component is driven around the REAL canonical configuration authority
- * (`configuration.ts`); every assertion derives from domain state, never from
- * private component internals. Fixtures are synthetic; no real PHI.
+ * T20 #24 user-level oracles for the structured comparative Configure
+ * workspace (issue #85). The component is driven around the REAL canonical
+ * configuration authority (`configuration.ts`); every assertion derives from
+ * domain state, never from private component internals. Fixtures are
+ * synthetic; no real PHI.
  */
 const GRID: StructuredGrid = {
   headers: ["NHC", "Fecha_Nac", "Diagnostico", "CampoLibre"],
@@ -29,12 +31,17 @@ const GRID: StructuredGrid = {
   ],
 };
 
+type HarnessCallbacks = {
+  onSetDateRole?: boolean;
+};
+
 /** Test harness: holds the canonical configuration and exposes it for probing. */
 function Harness(props: {
   initial: StructuredConfiguration;
   configRef: { current: StructuredConfiguration };
+  callbacks?: HarnessCallbacks;
 }): ReturnType<typeof StructuredConfigureWorkspace> {
-  const { initial, configRef } = props;
+  const { initial, configRef, callbacks } = props;
   const [configuration, setConfiguration] = useState(initial);
   configRef.current = configuration;
   return (
@@ -52,79 +59,262 @@ function Harness(props: {
       onSelectPatientId={(header: string | null) =>
         setConfiguration((current) => selectPatientIdColumn(current, header))
       }
+      onSetDateRole={
+        callbacks?.onSetDateRole
+          ? (columnIndex: number, role: Parameters<typeof setStructuredDateRole>[2]) =>
+              setConfiguration((current) => setStructuredDateRole(current, columnIndex, role))
+          : undefined
+      }
     />
   );
 }
 
-function renderHarness() {
+function renderHarness(callbacks?: HarnessCallbacks) {
   const configRef = { current: createStructuredConfiguration(GRID) };
-  const view = render(<Harness initial={configRef.current} configRef={configRef} />);
+  const view = render(
+    <Harness initial={configRef.current} configRef={configRef} callbacks={callbacks} />
+  );
   return { configRef, ...view };
 }
 
-function columnCard(header: string): HTMLElement {
-  const heading = screen.getByRole("heading", { level: 4, name: header });
-  const card = heading.closest("li");
-  if (!card) throw new Error(`Could not find the card for column ${header}`);
-  return card;
+function comparisonTable(): HTMLElement {
+  return screen.getByRole("table", { name: /column classification list/i });
+}
+
+/** The comparison row for one column header, found through its select button. */
+function columnRow(header: string): HTMLElement {
+  const button = within(comparisonTable()).getByRole("button", { name: header });
+  const row = button.closest("tr");
+  if (!row) throw new Error(`Could not find the comparison row for column ${header}`);
+  return row;
+}
+
+/** Select a row (transient UI selection) so its inspector controls render. */
+function selectColumn(header: string): void {
+  fireEvent.click(within(comparisonTable()).getByRole("button", { name: header }));
+}
+
+function inspector(): HTMLElement {
+  return screen.getByRole("complementary", { name: /inspector de columna/i });
 }
 
 function overrideSelect(header: string): HTMLSelectElement {
+  selectColumn(header);
   return screen.getByLabelText(`Reviewer classification for ${header}`) as HTMLSelectElement;
 }
 
 function actionSelect(header: string): HTMLSelectElement | null {
-  return screen.queryByLabelText(`Reviewer action for ${header}`) as HTMLSelectElement | null;
+  const select = screen.queryByLabelText(`Reviewer action for ${header}`);
+  return select as HTMLSelectElement | null;
 }
 
 afterEach(cleanup);
 
-describe("StructuredConfigureWorkspace — classification display from domain facts", () => {
-  it("visibly classifies every column with the accepted class and action labels", () => {
+describe("StructuredConfigureWorkspace — comparative four-field display from domain facts", () => {
+  it("shows the four approved factual fields for every column without any disclosure", () => {
     renderHarness();
-    const list = screen.getByRole("list", { name: /column classification list/i });
-    expect(list).toHaveTextContent("NHC");
-    expect(list).toHaveTextContent("Fecha_Nac");
-    expect(list).toHaveTextContent("Diagnostico");
-    expect(list).toHaveTextContent("CampoLibre");
+    const table = comparisonTable();
+    // Every column appears in source order, one comparative table.
+    expect(table).toHaveTextContent("NHC");
+    expect(table).toHaveTextContent("Fecha_Nac");
+    expect(table).toHaveTextContent("Diagnostico");
+    expect(table).toHaveTextContent("CampoLibre");
 
-    // The effective class is the domain value on the controlled select.
-    expect(overrideSelect("NHC")).toHaveValue("identifier");
-    expect(overrideSelect("Fecha_Nac")).toHaveValue("quasi-identifier");
-    expect(overrideSelect("Diagnostico")).toHaveValue("sensitive");
-    expect(overrideSelect("CampoLibre")).toHaveValue("unknown");
-
-    // Status/class/action are conveyed as text, never color alone.
-    expect(within(columnCard("CampoLibre")).getAllByText("Review required").length).toBeGreaterThan(
+    // Field 2 — Clasificación vigente; field 3 — Tratamiento efectivo;
+    // field 4 — Estado / acción pendiente (fail-closed markers as text).
+    expect(within(columnRow("NHC")).getByText("Identifier")).toBeInTheDocument();
+    expect(within(columnRow("NHC")).getByText("Remove")).toBeInTheDocument();
+    expect(within(columnRow("Fecha_Nac")).getByText("Quasi-Identifier")).toBeInTheDocument();
+    // "Review required" appears as the effective Action AND the pending
+    // state; both facts stay visible as text.
+    expect(within(columnRow("Fecha_Nac")).getAllByText("Review required").length).toBeGreaterThan(
       0
     );
-    expect(within(columnCard("NHC")).getAllByText("Remove").length).toBeGreaterThan(0);
-    // D-021: an unresolved quasi-identifier is Review required (no generic
-    // Generalize dead end); Sensitive defaults to Keep (no Codify action).
-    expect(within(columnCard("Fecha_Nac")).getAllByText("Review required").length).toBeGreaterThan(
+    expect(within(columnRow("Diagnostico")).getByText("Sensitive")).toBeInTheDocument();
+    expect(within(columnRow("Diagnostico")).getByText("Keep")).toBeInTheDocument();
+    expect(within(columnRow("CampoLibre")).getByText("Unknown")).toBeInTheDocument();
+    expect(within(columnRow("CampoLibre")).getAllByText("Review required").length).toBeGreaterThan(
       0
     );
-    expect(within(columnCard("Diagnostico")).getAllByText("Keep").length).toBeGreaterThan(0);
+
+    // A resolved row states the factual per-row state and never an
+    // output-ready claim (that stays with the global gate facts).
+    expect(within(columnRow("NHC")).getByText("Sin pendientes")).toBeInTheDocument();
   });
 
-  it("shows confidence and evidence that correspond exactly to domain facts", () => {
+  it("shows the approved text markers, never color-only state", () => {
     const { configRef } = renderHarness();
-    const column = configRef.current.columns.find((candidate) => candidate.header === "CampoLibre");
-    if (!column) throw new Error("missing fixture column");
-    const card = columnCard("CampoLibre");
-    expect(within(card).getByText(`${Math.round(column.confidence * 100)}%`)).toBeInTheDocument();
-    expect(within(card).getByText(column.evidence[0])).toBeInTheDocument();
+    fireEvent.change(overrideSelect("CampoLibre"), { target: { value: "insensitive" } });
+    selectColumn("Fecha_Nac");
+    fireEvent.change(actionSelect("Fecha_Nac")!, { target: { value: "pseudonymize" } });
+
+    // Overridden classification marker + explicit action choice marker.
+    expect(
+      within(columnRow("CampoLibre")).getByText("clasificación modificada")
+    ).toBeInTheDocument();
+    expect(within(columnRow("Fecha_Nac")).getByText("tratamiento elegido")).toBeInTheDocument();
+    // The configuration is a canonical rebuild, not a label change.
+    expect(configRef.current.exportReady).toBe(true);
   });
 
-  it("marks the resolved patient-ID column with a factual, text label", () => {
+  it("marks the resolved patient-ID column with the factual text marker", () => {
     const configRef = {
       current: selectPatientIdColumn(createStructuredConfiguration(GRID), "NHC"),
     };
     render(<Harness initial={configRef.current} configRef={configRef} />);
-    expect(within(columnCard("NHC")).getByText(/single patient-ID authority/i)).toBeInTheDocument();
+    expect(within(columnRow("NHC")).getByText("columna identificadora")).toBeInTheDocument();
     expect(
-      within(columnCard("CampoLibre")).queryByText(/single patient-ID authority/i)
+      within(columnRow("CampoLibre")).queryByText("columna identificadora")
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps duplicate headers distinguishable and identified by the original columnIndex", () => {
+    const duplicateGrid: StructuredGrid = {
+      headers: ["Dato", "", "Dato"],
+      rows: [
+        ["1", "2", "3"],
+        ["4", "5", "6"],
+      ],
+    };
+    render(
+      <Harness
+        initial={createStructuredConfiguration(duplicateGrid)}
+        configRef={{ current: createStructuredConfiguration(duplicateGrid) }}
+      />
+    );
+    const table = comparisonTable();
+    const rows = table.querySelectorAll("tbody tr");
+    expect(rows).toHaveLength(3);
+    // Source-order ordinals keep duplicate/blank headers distinguishable.
+    expect(within(rows[0] as HTMLElement).getByText("1.")).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText("2.")).toBeInTheDocument();
+    expect(within(rows[2] as HTMLElement).getByText("3.")).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText("(unnamed column)")).toBeInTheDocument();
+  });
+});
+
+describe("StructuredConfigureWorkspace — contextual inspector", () => {
+  it("opens on the first unresolved column and shows only that column's bounded controls", () => {
+    renderHarness();
+    // Default selection: the first unresolved column (Fecha_Nac; index 1).
+    expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Reviewer classification for NHC")).not.toBeInTheDocument();
+
+    // The inspector's authority facts stay outside any disclosure.
+    const panel = inspector();
+    expect(within(panel).getAllByText("Quasi-Identifier").length).toBeGreaterThan(0);
+    expect(within(panel).getAllByText("Review required").length).toBeGreaterThan(0);
+    const classification = within(panel).getByText("Classification:").nextElementSibling;
+    expect(classification).toHaveTextContent("Quasi-Identifier");
+    expect(classification?.closest("details")).toBeNull();
+  });
+
+  it("selecting a row shows exactly its controls and evidence on demand", () => {
+    renderHarness();
+    selectColumn("CampoLibre");
+    const panel = inspector();
+    expect(within(panel).getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
+      "unknown"
+    );
+    // Evidence stays on demand behind the keyboard-operable disclosure.
+    const details = panel.querySelector("details");
+    if (!details) throw new Error("expected the evidence disclosure");
+    expect(details.hasAttribute("open")).toBe(false);
+    const summary = within(panel).getByText(/evidence and detected details for CampoLibre/i);
+    expect(summary.tagName).toBe("SUMMARY");
+    summary.focus();
+    expect(summary).toHaveFocus();
+    fireEvent.click(summary);
+    expect(details.hasAttribute("open")).toBe(true);
+    expect(within(panel).getByText("Detected class:").closest("details")).toBe(details);
+    expect(within(panel).getByText("Confidence:").nextElementSibling).toHaveTextContent(/%$/);
+  });
+
+  it("keeps the selection visible and the next unresolved column reachable after an override", () => {
+    renderHarness();
+    // The first unresolved column is selected by default; resolving it…
+    fireEvent.change(actionSelect("Fecha_Nac")!, { target: { value: "pseudonymize" } });
+    // …keeps the selected column's inspector visible (no blank inspector).
+    expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
+      "quasi-identifier"
+    );
+    // …acknowledges resolution factually (no auto-acceptance, no ready claim)…
+    expect(
+      within(inspector()).getByText("Esta columna ya no tiene pendientes.")
+    ).toBeInTheDocument();
+    // …and keeps the next unresolved column reachable.
+    fireEvent.click(screen.getByRole("button", { name: "Ir a la siguiente columna pendiente" }));
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
+    // The resolved column's row keeps its markers visible in the comparison.
+    expect(within(columnRow("Fecha_Nac")).getByText("tratamiento elegido")).toBeInTheDocument();
+  });
+
+  it("renders no Action editor for derived single-option columns, only the Action fact", () => {
+    renderHarness();
+    // Identifier -> Remove: the Action is a visible fact, not a choice.
+    selectColumn("NHC");
+    expect(actionSelect("NHC")).toBeNull();
+    expect(within(inspector()).getByText("Action:").nextElementSibling).toHaveTextContent("Remove");
+    // REC-03 WU-C (D-021 free-text columns): a text-like Sensitive column
+    // offers exactly the bounded Keep / Process-as-text choice.
+    selectColumn("Diagnostico");
+    const sensitiveSelect = actionSelect("Diagnostico");
+    if (!sensitiveSelect) throw new Error("expected the bounded Action control for Diagnostico");
+    expect(
+      Array.from(sensitiveSelect.querySelectorAll("option")).map((option) => option.value)
+    ).toEqual(["keep", "process-as-text"]);
+    expect(within(inspector()).getByText("Action:").nextElementSibling).toHaveTextContent("Keep");
+    // Unknown explains the resolution path instead of offering Keep directly;
+    // a text-like Unknown additionally offers the explicit Process-as-text path.
+    selectColumn("CampoLibre");
+    const unknownSelect = actionSelect("CampoLibre");
+    if (!unknownSelect) throw new Error("expected the bounded Action control for CampoLibre");
+    expect(
+      Array.from(unknownSelect.querySelectorAll("option")).map((option) => option.value)
+    ).toEqual(["review-required", "process-as-text"]);
+    expect(within(inspector()).getByText(/cannot be kept directly/i)).toBeInTheDocument();
+  });
+
+  it("locks the Action of the patient-ID column with derived text and no contradicting choice", () => {
+    const configRef = {
+      current: selectPatientIdColumn(createStructuredConfiguration(GRID), "NHC"),
+    };
+    render(<Harness initial={configRef.current} configRef={configRef} />);
+    selectColumn("NHC");
+    expect(actionSelect("NHC")).toBeNull();
+    const panel = inspector();
+    expect(within(panel).getByText("Action:").nextElementSibling).toHaveTextContent(
+      "Study ID (derivado/bloqueado)"
+    );
+    expect(
+      within(panel).getByText(/the patient-ID authority derives Study ID/i)
+    ).toBeInTheDocument();
+  });
+
+  it("locks the Action of an explicitly dated column and keeps the date role visible in the row", () => {
+    const dated = setStructuredDateRole(createStructuredConfiguration(GRID), 1, "visit");
+    render(
+      <Harness initial={dated} configRef={{ current: dated }} callbacks={{ onSetDateRole: true }} />
+    );
+    // The explicit date role is a visible row marker (never color-only).
+    expect(within(columnRow("Fecha_Nac")).getByText("Visit date")).toBeInTheDocument();
+    selectColumn("Fecha_Nac");
+    expect(actionSelect("Fecha_Nac")).toBeNull();
+    const panel = inspector();
+    expect(within(panel).getByText("Action:").nextElementSibling).toHaveTextContent(
+      "Date policy (derivado/bloqueado)"
+    );
+    expect(
+      within(panel).getByText(/the explicit date role derives Date policy/i)
+    ).toBeInTheDocument();
+    // The orthogonal role control stays; it never changes the classification.
+    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+      target: { value: "none" },
+    });
+    expect(within(columnRow("Fecha_Nac")).queryByText("Visit date")).not.toBeInTheDocument();
+    expect(within(columnRow("Fecha_Nac")).getAllByText("Review required").length).toBeGreaterThan(
+      0
+    );
   });
 });
 
@@ -139,8 +329,12 @@ describe("StructuredConfigureWorkspace — Unknown review + export gate", () => 
 
     // Neither review-required column is KEEP: the effective classes stay put
     // and the canonical export gate stays closed.
-    expect(overrideSelect("CampoLibre")).toHaveValue("unknown");
-    expect(overrideSelect("Fecha_Nac")).toHaveValue("quasi-identifier");
+    selectColumn("CampoLibre");
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
+    selectColumn("Fecha_Nac");
+    expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
+      "quasi-identifier"
+    );
     expect(configRef.current.exportReady).toBe(false);
   });
 
@@ -154,6 +348,7 @@ describe("StructuredConfigureWorkspace — Unknown review + export gate", () => 
 
     // A bounded explicit Action for the quasi column closes the gate together
     // with the class resolution: one canonical rebuild, never label-only.
+    selectColumn("Fecha_Nac");
     const fechaAction = actionSelect("Fecha_Nac");
     if (!fechaAction) throw new Error("expected the bounded Action control for Fecha_Nac");
     fireEvent.change(fechaAction, { target: { value: "keep" } });
@@ -172,6 +367,17 @@ describe("StructuredConfigureWorkspace — Unknown review + export gate", () => 
     expect(facts).toHaveTextContent("Columns requiring review: 0");
     expect(facts).toHaveTextContent("Structured export ready: Yes");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    // The override updated the comparative row and the global facts together,
+    // with the selection still visible.
+    expect(within(columnRow("CampoLibre")).getByText("Insensitive")).toBeInTheDocument();
+    expect(
+      within(columnRow("CampoLibre")).getByText("clasificación modificada")
+    ).toBeInTheDocument();
+    expect(within(columnRow("Fecha_Nac")).getByText("tratamiento elegido")).toBeInTheDocument();
+    expect(within(inspector()).getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
+      "quasi-identifier"
+    );
   });
 });
 
@@ -180,8 +386,12 @@ describe("StructuredConfigureWorkspace — adversarial override invariants", () 
     const { configRef } = renderHarness();
     fireEvent.change(overrideSelect("NHC"), { target: { value: "insensitive" } });
 
-    expect(overrideSelect("CampoLibre")).toHaveValue("unknown");
-    expect(overrideSelect("Diagnostico")).toHaveValue("sensitive");
+    selectColumn("CampoLibre");
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
+    selectColumn("Diagnostico");
+    expect(screen.getByLabelText("Reviewer classification for Diagnostico")).toHaveValue(
+      "sensitive"
+    );
     expect(configRef.current.columns.find((c) => c.header === "CampoLibre")?.effectiveClass).toBe(
       "unknown"
     );
@@ -202,18 +412,31 @@ describe("StructuredConfigureWorkspace — adversarial override invariants", () 
     const { configRef, rerender } = renderHarness();
     fireEvent.change(overrideSelect("CampoLibre"), { target: { value: "sensitive" } });
     const after = configRef.current;
-    rerender(<Harness initial={configRef.current} configRef={configRef} />);
+    rerender(
+      <Harness
+        initial={configRef.current}
+        configRef={configRef}
+        callbacks={{ onSetDateRole: true }}
+      />
+    );
     expect(configRef.current).toBe(after);
-    expect(overrideSelect("CampoLibre")).toHaveValue("sensitive");
+    selectColumn("CampoLibre");
+    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
+      "sensitive"
+    );
   });
 });
 
 describe("StructuredConfigureWorkspace — single patient-ID authority (SPEC §6)", () => {
   it("shows the authority exactly once and routes the choice through the domain", () => {
     const { configRef } = renderHarness();
-    expect(screen.getAllByRole("region", { name: /patient id authority/i })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("region", { name: /autoridad de identificación del paciente/i })
+    ).toHaveLength(1);
 
-    fireEvent.change(screen.getByLabelText("Patient ID column"), { target: { value: "NHC" } });
+    fireEvent.change(screen.getByLabelText("Columna de identificación del paciente"), {
+      target: { value: "NHC" },
+    });
     expect(configRef.current.patientId).toEqual({
       status: "resolved",
       column: "NHC",
@@ -233,6 +456,7 @@ describe("StructuredConfigureWorkspace — single patient-ID authority (SPEC §6
 describe("StructuredConfigureWorkspace — bounded Action control (REC-03 WU-B, D-021)", () => {
   it("offers exactly the bounded Action choices for a non-date quasi-identifier", () => {
     const { configRef } = renderHarness();
+    selectColumn("Fecha_Nac");
     const select = actionSelect("Fecha_Nac");
     if (!select) throw new Error("expected the bounded Action control for Fecha_Nac");
     expect(select.tagName).toBe("SELECT");
@@ -247,52 +471,9 @@ describe("StructuredConfigureWorkspace — bounded Action control (REC-03 WU-B, 
     expect(select).toHaveValue("pseudonymize");
   });
 
-  it("renders no Action editor for derived single-option columns, only the Action fact", () => {
-    renderHarness();
-    // Identifier->Remove: the Action is a visible fact, not a choice.
-    expect(actionSelect("NHC")).toBeNull();
-    expect(within(columnCard("NHC")).getByText("Action:").nextElementSibling).toHaveTextContent(
-      "Remove"
-    );
-    // REC-03 WU-C (D-021 free-text columns): a text-like Sensitive column
-    // offers exactly the bounded Keep / Process-as-text choice.
-    const sensitiveSelect = actionSelect("Diagnostico");
-    if (!sensitiveSelect) throw new Error("expected the bounded Action control for Diagnostico");
-    expect(
-      Array.from(sensitiveSelect.querySelectorAll("option")).map((option) => option.value)
-    ).toEqual(["keep", "process-as-text"]);
-    expect(
-      within(columnCard("Diagnostico")).getByText("Action:").nextElementSibling
-    ).toHaveTextContent("Keep");
-    // Unknown explains the resolution path instead of offering Keep directly;
-    // a text-like Unknown additionally offers the explicit Process-as-text path.
-    const unknownSelect = actionSelect("CampoLibre");
-    if (!unknownSelect) throw new Error("expected the bounded Action control for CampoLibre");
-    expect(
-      Array.from(unknownSelect.querySelectorAll("option")).map((option) => option.value)
-    ).toEqual(["review-required", "process-as-text"]);
-    expect(
-      within(columnCard("CampoLibre")).getByText(/cannot be kept directly/i)
-    ).toBeInTheDocument();
-  });
-
-  it("locks the Action of the patient-ID column with derived text and no contradicting choice", () => {
-    const configRef = {
-      current: selectPatientIdColumn(createStructuredConfiguration(GRID), "NHC"),
-    };
-    render(<Harness initial={configRef.current} configRef={configRef} />);
-    expect(actionSelect("NHC")).toBeNull();
-    const card = columnCard("NHC");
-    expect(within(card).getByText("Action:").nextElementSibling).toHaveTextContent(
-      "Study ID (derived, locked)"
-    );
-    expect(
-      within(card).getByText(/the patient-ID authority derives Study ID/i)
-    ).toBeInTheDocument();
-  });
-
   it("exposes the Action control as a keyboard-operable select with visible focus", () => {
     renderHarness();
+    selectColumn("Fecha_Nac");
     const select = actionSelect("Fecha_Nac");
     if (!select) throw new Error("expected the bounded Action control for Fecha_Nac");
     select.focus();
@@ -302,19 +483,32 @@ describe("StructuredConfigureWorkspace — bounded Action control (REC-03 WU-B, 
 });
 
 describe("StructuredConfigureWorkspace — keyboard, responsive and sheet selection", () => {
-  it("exposes the override and patient-ID controls as keyboard-operable selects", () => {
+  it("exposes the override and row-selection controls as keyboard-operable", () => {
     renderHarness();
     const override = overrideSelect("NHC");
     expect(override.tagName).toBe("SELECT");
     override.focus();
     expect(override).toHaveFocus();
     expect(override).toHaveClass("focus-visible:ring-2");
+    // Row selection is a real pressed-state button (never color-only).
+    const rowButton = within(comparisonTable()).getByRole("button", { name: "Fecha_Nac" });
+    expect(rowButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(rowButton);
+    expect(rowButton).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("renders a responsive layout (stacked list on narrow screens)", () => {
+  it("renders the table inside an explicitly labeled scrollable region with the inspector alongside", () => {
     renderHarness();
-    const list = screen.getByRole("list", { name: /column classification list/i });
-    expect(list).toHaveClass("md:grid-cols-2");
+    // 375 px contract: the table may scroll inside its labeled region; the
+    // page never overflows horizontally.
+    const scrollRegion = screen.getByRole("region", {
+      name: /tabla comparativa de columnas/i,
+    });
+    expect(scrollRegion).toHaveClass("overflow-x-auto");
+    expect(scrollRegion).toHaveAttribute("tabindex", "0");
+    // Desktop: the inspector sits alongside the table (grid columns).
+    const container = scrollRegion.closest("div.grid") as HTMLElement;
+    expect(container).toHaveClass("lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]");
   });
 
   it("requires an explicit worksheet choice for a multi-sheet workbook", () => {
@@ -394,70 +588,5 @@ describe("StructuredConfigureWorkspace — keyboard, responsive and sheet select
     );
     expect(screen.getByLabelText("Worksheet")).toBeInTheDocument();
     expect(screen.queryByLabelText("Header row")).not.toBeInTheDocument();
-  });
-});
-
-describe("StructuredConfigureWorkspace — progressive disclosure keeps authority visible (outcome F)", () => {
-  /** The `<dd>` value paired with a `<dt>` label in the same definition list. */
-  function dlValue(card: HTMLElement, label: string): HTMLElement {
-    const dt = within(card).getByText(label, { selector: "dt" });
-    const dd = dt.nextElementSibling;
-    if (!dd || dd.tagName !== "DD") throw new Error(`No <dd> for ${label}`);
-    return dd as HTMLElement;
-  }
-
-  it("keeps effective classification, current date role and UNKNOWN review-required facts outside the disclosure", () => {
-    renderHarness();
-    const card = columnCard("CampoLibre");
-
-    const classification = dlValue(card, "Classification:");
-    expect(classification).toHaveTextContent("Unknown");
-    expect(classification.closest("details")).toBeNull();
-
-    const dateRole = dlValue(card, "Date role:");
-    expect(dateRole.closest("details")).toBeNull();
-
-    // UNKNOWN / "Review required" stays immediately visible, not hidden behind disclosure.
-    const reviewRequiredFacts = within(card).getAllByText("Review required");
-    expect(reviewRequiredFacts.some((element) => element.closest("details") === null)).toBe(true);
-
-    // The classification override control stays immediately reachable.
-    expect(overrideSelect("CampoLibre").closest("details")).toBeNull();
-  });
-
-  it("keeps the reviewer-override marker on the effective classification outside the disclosure", () => {
-    renderHarness();
-    fireEvent.change(overrideSelect("CampoLibre"), { target: { value: "sensitive" } });
-    const classification = dlValue(columnCard("CampoLibre"), "Classification:");
-    expect(classification).toHaveTextContent("Sensitive (reviewer override)");
-    expect(classification.closest("details")).toBeNull();
-  });
-
-  it("groups secondary per-column evidence inside a keyboard-operable native disclosure", () => {
-    renderHarness();
-    const card = columnCard("CampoLibre");
-    const details = card.querySelector("details");
-    expect(details).not.toBeNull();
-    const disclosure = details as HTMLElement;
-    expect(disclosure.tagName).toBe("DETAILS");
-
-    // Detected class, proposed action, inferred type, confidence and counts are
-    // secondary facts: reduced all-at-once density, still in the DOM.
-    for (const label of [
-      "Detected class:",
-      "Proposed action:",
-      "Inferred type:",
-      "Confidence:",
-      "Non-empty values:",
-    ]) {
-      const dt = within(disclosure).getByText(label, { selector: "dt" });
-      expect(dt.closest("details")).toBe(disclosure);
-    }
-
-    const summary = within(disclosure).getByText(/evidence and detected details/i);
-    expect(summary.tagName).toBe("SUMMARY");
-    summary.focus();
-    expect(summary).toHaveFocus();
-    expect(summary).toHaveClass("focus-visible:ring-2");
   });
 });

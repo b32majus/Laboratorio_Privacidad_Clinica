@@ -1,0 +1,27 @@
+{
+  "witness": "issue85 composed visual checkpoint (handoff ISSUE85_STRUCTURED_COMPARATIVE_C087_20261011 §5)",
+  "captured": "2026-10-11",
+  "branch": "work/issue85-structured-workspace-c087-20261011",
+  "productBase": "a9eee80306ae8382a71e16e8b860b1eb8df98100",
+  "viewports": [
+    { "width": 1280, "height": 800, "file": "structured-32-cols-full.png", "note": "full-page screenshot: dominant four-field comparative grid (32 rows, row identity = columnIndex), contextual inspector alongside for the selected column fecha_nacimiento, global blockers + next action (Privacy Gate), legible Sophilux B" },
+    { "width": 375, "height": 812, "file": "structured-32-cols-375.png", "note": "changed table/inspector navigation: explicitly labeled scrollable table region, inspector stacked below, no whole-page horizontal overflow (asserted with e2e/harness/viewport assertNoHorizontalOverflow), controls reachable, selection kept (aria-pressed)" }
+  ],
+  "syntheticHeaderSeed": "NHC,fecha_nacimiento,sexo,diagnostico,centro,notas_libres,CampoLibre01..CampoLibre26 (32 columns; 3 synthetic rows; no PHI)",
+  "syntheticCsv": "generated OUTSIDE the repo at /tmp/opencode/issue85-witness/estructurado-32.csv (not committed)",
+  "commands": [
+    "npm run build",
+    "npx playwright test e2e/issue85-witness.spec.ts  # TEMPORARY one-off spec, deleted after the run; no committed spec",
+    "npx playwright test e2e/structured.spec.ts e2e/structured-composed.spec.ts e2e/structured-rec04-composed.spec.ts e2e/ux-closeout-shell.spec.ts  # 17 passed"
+  ],
+  "comparison": "docs/audits/evidence/product-freeze-20261011/03b-structured-32-cols-full.png — evidence of TASK COMPOSITION (comparative table replaces the 32-card wall), not pixel-perfect or height-threshold evidence",
+  "expectedFacts": {
+    "columns": 32,
+    "columnsRequiringReview": 29,
+    "blockers": [
+      "Structured export is blocked while 28 columns require review.",
+      "Structured export is blocked: column \"fecha_nacimiento\" has no accepted structured transformation."
+    ],
+    "selectedInspectorColumn": "fecha_nacimiento (default first-unresolved selection)"
+  }
+}
