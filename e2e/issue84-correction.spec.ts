@@ -61,5 +61,22 @@ for (const [width, height] of [
     // currently valid action — with mandatory pending decisions the Review
     // surface offers no premature «Ver resultado» CTA.
     await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
+
+    await page.getByRole("button", {
+      name: "Privacy Gate",
+      exact: true,
+    }).click();
+
+    await expect(
+      page.getByRole("button", { name: "Ir al resultado" })
+    ).toBeDisabled();
+
+    await page.getByRole("button", {
+      name: "Volver a la revisión",
+    }).click();
+
+    await expect(
+      page.getByRole("button", { name: "Ver resultado" })
+    ).toHaveCount(0);
   });
 }

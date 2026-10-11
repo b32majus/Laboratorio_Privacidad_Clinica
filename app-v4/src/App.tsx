@@ -521,6 +521,23 @@ export function App() {
   };
 
   /**
+   * Issue #84 correction (REC-05 journey A): whether the CURRENT
+   * Job/policy/ReviewSession triple still matches the last legitimately
+   * entered single-item Result. This is the ONLY extra fact that may offer an
+   * already-visited Result while mandatory decisions are pending again; every
+   * invalidation (real policy change, replaced ReviewSession, new Job,
+   * A→B→A policy cycling) fails the exact-identity comparison. It widens
+   * nothing else: output authorization stays untouched.
+   */
+  const singleResultRevisitAuthorized =
+    singleResultProvenance !== null &&
+    job !== null &&
+    review !== null &&
+    singleResultProvenance.jobId === job.id &&
+    singleResultProvenance.policyId === job.policyId &&
+    singleResultProvenance.reviewSessionId === review.sessionId;
+
+  /**
    * Step transitions. Entering Review for a text or single-document job runs
    * the existing legacy engine on the job's source text ONCE and installs the
    * resulting ReviewSession as the domain review authority (T07). The attempt
@@ -555,6 +572,15 @@ export function App() {
           return;
         }
       }
+      if (
+        step === "export" &&
+        job !== null &&
+        (job.kind === "text" || job.kind === "document") &&
+        !job.review.complete &&
+        !singleResultRevisitAuthorized
+      ) {
+        return;
+      }
       session.navigate(step);
       // Provenance recording (issue #84 correction, journey A): a SUCCESSFUL
       // navigation INTO the Result is the one legitimate single-item Result
@@ -569,7 +595,13 @@ export function App() {
       // decoupled, REC-07 #87) and structured work has no ReviewSession, so
       // neither can record. Pure navigation fact: no output authorization
       // changes here.
-      if (step === "export" && job !== null && job.kind !== "document-batch" && review !== null) {
+      if (
+        step === "export" &&
+        job !== null &&
+        (job.kind === "text" || job.kind === "document") &&
+        review !== null &&
+        (job.review.complete || singleResultRevisitAuthorized)
+      ) {
         setSingleResultProvenance({
           jobId: job.id,
           policyId: job.policyId,
@@ -623,22 +655,6 @@ export function App() {
       : null;
   const activeReview = review ?? activeBatchSession;
   const isBatch = job !== null && job.kind === "document-batch";
-  /**
-   * Issue #84 correction (REC-05 journey A): whether the CURRENT
-   * Job/policy/ReviewSession triple still matches the last legitimately
-   * entered single-item Result. This is the ONLY extra fact that may offer an
-   * already-visited Result while mandatory decisions are pending again; every
-   * invalidation (real policy change, replaced ReviewSession, new Job,
-   * A→B→A policy cycling) fails the exact-identity comparison. It widens
-   * nothing else: output authorization stays untouched.
-   */
-  const singleResultRevisitAuthorized =
-    singleResultProvenance !== null &&
-    job !== null &&
-    review !== null &&
-    singleResultProvenance.jobId === job.id &&
-    singleResultProvenance.policyId === job.policyId &&
-    singleResultProvenance.reviewSessionId === review.sessionId;
   /** The canonical structured configuration for the CURRENT structured job. */
   const structuredConfiguration =
     session.structured !== null && job !== null && session.structured.jobId === job.id
@@ -1368,7 +1384,12 @@ function TaskActionBar(props: {
         key="result"
         type="button"
         onClick={() => onGoToStep("export")}
-        disabled={!isStepAccessible(job, "export")}
+        disabled={
+          !isStepAccessible(job, "export") ||
+          ((job.kind === "text" || job.kind === "document") &&
+            !job.review.complete &&
+            !singleResultRevisitAuthorized)
+        }
         className={primaryAction}
       >
         Ir al resultado
