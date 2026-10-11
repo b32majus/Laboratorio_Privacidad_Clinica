@@ -23,7 +23,7 @@ import {
 import { buildSafeOutput, serializeSafeOutput } from "./output/safe-output";
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
-const LOCAL_ONLY_FACT = /processing runs locally in your browser/i;
+const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
 
 /**
  * Quiet shell (issue #84): the five-step pipeline navigation is gone. Task
@@ -91,7 +91,7 @@ describe("App shell", () => {
 
   it("renders the quiet start surface with no job and no task navigation", () => {
     render(<App />);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     // No destination exists merely to expose pipeline internals: with no job
     // there is no review/gate/result action anywhere in the shell.
     expectNoResultAction();
@@ -118,9 +118,9 @@ describe("App shell", () => {
 
   it("shows the persistent top-bar facts: job, policy, local-only processing — never the internal job kind", async () => {
     render(<App />);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();
-    expect(screen.getByLabelText("Privacy Policy:")).toBeInTheDocument();
+    expect(screen.getByLabelText("Política de privacidad:")).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Standard" }) as HTMLOptionElement).toHaveProperty(
       "selected",
       true
@@ -141,7 +141,7 @@ describe("App shell", () => {
     // Quiet shell: a text job reaches its real review work without visiting
     // the no-op Configure stop (issue #84 acceptance B). The draft intake is
     // unmounted on landing; the cleared-draft end state is witnessed by the
-    // reset paths (New Job / Clear session) in their dedicated tests.
+    // reset paths (Nuevo trabajo / Borrar sesión) in their dedicated tests.
     await waitForReviewWorkspace();
   });
 
@@ -177,50 +177,50 @@ describe("App shell", () => {
     // REC-08 F1: the typed empty-input refusal is PRESENTED in Spanish; the
     // domain still refuses and no job is created.
     expect(screen.getByRole("alert")).toHaveTextContent(/no hay texto/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("clear session discards all in-memory job state and returns to fresh Input", async () => {
     render(<App />);
     createTextJob();
     await waitForReviewWorkspace();
-    fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(screen.getByLabelText("Pegar texto")).toHaveValue("");
     expectNoResultAction();
     expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
   });
 
-  it("New Job returns to a fresh Input state", async () => {
+  it("Nuevo trabajo returns to a fresh Input state", async () => {
     render(<App />);
     createTextJob();
     await waitForReviewWorkspace();
-    fireEvent.click(screen.getByRole("button", { name: "New Job" }));
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
     ).toBeInTheDocument();
     expectNoResultAction();
   });
 
-  it("keeps New Job and Clear session with distinct, legible purposes (UX-CLOSEOUT-01 E)", async () => {
+  it("keeps Nuevo trabajo and Borrar sesión with distinct, legible purposes (UX-CLOSEOUT-01 E, CORA-84-03)", async () => {
     render(<App />);
     createTextJob();
-    const newJob = screen.getByRole("button", { name: "New Job" });
-    const clearSession = screen.getByRole("button", { name: "Clear session" });
+    const newJob = screen.getByRole("button", { name: "Nuevo trabajo" });
+    const clearSession = screen.getByRole("button", { name: "Borrar sesión" });
     // Both accepted capabilities stay present and operable.
     expect(newJob).toBeEnabled();
     expect(clearSession).toBeEnabled();
     // Distinct explicit copy: the privacy-clearing action is not presented as a
-    // duplicate of New Job.
+    // duplicate of Nuevo trabajo.
     expect(newJob).toHaveAttribute("title");
     expect(clearSession).toHaveAttribute("title");
     expect(newJob.getAttribute("title")).not.toBe(clearSession.getAttribute("title"));
-    expect(clearSession.getAttribute("title")).toMatch(/discard|in-memory/i);
+    expect(clearSession.getAttribute("title")).toMatch(/descarta|en memoria/i);
     const helper = document.getElementById("session-actions-help");
     expect(helper).not.toBeNull();
-    expect(helper).toHaveTextContent(/new job starts a new job/i);
-    expect(helper).toHaveTextContent(/clear session deliberately discards/i);
+    expect(helper).toHaveTextContent(/nuevo trabajo inicia un trabajo nuevo/i);
+    expect(helper).toHaveTextContent(/borrar sesión descarta de forma deliberada/i);
   });
 
   it("renders the active workspace before the persistent policy guidance (UX-CLOSEOUT-01 A)", async () => {
@@ -228,10 +228,11 @@ describe("App shell", () => {
     createTextJob();
     await waitForReviewWorkspace();
     const main = document.getElementById("main-content");
-    const guidance = screen.getByRole("region", { name: "Privacy Policy" });
+    const guidance = screen.getByRole("region", { name: "Política de privacidad" });
     expect(main).not.toBeNull();
-    // `main` precedes the policy guidance in document order, so four full policy
-    // cards never render ahead of the user's active task.
+    // `main` precedes the policy guidance in document order, so the persistent
+    // policy guidance (CORA-84-01: current-policy line plus the on-demand
+    // detailed cards) never renders ahead of the user's active task.
     expect(
       (main as HTMLElement).compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeGreaterThan(0);
@@ -262,7 +263,7 @@ describe("App shell", () => {
     createTextJob();
     await waitForReviewWorkspace();
     fireEvent.click(taskButton("Privacy Gate"));
-    fireEvent.click(screen.getByRole("button", { name: "New Job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
     createTextJob();
     await waitForReviewWorkspace();
 
@@ -366,7 +367,7 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Use una sola entrada por trabajo: texto pegado o archivos, no ambos."
     );
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("states the one-input-per-job constraint on the surface before submission", () => {
@@ -586,7 +587,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
 
     // The select stays enabled: the invalidation must be state-enforced,
     // not achieved by disabling the control (requirement 6).
-    const policySelect = screen.getByLabelText("Privacy Policy:");
+    const policySelect = screen.getByLabelText("Política de privacidad:");
     expect(policySelect).toBeEnabled();
     fireEvent.change(policySelect, { target: { value: "strict" } });
 
@@ -626,7 +627,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     // REAL policy change from the Result: the session-dependent authorization
     // is invalidated (setPolicy keeps the flow position, the hook drops the
     // session), so ExportStep unmounts into the unavailable state.
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+    fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
       target: { value: "strict" },
     });
 
@@ -649,6 +650,15 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     // decision pending again, no stale result.
     await waitForReviewWorkspace();
     expect(pendingCount()).toBeGreaterThan(0);
+    // CORA-84-02: the visited `export` step is backward-navigation history,
+    // not a currently valid Result action. While the fresh review still has
+    // mandatory pending decisions, the Review surface must not offer a
+    // premature «Ver resultado» CTA.
+    expect(screen.queryByRole("button", { name: "Ver resultado" })).not.toBeInTheDocument();
+    // The action is gated, not removed: completing the redone review re-opens
+    // the direct D-024 Result from Review.
+    acceptAllDetections();
+    expect(taskButton("Ver resultado")).toBeEnabled();
   });
 
   it("an unchanged policy selection is an exact no-op: the completed review survives", async () => {
@@ -658,7 +668,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     fireEvent.click(taskButton("Privacy Gate"));
     expect(taskButton("Ir al resultado")).toBeEnabled();
 
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+    fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
       target: { value: "standard" },
     });
 
@@ -679,7 +689,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
       expect(screen.getByRole("option", { name })).toBeEnabled();
     }
 
-    const policySelect = screen.getByLabelText("Privacy Policy:") as HTMLSelectElement;
+    const policySelect = screen.getByLabelText("Política de privacidad:") as HTMLSelectElement;
     fireEvent.change(policySelect, { target: { value: "external-ai" } });
     expect(policySelect.value).toBe("external-ai");
     expect(
@@ -699,7 +709,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     render(<App />);
     createTextJob();
     await waitForReviewWorkspace();
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+    fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
       target: { value: "longitudinal-research" },
     });
 
@@ -751,7 +761,7 @@ describe("App document intake (T06)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
     const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
-    fireEvent.click(screen.getByRole("button", { name: "New Job" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
     fireEvent.click(oldConfirm);
     fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: "DNI 12345678A" } });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
@@ -799,7 +809,7 @@ describe("App document intake (T06)", () => {
     // the legacy format is never advertised as supported.
     expect(alert).toHaveTextContent(/\.doc/);
     expect(alert).toHaveTextContent(/no se admite/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("surfaces a typed extraction-failed alert for a corrupt DOCX and creates no job", async () => {
@@ -810,7 +820,7 @@ describe("App document intake (T06)", () => {
     // REC-08 F1: Spanish presentation (failure + remedy).
     expect(alert).toHaveTextContent(/no se pudo leer/i);
     expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("surfaces the empty-input alert for an empty TXT and creates no job", async () => {
@@ -820,7 +830,7 @@ describe("App document intake (T06)", () => {
     const alert = await screen.findByRole("alert");
     // REC-08 F1: Spanish presentation (failure + remedy).
     expect(alert).toHaveTextContent(/no contiene texto utilizable/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("surfaces the pdf-no-text-layer alert for a scan-like PDF and creates no job", async () => {
@@ -835,7 +845,7 @@ describe("App document intake (T06)", () => {
     // REC-08 F1: Spanish presentation (failure + remedy).
     expect(alert).toHaveTextContent(/texto extraíble/i);
     expect(alert).toHaveTextContent(/escaneo/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("creates a document job from the text-bearing PDF fixture", async () => {
@@ -861,7 +871,7 @@ describe("App document intake (T06)", () => {
     const alert = await screen.findByRole("alert");
     // REC-08 F1: Spanish presentation of the typed ambiguous-input refusal.
     expect(alert).toHaveTextContent(/no se pueden combinar/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 });
 
@@ -975,7 +985,7 @@ describe("App export step (T08 U4)", () => {
     expect(body).not.toMatch(/anonym|gdpr|privacy score|certif|complian/i);
   });
 
-  it("session isolation: after Clear session, the new job's artifacts carry no prior-job data (acceptance 6)", async () => {
+  it("session isolation: after Borrar sesión, the new job's artifacts carry no prior-job data (acceptance 6)", async () => {
     const captured = captureDownloads();
     try {
       render(<App />);
@@ -990,9 +1000,9 @@ describe("App export step (T08 U4)", () => {
       expect(audit1).toContain("Carmen Sánchez");
       expect(audit1).toContain("612345678");
 
-      // Clear session and run a second, different job end-to-end.
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      // Borrar sesión and run a second, different job end-to-end.
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
       await completeReviewToExport(JOB2_NOTE);
       fireEvent.click(screen.getByRole("button", { name: AUDIT_BUTTON }));
       fireEvent.click(screen.getByRole("button", { name: AUDIT_CONFIRM }));
@@ -1037,7 +1047,7 @@ describe("App export step (T08 U4)", () => {
       // flow oracle — so it must not be used here).
       fireEvent.click(taskButton("Privacy Gate"));
       fireEvent.click(taskButton("Ir al resultado"));
-      fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+      fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
         target: { value: "standard" },
       });
 
@@ -1259,14 +1269,14 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-b\.txt/));
 
     // Clear the session mid-read: the job is gone before the read resolves.
-    fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
 
     await act(async () => {
       resolveText(BATCH_NOTE_A);
     });
     await waitFor(() => expect(screen.queryByText(/leyendo documentos/i)).not.toBeInTheDocument());
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Batch documents" })).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -1298,7 +1308,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // Remedy loop: a REAL supported policy change (standard → strict) resets the
     // processing-derived item state. The read text is policy-INDEPENDENT, so the
     // items return to queued WITH their held text.
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), {
+    fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
       target: { value: "strict" },
     });
 
@@ -1347,7 +1357,9 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(resultWarning).toHaveTextContent("Originales conservados:");
     expect(resultWarning).not.toHaveTextContent("Carmen Sánchez");
     expect(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" })).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), { target: { value: "strict" } });
+    fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
+      target: { value: "strict" },
+    });
     expect(
       screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
     ).not.toBeInTheDocument();
@@ -1444,7 +1456,9 @@ describe("App structured Configure workspace (T20 #24)", () => {
     expect(
       screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
     ).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Privacy Policy:"), { target: { value: "strict" } });
+    fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
+      target: { value: "strict" },
+    });
     expect(
       screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
     ).not.toBeInTheDocument();
@@ -1541,7 +1555,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/una tabla cada vez/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("keeps structured classification and date-role state when navigating away and back", async () => {

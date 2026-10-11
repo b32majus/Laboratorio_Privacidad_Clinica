@@ -92,9 +92,22 @@ export async function createStructuredJob(page: Page, csvPath: string): Promise<
   await expect(page.getByRole("banner")).toContainText(path.basename(csvPath));
 }
 
-/** The Privacy Policy guidance list (POLICY-01 workspace). */
+/** The Privacy Policy guidance list (POLICY-01 workspace; on demand, #84 CORA-84-01). */
 export function policyGuidanceList(page: Page): Locator {
-  return page.getByRole("list", { name: "Privacy Policy guidance" });
+  return page.getByRole("list", { name: "Guía de políticas de privacidad" });
+}
+
+/**
+ * Idempotently expand the on-demand detailed policy guidance (#84 CORA-84-01).
+ * The toggle's accessible name is stable across states, so this is safe to
+ * call whether the disclosure is closed or already open.
+ */
+export async function expandPolicyGuidance(page: Page): Promise<void> {
+  const toggle = page.getByRole("button", { name: "Guía detallada de políticas" });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
+    await toggle.click();
+  }
+  await expect(policyGuidanceList(page)).toBeVisible();
 }
 
 /** One rendered guidance card, located from the visible contract only. */

@@ -7,7 +7,7 @@
  * Each step renders an honest, job-aware state (configure / review / gate /
  * export); the shell never fakes review or output readiness (SPEC §8).
  *
- * Sensitive job data stays memory-only (D-013); "Clear session" discards it.
+ * Sensitive job data stays memory-only (D-013); "Borrar sesión" discards it.
  */
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, ReactElement } from "react";
@@ -799,7 +799,7 @@ export function App() {
         href="#main-content"
         className={`sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-background-dark focus:px-4 focus:py-2 focus:text-white ${focusRing}`}
       >
-        Skip to main content
+        Saltar al contenido principal
       </a>
 
       <header className="border-b border-primary bg-surface-light">
@@ -815,31 +815,32 @@ export function App() {
                   session.clear();
                   resetDraft();
                 }}
-                title="Start a new job. Replaces the current job and clears its drafts."
+                title="Inicia un trabajo nuevo. Sustituye el trabajo actual y borra sus borradores."
                 aria-describedby="session-actions-help"
                 className={`rounded border border-primary-dark bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
               >
-                New Job
+                Nuevo trabajo
               </button>
               <button
                 type="button"
                 onClick={handleClearSession}
-                title="Discard all in-memory job data, review state and drafts from this browser session."
+                title="Descarta de forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los borradores de esta sesión del navegador."
                 aria-describedby="session-actions-help"
                 className={`rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
               >
-                Clear session
+                Borrar sesión
               </button>
             </div>
           </div>
           <p id="session-actions-help" className="mt-2 text-xs leading-relaxed text-neutral-600">
-            New Job starts a new job and replaces the current one. Clear session deliberately
-            discards all in-memory job data, review state and drafts from this browser session.
+            Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta de
+            forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los
+            borradores de esta sesión del navegador.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-700">
             <p>
-              <span className="font-semibold text-neutral-800">Job:</span>{" "}
-              {job ? job.name : "No job yet"}
+              <span className="font-semibold text-neutral-800">Trabajo:</span>{" "}
+              {job ? job.name : "Aún no hay trabajo"}
             </p>
             {/* Issue #84 correction (spec F): the internal job kind is not
                 permanent chrome on any task surface. The kind stays a factual,
@@ -847,7 +848,7 @@ export function App() {
                 confirmation and policy guidance); the header keeps only the
                 truthful persistent facts below. */}
             <label className="flex items-center gap-2">
-              <span className="font-semibold text-neutral-800">Privacy Policy:</span>
+              <span className="font-semibold text-neutral-800">Política de privacidad:</span>
               <select
                 value={job ? job.policyId : "standard"}
                 disabled={!job}
@@ -860,7 +861,7 @@ export function App() {
                   if (job === null || !isPolicySelectableForJobKind(next, job.kind)) return;
                   session.updatePolicy(next);
                 }}
-                title={job ? undefined : "Create a job first"}
+                title={job ? undefined : "Cree primero un trabajo"}
                 className={`rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
               >
                 {(Object.keys(POLICY_LABELS) as PrivacyPolicyId[]).map((policyId) => (
@@ -875,7 +876,8 @@ export function App() {
               </select>
             </label>
             <p className="text-neutral-600">
-              Processing runs locally in your browser; job content stays on this device.
+              El procesamiento se ejecuta localmente en su navegador; el contenido del trabajo
+              permanece en este dispositivo.
             </p>
           </div>
         </div>
@@ -1019,11 +1021,13 @@ export function App() {
       </main>
 
       {/*
-       * Task-first hierarchy (UX-CLOSEOUT-01 outcome A): the active workspace
-       * renders before the persistent policy guidance, so four full policy
-       * cards never precede the user's task. All four POLICY-01 entries, the
-       * current-policy line and the patient-ID requirement stay discoverable
-       * here, derived from the same `buildPolicyGuidance` authorities.
+       * Task-first hierarchy (UX-CLOSEOUT-01 outcome A; CORA-84-01): the active
+       * workspace renders before the persistent policy guidance, and the
+       * detailed four-policy documentation is on demand behind the disclosure
+       * instead of four full policy cards permanently occupying the space below
+       * every operational workspace (HPD-03; issue #84 acceptance E). The
+       * current-policy line and the patient-ID qualification stay derived from
+       * the same `buildPolicyGuidance` authorities and never vanish.
        */}
       <PolicyGuidance job={job} />
     </div>
@@ -1031,19 +1035,27 @@ export function App() {
 }
 
 /**
- * Job-aware Privacy Policy guidance (issue #56, POLICY-01).
+ * Job-aware Privacy Policy guidance (issue #56, POLICY-01; #84 CORA-84-01/03).
  *
- * The workspace is discoverable BEFORE Review, in the existing shell. It shows
- * the current policy, whether it is available for the current job kind, and
- * concise guidance for all four accepted policies. Availability and the
- * patient-ID requirement are DERIVED through `buildPolicyGuidance` from the
- * same pure authorities the engine uses; this component never hard-codes a
- * second operator mapping or availability table.
+ * The workspace is discoverable BEFORE Review, in the existing shell. The
+ * current-policy information (selected policy and its derived availability, or
+ * the honest no-job note) stays PERMANENTLY visible; the detailed four-policy
+ * documentation (all POLICY-01 entries, per-policy availability and the
+ * patient-ID requirement) is on demand behind an expanded disclosure instead
+ * of permanently occupying the space below every operational workspace
+ * (HPD-03 quiet automation; issue #84 acceptance E: the guidance may be
+ * contextual/on-demand, never vanished). Availability and the patient-ID
+ * requirement remain DERIVED through `buildPolicyGuidance` from the same pure
+ * authorities the engine uses; this component never hard-codes a second
+ * operator mapping or availability table.
  *
- * The region is keyboard-focusable with the shared visible focus ring, and the
- * availability state is always conveyed as text (never by color alone).
+ * The region is keyboard-focusable with the shared visible focus ring, the
+ * disclosure is a real keyboard-operable button that exposes its state through
+ * `aria-expanded`, and the availability state is always conveyed as text
+ * (never by color alone).
  */
 function PolicyGuidance({ job }: { job: Job | null }) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const entries = buildPolicyGuidance(job ? job.kind : null);
   const currentEntry =
     job !== null ? entries.find((entry) => entry.policyId === job.policyId) : undefined;
@@ -1058,15 +1070,15 @@ function PolicyGuidance({ job }: { job: Job | null }) {
           id="privacy-policy-guidance-heading"
           className="font-display text-lg font-bold text-neutral-800"
         >
-          Privacy Policy
+          Política de privacidad
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-          Each policy maps detected information categories to privacy transformations. Availability
-          depends on the job type.
+          Cada política asigna las categorías de información detectadas a transformaciones de
+          privacidad. La disponibilidad depende del tipo de trabajo.
         </p>
         {job !== null && currentEntry ? (
           <p className="mt-2 text-sm text-neutral-800">
-            <span className="font-semibold">Current policy:</span> {POLICY_LABELS[job.policyId]} —{" "}
+            <span className="font-semibold">Política actual:</span> {POLICY_LABELS[job.policyId]} —{" "}
             <span>
               {currentEntry.availability === "available"
                 ? POLICY_AVAILABILITY_LABELS.available
@@ -1076,30 +1088,49 @@ function PolicyGuidance({ job }: { job: Job | null }) {
         ) : (
           <p className="mt-2 text-sm text-neutral-700">{NO_JOB_AVAILABILITY_NOTE}</p>
         )}
-        <ul aria-label="Privacy Policy guidance" className="mt-3 grid gap-3 sm:grid-cols-2">
-          {entries.map((entry) => (
-            <li key={entry.policyId} className="rounded-lg border border-primary/30 bg-white p-3">
-              <p className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-neutral-800">
-                  {POLICY_LABELS[entry.policyId]}
-                </span>
-                {entry.availability !== "unknown" && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
-                    {entry.availability === "available"
-                      ? POLICY_AVAILABILITY_LABELS.available
-                      : POLICY_AVAILABILITY_LABELS.unavailable}
+        {/* HPD-03 (CORA-84-01): the detailed documentation expands on demand
+            rather than competing continuously with the clinical task. A real
+            button keeps the disclosure keyboard operable, and `aria-expanded`
+            conveys the state to assistive technology. */}
+        <button
+          type="button"
+          aria-expanded={detailsExpanded}
+          aria-controls="privacy-policy-guidance-details"
+          onClick={() => setDetailsExpanded((expanded) => !expanded)}
+          className={`mt-3 rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+        >
+          Guía detallada de políticas
+        </button>
+        {detailsExpanded && (
+          <ul
+            id="privacy-policy-guidance-details"
+            aria-label="Guía de políticas de privacidad"
+            className="mt-3 grid gap-3 sm:grid-cols-2"
+          >
+            {entries.map((entry) => (
+              <li key={entry.policyId} className="rounded-lg border border-primary/30 bg-white p-3">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-neutral-800">
+                    {POLICY_LABELS[entry.policyId]}
                   </span>
-                )}
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-neutral-700">{entry.guidance}</p>
-              {entry.requiresPatientIdColumn && (
-                <p className="mt-1 text-sm font-semibold text-neutral-800">
-                  Requires an explicit patient-ID column.
+                  {entry.availability !== "unknown" && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
+                      {entry.availability === "available"
+                        ? POLICY_AVAILABILITY_LABELS.available
+                        : POLICY_AVAILABILITY_LABELS.unavailable}
+                    </span>
+                  )}
                 </p>
-              )}
-            </li>
-          ))}
-        </ul>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">{entry.guidance}</p>
+                {entry.requiresPatientIdColumn && (
+                  <p className="mt-1 text-sm font-semibold text-neutral-800">
+                    Requiere una columna explícita de identificador de paciente.
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );
@@ -1169,7 +1200,18 @@ function TaskActionBar(props: {
     }
     // D-024: for text/document the Result is directly reachable once the
     // export gate passes; for a batch the domain never allows review→export.
-    if (isStepAccessible(job, "export")) {
+    // CORA-84-02: `isStepAccessible` also returns true for any already-visited
+    // step (backward navigation), so after a REAL policy change invalidated the
+    // current review, a historic `export` visit would still advertise a
+    // «Ver resultado» action the current review does not authorize. The shell
+    // therefore offers the action only while the CURRENT export authorization
+    // holds — the exact D-004 fact the domain's own export gate reads
+    // (`review.complete`, public on Job; no new ad-hoc enable rule, no second
+    // mapping, Gate 2). The batch distinction is preserved untouched: accessing
+    // the batch Result is decoupled from artifact authorization (REC-07 #87),
+    // so the batch action keeps the plain `isStepAccessible` authority.
+    const batchResultAccessDecoupled = job.kind === "document-batch";
+    if (isStepAccessible(job, "export") && (batchResultAccessDecoupled || job.review.complete)) {
       actions.push(
         <button
           key="result"

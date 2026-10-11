@@ -31,6 +31,7 @@ import {
   createDocumentJob,
   createStructuredJob,
   createTextJob,
+  expandPolicyGuidance,
   guidanceItem,
   gotoReviewWithDetections,
   policyGuidanceList,
@@ -250,11 +251,13 @@ for (const width of [375, 1280]) {
   test(`POLICY-01 facts remain discoverable and job-aware at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
 
-    const region = page.getByRole("region", { name: "Privacy Policy" });
+    const region = page.getByRole("region", { name: "Política de privacidad" });
     const list = policyGuidanceList(page);
 
-    // No job: four entries and an honest no-availability note.
+    // No job: four entries and an honest no-availability note. The detailed
+    // cards are on demand behind the disclosure (CORA-84-01).
     await page.goto("/");
+    await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     await expect(region).toContainText(
       "Create a job to see which policies are available for its type."
@@ -262,28 +265,30 @@ for (const width of [375, 1280]) {
 
     // Text job: all four entries, all four available (REC-02), current policy.
     await createTextJob(page);
+    await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     for (const name of POLICY_NAMES) {
       await expect(guidanceItem(page, name)).toContainText("Available");
     }
-    await expect(region).toContainText("Current policy: Standard");
+    await expect(region).toContainText("Política actual: Standard");
 
     // Structured job: all four available and the patient-ID requirement is
     // job-aware (present exactly for the per-patient shift policies).
     await createStructuredJob(page, STRUCTURED_CSV);
+    await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     for (const name of POLICY_NAMES) {
       await expect(guidanceItem(page, name)).toContainText("Available");
     }
-    await expect(region).toContainText("Current policy: Standard");
+    await expect(region).toContainText("Política actual: Standard");
     await expect(guidanceItem(page, "External AI")).toContainText(
-      "Requires an explicit patient-ID column."
+      "Requiere una columna explícita de identificador de paciente."
     );
     await expect(guidanceItem(page, "Longitudinal Research")).toContainText(
-      "Requires an explicit patient-ID column."
+      "Requiere una columna explícita de identificador de paciente."
     );
     await expect(guidanceItem(page, "Standard")).not.toContainText(
-      "Requires an explicit patient-ID column."
+      "Requiere una columna explícita de identificador de paciente."
     );
     await expectNoMigrationCopy(page, `policy workspace @${width}px`);
   });

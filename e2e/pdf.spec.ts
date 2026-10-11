@@ -48,5 +48,5 @@ test("a scanned PDF without text layer fails explicitly and creates no job", asy
   await expect(alert).toContainText("escaneo");
 
   // Fail-closed: no silent empty success, no job fabricated.
-  await expect(page.getByRole("banner")).toContainText("No job yet");
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 });

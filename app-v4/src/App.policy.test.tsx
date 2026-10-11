@@ -14,7 +14,7 @@ import { App } from "./App";
  */
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic policy guidance tests.";
 const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
-const LOCAL_ONLY_FACT = /processing runs locally in your browser/i;
+const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
 const FORBIDDEN_CLAIM =
   /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy/i;
 
@@ -35,15 +35,26 @@ async function waitForReviewWorkspace(timeout = 10_000) {
 }
 
 function policySelect(): HTMLSelectElement {
-  return screen.getByLabelText("Privacy Policy:") as HTMLSelectElement;
+  return screen.getByLabelText("Política de privacidad:") as HTMLSelectElement;
 }
 
 function guidanceRegion(): HTMLElement {
-  return screen.getByRole("region", { name: "Privacy Policy" });
+  return screen.getByRole("region", { name: "Política de privacidad" });
+}
+
+/**
+ * CORA-84-01: the detailed four-policy guidance is on demand behind the
+ * disclosure. Idempotently expand it (the toggle's accessible name is stable
+ * across states) before reading the per-policy cards.
+ */
+function expandGuidanceDetails() {
+  const toggle = screen.getByRole("button", { name: "Guía detallada de políticas" });
+  if (toggle.getAttribute("aria-expanded") === "false") fireEvent.click(toggle);
 }
 
 function guidanceItems(): HTMLElement[] {
-  return within(screen.getByRole("list", { name: "Privacy Policy guidance" })).getAllByRole(
+  expandGuidanceDetails();
+  return within(screen.getByRole("list", { name: "Guía de políticas de privacidad" })).getAllByRole(
     "listitem"
   );
 }
@@ -51,10 +62,16 @@ function guidanceItems(): HTMLElement[] {
 describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
   it("shows all four guidance entries with an honest note instead of a job-kind availability", () => {
     render(<App />);
-    expect(guidanceItems()).toHaveLength(4);
+    // CORA-84-01: the detailed four-policy cards are on demand, collapsed by
+    // default below the operational workspace; the honest no-availability
+    // note stays permanently visible while collapsed.
+    expect(
+      screen.queryByRole("list", { name: "Guía de políticas de privacidad" })
+    ).not.toBeInTheDocument();
     expect(guidanceRegion()).toHaveTextContent(
       /create a job to see which policies are available for its type/i
     );
+    expect(guidanceItems()).toHaveLength(4);
     // No job kind exists yet, so neither availability state is claimed.
     expect(within(guidanceRegion()).queryByText("Available")).not.toBeInTheDocument();
     expect(
@@ -91,7 +108,7 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
     expect(externalAi).toHaveTextContent("External AI");
     expect(longitudinal).toHaveTextContent("Longitudinal Research");
 
-    expect(guidanceRegion()).toHaveTextContent("Current policy: Standard");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
   });
 
   it("selects newly enabled policies through the text-job UI (REC-02)", () => {
@@ -101,11 +118,11 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
 
     fireEvent.change(select, { target: { value: "external-ai" } });
     expect(select.value).toBe("external-ai");
-    expect(guidanceRegion()).toHaveTextContent("Current policy: External AI");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: External AI");
 
     fireEvent.change(select, { target: { value: "longitudinal-research" } });
     expect(select.value).toBe("longitudinal-research");
-    expect(guidanceRegion()).toHaveTextContent("Current policy: Longitudinal Research");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Longitudinal Research");
   });
 
   it("applies the same availability to a document job", async () => {
@@ -221,23 +238,57 @@ describe("Policy guidance on structured jobs (POLICY-01 #56)", () => {
     // Standard/Strict: month-level generalization for visit/event and birth dates.
     expect(standard).toHaveTextContent(/month level/i);
     expect(strict).toHaveTextContent(/month level/i);
-    expect(standard).not.toHaveTextContent("Requires an explicit patient-ID column.");
-    expect(strict).not.toHaveTextContent("Requires an explicit patient-ID column.");
+    expect(standard).not.toHaveTextContent(
+      "Requiere una columna explícita de identificador de paciente."
+    );
+    expect(strict).not.toHaveTextContent(
+      "Requiere una columna explícita de identificador de paciente."
+    );
 
     // External AI / Longitudinal Research: per-patient shift + age bands, and
     // therefore an explicit patient-ID column requirement.
     expect(externalAi).toHaveTextContent(/per-patient offset/i);
     expect(externalAi).toHaveTextContent(/age bands at the event/i);
-    expect(externalAi).toHaveTextContent("Requires an explicit patient-ID column.");
+    expect(externalAi).toHaveTextContent(
+      "Requiere una columna explícita de identificador de paciente."
+    );
     expect(longitudinal).toHaveTextContent(/per-patient visit-date shift/i);
     expect(longitudinal).toHaveTextContent(/age-band birth dates/i);
-    expect(longitudinal).toHaveTextContent("Requires an explicit patient-ID column.");
+    expect(longitudinal).toHaveTextContent(
+      "Requiere una columna explícita de identificador de paciente."
+    );
 
-    expect(guidanceRegion()).toHaveTextContent("Current policy: Standard");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
   });
 });
 
 describe("Policy guidance accessibility (POLICY-01 #56)", () => {
+  it("offers the detailed four-policy guidance on demand behind a keyboard-operable disclosure (CORA-84-01)", () => {
+    render(<App />);
+    createTextJob();
+
+    // Collapsed by default: no full policy cards permanently below the
+    // operational workspace (HPD-03; issue #84 acceptance E).
+    const list = () => screen.queryByRole("list", { name: "Guía de políticas de privacidad" });
+    expect(list()).not.toBeInTheDocument();
+    // The current-policy information stays permanently visible while collapsed.
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
+
+    const toggle = screen.getByRole("button", { name: "Guía detallada de políticas" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    // A real button: keyboard operable by construction. Expanding exposes
+    // every POLICY-01 entry derived from the same `buildPolicyGuidance` seam.
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(guidanceItems()).toHaveLength(4);
+
+    // Collapsing again removes the detailed cards from the persistent shell
+    // while the current-policy line survives.
+    fireEvent.click(screen.getByRole("button", { name: "Guía detallada de políticas" }));
+    expect(list()).not.toBeInTheDocument();
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
+  });
+
   it("keeps the policy select and the guidance region keyboard-focusable with visible focus", () => {
     render(<App />);
     createTextJob();
@@ -263,7 +314,8 @@ describe("Policy guidance accessibility (POLICY-01 #56)", () => {
 describe("Policy guidance responsive layout (POLICY-01 #56)", () => {
   it("renders the guidance list with the responsive grid tokens (stacked on narrow screens)", () => {
     render(<App />);
-    const list = screen.getByRole("list", { name: "Privacy Policy guidance" });
+    expandGuidanceDetails();
+    const list = screen.getByRole("list", { name: "Guía de políticas de privacidad" });
     expect(list).toHaveClass("sm:grid-cols-2");
   });
 });
@@ -272,6 +324,9 @@ describe("Policy guidance copy guardrails (POLICY-01 #56)", () => {
   it("never states anonymity/certification/compliance claims on a text job and keeps the local-only fact", () => {
     render(<App />);
     createTextJob();
+    // The guardrail covers the whole guidance workspace: the on-demand cards
+    // are expanded so the claim ban keeps its full strength (CORA-84-01).
+    expandGuidanceDetails();
     expect(guidanceRegion().textContent ?? "").not.toMatch(FORBIDDEN_CLAIM);
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();
   });
@@ -285,6 +340,8 @@ describe("Policy guidance copy guardrails (POLICY-01 #56)", () => {
     // NAME is the persistent header fact.
     await waitFor(() => expect(screen.getByText("labs.csv")).toBeInTheDocument());
 
+    // Expanded so the claim ban covers the on-demand cards too (CORA-84-01).
+    expandGuidanceDetails();
     expect(guidanceRegion().textContent ?? "").not.toMatch(FORBIDDEN_CLAIM);
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();
   });

@@ -201,7 +201,7 @@ test("switching policy drops the free-text review and closes the gate (no stale 
 
   // A real policy change invalidates the sessions processed under the
   // previous policy: Review returns to the unprocessed state.
-  await page.getByLabel("Privacy Policy:").selectOption("external-ai");
+  await page.getByLabel("Política de privacidad:").selectOption("external-ai");
   await expect(page.getByRole("status")).toContainText("not been processed yet");
   await expect(page.getByRole("button", { name: "Process free-text cells" })).toBeVisible();
 

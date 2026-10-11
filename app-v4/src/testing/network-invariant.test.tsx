@@ -106,18 +106,18 @@ describe("network invariant monitor", () => {
       expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Session reset via New Job returns to a fresh Input.
-      fireEvent.click(screen.getByRole("button", { name: "New Job" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      // Session reset via Nuevo trabajo returns to a fresh Input.
+      fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
       createTextJob();
       await waitForReviewWorkspace();
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Session reset via Clear session discards all in-memory state.
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      // Session reset via Borrar sesión discards all in-memory state.
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
     } finally {
@@ -174,8 +174,8 @@ describe("network invariant monitor", () => {
       await waitForReviewWorkspace();
       fireEvent.click(taskButton("Privacy Gate"));
       fireEvent.click(taskButton("Volver a la revisión"));
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
 
       expect(monitor.attempts()).toEqual([]);
       for (const spy of storageSpies) {
@@ -245,8 +245,8 @@ describe("network invariant monitor", () => {
       expect(screen.queryByRole("button", { name: "Ir al resultado" })).not.toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
 
       expect(monitor.attempts()).toEqual([]);
       for (const spy of storageSpies) {

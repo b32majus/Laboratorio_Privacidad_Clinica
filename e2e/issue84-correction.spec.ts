@@ -35,7 +35,7 @@ for (const [width, height] of [
 
     // REAL policy change from the Result: the session-dependent authorization
     // is invalidated; the stale Result and every download affordance vanish.
-    await page.getByLabel("Privacy Policy:").selectOption("strict");
+    await page.getByLabel("Política de privacidad:").selectOption("strict");
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Descargar/ })).toHaveCount(0);
 
@@ -56,5 +56,10 @@ for (const [width, height] of [
     await expect(page.getByRole("status", { name: "Review progress" })).toContainText(
       /Pending: [1-9]/
     );
+
+    // CORA-84-02: the visited Result is backward-navigation history, not a
+    // currently valid action — with mandatory pending decisions the Review
+    // surface offers no premature «Ver resultado» CTA.
+    await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
   });
 }
