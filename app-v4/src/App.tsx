@@ -14,7 +14,6 @@ import type { ChangeEvent, ReactElement } from "react";
 import { flushSync } from "react-dom";
 
 import {
-  FLOW_STEPS,
   type BatchItemReadOutcome,
   type FlowStep,
   type Job,
@@ -25,6 +24,7 @@ import {
   type JobSourceFile,
   type PrivacyPolicyId,
   batchFailedItems,
+  inferJobKind,
   isDocumentExtension,
   isStepAccessible,
   isStructuredExtension,
@@ -233,6 +233,9 @@ export function App() {
   const jobIdRef = useRef<string | null>(null);
   jobIdRef.current = job ? job.id : null;
 
+  /** Stable alias of the bridge's canonical navigation entry. */
+  const navigate = session.navigate;
+
   const resetDraft = () => {
     setDraftText("");
     setDraftFiles([]);
@@ -254,14 +257,40 @@ export function App() {
   const handleCreateJob = (input: JobInput, refusalContext?: { readonly fileName?: string }) => {
     try {
       session.create(input);
-      resetDraft();
     } catch (error) {
       setInputError(
         error instanceof JobModelError
           ? { kind: "refusal", refusal: { code: error.code, fileName: refusalContext?.fileName } }
           : { kind: "text", message: "La entrada no se pudo usar para crear un trabajo." }
       );
+      return false;
     }
+    resetDraft();
+    landCreatedJob(input);
+    return true;
+  };
+
+  /**
+   * Quiet-shell landing (issue #84, D-023 as PRODUCT STRUCTURE only). Called
+   * SYNCHRONOUSLY with the creation write, from the single creation authority:
+   * a newly created Job advances straight to its first REAL task surface using
+   * the canonical domain transitions and nothing else — the structured
+   * Configure workspace for structured work, Review for text/document/batch
+   * work. The unstructured Configure stop has no task (G-HP2), so it is never
+   * rendered; both moves are the domain's immediate-next steps and cannot
+   * throw. Landing here (not in a passive effect) keeps the landing in the
+   * SAME state write as the creation, so the async batch read loop's own
+   * snapshot-based state writes can never clobber it, and no URL state is
+   * introduced. Job classification is the domain's own `inferJobKind` — never
+   * a second routing authority.
+   */
+  const landCreatedJob = (input: JobInput) => {
+    if (inferJobKind(input) === "structured") {
+      navigate("configure");
+      return;
+    }
+    navigate("configure");
+    navigate("review");
   };
 
   const metadataFiles = (): JobSourceFile[] =>
@@ -336,17 +365,10 @@ export function App() {
         extension: extensionOf(file.name),
       }));
       const previousJobId = jobIdRef.current;
-      try {
-        session.create({ type: "files", files: metadata });
-      } catch (error) {
-        setInputError(
-          error instanceof JobModelError
-            ? { kind: "refusal", refusal: { code: error.code } }
-            : { kind: "text", message: "La entrada no se pudo usar para crear un trabajo." }
-        );
-        return;
-      }
-      resetDraft();
+      // The shared creation authority performs the quiet-shell landing (#84)
+      // in the same state write as the creation, so the flushSync read-phase
+      // transitions below build on committed state that already includes it.
+      if (!handleCreateJob({ type: "files", files: metadata })) return;
       const jobId = await waitForNewJobId(previousJobId);
       if (jobId === null) return;
 
@@ -390,8 +412,8 @@ export function App() {
         setInputError({ kind: "refusal", refusal: { code: result.error.code } });
         return;
       }
-      session.create({ type: "pasted-text", text: result.text });
-      resetDraft();
+      // The shared creation authority performs the quiet-shell landing (#84).
+      handleCreateJob({ type: "pasted-text", text: result.text });
       return;
     }
     if (draftFiles.length === 0) {
@@ -734,6 +756,43 @@ export function App() {
     });
   }, [currentStep, job, batchSessions, isExtracting, startReview]);
 
+  /**
+   * Quiet-shell review start (issue #84): landing a text/document Job on
+   * Review starts the ONE local processing attempt for that Job — the same
+   * T15/T22 contract the former Configure→Review transition had (once-only
+   * per Job, typed failure surfaced, app stays on Review). The ref keys the
+   * attempt on the Job id: a later invalidation (a REAL policy change resets
+   * the derived review state) never auto-re-runs the engine; the shell then
+   * shows the factual pending state and the explicit "Iniciar revisión"
+   * action instead. Batches are excluded: the reads-settle effect above owns
+   * their one-shot attempt.
+   */
+  const reviewStartAttemptedRef = useRef<string | null>(null);
+  const [reviewStartInFlight, setReviewStartInFlight] = useState(false);
+  useEffect(() => {
+    if (currentStep !== "review" || job === null) return;
+    if (job.kind === "document-batch") return;
+    if (review !== null || reviewStartInFlight) return;
+    if (!jobSupportsReview(job)) return;
+    if (reviewStartAttemptedRef.current === job.id) return;
+    reviewStartAttemptedRef.current = job.id;
+    setReviewStartInFlight(true);
+    void startReview().then((failure) => {
+      setReviewStartInFlight(false);
+      if (failure) setReviewError(failure.message);
+    });
+  }, [currentStep, job, review, reviewStartInFlight, startReview]);
+
+  /**
+   * Explicit review (re)start from the shell's task actions: the same
+   * handleGoToStep("review") authority the navigation used before, wrapped so
+   * the transient in-flight fact can suppress a duplicate affordance.
+   */
+  const handleStartReview = () => {
+    setReviewStartInFlight(true);
+    void handleGoToStep("review").finally(() => setReviewStartInFlight(false));
+  };
+
   return (
     <div className="min-h-screen bg-background-light font-sans text-neutral-800">
       <a
@@ -821,8 +880,6 @@ export function App() {
         </div>
       </header>
 
-      <StepNavigation job={job} currentStep={currentStep} onGoToStep={handleGoToStep} />
-
       <main id="main-content" className="mx-auto max-w-5xl px-4 py-8">
         {currentStep === "input" ? (
           <InputStep
@@ -859,14 +916,13 @@ export function App() {
             }
             outputOptions={structuredOutputOptions}
           />
-        ) : currentStep === "configure" && job ? (
-          <UnstructuredConfigureState job={job} reviewError={reviewError} />
         ) : currentStep === "review" && isBatch && job ? (
           <BatchReviewView
             job={job}
             sessions={batchSessions}
             activeIndex={batchActiveIndex}
             errorMessage={reviewError}
+            readProgress={batchRead}
             retryContextAvailable={batchRetryContextAvailable}
             onSelectDocument={session.selectDocument}
             onDecide={session.decide}
@@ -914,6 +970,12 @@ export function App() {
               onGoToStep={handleGoToStep}
             />
           )
+        ) : currentStep === "review" && job ? (
+          <ReviewPendingState
+            job={job}
+            reviewError={reviewError}
+            reviewStartInFlight={reviewStartInFlight}
+          />
         ) : currentStep === "privacy-gate" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
@@ -937,6 +999,21 @@ export function App() {
         ) : (
           <StepUnavailableState step={currentStep} reviewError={reviewError} />
         )}
+
+        {/*
+         * Quiet shell (issue #84): the contextual next actions replace the
+         * former universal five-step pipeline. Every action is enabled only
+         * through the existing domain authorities (isStepAccessible/goToStep),
+         * so the visible navigation can never widen or narrow the supported
+         * states (PRODUCT_FIDELITY_GATES_V1 Gate 2).
+         */}
+        <TaskActionBar
+          job={job}
+          reviewActive={review !== null}
+          reviewStartInFlight={reviewStartInFlight}
+          onStartReview={handleStartReview}
+          onGoToStep={handleGoToStep}
+        />
       </main>
 
       {/*
@@ -1026,46 +1103,229 @@ function PolicyGuidance({ job }: { job: Job | null }) {
   );
 }
 
-function StepNavigation(props: {
+/**
+ * Quiet-shell contextual task actions (issue #84, acceptance A/C/D/G).
+ *
+ * Replaces the universal visible five-step pipeline navigation: there is no
+ * destination that exists merely to expose Input/Configure/Review/Privacy
+ * Gate/Export internals. Each action is a real next task, and it is offered
+ * ONLY when the existing domain authority (`isStepAccessible`, which reads
+ * `visitedSteps`, the canonical order and the D-024/D-004 gates) already
+ * allows the transition, so the visible shell can never widen or narrow the
+ * supported states. All copy is professional Spanish and task-prominent.
+ */
+function TaskActionBar(props: {
   job: Job | null;
-  currentStep: FlowStep;
+  /** Whether the single-item review session currently exists (T15 authority). */
+  reviewActive: boolean;
+  reviewStartInFlight: boolean;
+  onStartReview: () => void;
   onGoToStep: (step: FlowStep) => void;
-}) {
-  const { job, currentStep, onGoToStep } = props;
+}): ReactElement | null {
+  const { job, reviewActive, reviewStartInFlight, onStartReview, onGoToStep } = props;
+  if (job === null) return null;
+  const step = job.currentStep;
+  const primaryAction = `rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
+  const secondaryAction = `rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
+  const actions: ReactElement[] = [];
+
+  if (step === "review") {
+    // The explicit review (re)start: offered only while no session exists and
+    // no attempt is running (a failed or policy-invalidated attempt). Batches
+    // and structured work never auto-start here (their own surfaces own the
+    // attempt), so the restart action only exists for text/document jobs.
+    if (
+      job.kind !== "structured" &&
+      !reviewActive &&
+      !reviewStartInFlight &&
+      job.processing !== "running" &&
+      jobSupportsReview(job)
+    ) {
+      actions.push(
+        <button key="start-review" type="button" onClick={onStartReview} className={primaryAction}>
+          Iniciar revisión
+        </button>
+      );
+    }
+    // D-024: for text/document the Result is directly reachable once the
+    // export gate passes; for a batch the domain never allows review→export.
+    if (isStepAccessible(job, "export")) {
+      actions.push(
+        <button
+          key="result"
+          type="button"
+          onClick={() => onGoToStep("export")}
+          className={primaryAction}
+        >
+          Ver resultado
+        </button>
+      );
+    }
+    // The Privacy Gate stays an optional, visitable destination from Review
+    // for EVERY kind — including a structured job whose export gate is still
+    // closed (the gate reports the factual blockers; G-HP2: never hidden,
+    // deleted or disabled — D-023/D-024).
+    if (isStepAccessible(job, "privacy-gate")) {
+      actions.push(
+        <button
+          key="gate"
+          type="button"
+          onClick={() => onGoToStep("privacy-gate")}
+          className={secondaryAction}
+        >
+          Privacy Gate
+        </button>
+      );
+    }
+  }
+
+  if (step === "privacy-gate") {
+    // Forward: the Result affordance stays VISIBLE and fail-closed — disabled
+    // exactly when the domain's export gate does not pass (D-004 for
+    // text/document/structured; the batch Result is decoupled from artifact
+    // authorization per REC-07 #87). The old pipeline always showed the
+    // destination; the quiet shell keeps this one because its disabled state
+    // is the factual "what is still missing" signal at the gate.
+    actions.push(
+      <button
+        key="result"
+        type="button"
+        onClick={() => onGoToStep("export")}
+        disabled={!isStepAccessible(job, "export")}
+        className={primaryAction}
+      >
+        Ir al resultado
+      </button>
+    );
+    if (job.visitedSteps.includes("review")) {
+      actions.push(
+        <button
+          key="back-to-review"
+          type="button"
+          onClick={() => onGoToStep("review")}
+          className={secondaryAction}
+        >
+          Volver a la revisión
+        </button>
+      );
+    }
+  }
+
+  if (step === "export") {
+    // The optional Privacy Gate stays reachable from the Result (the former
+    // pipeline allowed the gate round-trip; G-HP2: never hidden or deleted).
+    if (isStepAccessible(job, "privacy-gate")) {
+      actions.push(
+        <button
+          key="gate"
+          type="button"
+          onClick={() => onGoToStep("privacy-gate")}
+          className={secondaryAction}
+        >
+          Privacy Gate
+        </button>
+      );
+    }
+    // The structured Result has no in-workspace return control (the batch and
+    // single-item Results render their own), so the shell supplies the return
+    // action without duplicating an accessible name.
+    if (job.kind === "structured") {
+      actions.push(
+        <button
+          key="back-to-review"
+          type="button"
+          onClick={() => onGoToStep("review")}
+          className={secondaryAction}
+        >
+          Volver a la revisión
+        </button>
+      );
+    }
+  }
+
+  if (step === "configure" && job.kind === "structured" && isStepAccessible(job, "review")) {
+    // Structured Configure is real column work; Review (free-text routing or
+    // the #85-owned notice) is its onward destination. #85 owns that surface.
+    actions.push(
+      <button
+        key="to-review"
+        type="button"
+        onClick={() => onGoToStep("review")}
+        className={primaryAction}
+      >
+        Continuar a la revisión
+      </button>
+    );
+  }
+
+  if (actions.length === 0) return null;
   return (
-    <nav aria-label="Job steps" className="border-b border-primary bg-surface-light">
-      <ol className="mx-auto flex max-w-5xl flex-wrap gap-2 px-4 py-3">
-        {FLOW_STEPS.map((step, index) => {
-          const enabled = job ? isStepAccessible(job, step) : step === "input";
-          const isCurrent = step === currentStep;
-          const title = !enabled
-            ? step === "export"
-              ? "Export is blocked while mandatory review is incomplete."
-              : "Complete the previous steps first."
-            : undefined;
-          return (
-            <li key={step}>
-              <button
-                type="button"
-                onClick={() => onGoToStep(step)}
-                disabled={!enabled}
-                aria-current={isCurrent ? "step" : undefined}
-                title={title}
-                className={`rounded border px-3 py-1.5 text-sm font-semibold ${
-                  isCurrent
-                    ? "border-primary-dark bg-primary-dark text-white"
-                    : enabled
-                      ? "border-primary bg-white text-primary-dark hover:bg-surface-light"
-                      : "cursor-not-allowed border-neutral-300 bg-white text-neutral-400"
-                } ${focusRing}`}
-              >
-                {index + 1}. {STEP_LABELS[step]}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
+    <div
+      aria-label="Siguientes acciones"
+      className="mt-8 flex flex-wrap items-center gap-2 border-t border-primary/30 pt-4"
+    >
+      {actions}
+    </div>
+  );
+}
+
+/**
+ * Factual pending-review state for a text/document Job that is positioned at
+ * Review without a review session: while the one local processing attempt is
+ * running, after a typed failure, or after a REAL policy change invalidated
+ * the previous session (issue #84 acceptance B: pending work, local
+ * processing error and the next action are factual and visible; the engine is
+ * never silently re-run — the explicit restart is offered by the task bar).
+ */
+function ReviewPendingState(props: {
+  job: Job;
+  reviewError: string | null;
+  reviewStartInFlight: boolean;
+}): ReactElement {
+  const { job, reviewError, reviewStartInFlight } = props;
+  const processing = job.processing;
+  return (
+    <section aria-labelledby="review-step-heading">
+      <h2
+        id="review-step-heading"
+        className="font-display text-3xl font-bold tracking-tight text-primary-dark"
+      >
+        Revisión
+      </h2>
+      {processing === "running" || reviewStartInFlight ? (
+        <p
+          role="status"
+          className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          Procesando el contenido localmente en este navegador…
+        </p>
+      ) : processing === "failed" || processing === "unknown" ? (
+        <>
+          {reviewError !== null && (
+            <p
+              role="alert"
+              className="mt-3 max-w-2xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+            >
+              {reviewError}
+            </p>
+          )}
+          <p
+            role="status"
+            className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+          >
+            El procesamiento local no se pudo completar. Puede iniciarlo de nuevo.
+          </p>
+        </>
+      ) : (
+        <p
+          role="status"
+          className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          La revisión local todavía no se ha ejecutado para este trabajo bajo la política actual.
+          Iníciela cuando esté listo.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -1478,46 +1738,6 @@ function InputStep(props: {
 }
 
 /**
- * Honest "no additional configuration" Configure state for the job kinds whose
- * accepted pipeline has no configuration phase (text, document, document
- * batch). It replaces the former migration placeholder (UX-CLOSEOUT-01 outcome
- * B) and is phrased only from existing Job/policy facts, pointing at the next
- * canonical Review action without changing any step-access rule.
- */
-function UnstructuredConfigureState({
-  job,
-  reviewError = null,
-}: {
-  job: Job;
-  reviewError?: string | null;
-}): ReactElement {
-  return (
-    <section aria-labelledby="configure-step-heading">
-      <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Configure
-      </h2>
-      {reviewError && (
-        <p
-          role="alert"
-          className={`mt-3 max-w-2xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
-        >
-          {reviewError}
-        </p>
-      )}
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        No additional configuration is required for a {KIND_LABELS[job.kind].toLowerCase()}. The
-        selected policy ({POLICY_LABELS[job.policyId]}) is applied when Review runs; this job type
-        has no per-column or per-field configuration step.
-      </p>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-700">
-        Continue to Review with the step navigation above. Review shows every detected identifier
-        and requires an explicit decision before the Privacy Gate and Export become available.
-      </p>
-    </section>
-  );
-}
-
-/**
  * Honest structured Review state (UX-CLOSEOUT-01 outcome B) for jobs WITHOUT
  * free-text routing. Structured human review already happens in Configure
  * (column classification, the single patient-ID authority and explicit date
@@ -1650,8 +1870,8 @@ function StepUnavailableState({
         </p>
       )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        This step is not available for the current job state. Use the step navigation above to
-        continue from an available step.
+        This step is not available for the current job state. Return to an available step with the
+        task actions or the session controls above.
       </p>
     </section>
   );

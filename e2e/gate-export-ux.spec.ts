@@ -69,7 +69,10 @@ async function gatePairs(page: Page): Promise<MeasuredPair[]> {
     },
     {
       label: "Kept-original warning item",
-      locator: page.getByRole("list", { name: "Kept-original warnings" }).getByRole("listitem").first(),
+      locator: page
+        .getByRole("list", { name: "Kept-original warnings" })
+        .getByRole("listitem")
+        .first(),
     },
   ];
 }
@@ -116,17 +119,17 @@ for (const width of [375, 768, 1280]) {
     await gotoReviewWithDetections(page);
 
     // Pending Gate (action-required state with alert + checkpoint).
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate" }).click();
     await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `pending Gate @${width}px`);
 
     // Completed Review → completed Gate + Export.
-    await page.getByRole("button", { name: "3. Review" }).click();
+    await page.getByRole("button", { name: "Volver a la revisión" }).click();
     await completeReview(page);
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate" }).click();
     await assertNoHorizontalOverflow(page, `completed Gate @${width}px`);
 
-    await page.getByRole("button", { name: "5. Export" }).click();
+    await page.getByRole("button", { name: "Ir al resultado" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `Export @${width}px`);
   });
@@ -163,7 +166,11 @@ test("Gate and Export primary controls are keyboard reachable with visible focus
     throw new Error(`could not reach keyboard target ${matcher} within 60 tabs`);
   };
 
-  const hasVisibleFocus = (info: { outlineStyle: string; outlineWidth: string; boxShadow: string }) =>
+  const hasVisibleFocus = (info: {
+    outlineStyle: string;
+    outlineWidth: string;
+    boxShadow: string;
+  }) =>
     (info.outlineStyle !== "none" && parseFloat(info.outlineWidth) > 0) ||
     (info.boxShadow !== "none" && info.boxShadow !== "");
 
@@ -171,12 +178,18 @@ test("Gate and Export primary controls are keyboard reachable with visible focus
   await page.locator("body").click({ position: { x: 2, y: 2 } });
 
   const safeFocus = await tabTo(/Copiar texto preparado/);
-  expect(hasVisibleFocus(safeFocus), `no visible focus on Result primary button: ${JSON.stringify(safeFocus)}`).toBe(true);
+  expect(
+    hasVisibleFocus(safeFocus),
+    `no visible focus on Result primary button: ${JSON.stringify(safeFocus)}`
+  ).toBe(true);
 
   // Keyboard activation of a real download control produces the artifact
   // (proves the control is operable, not decorative).
   const txtFocus = await tabTo(/Descargar como TXT \(\.txt\)/);
-  expect(hasVisibleFocus(txtFocus), `no visible focus on Safe TXT button: ${JSON.stringify(txtFocus)}`).toBe(true);
+  expect(
+    hasVisibleFocus(txtFocus),
+    `no visible focus on Safe TXT button: ${JSON.stringify(txtFocus)}`
+  ).toBe(true);
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.keyboard.press("Enter"),
@@ -184,7 +197,10 @@ test("Gate and Export primary controls are keyboard reachable with visible focus
   expect(download.suggestedFilename()).toBe("texto-preparado.txt");
 
   const auditFocus = await tabTo(/Descargar auditoría confidencial \(\.txt\)/);
-  expect(hasVisibleFocus(auditFocus), `no visible focus on Confidential Audit button: ${JSON.stringify(auditFocus)}`).toBe(true);
+  expect(
+    hasVisibleFocus(auditFocus),
+    `no visible focus on Confidential Audit button: ${JSON.stringify(auditFocus)}`
+  ).toBe(true);
 });
 
 test("changed normal-text pairs meet WCAG AA against the rendered composited background", async ({
@@ -197,15 +213,15 @@ test("changed normal-text pairs meet WCAG AA against the rendered composited bac
   // Pending Gate first: the action-required checkpoint and the blocked-reason
   // alert share the exact styling used by the Export blocked reasons.
   await gotoReviewWithDetections(page);
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
   await expect(page.getByRole("alert")).toBeVisible();
   measured.push(await expectContrast(page.getByRole("alert"), "Gate pending blocked reason"));
 
   // Completed Gate: checkpoint + availability + a kept-original attention fact.
-  await page.getByRole("button", { name: "3. Review" }).click();
+  await page.getByRole("button", { name: "Volver a la revisión" }).click();
   await completeReview(page);
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
   await expect(page.getByRole("list", { name: "Kept-original warnings" })).toBeVisible();
   for (const pair of await gatePairs(page)) {
@@ -213,7 +229,7 @@ test("changed normal-text pairs meet WCAG AA against the rendered composited bac
   }
 
   // Export: both artifact zones, including the dark confidential band and the buttons.
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
   await expect(page.getByRole("button", { name: "Copiar texto preparado" })).toBeEnabled();
   for (const pair of await exportPairs(page)) {
     measured.push(await expectContrast(pair.locator, `Export ${pair.label}`));
@@ -230,7 +246,13 @@ test("the contrast helper is falsifiable: planted violation, large text, alpha c
 
   // Inject known pairs and measure them with the SAME function the suite uses.
   await page.evaluate(() => {
-    const make = (id: string, text: string, color: string, background: string, fontSize: string) => {
+    const make = (
+      id: string,
+      text: string,
+      color: string,
+      background: string,
+      fontSize: string
+    ) => {
       const element = document.createElement("div");
       element.id = id;
       element.textContent = text;
@@ -274,13 +296,10 @@ test("a pending, failure-free batch Gate never asserts a factual error item", as
   // UX-CLOSEOUT-01 outcome C (audit #62 F3): two items pending, zero failed.
   await page.setViewportSize({ width: 1280, height: 900 });
   await createBatchJob(page, BATCH_DOCS);
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
-  // Wait for the batch review to install its sessions: the async start writes
-  // the job back to the Review step, so navigating to the Gate before it
-  // settles would be undone.
+  // Quiet shell (#84): the batch queue lands directly on Review. Wait for the
+  // batch review to install its sessions before navigating to the Gate.
   await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending:");
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
 
   await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 0");
 

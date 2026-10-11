@@ -76,8 +76,9 @@ async function createPolicyTextJob(
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(POLICY_TEXT_FIXTURE);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await page.getByLabel("Privacy Policy:").selectOption(policyId);
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
+  // Quiet shell (#84): a REAL policy change invalidates the auto-started
+  // session, so processing under the selected policy is an explicit restart.
+  await page.getByRole("button", { name: "Iniciar revisión" }).click();
   await expect(
     page.getByRole("list", { name: "Detections" }).getByRole("button").first()
   ).toBeVisible();
@@ -129,8 +130,8 @@ test("text job: External AI is selected and processes with reduced date precisio
 
   await completeAllPending(page);
   // The completed review opens the output gate: Privacy Gate then Export.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  await expect(page.getByRole("button", { name: "5. Export" })).toBeEnabled();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeEnabled();
 });
 
 test("text job: Longitudinal Research is selected and processes with a consistent date shift (REC-02)", async ({
@@ -150,8 +151,8 @@ test("text job: Longitudinal Research is selected and processes with a consisten
 
   await completeAllPending(page);
   // The completed review opens the output gate: Privacy Gate then Export.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  await expect(page.getByRole("button", { name: "5. Export" })).toBeEnabled();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeEnabled();
 });
 
 test("changed policy guidance normal text meets WCAG AA against the rendered composited background", async ({

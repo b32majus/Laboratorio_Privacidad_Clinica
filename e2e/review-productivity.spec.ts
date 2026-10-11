@@ -10,8 +10,6 @@ for (const width of [375, 1280]) {
     await page.goto("/");
     await page.getByRole("textbox", { name: "Pegar texto" }).fill(buildHighVolumeText());
     await page.getByRole("button", { name: "Crear trabajo" }).click();
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await page.getByRole("button", { name: "3. Review" }).click();
 
     const inspector = page.getByRole("complementary", { name: "Entity inspector" });
     const decision = inspector.locator('dt:text-is("Decisión actual") + dd');
@@ -118,8 +116,6 @@ for (const width of [375, 1280]) {
       .getByRole("textbox", { name: "Pegar texto" })
       .fill("La paciente acudió ayer. Fisioterapeuta Nélida Otxoa realizó la sesión.");
     await page.getByRole("button", { name: "Crear trabajo" }).click();
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await page.getByRole("button", { name: "3. Review" }).click();
     await expect(progress).toContainText("Low confidence: 1");
     await expect(decision).toHaveText("Pendiente");
     await expect(accept).toBeInViewport();

@@ -153,13 +153,12 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles(xlsx);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
+  // Quiet shell (#84): the structured job lands in its real Configure workspace.
   await expect(page.locator("header")).toContainText("Structured job");
 
-  // No new step/mode appears: exactly the five canonical steps.
-  await expect(page.getByRole("navigation", { name: "Job steps" }).getByRole("button")).toHaveCount(
-    5
-  );
+  // No new step/mode appears: the quiet shell (#84) has no universal
+  // navigation and offers exactly the canonical onward task action.
+  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(1);
 
   // Explicit multi-sheet selection first: never the silent first sheet.
   await expect(page.getByRole("heading", { name: "Select a worksheet" })).toBeVisible();
@@ -217,7 +216,7 @@ async function decideActiveCell(page: Page): Promise<void> {
 }
 
 async function reviewComposedFreeText(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "3. Review" }).click();
+  await page.getByRole("button", { name: "Continuar a la revisión" }).click();
   await page.getByRole("button", { name: "Process free-text cells" }).click();
   const progress = page.getByRole("status", { name: "Free-text review progress" });
   await expect(progress).toContainText("Cells: 2");
@@ -230,7 +229,7 @@ async function reviewComposedFreeText(page: Page): Promise<void> {
 }
 
 async function openComposedGate(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
   const gateFacts = page.getByRole("status", { name: "Structured export facts" });
   await expect(gateFacts).toContainText("Columns: 10");
   await expect(gateFacts).toContainText("Columns requiring review: 0");
@@ -247,7 +246,7 @@ test("composed hospital workbook traverses sheet/header → options → review �
   await reviewComposedFreeText(page);
   await openComposedGate(page);
 
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
 
   // Safe CSV: custom prefix + visit numbering compose consistently.
   const safeDownloadPromise = page.waitForEvent("download");
@@ -314,7 +313,7 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   await createAndConfigureComposedJob(page);
   await reviewComposedFreeText(page);
   await openComposedGate(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
 
   // First TXT click downloads nothing and reveals the confirmation.
   await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();

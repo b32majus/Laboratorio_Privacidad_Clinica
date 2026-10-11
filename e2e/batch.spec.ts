@@ -4,8 +4,9 @@
  *
  * Synthetic committed fixtures: two valid TXT documents and one corrupt PDF.
  * Covered contracts:
- *  - a failed batch item stays VISIBLE (input failures section, review
- *    document list, privacy gate) and is never hidden;
+ *  - a failed batch item stays VISIBLE (batch queue document list, privacy
+ *    gate — quiet shell #84: the former input failures section is unmounted on
+ *    the direct Review landing) and is never hidden;
  *  - review completion is real per-document state: navigating between
  *    documents never marks anything reviewed, and one document's completed
  *    review never completes the batch;
@@ -46,12 +47,8 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
     .setInputFiles([DOC_1, CORRUPT_PDF, DOC_2]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-  // Input phase: the failed read is surfaced immediately, by name.
-  await expect(page.getByRole("list", { name: "Documentos con error" })).toContainText(
-    "corrupt.pdf"
-  );
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
+  // Quiet shell (#84): the batch queue lands directly on Review and the
+  // failed read is surfaced there immediately, by name (never hidden).
   await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
@@ -70,7 +67,7 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
 
   // Privacy Gate: the failed item and the real per-item counts are factual.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   const batchCounts = page.getByRole("group", { name: "Batch item counts" });
   await expect(batchCounts).toContainText("Failed: 1");
   await expect(batchCounts).toContainText("Pending: 1");
@@ -79,7 +76,7 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
 
   // Export is the batch Result: reachable while the artifact is
   // unauthorized, communicating blocked without enabling production.
-  const exportButton = page.getByRole("button", { name: "5. Export" });
+  const exportButton = page.getByRole("button", { name: "Ir al resultado" });
   await expect(exportButton).toBeEnabled();
   await exportButton.click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
@@ -101,8 +98,6 @@ test("navigation never fabricates review completion and a reviewed batch has no 
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([DOC_1, DOC_2]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
@@ -135,11 +130,11 @@ test("navigation never fabricates review completion and a reviewed batch has no 
 
   // A completed batch review reaches the ready batch Result: exactly one
   // primary Safe action producing the deterministic Safe manifest.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText(
     "Completed: 2"
   );
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Listo para usar" })).toBeVisible();
   const [csvDownload] = await Promise.all([
@@ -163,8 +158,6 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([DOC_1, CORRUPT_PDF, DOC_2]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
@@ -232,7 +225,7 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   // "Retirado del lote" names the disposition) but it is NO longer an active
   // blocker, so the fail-closed batch-failure alert is gone; the acknowledged
   // fact stays visible.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText(
     "Completed: 2"
   );
@@ -245,7 +238,7 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   // Export is the ready batch Result: the removed failure is manifest
   // history (error/retirado at its original index), never a blocker and
   // never completion. The pre-existing review decisions survived.
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Listo para usar" })).toBeVisible();
   const [csvDownload] = await Promise.all([
@@ -269,8 +262,6 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([CORRUPT_PDF, SCANNED_PDF]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await showAllDocuments(page);
 
   const docList = page.getByRole("list", { name: "Batch document status" });
@@ -299,7 +290,7 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   // Privacy Gate boundary: with nothing pending, no active failure and no job
   // error, the checkpoint still NEVER asserts review completion (no
   // evaluable document remains) and never re-blocks on the resolved failures.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   const checkpoint = page.getByRole("region", { name: "Decision checkpoint" });
   await expect(checkpoint).toContainText("Action required");
   await expect(checkpoint).not.toContainText("Review complete");
@@ -318,7 +309,7 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   // The batch Result stays reachable: with every failure removed but no
   // evaluable document, it communicates needs-attention and the Safe
   // summary stays unavailable (no fabricated readiness, no re-blocking).
-  const exportButton = page.getByRole("button", { name: "5. Export" });
+  const exportButton = page.getByRole("button", { name: "Ir al resultado" });
   await expect(exportButton).toBeEnabled();
   await exportButton.click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
@@ -363,8 +354,6 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([...synthetic, ...failures]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
 
   const docList = page.getByRole("list", { name: "Batch document status" });
   const filters = page.getByRole("group", { name: "Filtrar documentos del lote" });

@@ -78,21 +78,27 @@ describe("Input start examples (REC-08 #80)", () => {
       fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[index].label }));
       // The maintained JSON payload is the content source (not v3 strings).
       expect(draftTextarea()).toHaveValue(EXPECTED_TEXTS[index]);
-      // Choosing an example is draft-only: no Job, later steps stay locked.
+      // Choosing an example is draft-only: no Job, and the quiet shell offers
+      // no task navigation while no job exists (issue #84).
       expect(screen.getByText("No job yet")).toBeInTheDocument();
       expect(screen.queryByText("Text job")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "2. Configure" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Iniciar revisión" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
       cleanup();
     }
   });
 
-  it("creation after an example uses the ordinary pasted-text authority", () => {
+  it("creation after an example uses the ordinary pasted-text authority", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[0].label }));
     fireEvent.click(createButton());
     expect(screen.getByText("Text job")).toBeInTheDocument();
     expect(screen.getByText("Pasted text")).toBeInTheDocument();
-    // Draft intake is cleared after the job is created.
+    // Quiet shell (#84): creation lands directly on Review, so the draft
+    // surface is unmounted. The fresh-Input end state (no stale example text)
+    // is witnessed by returning to Input via the reset authority.
+    fireEvent.click(screen.getByRole("button", { name: "New Job" }));
+    expect(screen.getByText("No job yet")).toBeInTheDocument();
     expect(draftTextarea()).toHaveValue("");
   });
 });
@@ -492,13 +498,20 @@ describe("Input start intended-use wording (REC-08 #80)", () => {
     expect(section).toHaveTextContent(/se confirma al crear el trabajo/i);
   });
 
-  it("derives availability from the same authority once a job exists", () => {
+  it("derives availability from the same authority once a job exists", async () => {
     render(<App />);
+    // Before a job exists the start surface claims no availability.
+    const startSection = screen.getByRole("region", { name: "Uso previsto" });
+    expect(within(startSection).queryByText("Disponible")).toBeNull();
     fireEvent.change(draftTextarea(), { target: { value: "Nota clínica sintética." } });
     fireEvent.click(createButton());
-    const section = screen.getByRole("region", { name: "Uso previsto" });
-    // A text job supports every accepted policy (REC-02): the derived fact
-    // is witnessed here in Spanish presentation, not a second table.
-    expect(within(section).getAllByText("Disponible")).toHaveLength(4);
+    // Quiet shell (#84): creating a text job lands directly on Review, so the
+    // start-surface region is gone by design. The same derived fact (REC-02:
+    // every accepted policy is available for a text job) is witnessed through
+    // the persistent policy guidance, which reads the identical
+    // `buildPolicyGuidance` seam — not a second availability table.
+    const guidance = await screen.findByRole("region", { name: "Privacy Policy" });
+    const list = within(guidance).getByRole("list", { name: "Privacy Policy guidance" });
+    expect(within(list).getAllByText("Available")).toHaveLength(4);
   });
 });

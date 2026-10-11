@@ -37,9 +37,12 @@ test("examples fill the pasted-text draft without creating a job", async ({ page
   await example.click();
 
   await expect(page.getByRole("textbox", { name: "Pegar texto" })).toHaveValue(EJEMPLO_URGENCIAS);
-  // Choosing an example is draft-only: no Job, later steps stay locked.
+  // Choosing an example is draft-only: no Job, and the quiet shell (#84)
+  // offers no task action while no job exists.
   await expect(page.getByRole("banner")).toContainText("No job yet");
-  await expect(page.getByRole("button", { name: "2. Configure" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Iniciar revisión" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Privacy Gate" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 });
 
 test("examples are keyboard-operable", async ({ page }) => {

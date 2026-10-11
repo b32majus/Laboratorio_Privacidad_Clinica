@@ -27,8 +27,6 @@ test("a text-layer PDF extracts its text and reaches review", async ({ page }) =
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   await expect(page.getByRole("banner")).toContainText("sample-clinical-note.pdf");
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
 
   // The exact intended text of the fixture is on the review surface.
   await expect(page.getByRole("group", { name: "Document text with detections" })).toContainText(

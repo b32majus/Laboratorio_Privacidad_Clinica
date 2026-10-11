@@ -71,27 +71,21 @@ test.describe("canonical flow traversal by Job kind", () => {
   test("text job: Input → Configure (honest) → Review → Privacy Gate → Export", async ({
     page,
   }) => {
-    await gotoReviewWithDetections(page); // Input → Configure → Review
+    await gotoReviewWithDetections(page); // Input → Review (quiet shell #84)
 
-    // Configure is an honest no-additional-configuration state, not a placeholder.
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await expect(page.getByRole("heading", { name: "Configure" })).toBeVisible();
-    await expect(
-      page.getByText(/No additional configuration is required for a text job/i)
-    ).toBeVisible();
-    await expectNoMigrationCopy(page, "text Configure");
-
-    await page.getByRole("button", { name: "3. Review" }).click();
+    // Quiet shell: the no-op Configure stop is never rendered for a text job
+    // (issue #84 acceptance B) — the job lands on its real Review work.
+    await expect(page.getByRole("heading", { name: "Configure" })).toHaveCount(0);
     await expect(page.getByRole("list", { name: "Detections" })).toBeVisible();
     await completeReview(page);
 
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
       "Review complete"
     );
     await expectNoMigrationCopy(page, "text Privacy Gate");
 
-    await page.getByRole("button", { name: "5. Export" }).click();
+    await page.getByRole("button", { name: "Ir al resultado" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await expectNoMigrationCopy(page, "text Export");
   });
@@ -99,40 +93,32 @@ test.describe("canonical flow traversal by Job kind", () => {
   test("document job: honest Configure and the canonical steps", async ({ page }) => {
     await createDocumentJob(page, DOCUMENT_FILE);
 
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await expect(
-      page.getByText(/No additional configuration is required for a document job/i)
-    ).toBeVisible();
-    await expectNoMigrationCopy(page, "document Configure");
-
-    await page.getByRole("button", { name: "3. Review" }).click();
+    // Quiet shell: the no-op Configure stop is never rendered for a document
+    // job (issue #84 acceptance B) — the job lands on its real Review work.
+    await expect(page.getByRole("heading", { name: "Configure" })).toHaveCount(0);
     await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
     await completeReview(page);
 
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
       "Review complete"
     );
-    await page.getByRole("button", { name: "5. Export" }).click();
+    await page.getByRole("button", { name: "Ir al resultado" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   });
 
-  test("document-batch job: honest Configure, Review and a fail-closed Gate", async ({ page }) => {
+  test("document-batch job: direct Review landing and a fail-closed Gate", async ({ page }) => {
     await createBatchJob(page, [DOC_1, DOC_2]);
 
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await expect(
-      page.getByText(/No additional configuration is required for a document batch/i)
-    ).toBeVisible();
-    await expectNoMigrationCopy(page, "batch Configure");
-
-    await page.getByRole("button", { name: "3. Review" }).click();
+    // Quiet shell: the no-op Configure stop is never rendered for a batch
+    // (issue #84 acceptance B) — the batch queue lands directly on Review.
+    await expect(page.getByRole("heading", { name: "Configure" })).toHaveCount(0);
     await expect(page.getByRole("list", { name: "Batch document status" })).toBeVisible();
     // Wait for the async batch review to install its sessions before leaving
     // Review (the start writes the job back to the Review step).
     await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending:");
 
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 0");
     await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
       "Action required"
@@ -140,7 +126,7 @@ test.describe("canonical flow traversal by Job kind", () => {
     await expectNoMigrationCopy(page, "batch Privacy Gate");
     // The batch Result is reachable while unauthorized: it communicates
     // needs-attention without enabling artifact production.
-    const exportButton = page.getByRole("button", { name: "5. Export" });
+    const exportButton = page.getByRole("button", { name: "Ir al resultado" });
     await expect(exportButton).toBeEnabled();
     await exportButton.click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
@@ -152,17 +138,18 @@ test.describe("canonical flow traversal by Job kind", () => {
   }) => {
     await createStructuredJob(page, STRUCTURED_CSV);
 
-    await page.getByRole("button", { name: "2. Configure" }).click();
+    // The structured job lands directly in its REAL Configure workspace (#85
+    // owns that surface; issue #84 only removes the no-op stops).
     await expect(
       page.getByRole("status", { name: "Structured configuration facts" })
     ).toBeVisible();
     await expectNoMigrationCopy(page, "structured Configure");
 
-    await page.getByRole("button", { name: "3. Review" }).click();
+    await page.getByRole("button", { name: "Continuar a la revisión" }).click();
     await expect(page.getByText(/Structured review happens in Configure/i)).toBeVisible();
     await expectNoMigrationCopy(page, "structured Review");
 
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await expect(page.getByRole("status", { name: "Structured export facts" })).toBeVisible();
   });
 });
@@ -177,36 +164,30 @@ for (const width of [375, 768, 1280]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
 
-    // Honest unstructured Configure.
-    await createTextJob(page);
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await expect(page.getByText(/No additional configuration is required/i)).toBeVisible();
-    await assertNoHorizontalOverflow(page, `unstructured Configure @${width}px`);
-
-    // Active Review, including a mobile selection state.
+    // Active Review (the quiet-shell landing of a text job, issue #84),
+    // including a mobile selection state.
     await gotoReviewWithDetections(page);
     await assertNoHorizontalOverflow(page, `active Review @${width}px`);
     await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
     await assertNoHorizontalOverflow(page, `Review selection @${width}px`);
 
     // Pending Gate.
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `pending Gate @${width}px`);
 
     // Completed Gate + Export.
-    await page.getByRole("button", { name: "3. Review" }).click();
+    await page.getByRole("button", { name: "Volver a la revisión" }).click();
     await completeReview(page);
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
     await assertNoHorizontalOverflow(page, `completed Gate @${width}px`);
-    await page.getByRole("button", { name: "5. Export" }).click();
+    await page.getByRole("button", { name: "Ir al resultado" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
     await assertNoHorizontalOverflow(page, `Export @${width}px`);
 
     // Structured Review notice.
     await createStructuredJob(page, STRUCTURED_CSV);
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await page.getByRole("button", { name: "3. Review" }).click();
+    await page.getByRole("button", { name: "Continuar a la revisión" }).click();
     await expect(page.getByText(/Structured review happens in Configure/i)).toBeVisible();
     await assertNoHorizontalOverflow(page, `structured Review @${width}px`);
   });
@@ -317,7 +298,6 @@ test("structured Configure keeps UNKNOWN, blockers and authority facts reachable
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await createStructuredJob(page, STRUCTURED_CSV);
-  await page.getByRole("button", { name: "2. Configure" }).click();
 
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns requiring review: 1");

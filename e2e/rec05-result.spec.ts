@@ -88,47 +88,19 @@ function buildLongRefusalText(): string {
 // Journey drivers (observable UI only)
 // ---------------------------------------------------------------------------
 
-/** The step the shell currently shows (the `aria-current="step"` nav button). */
-async function currentStep(page: Page): Promise<string> {
-  return (await page.locator('[aria-current="step"]').innerText()).trim();
-}
-
 /**
- * Observe the rendered step navigation and record each DISTINCT step the shell
- * actually shows from now on. This is a real rendered measurement (a
- * MutationObserver on the `aria-current` attribute), not a re-derivation: it
- * counts the context transitions a human performs.
+ * Quiet-shell location witnesses (issue #84): the five-step pipeline nav is
+ * gone, so "where am I" is witnessed by which workspace is actually rendered —
+ * never by a re-derivation.
  */
-async function installStepObserver(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const w = window as unknown as {
-      __rec05Steps?: string[];
-      __rec05StepObserver?: MutationObserver;
-    };
-    const read = () => document.querySelector('[aria-current="step"]')?.textContent?.trim() ?? "";
-    w.__rec05Steps = [];
-    const nav = document.querySelector('nav[aria-label="Job steps"]');
-    if (nav === null) return;
-    const observer = new MutationObserver(() => {
-      const step = read();
-      const seen = w.__rec05Steps as string[];
-      if (step !== "" && seen[seen.length - 1] !== step) seen.push(step);
-    });
-    observer.observe(nav, { subtree: true, attributes: true, attributeFilter: ["aria-current"] });
-    w.__rec05StepObserver = observer;
-  });
+async function expectOnReview(page: Page): Promise<void> {
+  await expect(page.getByRole("region", { name: /review workspace/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toHaveCount(0);
 }
 
-/** Distinct rendered step transitions observed since {@link installStepObserver}. */
-async function readStepTransitions(page: Page): Promise<readonly string[]> {
-  return page.evaluate(() => {
-    const w = window as unknown as {
-      __rec05Steps?: string[];
-      __rec05StepObserver?: MutationObserver;
-    };
-    w.__rec05StepObserver?.disconnect();
-    return w.__rec05Steps ?? [];
-  });
+async function expectOnResult(page: Page): Promise<void> {
+  await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /review workspace/i })).toHaveCount(0);
 }
 
 /**
@@ -186,8 +158,6 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(HIGH_VOLUME_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
 
   const progress = page.getByRole("status", { name: "Review progress" });
   await expect(progress).toContainText(`Total: ${HIGH_VOLUME_TOTAL}`);
@@ -196,15 +166,14 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
   await decideAllPendingThroughUi(page);
   await expect(progress).toContainText(`Total: ${HIGH_VOLUME_TOTAL}`);
 
-  // --- Friction witness: last decision → Result is ONE context transition ----
-  expect(await currentStep(page)).toBe("3. Review");
-  await installStepObserver(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  // --- Friction witness: last decision → Result is ONE explicit task action --
+  // Quiet shell (#84): the single "Ver resultado" task action IS the one
+  // context transition — one click replaces the review workspace with the
+  // Result workspace (witnessed by the two location probes around it).
+  await expectOnReview(page);
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
-  expect(await currentStep(page)).toBe("5. Export");
-  // Measured rendered step transitions from the last decision: exactly ONE.
-  const stepTransitions = await readStepTransitions(page);
-  expect(stepTransitions).toEqual(["5. Export"]);
+  await expectOnResult(page);
 
   // --- Ready Result with a single visually primary prepared action ----------
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
@@ -237,8 +206,8 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
     expect(txt).not.toContain(raw);
   }
 
-  // ordinary ready-path friction: 1 rendered context transition + 1 prepared action.
-  expect(stepTransitions).toHaveLength(1);
+  // ordinary ready-path friction: ONE explicit task action into the Result
+  // (witnessed above) + 1 prepared action.
   expect(preparedActions).toBe(1);
 });
 
@@ -254,19 +223,14 @@ test("a supported single document reaches a ready Result whose primary action do
     mimeType: "text/plain",
     buffer: Buffer.from(REVIEW_FIXTURE_TEXT),
   });
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
   await completeReview(page);
 
-  // --- Friction witness: last decision → Result is ONE context transition ----
-  expect(await currentStep(page)).toBe("3. Review");
-  await installStepObserver(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  // --- Friction witness: last decision → Result is ONE explicit task action --
+  await expectOnReview(page);
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
-  expect(await currentStep(page)).toBe("5. Export");
-  const stepTransitions = await readStepTransitions(page);
-  expect(stepTransitions).toEqual(["5. Export"]);
+  await expectOnResult(page);
 
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
   // Document material: the prepared-document download is primary; the other
@@ -294,9 +258,9 @@ test("a supported single document reaches a ready Result whose primary action do
   // Minimum valid OOXML/ZIP container signature ("PK").
   expect(docx.subarray(0, 2).toString("latin1")).toBe("PK");
 
-  // ordinary ready-path friction: 1 rendered context transition + the ONE
-  // primary prepared action whose single DOCX download was captured above.
-  expect(stepTransitions).toHaveLength(1);
+  // ordinary ready-path friction: ONE explicit task action into the Result
+  // (witnessed above) + the ONE primary prepared action whose single DOCX
+  // download was captured above.
 });
 
 // ---------------------------------------------------------------------------
@@ -309,16 +273,14 @@ test("a needs-attention Result states what remains, returns to the pending revie
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await completeReview(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
 
   // Return to review and re-open the work with a NEW mandatory pending decision
   // (a deliberate correction — HPD-07/HPD-14, never silent acceptance).
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
-  expect(await currentStep(page)).toBe("3. Review");
+  await expectOnReview(page);
   const source = page.getByRole("group", { name: "Document text with detections" });
   const mark = page.getByRole("button", { name: "Marcar dato no detectado" });
   await mark.focus();
@@ -341,9 +303,9 @@ test("a needs-attention Result states what remains, returns to the pending revie
   const progress = page.getByRole("status", { name: "Review progress" });
   await expect(progress).toContainText("Pending: 1");
 
-  // The Result remains reachable (already visited) but is now needs-attention.
-  await installStepObserver(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  // The Result remains reachable (already visited) but is now needs-attention:
+  // ONE explicit task action.
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.locator("[data-result-state]")).toHaveAttribute(
     "data-result-state",
@@ -358,14 +320,13 @@ test("a needs-attention Result states what remains, returns to the pending revie
 
   // The correction path returns to the SAME pending review without losing work.
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
-  expect(await currentStep(page)).toBe("3. Review");
+  await expectOnReview(page);
   await expect(progress).toContainText("Pending: 1");
   await expect(progress).toContainText("Accepted: 2");
 
-  // Measured not-ready friction: ONE transition into the not-ready Result, ZERO
-  // prepared actions (both unavailable), and ONE transition back to review.
-  const stepTransitions = await readStepTransitions(page);
-  expect(stepTransitions).toEqual(["5. Export", "3. Review"]);
+  // Not-ready friction: ONE explicit task action into the not-ready Result and
+  // ONE return action back to the SAME pending review (both witnessed above);
+  // ZERO prepared actions were available (both stay unavailable).
 });
 
 // ---------------------------------------------------------------------------
@@ -378,11 +339,9 @@ test("a deliberately kept original stays a factual Result warning and is present
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   // completeReview deliberately keeps the email original ("Keep original").
   await completeReview(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
 
   const keptHeading = page.getByRole("heading", { name: "Originales conservados deliberadamente" });
@@ -414,10 +373,8 @@ test("Confidential Audit first action downloads zero, Confirm downloads exactly 
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await completeReview(page);
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
 
   const request = page.getByRole("button", { name: "Descargar auditoría confidencial (.txt)" });
@@ -466,8 +423,6 @@ test("an unrepresentable PDF character fails the PDF action with zero download w
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(buildLongRefusalText());
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   const progress = page.getByRole("status", { name: "Review progress" });
   // The long narrative itself carries realistic detected volume; decide it all
   // through the real review controls before reaching Result.
@@ -475,7 +430,7 @@ test("an unrepresentable PDF character fails the PDF action with zero download w
   await decideAllPendingThroughUi(page);
 
   // Long text with every decision made: Result is ready in one transition.
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
 
   const pdfButton = page.getByRole("button", { name: "Descargar como PDF (.pdf)" });

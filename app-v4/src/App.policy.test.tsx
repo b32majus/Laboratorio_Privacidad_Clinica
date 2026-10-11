@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
@@ -27,6 +27,11 @@ function createTextJob() {
 
 function selectFiles(files: File[]) {
   fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), { target: { files } });
+}
+
+/** Wait until the single/batch review workspace is actually installed. */
+async function waitForReviewWorkspace(timeout = 10_000) {
+  await screen.findByRole("region", { name: /review workspace/i }, { timeout });
 }
 
 function policySelect(): HTMLSelectElement {
@@ -122,13 +127,10 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
     selectFiles([new File([SYNTHETIC_NOTE], "doc-a.txt"), new File([SYNTHETIC_NOTE], "doc-b.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitFor(() => expect(screen.getByText("Document batch")).toBeInTheDocument());
-    // Wait until the read phase settles so no async intake outlives the test.
-    await waitFor(
-      () => expect(screen.getByRole("button", { name: "Crear trabajo" })).toBeEnabled(),
-      {
-        timeout: 10_000,
-      }
-    );
+    // Quiet shell (#84): the batch queue lands directly on Review; the review
+    // workspace is installed exactly when the read phase settles, so no async
+    // intake outlives the test.
+    await waitForReviewWorkspace();
 
     for (const name of POLICY_NAMES) {
       expect(screen.getByRole("option", { name })).toBeEnabled();
@@ -162,10 +164,9 @@ async function runTextJobWithPolicy(policyId: "external-ai" | "longitudinal-rese
   fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
   fireEvent.change(policySelect(), { target: { value: policyId } });
   expect(policySelect().value).toBe(policyId);
-  fireEvent.click(screen.getByRole("button", { name: "2. Configure" }));
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "3. Review" }));
-  });
+  // Quiet shell (issue #84): the real policy change invalidated the landing
+  // attempt, so the shell offers the explicit review restart.
+  fireEvent.click(await screen.findByRole("button", { name: "Iniciar revisión" }));
   await waitFor(
     () => expect(screen.getByRole("list", { name: "Detections" })).toBeInTheDocument(),
     { timeout: 10_000 }

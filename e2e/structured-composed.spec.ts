@@ -31,7 +31,7 @@ async function createComposedJob(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
+  // Quiet shell (#84): the structured job lands in its real Configure workspace.
   await expect(page.locator("header")).toContainText("Structured job");
 }
 
@@ -95,13 +95,12 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   await expect(columnCard(page, "Diagnostico")).toContainText("Keep");
   await expect(columnCard(page, "Notas")).toContainText("Process as text");
 
-  // No new step/mode appears: exactly the five canonical steps.
-  await expect(page.getByRole("navigation", { name: "Job steps" }).getByRole("button")).toHaveCount(
-    5
-  );
+  // No new step/mode appears: the quiet shell (#84) has no universal
+  // navigation and offers exactly the canonical onward task action.
+  await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(1);
 
   // Review: the free-text cells are unprocessed until the explicit run.
-  await page.getByRole("button", { name: "3. Review" }).click();
+  await page.getByRole("button", { name: "Continuar a la revisión" }).click();
   await expect(page.getByRole("status")).toContainText("not been processed yet");
   await page.getByRole("button", { name: "Process free-text cells" }).click();
   const progress = page.getByRole("status", { name: "Free-text review progress" });
@@ -117,7 +116,7 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   await expect(progress).toContainText("Free-text review ready: Yes");
 
   // Privacy Gate: the composed readiness is factual and complete.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
   const gateFacts = page.getByRole("status", { name: "Structured export facts" });
   await expect(gateFacts).toContainText("Columns: 7");
   await expect(gateFacts).toContainText("Columns requiring review: 0");
@@ -128,7 +127,7 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   );
 
   // Export: separate Safe CSV and Confidential Audit downloads.
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
   const safeDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download Safe Structured Output (.csv)" }).click();
   const safeDownload = await safeDownloadPromise;
@@ -192,7 +191,7 @@ test("switching policy drops the free-text review and closes the gate (no stale 
   await createComposedJob(page);
   await configureComposedJob(page);
 
-  await page.getByRole("button", { name: "3. Review" }).click();
+  await page.getByRole("button", { name: "Continuar a la revisión" }).click();
   await page.getByRole("button", { name: "Process free-text cells" }).click();
   await expect(page.getByRole("status", { name: "Free-text review progress" })).toContainText(
     "Cells: 2"
@@ -204,12 +203,15 @@ test("switching policy drops the free-text review and closes the gate (no stale 
   await expect(page.getByRole("status")).toContainText("not been processed yet");
   await expect(page.getByRole("button", { name: "Process free-text cells" })).toBeVisible();
 
-  // Configure reports the export not ready, and the Gate/Export steps stay
-  // closed at the navigation level (fail-closed: no ungated export).
-  await page.getByRole("button", { name: "2. Configure" }).click();
+  // Configure reports the export not ready, and the quiet shell stays
+  // fail-closed (issue #84): no Privacy Gate or Result destination is offered
+  // anywhere while the export gate is closed — only the canonical Configure
+  // work and its onward review action.
+  await page.getByRole("button", { name: "Back to Configure" }).click();
   await expect(page.getByRole("status", { name: "Structured configuration facts" })).toContainText(
     "Structured export ready: No"
   );
-  await expect(page.getByRole("button", { name: "4. Privacy Gate" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "5. Export" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ir al resultado" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 });

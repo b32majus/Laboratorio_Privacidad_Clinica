@@ -84,8 +84,6 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles([...syntheticDocuments(), ...failureInputs()]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
 
   const docList = page.getByRole("list", { name: "Batch document status" });
   const filters = page.getByRole("group", { name: "Filtrar documentos del lote" });
@@ -94,9 +92,9 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   // --- Blocked Result: reachable while unauthorized, zero artifact -----------
   // The batch Result is reached through the Privacy Gate (the Gate stays an
   // intact, visitable checkpoint in the path — no direct review skip).
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 2");
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "blocked");
   await expect(page.getByRole("heading", { name: "Bloqueado" })).toBeVisible();
@@ -125,10 +123,10 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   expect(downloads).toBe(0);
 
   // --- Privacy Gate stays visitable in the path ------------------------------
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
   await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 2");
   await expect(page.getByRole("alert").filter({ hasText: /batch items? failed/ })).toHaveCount(1);
-  await page.getByRole("button", { name: "3. Review" }).click();
+  await page.getByRole("button", { name: "Volver a la revisión" }).click();
 
   // --- Recovery: deliberately remove both local failures ----------------------
   // Work from Todos: a removed row leaves the attention filter immediately.
@@ -150,7 +148,8 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   await expect(filters.getByRole("button", { name: /^Retirados \(2\)/ })).toBeVisible();
 
   // --- Ready Result: exactly one primary Safe action, one manifest ------------
-  await page.getByRole("button", { name: "5. Export" }).click();
+  // From Review the batch Result action is "Ver resultado" (quiet shell #84).
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
   await expect(page.getByRole("heading", { name: "Listo para usar" })).toBeVisible();
@@ -271,6 +270,6 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   // --- Returning to Review preserves every accepted decision -------------------
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
   await expect(filters.getByRole("button", { name: /^Listos \(10\)/ })).toBeVisible();
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ver resultado" }).click();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "ready");
 });

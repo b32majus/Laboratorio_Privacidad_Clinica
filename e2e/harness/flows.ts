@@ -95,13 +95,13 @@ export function guidanceItem(page: Page, name: string): Locator {
     .filter({ has: page.getByText(name, { exact: true }) });
 }
 
-/** Enter Review through the canonical text flow and wait for the detections. */
+/** Enter Review through the canonical text flow and wait for the detections.
+ * Quiet shell (#84): job creation lands directly on Review and starts the one
+ * local processing attempt, so no navigation click is needed. */
 export async function gotoReviewWithDetections(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
 }
 
@@ -147,8 +147,8 @@ export async function completeReview(page: Page): Promise<void> {
 export async function gotoExportComplete(page: Page): Promise<void> {
   await gotoReviewWithDetections(page);
   await completeReview(page);
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  const exportButton = page.getByRole("button", { name: "5. Export" });
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  const exportButton = page.getByRole("button", { name: "Ir al resultado" });
   await expect(exportButton).toBeEnabled();
   await exportButton.click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
