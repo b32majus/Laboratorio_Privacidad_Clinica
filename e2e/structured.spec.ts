@@ -24,9 +24,13 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   await page.goto("/");
   await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
 
-  await expect(page.locator("header")).toContainText("Structured job");
+  // Issue #84 removed the permanent internal job-kind chrome: the persistent
+  // header fact is the job's own file identity, never a "Structured job"
+  // label. The Unknown classification facts below remain the structured
+  // surface's authority (handoff §B.3; reconcile ONLY this selector).
+  await expect(page.locator("header")).toContainText("Trabajo: structured-unknown.csv");
+  await expect(page.locator("header")).not.toContainText("Structured job");
   // The structured Configure workspace IS the structured review surface.
   const summary = page.getByRole("status", { name: "Structured configuration facts" });
   await expect(summary).toContainText("Columns: 3");
@@ -60,12 +64,12 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   await expect(freeColumn).toContainText("Classification:Insensitive (reviewer override)");
 
   // HARDEN-01 WU-A: reach the gate and export the Safe CSV + separate Confidential.
-  await page.getByRole("button", { name: "3. Review" }).click();
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Continuar a la revisión" }).click();
+  await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
   await expect(page.getByRole("status", { name: "Structured export facts" })).toContainText(
     "Unsupported columns: 0"
   );
-  await page.getByRole("button", { name: "5. Export" }).click();
+  await page.getByRole("button", { name: "Ir al resultado" }).click();
 
   const safeDownloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download Safe Structured Output (.csv)" }).click();

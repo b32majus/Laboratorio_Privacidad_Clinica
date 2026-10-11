@@ -4,12 +4,11 @@
  * requests across the whole canonical flow.
  *
  * The real App is mounted with the recording network monitor installed, a
- * text job is created, and every step (Input → Configure → Review → Privacy
- * Gate → Export) plus session reset (New Job / Clear session) is exercised;
- * the recorded attempt list must stay empty at every point. Nested tests
- * prove the monitor itself can detect unexpected outbound requests (fetch,
- * WebSocket, sendBeacon). Real browser network interception arrives with
- * the E2E ticket.
+ * text job is created, the review → optional Privacy Gate → Result journey is
+ * exercised plus session reset (New Job / Clear session); the recorded attempt
+ * list must stay empty at every point. Nested tests prove the monitor itself
+ * can detect unexpected outbound requests (fetch, WebSocket, sendBeacon).
+ * Real browser network interception arrives with the E2E ticket.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,8 +22,13 @@ import { NetworkInvariantError, install, type NetworkMonitor } from "./network-m
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
 
-function stepButton(stepNumber: number, label: string) {
-  return screen.getByRole("button", { name: `${stepNumber}. ${label}` });
+function taskButton(name: string) {
+  return screen.getByRole("button", { name });
+}
+
+/** Wait until the review workspace is actually installed (async engine seam). */
+async function waitForReviewWorkspace(timeout = 10_000) {
+  await screen.findByRole("region", { name: /review workspace/i }, { timeout });
 }
 
 function createTextJob() {
@@ -79,48 +83,42 @@ describe("network invariant monitor", () => {
       render(<App />);
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Step 1: Input — job creation.
+      // Step 1: Input — job creation. The quiet shell lands directly on the
+      // genuine Review work (issue #84): no Configure stop, engine start via
+      // the local lazy engine seam.
       createTextJob();
       expect(screen.getByText("Pasted text")).toBeInTheDocument();
+      await waitForReviewWorkspace();
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Steps 2-4: Configure → Review → Privacy Gate.
-      const forwardSteps = [
-        [2, "Configure", "Configure"],
-        [3, "Review", "Revisión"],
-        [4, "Privacy Gate", "Privacy Gate"],
-      ] as const;
-      for (const [stepNumber, label, heading] of forwardSteps) {
-        fireEvent.click(stepButton(stepNumber, label));
-        // T22 #26 WU-D: the Review transition runs the engine asynchronously;
-        // wait for the step heading instead of racing the async seam.
-        // #78: the nav button keeps "3. Review" while the Review surface now
-        // renders the Spanish level-2 heading "Revisión".
-        await screen.findByRole("heading", { level: 2, name: heading }, { timeout: 10_000 });
-        expect(monitor.attempts()).toHaveLength(0);
-      }
-
-      // Step 5: with this synthetic note the engine reports no detections,
-      // so ReviewSession.canFinalize is true with zero mandatory decisions
-      // (domain authority, D-004) and Export unlocks. Entering it — still an
-      // honest placeholder until T08 — records no network attempt.
-      fireEvent.click(stepButton(5, "Export"));
+      // This synthetic note produces no detections, so the review session is
+      // finalizable with zero mandatory decisions (domain authority, D-004)
+      // and the direct single-item Result action unlocks (D-024). Entering it
+      // records no network attempt.
+      fireEvent.click(taskButton("Ver resultado"));
       expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Session reset via New Job returns to a fresh Input.
-      fireEvent.click(screen.getByRole("button", { name: "New Job" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      // The optional Privacy Gate destination stays reachable and local-only.
+      fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
+      await waitForReviewWorkspace();
+      fireEvent.click(taskButton("Privacy Gate"));
+      expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+      expect(monitor.attempts()).toHaveLength(0);
+
+      // Session reset via Nuevo trabajo returns to a fresh Input.
+      fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
       createTextJob();
-      fireEvent.click(stepButton(2, "Configure"));
+      await waitForReviewWorkspace();
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Session reset via Clear session discards all in-memory state.
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
-      expect(stepButton(2, "Configure")).toBeDisabled();
+      // Session reset via Borrar sesión discards all in-memory state.
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
     } finally {
       monitor.uninstall();
@@ -165,16 +163,19 @@ describe("network invariant monitor", () => {
       fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
 
       // The document job is created from extracted text held in memory only.
+      // Issue #84 correction: the internal kind is not header chrome, so the
+      // created-job witness is the job NAME header fact.
       await waitFor(() => {
-        expect(screen.getByText("Document job")).toBeInTheDocument();
+        expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
       });
-      expect(screen.getByText("sample-clinical-note.txt")).toBeInTheDocument();
 
-      // Walk the reachable steps and reset; nothing may leave the process.
-      fireEvent.click(stepButton(2, "Configure"));
-      fireEvent.click(stepButton(1, "Input"));
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      // Walk the reached surfaces (review → optional gate → back) and reset;
+      // nothing may leave the process.
+      await waitForReviewWorkspace();
+      fireEvent.click(taskButton("Privacy Gate"));
+      fireEvent.click(taskButton("Volver a la revisión"));
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
 
       expect(monitor.attempts()).toEqual([]);
       for (const spy of storageSpies) {
@@ -185,7 +186,7 @@ describe("network invariant monitor", () => {
     }
   });
 
-  it("keeps the review flow (engine run, decisions, manual detection) free of network attempts and storage writes", async () => {
+  it("keeps the review flow (engine run, decisions, manual navigation) free of network attempts and storage writes", async () => {
     const REVIEW_NOTE =
       "Nombre: Carmen Sánchez\nLa paciente fue atendida por el Dr. García López el 12/03/2024. Contacto: 612345678.";
 
@@ -209,10 +210,8 @@ describe("network invariant monitor", () => {
       fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
       expect(monitor.attempts()).toHaveLength(0);
 
-      // Entering Review runs the local legacy engine and builds the session
+      // Landing on Review runs the local legacy engine and builds the session
       // (T22 #26 WU-D: asynchronously through the lazy engine seam).
-      fireEvent.click(stepButton(2, "Configure"));
-      fireEvent.click(stepButton(3, "Review"));
       const progress = await screen.findByRole(
         "status",
         { name: /review progress/i },
@@ -232,8 +231,8 @@ describe("network invariant monitor", () => {
       expect(monitor.attempts()).toHaveLength(0);
 
       // Navigating away and back never resets or re-runs review.
-      fireEvent.click(stepButton(1, "Input"));
-      fireEvent.click(stepButton(3, "Review"));
+      fireEvent.click(taskButton("Privacy Gate"));
+      fireEvent.click(taskButton("Volver a la revisión"));
       await waitFor(() =>
         expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
           "Accepted: 1"
@@ -241,12 +240,13 @@ describe("network invariant monitor", () => {
       );
       expect(monitor.attempts()).toHaveLength(0);
 
-      // While mandatory review is pending, Export stays fail-closed.
-      expect(stepButton(5, "Export")).toBeDisabled();
+      // While mandatory review is pending, the Result stays fail-closed.
+      expect(screen.queryByRole("button", { name: "Ver resultado" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Ir al resultado" })).not.toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
-      fireEvent.click(screen.getByRole("button", { name: "Clear session" }));
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
 
       expect(monitor.attempts()).toEqual([]);
       for (const spy of storageSpies) {

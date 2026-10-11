@@ -37,9 +37,12 @@ test("examples fill the pasted-text draft without creating a job", async ({ page
   await example.click();
 
   await expect(page.getByRole("textbox", { name: "Pegar texto" })).toHaveValue(EJEMPLO_URGENCIAS);
-  // Choosing an example is draft-only: no Job, later steps stay locked.
-  await expect(page.getByRole("banner")).toContainText("No job yet");
-  await expect(page.getByRole("button", { name: "2. Configure" })).toBeDisabled();
+  // Choosing an example is draft-only: no Job, and the quiet shell (#84)
+  // offers no task action while no job exists.
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
+  await expect(page.getByRole("button", { name: "Iniciar revisión" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Privacy Gate" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 });
 
 test("examples are keyboard-operable", async ({ page }) => {
@@ -49,7 +52,7 @@ test("examples are keyboard-operable", async ({ page }) => {
   await example.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("textbox", { name: "Pegar texto" })).not.toHaveValue("");
-  await expect(page.getByRole("banner")).toContainText("No job yet");
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 });
 
 test("Pegar without clipboard permission shows the Spanish Ctrl+V fallback and creates no job", async ({
@@ -64,7 +67,7 @@ test("Pegar without clipboard permission shows the Spanish Ctrl+V fallback and c
   const alert = page.getByRole("alert");
   await expect(alert).toContainText(/portapapeles/);
   await expect(alert).toContainText(/Ctrl\+V/);
-  await expect(page.getByRole("banner")).toContainText("No job yet");
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 });
 
 /**
@@ -103,7 +106,7 @@ test("a late clipboard read cannot overwrite a newer typed draft (CORA-80-01)", 
 
   // The newer user text survives the stale response and no Job appears.
   await expect(textarea).toHaveValue("TEXTO NUEVO ESCRITO POR EL USUARIO");
-  await expect(page.getByRole("banner")).toContainText("No job yet");
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 });
 
 /**
@@ -156,7 +159,14 @@ test("a stale clipboard read cannot overwrite a newer picker file selection (COR
   await expect(items.first()).toContainText("sintetico.txt");
 
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Document job");
+  // Issue #84 correction (spec F, closed at e34d931): the internal job kind is
+  // not permanent banner chrome; the created job's NAME is the persistent
+  // header fact (the same reconciliation flows.createDocumentJob applies).
+  // Pre-existing stale consumer reconciled during CORA-84-03 shell work: the
+  // banner never renders "Document job" anymore (see the exact:true count-0
+  // assertion below, which this test itself already makes at line ~243).
+  await expect(page.getByRole("banner")).toContainText("sintetico.txt");
+  await expect(page.getByText("Document job", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
@@ -203,7 +213,7 @@ test("a drop carrying zero files preserves the staged selection (CORA-80-02)", a
   const items = page.getByRole("list", { name: "Archivos seleccionados" }).getByRole("listitem");
   await expect(items).toHaveCount(1);
   await expect(items.first()).toContainText("sintetico.txt");
-  await expect(page.getByRole("banner")).toContainText("No job yet");
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 });
 
 test("a real non-empty file drop stages the exact files in order (CORA-80-02)", async ({
@@ -227,7 +237,7 @@ test("a real non-empty file drop stages the exact files in order (CORA-80-02)", 
   await expect(items.nth(0)).toContainText("doc-b.txt");
   await expect(items.nth(1)).toContainText("doc-a.txt");
   await expect(page.getByText("2 archivos seleccionados")).toBeVisible();
-  await expect(page.getByRole("banner")).toContainText("No job yet");
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 });
 
 test("ordinary start is quiet about internal routing and exposes no pipeline override", async ({
@@ -308,7 +318,7 @@ for (const width of [375, 1280]) {
     // intended-use region and the shell Privacy Policy region sit BELOW the
     // primary input controls and the create action.
     const intendedUse = page.getByRole("region", { name: "Uso previsto" });
-    const privacyPolicy = page.getByRole("region", { name: "Privacy Policy" });
+    const privacyPolicy = page.getByRole("region", { name: "Política de privacidad" });
     await expect(intendedUse).toBeVisible();
     await expect(privacyPolicy).toBeVisible();
 

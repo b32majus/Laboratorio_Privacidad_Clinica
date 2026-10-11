@@ -78,21 +78,26 @@ describe("Input start examples (REC-08 #80)", () => {
       fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[index].label }));
       // The maintained JSON payload is the content source (not v3 strings).
       expect(draftTextarea()).toHaveValue(EXPECTED_TEXTS[index]);
-      // Choosing an example is draft-only: no Job, later steps stay locked.
-      expect(screen.getByText("No job yet")).toBeInTheDocument();
+      // Choosing an example is draft-only: no Job, and the quiet shell offers
+      // no task navigation while no job exists (issue #84).
+      expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
       expect(screen.queryByText("Text job")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "2. Configure" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Iniciar revisión" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
       cleanup();
     }
   });
 
-  it("creation after an example uses the ordinary pasted-text authority", () => {
+  it("creation after an example uses the ordinary pasted-text authority", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[0].label }));
     fireEvent.click(createButton());
-    expect(screen.getByText("Text job")).toBeInTheDocument();
     expect(screen.getByText("Pasted text")).toBeInTheDocument();
-    // Draft intake is cleared after the job is created.
+    // Quiet shell (#84): creation lands directly on Review, so the draft
+    // surface is unmounted. The fresh-Input end state (no stale example text)
+    // is witnessed by returning to Input via the reset authority.
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(draftTextarea()).toHaveValue("");
   });
 });
@@ -114,7 +119,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
       expect(draftTextarea()).toHaveValue("Texto leído del portapapeles.");
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(setItemSpy?.mock.calls.length ?? 0).toBe(0);
   });
@@ -132,7 +137,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     // The raw platform exception never becomes user-visible.
     expect(alert).not.toHaveTextContent(/denied/);
     expect(draftTextarea()).toHaveValue("");
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("an unavailable clipboard shows the same Spanish failure with the Ctrl+V fallback", async () => {
@@ -143,7 +148,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/portapapeles/);
     expect(alert).toHaveTextContent(/Ctrl\+V/);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   // CORA-80-01: a late clipboard response must not overwrite a newer draft.
@@ -159,7 +164,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     read.resolve("LECTURA ANTIGUA DEL PORTAPAPELES");
     await waitFor(() => expect(pegarButton()).toBeEnabled());
     expect(draftTextarea()).toHaveValue("TEXTO NUEVO ESCRITO POR EL USUARIO");
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   // CORA-80-01: text equality alone is not authority. A type-then-undo makes
@@ -192,9 +197,15 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     // The undo-restored ordinary draft still creates a normal Document job.
     fireEvent.click(createButton());
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Issue #84 correction: the internal kind is not header chrome, so the
+        // created-job witness is the real Review landing itself (async engine
+        // completion — same latency budget as the other async oracles).
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
   });
 
   it("a late clipboard read never overwrites a newly chosen example", async () => {
@@ -208,7 +219,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     read.resolve("LECTURA ANTIGUA DEL PORTAPAPELES");
     await waitFor(() => expect(pegarButton()).toBeEnabled());
     expect(draftTextarea()).toHaveValue(example.text);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   // CORA-80-03: a newer picker selection invalidates an older pending paste.
@@ -231,11 +242,17 @@ describe("Input start Pegar (REC-08 #80)", () => {
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent("sintetico.txt");
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     fireEvent.click(createButton());
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Issue #84 correction: the internal kind is not header chrome, so the
+        // created-job witness is the real Review landing itself (async engine
+        // completion — same latency budget as the other async oracles).
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -261,7 +278,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(items[0]).toHaveTextContent("doc-b.txt");
     expect(items[1]).toHaveTextContent("doc-a.txt");
     expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 });
 
@@ -289,16 +306,22 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     expect(items[0]).toHaveTextContent("doc-b.txt");
     expect(items[1]).toHaveTextContent("doc-a.txt");
     expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("a dropped single document creates the same Document job as a selection", async () => {
     render(<App />);
     dropFiles([new File(["Nota clínica sintética."], "nota.txt")]);
     fireEvent.click(createButton());
-    await waitFor(() => {
-      expect(screen.getByText("Document job")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Issue #84 correction: the internal kind is not header chrome, so the
+        // created-job witness is the real Review landing itself (async engine
+        // completion — same latency budget as the other async oracles).
+        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+      },
+      { timeout: 10_000 }
+    );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -309,7 +332,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     const alert = await screen.findByRole("alert");
     // REC-08 F1: the typed ambiguous-input refusal is presented in Spanish.
     expect(alert).toHaveTextContent(/no se pueden combinar/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("a dropped legacy .doc is refused and .doc is never advertised", async () => {
@@ -325,7 +348,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     // only the accepted formats (legacy .doc is never advertised).
     expect(alert).toHaveTextContent(/no se admite/i);
     expect(alert).toHaveTextContent(/\.doc/);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   // CORA-80-02: a drop that carries zero files must not touch the staged list.
@@ -346,7 +369,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent("sintetico.txt");
     expect(screen.getByText("1 archivo seleccionado")).toBeInTheDocument();
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("a real non-empty drop replaces the draft with the exact dropped files in order", () => {
@@ -364,7 +387,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
     expect(items[0]).toHaveTextContent("doc-b.txt");
     expect(items[1]).toHaveTextContent("doc-a.txt");
     expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 });
 
@@ -381,7 +404,15 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     if (!section) throw new Error("expected the files card section");
     fireEvent.drop(section, { dataTransfer: { files } });
     fireEvent.click(createButton());
-    return screen.findByRole("alert");
+    // The typed refusal arrives after the ASYNC document extraction settles;
+    // under load the default 1s query budget is tighter than the extraction
+    // itself (same latency rationale as the other async oracles). This only
+    // widens the wait, never the assertion.
+    return waitFor(() => {
+      const alertElement = screen.queryByRole("alert");
+      if (alertElement === null) throw new Error("refusal alert not rendered yet");
+      return alertElement;
+    });
   }
 
   it("presents the mixed document+structured refusal in Spanish with a remedy", async () => {
@@ -393,7 +424,7 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     expect(alert).toHaveTextContent(/no se pueden combinar/i);
     expect(alert).toHaveTextContent(/cree un trabajo aparte/i);
     expect(alert).not.toHaveTextContent(/cannot be mixed/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("presents the unsupported-extension refusal in Spanish, names the extension and never advertises .doc", async () => {
@@ -403,7 +434,7 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     expect(alert).toHaveTextContent(/\.doc/);
     expect(alert).toHaveTextContent(/txt, pdf, docx, csv, xls y xlsx/i);
     expect(alert).not.toHaveTextContent(/unsupported type/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("presents the single-document extraction failure in Spanish with a remedy", async () => {
@@ -412,7 +443,7 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     expect(alert).toHaveTextContent(/no se pudo leer/i);
     expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
     expect(alert).not.toHaveTextContent(/could not be parsed/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("presents the empty-input refusal in Spanish with a remedy", async () => {
@@ -421,7 +452,7 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/no hay texto/i);
     expect(alert).not.toHaveTextContent(/pasted text is empty/i);
-    expect(screen.getByText("No job yet")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 });
 
@@ -492,13 +523,23 @@ describe("Input start intended-use wording (REC-08 #80)", () => {
     expect(section).toHaveTextContent(/se confirma al crear el trabajo/i);
   });
 
-  it("derives availability from the same authority once a job exists", () => {
+  it("derives availability from the same authority once a job exists", async () => {
     render(<App />);
+    // Before a job exists the start surface claims no availability.
+    const startSection = screen.getByRole("region", { name: "Uso previsto" });
+    expect(within(startSection).queryByText("Disponible")).toBeNull();
     fireEvent.change(draftTextarea(), { target: { value: "Nota clínica sintética." } });
     fireEvent.click(createButton());
-    const section = screen.getByRole("region", { name: "Uso previsto" });
-    // A text job supports every accepted policy (REC-02): the derived fact
-    // is witnessed here in Spanish presentation, not a second table.
-    expect(within(section).getAllByText("Disponible")).toHaveLength(4);
+    // Quiet shell (#84): creating a text job lands directly on Review, so the
+    // start-surface region is gone by design. The same derived fact (REC-02:
+    // every accepted policy is available for a text job) is witnessed through
+    // the persistent policy guidance, which reads the identical
+    // `buildPolicyGuidance` seam — not a second availability table.
+    const guidance = await screen.findByRole("region", { name: "Política de privacidad" });
+    // CORA-84-01: the detailed four-policy guidance is on demand behind the
+    // disclosure; expand it to read the per-policy availability facts.
+    fireEvent.click(screen.getByRole("button", { name: "Guía detallada de políticas" }));
+    const list = within(guidance).getByRole("list", { name: "Guía de políticas de privacidad" });
+    expect(within(list).getAllByText("Available")).toHaveLength(4);
   });
 });

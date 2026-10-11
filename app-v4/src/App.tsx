@@ -7,14 +7,13 @@
  * Each step renders an honest, job-aware state (configure / review / gate /
  * export); the shell never fakes review or output readiness (SPEC §8).
  *
- * Sensitive job data stays memory-only (D-013); "Clear session" discards it.
+ * Sensitive job data stays memory-only (D-013); "Borrar sesión" discards it.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ChangeEvent, ReactElement } from "react";
 import { flushSync } from "react-dom";
 
 import {
-  FLOW_STEPS,
   type BatchItemReadOutcome,
   type FlowStep,
   type Job,
@@ -25,6 +24,7 @@ import {
   type JobSourceFile,
   type PrivacyPolicyId,
   batchFailedItems,
+  inferJobKind,
   isDocumentExtension,
   isStepAccessible,
   isStructuredExtension,
@@ -194,6 +194,40 @@ export function App() {
   const [inputError, setInputError] = useState<InputAlert | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  /**
+   * Issue #84 correction (REC-05 journey A): browser-memory-only provenance of
+   * the last legitimately entered single-item Result. It records ONLY the
+   * identity triple of the moment the shell actually navigated INTO the Result
+   * through the domain-gated transition (never merely because a ReviewSession
+   * exists, and never from a render effect): the domain Job id, the policy id
+   * and the ReviewSession's own `sessionId`. Before the Review step may offer
+   * an already-visited Result whose mandatory decisions are pending again, the
+   * CURRENT triple must match exactly:
+   *  - a REAL policy change drops the session (`updatePolicy` → review null)
+   *    and any redone review runs the engine again, which generates a NEW
+   *    `sessionId` — so the stale visit can never be reused;
+   *  - `sessionId` is stable across decisions and manual-detection additions
+   *    within one session, so the ordinary correction path (journey A) keeps
+   *    the revisit while the Result itself truthfully reports needs-attention;
+   *  - returning to a previous policy NAME (A→B→A) cannot restore obsolete
+   *    authority: the identity is the session, not the policy label, and the
+   *    A-again session is a different one;
+   *  - a new Job has a different domain-generated id, so provenance is never
+   *    inherited across jobs.
+   * Render-effect recording is deliberately NOT used: an async review restart
+   * installs the fresh session while the flow position still reads `export`
+   * (the post-invalidation intermediate state), which is a state transition,
+   * never a Result access. Result navigation stays navigation only
+   * (CORA-84-02): safe downloads and prepared output remain controlled
+   * exclusively by the canonical readiness authorities (`review.complete`,
+   * `outputs.safeOutputReady`, `deriveSingleResultView`); this provenance only
+   * ever gates whether the revisit action is OFFERED.
+   */
+  const [singleResultProvenance, setSingleResultProvenance] = useState<{
+    readonly jobId: string;
+    readonly policyId: PrivacyPolicyId;
+    readonly reviewSessionId: string;
+  } | null>(null);
   const [batchRead, setBatchRead] = useState<{
     readonly total: number;
     readonly done: number;
@@ -233,6 +267,9 @@ export function App() {
   const jobIdRef = useRef<string | null>(null);
   jobIdRef.current = job ? job.id : null;
 
+  /** Stable alias of the bridge's canonical navigation entry. */
+  const navigate = session.navigate;
+
   const resetDraft = () => {
     setDraftText("");
     setDraftFiles([]);
@@ -254,14 +291,40 @@ export function App() {
   const handleCreateJob = (input: JobInput, refusalContext?: { readonly fileName?: string }) => {
     try {
       session.create(input);
-      resetDraft();
     } catch (error) {
       setInputError(
         error instanceof JobModelError
           ? { kind: "refusal", refusal: { code: error.code, fileName: refusalContext?.fileName } }
           : { kind: "text", message: "La entrada no se pudo usar para crear un trabajo." }
       );
+      return false;
     }
+    resetDraft();
+    landCreatedJob(input);
+    return true;
+  };
+
+  /**
+   * Quiet-shell landing (issue #84, D-023 as PRODUCT STRUCTURE only). Called
+   * SYNCHRONOUSLY with the creation write, from the single creation authority:
+   * a newly created Job advances straight to its first REAL task surface using
+   * the canonical domain transitions and nothing else — the structured
+   * Configure workspace for structured work, Review for text/document/batch
+   * work. The unstructured Configure stop has no task (G-HP2), so it is never
+   * rendered; both moves are the domain's immediate-next steps and cannot
+   * throw. Landing here (not in a passive effect) keeps the landing in the
+   * SAME state write as the creation, so the async batch read loop's own
+   * snapshot-based state writes can never clobber it, and no URL state is
+   * introduced. Job classification is the domain's own `inferJobKind` — never
+   * a second routing authority.
+   */
+  const landCreatedJob = (input: JobInput) => {
+    if (inferJobKind(input) === "structured") {
+      navigate("configure");
+      return;
+    }
+    navigate("configure");
+    navigate("review");
   };
 
   const metadataFiles = (): JobSourceFile[] =>
@@ -336,17 +399,10 @@ export function App() {
         extension: extensionOf(file.name),
       }));
       const previousJobId = jobIdRef.current;
-      try {
-        session.create({ type: "files", files: metadata });
-      } catch (error) {
-        setInputError(
-          error instanceof JobModelError
-            ? { kind: "refusal", refusal: { code: error.code } }
-            : { kind: "text", message: "La entrada no se pudo usar para crear un trabajo." }
-        );
-        return;
-      }
-      resetDraft();
+      // The shared creation authority performs the quiet-shell landing (#84)
+      // in the same state write as the creation, so the flushSync read-phase
+      // transitions below build on committed state that already includes it.
+      if (!handleCreateJob({ type: "files", files: metadata })) return;
       const jobId = await waitForNewJobId(previousJobId);
       if (jobId === null) return;
 
@@ -390,8 +446,8 @@ export function App() {
         setInputError({ kind: "refusal", refusal: { code: result.error.code } });
         return;
       }
-      session.create({ type: "pasted-text", text: result.text });
-      resetDraft();
+      // The shared creation authority performs the quiet-shell landing (#84).
+      handleCreateJob({ type: "pasted-text", text: result.text });
       return;
     }
     if (draftFiles.length === 0) {
@@ -465,6 +521,23 @@ export function App() {
   };
 
   /**
+   * Issue #84 correction (REC-05 journey A): whether the CURRENT
+   * Job/policy/ReviewSession triple still matches the last legitimately
+   * entered single-item Result. This is the ONLY extra fact that may offer an
+   * already-visited Result while mandatory decisions are pending again; every
+   * invalidation (real policy change, replaced ReviewSession, new Job,
+   * A→B→A policy cycling) fails the exact-identity comparison. It widens
+   * nothing else: output authorization stays untouched.
+   */
+  const singleResultRevisitAuthorized =
+    singleResultProvenance !== null &&
+    job !== null &&
+    review !== null &&
+    singleResultProvenance.jobId === job.id &&
+    singleResultProvenance.policyId === job.policyId &&
+    singleResultProvenance.reviewSessionId === review.sessionId;
+
+  /**
    * Step transitions. Entering Review for a text or single-document job runs
    * the existing legacy engine on the job's source text ONCE and installs the
    * resulting ReviewSession as the domain review authority (T07). The attempt
@@ -499,7 +572,42 @@ export function App() {
           return;
         }
       }
+      if (
+        step === "export" &&
+        job !== null &&
+        (job.kind === "text" || job.kind === "document") &&
+        !job.review.complete &&
+        !singleResultRevisitAuthorized
+      ) {
+        return;
+      }
       session.navigate(step);
+      // Provenance recording (issue #84 correction, journey A): a SUCCESSFUL
+      // navigation INTO the Result is the one legitimate single-item Result
+      // access, so the identity triple is captured exactly here — at the
+      // domain-gated transition (forward gated on `review.complete`/D-024,
+      // backward on `visitedSteps`), never from a render effect. An async
+      // review restart installs its fresh session while the flow position
+      // still reads `export`; that intermediate state is a state transition,
+      // NOT a Result access, and must never record provenance (otherwise a
+      // redone review could resurrect the visited-Result action the CORA-84-02
+      // contract forbids). Batches are excluded (their Result access is
+      // decoupled, REC-07 #87) and structured work has no ReviewSession, so
+      // neither can record. Pure navigation fact: no output authorization
+      // changes here.
+      if (
+        step === "export" &&
+        job !== null &&
+        (job.kind === "text" || job.kind === "document") &&
+        review !== null &&
+        (job.review.complete || singleResultRevisitAuthorized)
+      ) {
+        setSingleResultProvenance({
+          jobId: job.id,
+          policyId: job.policyId,
+          reviewSessionId: review.sessionId,
+        });
+      }
       setInputError(null);
       setReviewError(null);
     } catch (error) {
@@ -519,6 +627,23 @@ export function App() {
   };
 
   const currentStep: FlowStep = job ? job.currentStep : "input";
+  /**
+   * Step landing anchor (issue #84 PR #114 CI, review-export 1280px): the app
+   * is ONE scrolling document, so a step transition otherwise carries the
+   * previous step's scroll position into the next one and clamps the new
+   * step's landing to its own bottom — the composed Result then opens pinned
+   * to its download zone with the kept-original warning and the state summary
+   * above the fold. Every step change lands at the top of the new workspace
+   * (the same landing rule the Review workspace already applies for itself),
+   * so the state, the factual warnings and the primary action are perceptible
+   * together (HPD-09/HPD-10 hierarchy; #142 composed-screen gate). Layout
+   * effect: the anchor applies before the landing paints, with no scroll
+   * flicker. The guard keeps jsdom unit runs untouched (scrollY is always 0
+   * there) and skips pointless same-position scrolls in real browsers.
+   */
+  useLayoutEffect(() => {
+    if (window.scrollY !== 0) window.scrollTo(0, 0);
+  }, [currentStep]);
   /**
    * The review session the gate/export steps consume: the single session for
    * text/document jobs, the ACTIVE item's session for a batch (or `null` when
@@ -734,13 +859,50 @@ export function App() {
     });
   }, [currentStep, job, batchSessions, isExtracting, startReview]);
 
+  /**
+   * Quiet-shell review start (issue #84): landing a text/document Job on
+   * Review starts the ONE local processing attempt for that Job — the same
+   * T15/T22 contract the former Configure→Review transition had (once-only
+   * per Job, typed failure surfaced, app stays on Review). The ref keys the
+   * attempt on the Job id: a later invalidation (a REAL policy change resets
+   * the derived review state) never auto-re-runs the engine; the shell then
+   * shows the factual pending state and the explicit "Iniciar revisión"
+   * action instead. Batches are excluded: the reads-settle effect above owns
+   * their one-shot attempt.
+   */
+  const reviewStartAttemptedRef = useRef<string | null>(null);
+  const [reviewStartInFlight, setReviewStartInFlight] = useState(false);
+  useEffect(() => {
+    if (currentStep !== "review" || job === null) return;
+    if (job.kind === "document-batch") return;
+    if (review !== null || reviewStartInFlight) return;
+    if (!jobSupportsReview(job)) return;
+    if (reviewStartAttemptedRef.current === job.id) return;
+    reviewStartAttemptedRef.current = job.id;
+    setReviewStartInFlight(true);
+    void startReview().then((failure) => {
+      setReviewStartInFlight(false);
+      if (failure) setReviewError(failure.message);
+    });
+  }, [currentStep, job, review, reviewStartInFlight, startReview]);
+
+  /**
+   * Explicit review (re)start from the shell's task actions: the same
+   * handleGoToStep("review") authority the navigation used before, wrapped so
+   * the transient in-flight fact can suppress a duplicate affordance.
+   */
+  const handleStartReview = () => {
+    setReviewStartInFlight(true);
+    void handleGoToStep("review").finally(() => setReviewStartInFlight(false));
+  };
+
   return (
     <div className="min-h-screen bg-background-light font-sans text-neutral-800">
       <a
         href="#main-content"
         className={`sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-background-dark focus:px-4 focus:py-2 focus:text-white ${focusRing}`}
       >
-        Skip to main content
+        Saltar al contenido principal
       </a>
 
       <header className="border-b border-primary bg-surface-light">
@@ -756,38 +918,40 @@ export function App() {
                   session.clear();
                   resetDraft();
                 }}
-                title="Start a new job. Replaces the current job and clears its drafts."
+                title="Inicia un trabajo nuevo. Sustituye el trabajo actual y borra sus borradores."
                 aria-describedby="session-actions-help"
                 className={`rounded border border-primary-dark bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
               >
-                New Job
+                Nuevo trabajo
               </button>
               <button
                 type="button"
                 onClick={handleClearSession}
-                title="Discard all in-memory job data, review state and drafts from this browser session."
+                title="Descarta de forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los borradores de esta sesión del navegador."
                 aria-describedby="session-actions-help"
                 className={`rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
               >
-                Clear session
+                Borrar sesión
               </button>
             </div>
           </div>
           <p id="session-actions-help" className="mt-2 text-xs leading-relaxed text-neutral-600">
-            New Job starts a new job and replaces the current one. Clear session deliberately
-            discards all in-memory job data, review state and drafts from this browser session.
+            Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta de
+            forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los
+            borradores de esta sesión del navegador.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-700">
             <p>
-              <span className="font-semibold text-neutral-800">Job:</span>{" "}
-              {job ? job.name : "No job yet"}
+              <span className="font-semibold text-neutral-800">Trabajo:</span>{" "}
+              {job ? job.name : "Aún no hay trabajo"}
             </p>
-            <p>
-              <span className="font-semibold text-neutral-800">Type:</span>{" "}
-              {job ? KIND_LABELS[job.kind] : "—"}
-            </p>
+            {/* Issue #84 correction (spec F): the internal job kind is not
+                permanent chrome on any task surface. The kind stays a factual,
+                contextual fact where it is meaningful (e.g. the intake
+                confirmation and policy guidance); the header keeps only the
+                truthful persistent facts below. */}
             <label className="flex items-center gap-2">
-              <span className="font-semibold text-neutral-800">Privacy Policy:</span>
+              <span className="font-semibold text-neutral-800">Política de privacidad:</span>
               <select
                 value={job ? job.policyId : "standard"}
                 disabled={!job}
@@ -800,7 +964,7 @@ export function App() {
                   if (job === null || !isPolicySelectableForJobKind(next, job.kind)) return;
                   session.updatePolicy(next);
                 }}
-                title={job ? undefined : "Create a job first"}
+                title={job ? undefined : "Cree primero un trabajo"}
                 className={`rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
               >
                 {(Object.keys(POLICY_LABELS) as PrivacyPolicyId[]).map((policyId) => (
@@ -815,13 +979,12 @@ export function App() {
               </select>
             </label>
             <p className="text-neutral-600">
-              Processing runs locally in your browser; job content stays on this device.
+              El procesamiento se ejecuta localmente en su navegador; el contenido del trabajo
+              permanece en este dispositivo.
             </p>
           </div>
         </div>
       </header>
-
-      <StepNavigation job={job} currentStep={currentStep} onGoToStep={handleGoToStep} />
 
       <main id="main-content" className="mx-auto max-w-5xl px-4 py-8">
         {currentStep === "input" ? (
@@ -859,14 +1022,13 @@ export function App() {
             }
             outputOptions={structuredOutputOptions}
           />
-        ) : currentStep === "configure" && job ? (
-          <UnstructuredConfigureState job={job} reviewError={reviewError} />
         ) : currentStep === "review" && isBatch && job ? (
           <BatchReviewView
             job={job}
             sessions={batchSessions}
             activeIndex={batchActiveIndex}
             errorMessage={reviewError}
+            readProgress={batchRead}
             retryContextAvailable={batchRetryContextAvailable}
             onSelectDocument={session.selectDocument}
             onDecide={session.decide}
@@ -914,6 +1076,12 @@ export function App() {
               onGoToStep={handleGoToStep}
             />
           )
+        ) : currentStep === "review" && job ? (
+          <ReviewPendingState
+            job={job}
+            reviewError={reviewError}
+            reviewStartInFlight={reviewStartInFlight}
+          />
         ) : currentStep === "privacy-gate" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
@@ -937,14 +1105,33 @@ export function App() {
         ) : (
           <StepUnavailableState step={currentStep} reviewError={reviewError} />
         )}
+
+        {/*
+         * Quiet shell (issue #84): the contextual next actions replace the
+         * former universal five-step pipeline. Every action is enabled only
+         * through the existing domain authorities (isStepAccessible/goToStep),
+         * so the visible navigation can never widen or narrow the supported
+         * states (PRODUCT_FIDELITY_GATES_V1 Gate 2).
+         */}
+        <TaskActionBar
+          job={job}
+          exportResultHasOwnReturn={isBatch || activeReview !== null}
+          reviewActive={review !== null}
+          singleResultRevisitAuthorized={singleResultRevisitAuthorized}
+          reviewStartInFlight={reviewStartInFlight}
+          onStartReview={handleStartReview}
+          onGoToStep={handleGoToStep}
+        />
       </main>
 
       {/*
-       * Task-first hierarchy (UX-CLOSEOUT-01 outcome A): the active workspace
-       * renders before the persistent policy guidance, so four full policy
-       * cards never precede the user's task. All four POLICY-01 entries, the
-       * current-policy line and the patient-ID requirement stay discoverable
-       * here, derived from the same `buildPolicyGuidance` authorities.
+       * Task-first hierarchy (UX-CLOSEOUT-01 outcome A; CORA-84-01): the active
+       * workspace renders before the persistent policy guidance, and the
+       * detailed four-policy documentation is on demand behind the disclosure
+       * instead of four full policy cards permanently occupying the space below
+       * every operational workspace (HPD-03; issue #84 acceptance E). The
+       * current-policy line and the patient-ID qualification stay derived from
+       * the same `buildPolicyGuidance` authorities and never vanish.
        */}
       <PolicyGuidance job={job} />
     </div>
@@ -952,19 +1139,27 @@ export function App() {
 }
 
 /**
- * Job-aware Privacy Policy guidance (issue #56, POLICY-01).
+ * Job-aware Privacy Policy guidance (issue #56, POLICY-01; #84 CORA-84-01/03).
  *
- * The workspace is discoverable BEFORE Review, in the existing shell. It shows
- * the current policy, whether it is available for the current job kind, and
- * concise guidance for all four accepted policies. Availability and the
- * patient-ID requirement are DERIVED through `buildPolicyGuidance` from the
- * same pure authorities the engine uses; this component never hard-codes a
- * second operator mapping or availability table.
+ * The workspace is discoverable BEFORE Review, in the existing shell. The
+ * current-policy information (selected policy and its derived availability, or
+ * the honest no-job note) stays PERMANENTLY visible; the detailed four-policy
+ * documentation (all POLICY-01 entries, per-policy availability and the
+ * patient-ID requirement) is on demand behind an expanded disclosure instead
+ * of permanently occupying the space below every operational workspace
+ * (HPD-03 quiet automation; issue #84 acceptance E: the guidance may be
+ * contextual/on-demand, never vanished). Availability and the patient-ID
+ * requirement remain DERIVED through `buildPolicyGuidance` from the same pure
+ * authorities the engine uses; this component never hard-codes a second
+ * operator mapping or availability table.
  *
- * The region is keyboard-focusable with the shared visible focus ring, and the
- * availability state is always conveyed as text (never by color alone).
+ * The region is keyboard-focusable with the shared visible focus ring, the
+ * disclosure is a real keyboard-operable button that exposes its state through
+ * `aria-expanded`, and the availability state is always conveyed as text
+ * (never by color alone).
  */
 function PolicyGuidance({ job }: { job: Job | null }) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const entries = buildPolicyGuidance(job ? job.kind : null);
   const currentEntry =
     job !== null ? entries.find((entry) => entry.policyId === job.policyId) : undefined;
@@ -979,15 +1174,15 @@ function PolicyGuidance({ job }: { job: Job | null }) {
           id="privacy-policy-guidance-heading"
           className="font-display text-lg font-bold text-neutral-800"
         >
-          Privacy Policy
+          Política de privacidad
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-          Each policy maps detected information categories to privacy transformations. Availability
-          depends on the job type.
+          Cada política asigna las categorías de información detectadas a transformaciones de
+          privacidad. La disponibilidad depende del tipo de trabajo.
         </p>
         {job !== null && currentEntry ? (
           <p className="mt-2 text-sm text-neutral-800">
-            <span className="font-semibold">Current policy:</span> {POLICY_LABELS[job.policyId]} —{" "}
+            <span className="font-semibold">Política actual:</span> {POLICY_LABELS[job.policyId]} —{" "}
             <span>
               {currentEntry.availability === "available"
                 ? POLICY_AVAILABILITY_LABELS.available
@@ -997,75 +1192,347 @@ function PolicyGuidance({ job }: { job: Job | null }) {
         ) : (
           <p className="mt-2 text-sm text-neutral-700">{NO_JOB_AVAILABILITY_NOTE}</p>
         )}
-        <ul aria-label="Privacy Policy guidance" className="mt-3 grid gap-3 sm:grid-cols-2">
-          {entries.map((entry) => (
-            <li key={entry.policyId} className="rounded-lg border border-primary/30 bg-white p-3">
-              <p className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-neutral-800">
-                  {POLICY_LABELS[entry.policyId]}
-                </span>
-                {entry.availability !== "unknown" && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
-                    {entry.availability === "available"
-                      ? POLICY_AVAILABILITY_LABELS.available
-                      : POLICY_AVAILABILITY_LABELS.unavailable}
+        {/* HPD-03 (CORA-84-01): the detailed documentation expands on demand
+            rather than competing continuously with the clinical task. A real
+            button keeps the disclosure keyboard operable, and `aria-expanded`
+            conveys the state to assistive technology. */}
+        <button
+          type="button"
+          aria-expanded={detailsExpanded}
+          aria-controls="privacy-policy-guidance-details"
+          onClick={() => setDetailsExpanded((expanded) => !expanded)}
+          className={`mt-3 rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+        >
+          Guía detallada de políticas
+        </button>
+        {detailsExpanded && (
+          <ul
+            id="privacy-policy-guidance-details"
+            aria-label="Guía de políticas de privacidad"
+            className="mt-3 grid gap-3 sm:grid-cols-2"
+          >
+            {entries.map((entry) => (
+              <li key={entry.policyId} className="rounded-lg border border-primary/30 bg-white p-3">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-neutral-800">
+                    {POLICY_LABELS[entry.policyId]}
                   </span>
-                )}
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-neutral-700">{entry.guidance}</p>
-              {entry.requiresPatientIdColumn && (
-                <p className="mt-1 text-sm font-semibold text-neutral-800">
-                  Requires an explicit patient-ID column.
+                  {entry.availability !== "unknown" && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
+                      {entry.availability === "available"
+                        ? POLICY_AVAILABILITY_LABELS.available
+                        : POLICY_AVAILABILITY_LABELS.unavailable}
+                    </span>
+                  )}
                 </p>
-              )}
-            </li>
-          ))}
-        </ul>
+                <p className="mt-1 text-sm leading-relaxed text-neutral-700">{entry.guidance}</p>
+                {entry.requiresPatientIdColumn && (
+                  <p className="mt-1 text-sm font-semibold text-neutral-800">
+                    Requiere una columna explícita de identificador de paciente.
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );
 }
 
-function StepNavigation(props: {
+/**
+ * Quiet-shell contextual task actions (issue #84, acceptance A/C/D/G).
+ *
+ * Replaces the universal visible five-step pipeline navigation: there is no
+ * destination that exists merely to expose Input/Configure/Review/Privacy
+ * Gate/Export internals. Each action is a real next task, and it is offered
+ * ONLY when the existing domain authority (`isStepAccessible`, which reads
+ * `visitedSteps`, the canonical order and the D-024/D-004 gates) already
+ * allows the transition, so the visible shell can never widen or narrow the
+ * supported states. All copy is professional Spanish and task-prominent.
+ */
+function TaskActionBar(props: {
   job: Job | null;
-  currentStep: FlowStep;
+  /**
+   * Whether the workspace rendered at the Export step already provides its own
+   * in-workspace return control (the single-item and batch Results do; the
+   * structured Result and the unavailable fallback do not). The shell only
+   * supplies its own return action when this is false.
+   */
+  exportResultHasOwnReturn: boolean;
+  /** Whether the single-item review session currently exists (T15 authority). */
+  reviewActive: boolean;
+  /**
+   * Issue #84 correction (REC-05 journey A): whether the last legitimately
+   * entered single-item Result belongs to the CURRENT Job/policy/ReviewSession
+   * triple (browser-memory-only provenance, exact identity match). When true,
+   * an already-visited Result whose mandatory decisions are pending again may
+   * be offered as a revisit action even though `review.complete` is false —
+   * the Result itself truthfully renders needs-attention and every download
+   * stays governed by the canonical readiness authorities. Any real policy
+   * change, replaced ReviewSession, new Job or A→B→A policy cycling fails the
+   * identity match, so this can never resurrect a stale visit.
+   */
+  singleResultRevisitAuthorized: boolean;
+  reviewStartInFlight: boolean;
+  onStartReview: () => void;
   onGoToStep: (step: FlowStep) => void;
-}) {
-  const { job, currentStep, onGoToStep } = props;
+}): ReactElement | null {
+  const {
+    job,
+    exportResultHasOwnReturn,
+    reviewActive,
+    singleResultRevisitAuthorized,
+    reviewStartInFlight,
+    onStartReview,
+    onGoToStep,
+  } = props;
+  if (job === null) return null;
+  const step = job.currentStep;
+  const primaryAction = `rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
+  const secondaryAction = `rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`;
+  const actions: ReactElement[] = [];
+
+  if (step === "review") {
+    // The explicit review (re)start: offered only while no session exists and
+    // no attempt is running (a failed or policy-invalidated attempt), and only
+    // where the click performs a REAL start (issue #84 correction, acceptance
+    // G): a document-batch's one attempt is owned by the reads-settle effect
+    // and `handleGoToStep` deliberately skips the start branch for a batch, so
+    // the button would be a no-op re-navigation; structured work never
+    // auto-starts here either.
+    if (
+      job.kind !== "structured" &&
+      job.kind !== "document-batch" &&
+      !reviewActive &&
+      !reviewStartInFlight &&
+      job.processing !== "running" &&
+      jobSupportsReview(job)
+    ) {
+      actions.push(
+        <button key="start-review" type="button" onClick={onStartReview} className={primaryAction}>
+          Iniciar revisión
+        </button>
+      );
+    }
+    // D-024: for text/document the Result is directly reachable once the
+    // export gate passes; for a batch the domain never allows review→export.
+    // CORA-84-02: `isStepAccessible` also returns true for any already-visited
+    // step (backward navigation), so after a REAL policy change invalidated the
+    // current review, a historic `export` visit would still advertise a
+    // «Ver resultado» action the current review does not authorize. The shell
+    // therefore offers the action only while the CURRENT export authorization
+    // holds (`review.complete`, the exact D-004 fact the domain's own export
+    // gate reads) — plus the single bounded revisit exception below (issue #84
+    // correction, journey A): when the retained provenance proves the operator
+    // legitimately entered THIS Result under THIS exact Job/policy/
+    // ReviewSession triple, revisiting it with mandatory decisions pending
+    // again is offered — the Result then truthfully renders needs-attention
+    // and stays a navigation action only (no output authorization). Any real
+    // policy change, replaced session, new Job or A→B→A policy cycling fails
+    // the identity match. No new ad-hoc enable rule beyond this navigation
+    // exception, no second mapping (Gate 2). The batch distinction is
+    // preserved untouched: accessing the batch Result is decoupled from
+    // artifact authorization (REC-07 #87), so the batch action keeps the
+    // plain `isStepAccessible` authority.
+    const batchResultAccessDecoupled = job.kind === "document-batch";
+    if (
+      isStepAccessible(job, "export") &&
+      (batchResultAccessDecoupled || job.review.complete || singleResultRevisitAuthorized)
+    ) {
+      actions.push(
+        <button
+          key="result"
+          type="button"
+          onClick={() => onGoToStep("export")}
+          className={primaryAction}
+        >
+          Ver resultado
+        </button>
+      );
+    }
+    // The Privacy Gate stays an optional, visitable destination from Review
+    // for EVERY kind — including a structured job whose export gate is still
+    // closed (the gate reports the factual blockers; G-HP2: never hidden,
+    // deleted or disabled — D-023/D-024). "Privacy Gate" is the accepted
+    // product term, deliberately untranslated:
+    // docs/specs/SPEC_V4_APP_AND_REVIEW.md §2/§6 establish it as the step's
+    // name, and every gate surface (headings, guidance, tests) uses it.
+    if (isStepAccessible(job, "privacy-gate")) {
+      actions.push(
+        <button
+          key="gate"
+          type="button"
+          onClick={() => onGoToStep("privacy-gate")}
+          className={secondaryAction}
+        >
+          Privacy Gate
+        </button>
+      );
+    }
+  }
+
+  if (step === "privacy-gate") {
+    // Forward: the Result affordance stays VISIBLE and fail-closed — disabled
+    // exactly when the domain's export gate does not pass (D-004 for
+    // text/document/structured; the batch Result is decoupled from artifact
+    // authorization per REC-07 #87). The old pipeline always showed the
+    // destination; the quiet shell keeps this one because its disabled state
+    // is the factual "what is still missing" signal at the gate.
+    actions.push(
+      <button
+        key="result"
+        type="button"
+        onClick={() => onGoToStep("export")}
+        disabled={
+          !isStepAccessible(job, "export") ||
+          ((job.kind === "text" || job.kind === "document") &&
+            !job.review.complete &&
+            !singleResultRevisitAuthorized)
+        }
+        className={primaryAction}
+      >
+        Ir al resultado
+      </button>
+    );
+    if (job.visitedSteps.includes("review")) {
+      actions.push(
+        <button
+          key="back-to-review"
+          type="button"
+          onClick={() => onGoToStep("review")}
+          className={secondaryAction}
+        >
+          Volver a la revisión
+        </button>
+      );
+    }
+  }
+
+  if (step === "export") {
+    // The optional Privacy Gate stays reachable from the Result (the former
+    // pipeline allowed the gate round-trip; G-HP2: never hidden or deleted).
+    // "Privacy Gate" is the accepted product term, deliberately untranslated:
+    // docs/specs/SPEC_V4_APP_AND_REVIEW.md §2/§6 establish it as the step's
+    // name, and every gate surface (headings, guidance, tests) uses it.
+    if (isStepAccessible(job, "privacy-gate")) {
+      actions.push(
+        <button
+          key="gate"
+          type="button"
+          onClick={() => onGoToStep("privacy-gate")}
+          className={secondaryAction}
+        >
+          Privacy Gate
+        </button>
+      );
+    }
+    // The truthful way back to Review (issue #84 correction, spec §5): the
+    // single-item and batch Results render their own in-workspace return
+    // control; the structured Result and an UNMOUNTED workspace (e.g. a real
+    // policy change invalidated the review-dependent authorization from the
+    // Result) do not, so the shell supplies the return action there — gated by
+    // the domain's backward-navigation authority (`isStepAccessible`, which
+    // reads `visitedSteps`), never a new ad-hoc enable rule (Gate 2). Without
+    // it a real policy change from the Result strands the operator with only
+    // destructive session controls and no visible recovery path.
+    if (!exportResultHasOwnReturn && isStepAccessible(job, "review")) {
+      actions.push(
+        <button
+          key="back-to-review"
+          type="button"
+          onClick={() => onGoToStep("review")}
+          className={secondaryAction}
+        >
+          Volver a la revisión
+        </button>
+      );
+    }
+  }
+
+  if (step === "configure" && job.kind === "structured" && isStepAccessible(job, "review")) {
+    // Structured Configure is real column work; Review (free-text routing or
+    // the #85-owned notice) is its onward destination. #85 owns that surface.
+    actions.push(
+      <button
+        key="to-review"
+        type="button"
+        onClick={() => onGoToStep("review")}
+        className={primaryAction}
+      >
+        Continuar a la revisión
+      </button>
+    );
+  }
+
+  if (actions.length === 0) return null;
   return (
-    <nav aria-label="Job steps" className="border-b border-primary bg-surface-light">
-      <ol className="mx-auto flex max-w-5xl flex-wrap gap-2 px-4 py-3">
-        {FLOW_STEPS.map((step, index) => {
-          const enabled = job ? isStepAccessible(job, step) : step === "input";
-          const isCurrent = step === currentStep;
-          const title = !enabled
-            ? step === "export"
-              ? "Export is blocked while mandatory review is incomplete."
-              : "Complete the previous steps first."
-            : undefined;
-          return (
-            <li key={step}>
-              <button
-                type="button"
-                onClick={() => onGoToStep(step)}
-                disabled={!enabled}
-                aria-current={isCurrent ? "step" : undefined}
-                title={title}
-                className={`rounded border px-3 py-1.5 text-sm font-semibold ${
-                  isCurrent
-                    ? "border-primary-dark bg-primary-dark text-white"
-                    : enabled
-                      ? "border-primary bg-white text-primary-dark hover:bg-surface-light"
-                      : "cursor-not-allowed border-neutral-300 bg-white text-neutral-400"
-                } ${focusRing}`}
-              >
-                {index + 1}. {STEP_LABELS[step]}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
+    <div
+      aria-label="Siguientes acciones"
+      className="mt-8 flex flex-wrap items-center gap-2 border-t border-primary/30 pt-4"
+    >
+      {actions}
+    </div>
+  );
+}
+
+/**
+ * Factual pending-review state for a text/document Job that is positioned at
+ * Review without a review session: while the one local processing attempt is
+ * running, after a typed failure, or after a REAL policy change invalidated
+ * the previous session (issue #84 acceptance B: pending work, local
+ * processing error and the next action are factual and visible; the engine is
+ * never silently re-run — the explicit restart is offered by the task bar).
+ */
+function ReviewPendingState(props: {
+  job: Job;
+  reviewError: string | null;
+  reviewStartInFlight: boolean;
+}): ReactElement {
+  const { job, reviewError, reviewStartInFlight } = props;
+  const processing = job.processing;
+  return (
+    <section aria-labelledby="review-step-heading">
+      <h2
+        id="review-step-heading"
+        className="font-display text-3xl font-bold tracking-tight text-primary-dark"
+      >
+        Revisión
+      </h2>
+      {processing === "running" || reviewStartInFlight ? (
+        <p
+          role="status"
+          className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          Procesando el contenido localmente en este navegador…
+        </p>
+      ) : processing === "failed" || processing === "unknown" ? (
+        <>
+          {reviewError !== null && (
+            <p
+              role="alert"
+              className="mt-3 max-w-2xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+            >
+              {reviewError}
+            </p>
+          )}
+          <p
+            role="status"
+            className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+          >
+            El procesamiento local no se pudo completar. Puede iniciarlo de nuevo.
+          </p>
+        </>
+      ) : (
+        <p
+          role="status"
+          className="mt-3 max-w-2xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
+        >
+          La revisión local todavía no se ha ejecutado para este trabajo bajo la política actual.
+          Iníciela cuando esté listo.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -1478,46 +1945,6 @@ function InputStep(props: {
 }
 
 /**
- * Honest "no additional configuration" Configure state for the job kinds whose
- * accepted pipeline has no configuration phase (text, document, document
- * batch). It replaces the former migration placeholder (UX-CLOSEOUT-01 outcome
- * B) and is phrased only from existing Job/policy facts, pointing at the next
- * canonical Review action without changing any step-access rule.
- */
-function UnstructuredConfigureState({
-  job,
-  reviewError = null,
-}: {
-  job: Job;
-  reviewError?: string | null;
-}): ReactElement {
-  return (
-    <section aria-labelledby="configure-step-heading">
-      <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Configure
-      </h2>
-      {reviewError && (
-        <p
-          role="alert"
-          className={`mt-3 max-w-2xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
-        >
-          {reviewError}
-        </p>
-      )}
-      <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        No additional configuration is required for a {KIND_LABELS[job.kind].toLowerCase()}. The
-        selected policy ({POLICY_LABELS[job.policyId]}) is applied when Review runs; this job type
-        has no per-column or per-field configuration step.
-      </p>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-700">
-        Continue to Review with the step navigation above. Review shows every detected identifier
-        and requires an explicit decision before the Privacy Gate and Export become available.
-      </p>
-    </section>
-  );
-}
-
-/**
  * Honest structured Review state (UX-CLOSEOUT-01 outcome B) for jobs WITHOUT
  * free-text routing. Structured human review already happens in Configure
  * (column classification, the single patient-ID authority and explicit date
@@ -1650,8 +2077,8 @@ function StepUnavailableState({
         </p>
       )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        This step is not available for the current job state. Use the step navigation above to
-        continue from an available step.
+        Este paso no está disponible para el estado actual del trabajo. Vuelva a un paso disponible
+        con las acciones de tarea o los controles de sesión de arriba.
       </p>
     </section>
   );

@@ -60,8 +60,6 @@ for (const width of [375, 1280]) {
     await page.goto("/");
     await page.getByRole("textbox", { name: "Pegar texto" }).fill(FIXTURE_TEXT);
     await page.getByRole("button", { name: "Crear trabajo" }).click();
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await page.getByRole("button", { name: "3. Review" }).click();
 
     const progress = page.getByRole("status", { name: "Review progress" });
     const detections = page.getByRole("list", { name: "Detections" }).getByRole("button");
@@ -73,11 +71,11 @@ for (const width of [375, 1280]) {
     await expect(progress).toContainText("All mandatory decisions complete: no");
 
     // --- Export gate is fail-closed while decisions are pending -------------
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate" }).click();
     await expect(page.getByRole("alert")).toContainText(
       "Safe export is blocked while 4 mandatory review decisions are pending."
     );
-    await page.getByRole("button", { name: "3. Review" }).click();
+    await page.getByRole("button", { name: "Volver a la revisión" }).click();
 
     const selectDetection = (label: RegExp) =>
       page.getByRole("list", { name: "Detections" }).getByRole("button", { name: label }).click();
@@ -223,7 +221,7 @@ for (const width of [375, 1280]) {
     await expect(progress).toContainText("All mandatory decisions complete: yes");
 
     // --- Privacy Gate: factual summary with kept-original warnings ----------
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate" }).click();
     await expect(page.getByRole("alert")).toHaveCount(0);
     const warnings = page.getByRole("list", { name: "Kept-original warnings" });
     await expect(warnings).toContainText("Kept original");
@@ -232,7 +230,7 @@ for (const width of [375, 1280]) {
     await expect(summary).toContainText("Kept originals (restored): 1");
 
     // --- Export: two separate artifacts -------------------------------------
-    await page.getByRole("button", { name: "5. Export" }).click();
+    await page.getByRole("button", { name: "Ir al resultado" }).click();
     const resultWarning = page.getByRole("region", {
       name: "Originales conservados deliberadamente",
     });

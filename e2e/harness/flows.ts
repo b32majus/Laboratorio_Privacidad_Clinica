@@ -8,6 +8,7 @@
  * names, contours); no assertion is weakened by moving it.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+import path from "node:path";
 
 /** A file the input picker accepts: a committed path or an in-memory payload. */
 export type FileInput = string | { name: string; mimeType: string; buffer: Buffer };
@@ -56,23 +57,29 @@ export async function createTextJob(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(PLAIN_TEXT_FIXTURE);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Text job");
+  // Issue #84 correction (spec F): the internal job kind is not permanent
+  // header chrome, so the persistent header fact asserted here is the job NAME.
+  await expect(page.getByRole("banner")).toContainText("Pasted text");
 }
 
-/** Create a single-document job and assert the shell fact. */
+/** Create a single-document job and assert the real Review landing. */
 export async function createDocumentJob(page: Page, file: FileInput): Promise<void> {
   await page.goto("/");
   await selectFiles(page, file);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Document job");
+  // Issue #84 correction: the internal kind is not header chrome; the created
+  // job's landing workspace is the witness.
+  await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
 }
 
-/** Create a document-batch job and assert the shell fact. */
+/** Create a document-batch job and wait for the reads to settle onto Review. */
 export async function createBatchJob(page: Page, files: readonly FileInput[]): Promise<void> {
   await page.goto("/");
   await selectFiles(page, files);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Document batch");
+  // Issue #84 correction: the internal kind is not header chrome; the created
+  // batch's landing workspace (installed once the reads settle) is the witness.
+  await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
 }
 
 /** Create a structured job from a committed CSV and assert the shell fact. */
@@ -80,12 +87,27 @@ export async function createStructuredJob(page: Page, csvPath: string): Promise<
   await page.goto("/");
   await selectFiles(page, csvPath);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("banner")).toContainText("Structured job");
+  // Issue #84 correction: the internal kind is not header chrome; the job NAME
+  // (the structured file's name) is the persistent header fact.
+  await expect(page.getByRole("banner")).toContainText(path.basename(csvPath));
 }
 
-/** The Privacy Policy guidance list (POLICY-01 workspace). */
+/** The Privacy Policy guidance list (POLICY-01 workspace; on demand, #84 CORA-84-01). */
 export function policyGuidanceList(page: Page): Locator {
-  return page.getByRole("list", { name: "Privacy Policy guidance" });
+  return page.getByRole("list", { name: "Guía de políticas de privacidad" });
+}
+
+/**
+ * Idempotently expand the on-demand detailed policy guidance (#84 CORA-84-01).
+ * The toggle's accessible name is stable across states, so this is safe to
+ * call whether the disclosure is closed or already open.
+ */
+export async function expandPolicyGuidance(page: Page): Promise<void> {
+  const toggle = page.getByRole("button", { name: "Guía detallada de políticas" });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
+    await toggle.click();
+  }
+  await expect(policyGuidanceList(page)).toBeVisible();
 }
 
 /** One rendered guidance card, located from the visible contract only. */
@@ -95,13 +117,13 @@ export function guidanceItem(page: Page, name: string): Locator {
     .filter({ has: page.getByText(name, { exact: true }) });
 }
 
-/** Enter Review through the canonical text flow and wait for the detections. */
+/** Enter Review through the canonical text flow and wait for the detections.
+ * Quiet shell (#84): job creation lands directly on Review and starts the one
+ * local processing attempt, so no navigation click is needed. */
 export async function gotoReviewWithDetections(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
   await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
 }
 
@@ -147,8 +169,8 @@ export async function completeReview(page: Page): Promise<void> {
 export async function gotoExportComplete(page: Page): Promise<void> {
   await gotoReviewWithDetections(page);
   await completeReview(page);
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  const exportButton = page.getByRole("button", { name: "5. Export" });
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  const exportButton = page.getByRole("button", { name: "Ir al resultado" });
   await expect(exportButton).toBeEnabled();
   await exportButton.click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();

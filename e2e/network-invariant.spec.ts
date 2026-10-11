@@ -21,26 +21,26 @@ test.describe("network privacy invariant (enforcing)", () => {
   }) => {
     await page.goto("/");
 
-    await page.getByRole("textbox", { name: "Pegar texto" }).fill(
-      "Informe de consulta externa. Documento del paciente: DNI 12345678A. " +
-        "Telefono de contacto 600-123-456. Correo paciente1@example.com."
-    );
+    await page
+      .getByRole("textbox", { name: "Pegar texto" })
+      .fill(
+        "Informe de consulta externa. Documento del paciente: DNI 12345678A. " +
+          "Telefono de contacto 600-123-456. Correo paciente1@example.com."
+      );
     await page.getByRole("button", { name: "Crear trabajo" }).click();
-    await page.getByRole("button", { name: "2. Configure" }).click();
-    await page.getByRole("button", { name: "3. Review" }).click();
-    await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(
-      3
-    );
+    await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(3);
 
     // Export gate while review is pending: the Privacy Gate shows the
     // fail-closed output availability and the Export step itself stays
     // inaccessible (title carries the blocked reason).
-    await page.getByRole("button", { name: "4. Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Privacy Gate" }).click();
     await expect(page.getByRole("alert")).toContainText("mandatory review decision");
-    await expect(
-      page.getByRole("status", { name: "Output availability facts" })
-    ).toContainText("Not ready");
-    await expect(page.getByRole("button", { name: "5. Export" })).toBeDisabled();
+    await expect(page.getByRole("status", { name: "Output availability facts" })).toContainText(
+      "Not ready"
+    );
+    // Quiet shell (#84): the forward Result affordance stays visible but
+    // fail-closed while a mandatory decision is pending.
+    await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeDisabled();
 
     // The recorder itself saw nothing external; the auto-fixture would fail
     // the test otherwise. This assertion makes the contract readable in the
@@ -65,7 +65,7 @@ test.describe("network privacy invariant (adversarial planted requests)", () => 
   async function expectPlantedAttemptCaught(
     page: Page,
     networkRecorder: { violations: Array<{ url: string }> },
-    plant: () => void,
+    plant: () => void
   ): Promise<void> {
     // The CSP listener MUST be attached before the planted attempt runs:
     // Chromium reports the block as a console error at request time.
@@ -82,13 +82,10 @@ test.describe("network privacy invariant (adversarial planted requests)", () => 
     const caughtByCsp = () =>
       cspBlocks.some(
         (text) =>
-          /Content Security Policy/i.test(text) &&
-          text.includes("t21-planted-external.example")
+          /Content Security Policy/i.test(text) && text.includes("t21-planted-external.example")
       );
     await page.evaluate(plant);
-    await expect
-      .poll(() => caughtByMonitor() || caughtByCsp(), { timeout: 10_000 })
-      .toBe(true);
+    await expect.poll(() => caughtByMonitor() || caughtByCsp(), { timeout: 10_000 }).toBe(true);
   }
 
   test("a planted external fetch is detected by the monitor", async ({ page, networkRecorder }) => {

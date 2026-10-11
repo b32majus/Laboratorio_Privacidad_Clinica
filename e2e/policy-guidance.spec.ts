@@ -24,6 +24,7 @@ import { assertNoHorizontalOverflow } from "./harness/viewport";
 import {
   createStructuredJob,
   createTextJob,
+  expandPolicyGuidance,
   guidanceItem,
   keepOriginalThroughUi,
 } from "./harness/flows";
@@ -36,8 +37,11 @@ test("text job: all four policies are selectable and shown available (REC-02)", 
   page,
 }) => {
   await createTextJob(page);
+  // CORA-84-01: the detailed per-policy cards are on demand; expand the
+  // disclosure before reading the availability facts.
+  await expandPolicyGuidance(page);
 
-  const select = page.getByLabel("Privacy Policy:");
+  const select = page.getByLabel("Política de privacidad:");
   const option = (name: string) => select.getByRole("option", { name });
   // Assert the reflected DOM property, the actual selectability contract.
   for (const name of POLICY_NAMES) {
@@ -48,8 +52,9 @@ test("text job: all four policies are selectable and shown available (REC-02)", 
 
 test("structured job: all four policies are selectable and shown available", async ({ page }) => {
   await createStructuredJob(page, STRUCTURED_CSV);
+  await expandPolicyGuidance(page);
 
-  const select = page.getByLabel("Privacy Policy:");
+  const select = page.getByLabel("Política de privacidad:");
   for (const name of POLICY_NAMES) {
     await expect(select.getByRole("option", { name })).toHaveJSProperty("disabled", false);
     // "Available" is capitalised; the unavailable string spells "available"
@@ -75,9 +80,10 @@ async function createPolicyTextJob(
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(POLICY_TEXT_FIXTURE);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await page.getByLabel("Privacy Policy:").selectOption(policyId);
-  await page.getByRole("button", { name: "2. Configure" }).click();
-  await page.getByRole("button", { name: "3. Review" }).click();
+  await page.getByLabel("Política de privacidad:").selectOption(policyId);
+  // Quiet shell (#84): a REAL policy change invalidates the auto-started
+  // session, so processing under the selected policy is an explicit restart.
+  await page.getByRole("button", { name: "Iniciar revisión" }).click();
   await expect(
     page.getByRole("list", { name: "Detections" }).getByRole("button").first()
   ).toBeVisible();
@@ -129,8 +135,8 @@ test("text job: External AI is selected and processes with reduced date precisio
 
   await completeAllPending(page);
   // The completed review opens the output gate: Privacy Gate then Export.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  await expect(page.getByRole("button", { name: "5. Export" })).toBeEnabled();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeEnabled();
 });
 
 test("text job: Longitudinal Research is selected and processes with a consistent date shift (REC-02)", async ({
@@ -150,8 +156,8 @@ test("text job: Longitudinal Research is selected and processes with a consisten
 
   await completeAllPending(page);
   // The completed review opens the output gate: Privacy Gate then Export.
-  await page.getByRole("button", { name: "4. Privacy Gate" }).click();
-  await expect(page.getByRole("button", { name: "5. Export" })).toBeEnabled();
+  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeEnabled();
 });
 
 test("changed policy guidance normal text meets WCAG AA against the rendered composited background", async ({
@@ -159,14 +165,21 @@ test("changed policy guidance normal text meets WCAG AA against the rendered com
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await createTextJob(page);
+  // The detailed cards are on demand (CORA-84-01): expand so every measured
+  // surface is actually rendered.
+  await expandPolicyGuidance(page);
 
-  const region = page.getByRole("region", { name: "Privacy Policy" });
+  const region = page.getByRole("region", { name: "Política de privacidad" });
   const measured: ContrastResult[] = [];
 
   const pairs = [
     {
       label: "Policy guidance heading",
-      locator: region.getByRole("heading", { level: 2, name: "Privacy Policy", exact: true }),
+      locator: region.getByRole("heading", {
+        level: 2,
+        name: "Política de privacidad",
+        exact: true,
+      }),
     },
     { label: "Policy guidance intro", locator: region.locator("p").first() },
     { label: "Current policy line", locator: region.locator("p").nth(1) },
@@ -208,5 +221,46 @@ for (const width of [375, 768, 1280]) {
     // Structured job (all four available, patient-ID requirement line).
     await createStructuredJob(page, STRUCTURED_CSV);
     await assertNoHorizontalOverflow(page, `structured-job policy workspace @${width}px`);
+  });
+}
+
+/**
+ * CORA-84-01 responsive witness: the on-demand disclosure control itself is
+ * visible, clickable and not horizontally obstructed in both states at the
+ * two acceptance viewports (375×800 and 1280×800).
+ */
+for (const [width, height] of [
+  [375, 800],
+  [1280, 800],
+] as const) {
+  test(`policy guidance disclosure is operable and unobstructed at ${width}×${height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height });
+
+    await createTextJob(page);
+    const toggle = page.getByRole("button", { name: "Guía detallada de políticas" });
+
+    // Collapsed: the control is visible, in viewport and horizontally clean.
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.scrollIntoViewIfNeeded();
+    await expect(toggle).toBeInViewport();
+    await assertNoHorizontalOverflow(page, `guidance collapsed @${width}×${height}`);
+
+    // Expanded: clicking reveals the detailed cards and the control stays
+    // operable with no horizontal obstruction.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("list", { name: "Guía de políticas de privacidad" })).toBeVisible();
+    await toggle.scrollIntoViewIfNeeded();
+    await expect(toggle).toBeInViewport();
+    await assertNoHorizontalOverflow(page, `guidance expanded @${width}×${height}`);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("list", { name: "Guía de políticas de privacidad" })).toHaveCount(
+      0
+    );
   });
 }

@@ -210,10 +210,18 @@ export type BatchReviewViewProps = {
   readonly onAcknowledgeBatchItemError?: (index: number) => void;
   /** Typed attempt failure surfaced by the App, if any. */
   readonly errorMessage?: string | null;
+  /**
+   * Factual read progress while the batch's files are still being read
+   * (issue #84: the former start-surface progress line follows the queue onto
+   * Review). Derived from the same read loop state the Input surface showed;
+   * presentation only.
+   */
+  readonly readProgress?: { readonly total: number; readonly done: number } | null;
 };
 
 export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
   const { job, sessions, activeIndex, retryContextAvailable = false, errorMessage = null } = props;
+  const { readProgress = null } = props;
   const files = job.source.type === "files" ? job.source.files : [];
   const stillReading = files.some((file) => file.itemStatus === "reading");
   const activeSession = activeIndex === null ? undefined : sessions?.[activeIndex];
@@ -623,7 +631,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
           className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800"
         >
           {stillReading
-            ? "Los documentos se están leyendo todavía. La revisión comienza automáticamente cuando todos los documentos se han leído."
+            ? `Leyendo documentos… ${readProgress ? `${readProgress.done} de ${readProgress.total} leídos. ` : ""}La revisión comienza automáticamente cuando todos los documentos se han leído.`
             : failedCodes.length > 0
               ? "No hay ningún documento disponible para revisión. Los documentos con error permanecen en la lista con su error registrado y con las acciones de recuperación que cada uno ofrece."
               : "Todavía no hay ningún documento disponible para revisión."}
