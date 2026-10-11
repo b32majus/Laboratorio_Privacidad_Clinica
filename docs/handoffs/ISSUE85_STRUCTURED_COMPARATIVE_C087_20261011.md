@@ -1,8 +1,8 @@
 # Issue #85 — Structured comparative workspace + no-op Review removal (C-087)
 
-**Preparation only; NOT READY_TO_LAUNCH until human explicitly approves §2 visual/interaction composition.** This is one accepted REC-09 bounded ticket, not a new Train selection, code correction, or authorization to execute.
+**READY_TO_LAUNCH — human-approved design and Cora preflight verified 2026-10-11.** This is one accepted REC-09 bounded ticket, not a new Train selection, a code change, or permission for unattended execution, push or merge.
 - Repo: `b32majus/Laboratorio_Privacidad_Clinica`; branch `work/issue85-structured-workspace-c087-20261011`.
-- **Fixed canonical product base:** `origin/3.0-main@a9eee80306ae8382a71e16e8b860b1eb8df98100` (includes #84 PR #114 and freeze/Direction B PR #115); local prep HEAD will add **this document only**. Review product diff against that fixed base, not prep docs.
+- **Fixed canonical product base:** `origin/3.0-main@a9eee80306ae8382a71e16e8b860b1eb8df98100` (includes #84 PR #114 and freeze/Direction B PR #115); the local preparation contains **only handoff documentation and human approval**, no product change. Review product diff against that fixed base, not prep docs.
 - **Atenea current authority:** `b32majus/Atenea main@4dd488aea19870e36fa35511ce0a0b8f59dcdf6a` (includes #143 lean prep and #144 prescriptive diagnosed corrections); read `docs/START_HERE.md`, `PRE_EXECUTION_HARDENING_V1.md`, `PRODUCT_FIDELITY_GATES_V1.md`, `WORK_UNIT_COMPOSITION_POLICY_V1.md` in Atenea as needed. This project retains repo-local `AGENTS.md`, `CODING_STANDARDS.md` and `docs/START_HERE.md`; handoff is child-readable.
 - **Accepted product authority:** GitHub issue #85; `docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md` HPD-04 §6.3, §7.1 Direction B, HPD-09/12/13/15; `docs/RECOVERY_MASTER_PLAN_2026-10.md` REC-09/11; `docs/audits/2026-10-product-design-reconciliation-final.md` A-06/R-05; `docs/audits/2026-10-11-product-fidelity-freeze.md` FZ-01/02; `docs/handoffs/ISSUE85_DESIGN_PREP_FREEZE_B_20261011.md`. No re-selection or historical archaeology.
 
@@ -10,7 +10,7 @@
 
 Structured CSV/XLS(X) configuration becomes a **comparative, scannable column workspace**, not repeated cards. A user can compare all column names, current classes, **effective productive actions**, and pending/blocking states without opening details; understand/modify a selected column, see the effect immediately, choose one authoritative patient-ID column, and reach the actual next task. An empty/no-op Structured Review page **never appears** if no cells are routed to `process-as-text`; actual cell review remains intact if such cells exist.
 
-## 2. Proposed concrete composed design — HUMAN APPROVAL REQUIRED
+## 2. APPROVED concrete composed design — human decision
 
 **Desktop 1280×800, realistic 32-column CSV:** top task heading `Preparar datos estructurados` (not a second marketing landing), compact factual readiness + visible actual blockers + **one** `Columna de identificación del paciente` selector. Main comparison table is dominant (not below 32 configuration cards). Each row is identified by original `columnIndex` (duplicate/blank headers remain distinguishable); four always-visible factual fields:
 
@@ -23,7 +23,7 @@ Structured CSV/XLS(X) configuration becomes a **comparative, scannable column wo
 - **Sophilux B:** Inter for tabular work and controls; warm stone, powder-rose, accessible dark-rose actionable accents and coherent focus. No huge Cormorant hero or decorative whitespace that eclipses a clinical table; editorial expression is stronger in Input/orientation/Result under #91, not this ticket.
 - New/changed *ordinary* UI labels for this workspace are Spanish-first. #90 owns exhaustive existing localization outside touched surfaces; do not rewrite underlying semantic errors/policies opportunistically.
 
-**Bounded design approval:** human must approve this table-plus-contextual-inspector composition and continuations below before `READY_TO_LAUNCH`. Exact CSS, column widths and inspector mechanics not otherwise frozen are implementer choices tested in the first real rendered composition, not a request for a parallel prototype.
+**Human approval recorded (2026-10-11):** The human approved the four-field comparative table + contextual inspector, §3 action/return continuity and Sophilux B. This composition is binding. Exact CSS, column widths and inspector mechanics remain bounded implementer choices, proved in the first real rendered composition. No parallel prototype. **Former approval condition satisfied.**
 
 ## 3. Action → visible state → next action (all affected consumers)
 
@@ -55,8 +55,10 @@ Structured CSV/XLS(X) configuration becomes a **comparative, scannable column wo
 
 Default `cost_policy=standard`; `risk_class=complex` because this single bounded change affects preservation of Structured column/action/Study-ID distinctions **and** cross-screen navigation/free-text-vs-no-op branching, not because it draws a table or changes many files. Route `atenea-complex` (writer `nan/glm5.3-flash` high, Standards `openai/gpt-6-luna` high, Spec Complex `openai/gpt-6.1-sol` high). No experimental, Free or Go switching/fallback.
 
-After explicit human design approval, Cora must revalidate: worktree exact branch, original canonical product ancestor `a9eee80306ae8382a71e16e8b860b1eb8df98100`, local prep-only HEAD, clean tree, no new `origin/3.0-main` drift or conflicting #85 work; then declare `READY_TO_LAUNCH` or HUMAN STOP on material drift. Human owns visible `opencode .` launch, not Cora. A preparation commit **does not authorize launch**.
+**Cora launch preflight verified after human design approval:** branch `work/issue85-structured-workspace-c087-20261011`, product base `a9eee80306ae8382a71e16e8b860b1eb8df98100`, prep ancestor `5d738a682bb2b6ff113d634feea727a555b2ffba`, tree clean, remote `3.0-main` unchanged, no #85 remote branch, Atenea `main@4dd488aea19870e36fa35511ce0a0b8f59dcdf6a`. At operator launch re-check exact approved prep HEAD, branch, clean tree, and unchanged canonical base; drift => STOP/reconcile, never implicit rebase. This only authorizes human-visible `opencode .` launch; no automatic execution, push or merge.
 
 **STOP if:** semantic/model authority must change, a materially different UI concept is required, the internal no-op navigation cannot be hidden without changing protected domain, the current policy/ReviewSession/output gate would become stale or incorrect, the final composed 32-column screen contradicts the agreed primary-work area, or base/branch/authority changes. Otherwise implement within this envelope, no new Train selection or auditing outside #85.
 
 **Publication boundary:** LOCAL_ONLY; no worker push, PR creation, merge, issue close or deploy. Human publication remains separately authorized on independently audited exact SHA with CI.
+
+**C-087 #143/#144 boundary:** This is approved feature implementation, not a pre-diagnosed correction. Only a concrete later review finding triggers a fresh corrector, with a file/target/exact-edit prescription and one focused closure proof. No generic rediscovery, repeated frontier selection, broad pre-design audit or routine viewport matrix.
