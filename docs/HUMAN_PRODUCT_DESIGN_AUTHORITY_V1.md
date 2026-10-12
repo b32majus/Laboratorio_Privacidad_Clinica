@@ -308,6 +308,8 @@ Exact global navigation is deliberately not frozen by V1.
 
 **Traceability:** 2026-10-11 original-heritage addendum and frozen screenshots; REC-11/#91 owns final expression, REC-09/#85 must adopt its foundations without expanding the worker into a whole-app reskin. This later explicit human decision controls over prior **optional/minimal editorial-expression wording** only. All protected HPD §2 authorities, task prominence and language/privacy invariants continue unchanged.
 
+**Subsequent specific visual-design approval (2026-10-12):** The human owner has also approved the **Sophilux B V1 seven-screen HTML/CSS composition itself** after viewing the interactive proposal. Binding visual reference: docs/design/sophilux-b-v1/ACCEPTED_VISUAL_CONTRACT.md, with the exact original approved HTML, CSS, JS and desktop/mobile previews. **This approval resolves the previously open aesthetic direction** for #90/#91: do not ask the implementer to freely redesign the seven screens. The legacy source-package files that still say CANDIDATO / NO CONGELADO are historical originals: the later explicit approval and this authority entry supersede only their approval status. The prototype is **not** a source of domain/privacy/navigation permission. Its 375px header overflows to 413px in independent rerender; #91 must close that bounded responsive-fit defect without weakening the accepted composition. No new design ticket or protocol gate is introduced.
+
 ## 8. Human-product acceptance gates
 
 Any user-facing REC-05→REC-11 candidate must provide evidence proportional to the claims it makes.
