@@ -43,7 +43,9 @@ export function localizeDomainErrorMessage(message: string): string {
   // ── PDF (input/extract) ────────────────────────────────────────────────
   match = /^The PDF file "(.*)" could not be read\.$/.exec(message);
   if (match) return `No se pudo leer el archivo PDF "${match[1]}".`;
-  if (message === "The PDF contains no extractable text; it is likely a scan or has no text layer.") {
+  if (
+    message === "The PDF contains no extractable text; it is likely a scan or has no text layer."
+  ) {
     return "El PDF no contiene texto extraíble: probablemente sea un escaneo o no tenga capa de texto.";
   }
   match =
@@ -61,9 +63,10 @@ export function localizeDomainErrorMessage(message: string): string {
   ) {
     return 'Los archivos heredados de Word ".doc" no son compatibles; convierta el documento a DOCX o TXT e inténtelo de nuevo. Formatos admitidos: TXT, PDF, DOCX.';
   }
-  match = /^The file "(.*)" has an unsupported type "(.*)"; supported types: TXT, PDF, DOCX\.$/.exec(
-    message
-  );
+  match =
+    /^The file "(.*)" has an unsupported type "(.*)"; supported types: TXT, PDF, DOCX\.$/.exec(
+      message
+    );
   if (match) {
     return `El archivo "${match[1]}" tiene un tipo no admitido "${match[2]}"; formatos admitidos: TXT, PDF, DOCX.`;
   }
@@ -86,7 +89,8 @@ export function localizeDomainErrorMessage(message: string): string {
     return "No se pudo cargar el lector de Excel.";
   }
   match = /^The file "(.*)" is not a supported structured type \(CSV, XLS, XLSX\)\.$/.exec(message);
-  if (match) return `El archivo "${match[1]}" no es un tipo estructurado admitido (CSV, XLS, XLSX).`;
+  if (match)
+    return `El archivo "${match[1]}" no es un tipo estructurado admitido (CSV, XLS, XLSX).`;
 
   // ── CSV parsing (structured/csv) ───────────────────────────────────────
   if (message === "The CSV input is empty.") return "La entrada CSV está vacía.";
