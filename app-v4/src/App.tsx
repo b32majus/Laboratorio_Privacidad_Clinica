@@ -97,7 +97,7 @@ function hasReadingBatchItems(job: Job): boolean {
 }
 
 const focusRing =
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-dark focus-visible:ring-offset-2";
 
 /**
  * REC-08 F1 (corrective): typed identity of a start-surface refusal.
@@ -929,7 +929,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background-light font-sans text-neutral-800">
+    <div className="sophilux-shell min-h-screen font-sans text-neutral-800">
       <a
         href="#main-content"
         className={`sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-background-dark focus:px-4 focus:py-2 focus:text-white ${focusRing}`}
@@ -937,13 +937,39 @@ export function App() {
         Saltar al contenido principal
       </a>
 
-      <header className="border-b border-primary bg-surface-light">
-        <div className="mx-auto max-w-5xl px-4 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="font-display text-2xl font-bold text-primary-dark">
-              Laboratorio de Privacidad Clínica
-            </h1>
-            <div className="flex flex-wrap items-center gap-2">
+      {/* U1 (#91) Sophilux B V1 shell: editorial sitebar identity. Same real
+          facts and controls (h1, Nuevo trabajo / Borrar sesión, job, policy
+          select, local-only processing fact) with the same accessible names,
+          titles, help ids and control order; presentation only. */}
+      <header className="sx-sitebar">
+        <div className={`mx-auto px-4 ${currentStep === "input" ? "max-w-6xl" : "max-w-5xl"}`}>
+          <div className="sx-sitebar-row">
+            <div className="sx-brand">
+              <span className="sx-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 38 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M19 2 35 8v12c0 10-6.8 17.1-16 22C9.8 37.1 3 30 3 20V8L19 2Z"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                  />
+                  <path d="M19 7v29M7 19h24" stroke="currentColor" strokeWidth="1.4" />
+                  <path
+                    d="M19 7 8 11v8h11V7ZM19 19v17c6-3.7 11-8.4 11-17H19Z"
+                    fill="currentColor"
+                    opacity=".14"
+                  />
+                </svg>
+              </span>
+              <div>
+                <h1 className="sx-brand-name">
+                  Laboratorio <span>de Privacidad Clínica</span>
+                </h1>
+                <p className="sx-brand-sub" aria-hidden="true">
+                  Clínica · Sophilux
+                </p>
+              </div>
+            </div>
+            <div className="sx-sitebar-actions">
               <button
                 type="button"
                 onClick={() => {
@@ -952,7 +978,7 @@ export function App() {
                 }}
                 title="Inicia un trabajo nuevo. Sustituye el trabajo actual y borra sus borradores."
                 aria-describedby="session-actions-help"
-                className={`rounded border border-primary-dark bg-primary-dark px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
+                className={`sx-header-pill ${focusRing}`}
               >
                 Nuevo trabajo
               </button>
@@ -961,20 +987,20 @@ export function App() {
                 onClick={handleClearSession}
                 title="Descarta de forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los borradores de esta sesión del navegador."
                 aria-describedby="session-actions-help"
-                className={`rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+                className={`sx-header-pill ${focusRing}`}
               >
                 Borrar sesión
               </button>
             </div>
           </div>
-          <p id="session-actions-help" className="mt-2 text-xs leading-relaxed text-neutral-600">
-            Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta de
-            forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los
-            borradores de esta sesión del navegador.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-700">
+          <div className="sx-sitebar-context">
+            <p id="session-actions-help">
+              Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta de
+              forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los
+              borradores de esta sesión del navegador.
+            </p>
             <p>
-              <span className="font-semibold text-neutral-800">Trabajo:</span>{" "}
+              <span className="sx-fact-label">Trabajo:</span>{" "}
               {job ? job.name : "Aún no hay trabajo"}
             </p>
             {/* Issue #84 correction (spec F): the internal job kind is not
@@ -983,7 +1009,7 @@ export function App() {
                 confirmation and policy guidance); the header keeps only the
                 truthful persistent facts below. */}
             <label className="flex items-center gap-2">
-              <span className="font-semibold text-neutral-800">Política de privacidad:</span>
+              <span className="sx-fact-label">Política de privacidad:</span>
               <select
                 value={job ? job.policyId : "standard"}
                 disabled={!job}
@@ -997,7 +1023,7 @@ export function App() {
                   session.updatePolicy(next);
                 }}
                 title={job ? undefined : "Cree primero un trabajo"}
-                className={`rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+                className={`sx-select ${focusRing}`}
               >
                 {(Object.keys(POLICY_LABELS) as PrivacyPolicyId[]).map((policyId) => (
                   <option
@@ -1010,7 +1036,7 @@ export function App() {
                 ))}
               </select>
             </label>
-            <p className="text-neutral-600">
+            <p>
               El procesamiento se ejecuta localmente en su navegador; el contenido del trabajo
               permanece en este dispositivo.
             </p>
@@ -1018,7 +1044,10 @@ export function App() {
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto max-w-5xl px-4 py-8">
+      <main
+        id="main-content"
+        className={`mx-auto px-4 py-8 ${currentStep === "input" ? "max-w-6xl" : "max-w-5xl"}`}
+      >
         {currentStep === "input" ? (
           <InputStep
             draftText={draftText}
@@ -1717,10 +1746,7 @@ const POLICY_PURPOSE_ES: Readonly<Record<PrivacyPolicyId, { name: string; purpos
 function IntendedUseGuidance({ jobKind }: { jobKind: JobKind | null }) {
   const entries = buildPolicyGuidance(jobKind);
   return (
-    <section
-      aria-labelledby="intended-use-heading"
-      className="mt-5 rounded-xl border border-primary/30 bg-surface-light p-4"
-    >
+    <section aria-labelledby="intended-use-heading" className="sx-afterword">
       <h3
         id="intended-use-heading"
         className="text-sm font-bold uppercase tracking-wide text-neutral-800"
@@ -1848,225 +1874,241 @@ function InputStep(props: {
   };
   return (
     <section aria-labelledby="input-step-heading">
-      <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
-          Añadir información
-        </p>
-        <h2
-          id="input-step-heading"
-          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
-        >
-          Nuevo trabajo de privacidad
-        </h2>
-        <p className="mt-2 text-base leading-relaxed text-neutral-700">
-          Añada información clínica pegando texto o seleccionando archivos. El resto del proceso se
-          organiza a partir de su entrada.
-        </p>
-      </header>
-
-      <p className="mt-4 max-w-3xl text-sm leading-relaxed text-neutral-600">
-        Use una sola entrada por trabajo: texto pegado o archivos, no ambos.
-      </p>
-
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
-        <section
-          aria-labelledby="paste-text-heading"
-          className="flex flex-col rounded-xl border border-primary/40 bg-white p-5 shadow-sm"
-        >
-          <h3 id="paste-text-heading" className="font-display text-lg font-bold text-neutral-800">
-            Pegar texto clínico
-          </h3>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            Texto libre, como notas, informes o correspondencia.
+      {/* U1 (#91) Sophilux B V1 Entrada (VF-01 + VF-08): approved editorial
+          identity/story beside the immediate real intake — no extra landing
+          step, no mock controls. Every real control below keeps its existing
+          id, accessible name, action and order; presentation only. */}
+      <div className="sx-entry-grid">
+        <div className="sx-story">
+          <p className="sx-eyebrow">Trabaja con tranquilidad</p>
+          <p className="sx-display-title">
+            Protege los datos.
+            <br />
+            <em>Conserva el sentido.</em>
           </p>
-          <section aria-labelledby="synthetic-examples-heading" className="mt-4">
-            <h4 id="synthetic-examples-heading" className="text-sm font-bold text-neutral-800">
-              Ejemplos sintéticos
-            </h4>
-            <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-              Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el borrador; no crea
-              ningún trabajo.
+          <p className="sx-intro-copy">
+            La información clínica merece un tratamiento cuidadoso. Revisa textos, documentos y
+            tablas antes de compartirlos con herramientas de IA, sin perder el contexto que importa.
+          </p>
+          <ul className="sx-assurance">
+            <li>
+              <span className="sx-check">✓</span> Revisión humana
+            </li>
+            <li>
+              <span className="sx-check">✓</span> Trabajo local
+            </li>
+            <li>
+              <span className="sx-check">✓</span> Control sobre la salida
+            </li>
+          </ul>
+          <div className="sx-intro-art" aria-hidden="true">
+            <p>La privacidad también puede ser elegante.</p>
+          </div>
+        </div>
+
+        <div className="sx-card">
+          <div className="sx-card-head">
+            <div>
+              <p className="sx-smallcaps">Nuevo trabajo</p>
+              <h2 id="input-step-heading" className="sx-card-title">
+                Nuevo trabajo de privacidad
+              </h2>
+            </div>
+          </div>
+          <div className="sx-card-body">
+            <p className="sx-card-lede">
+              Añada información clínica pegando texto o seleccionando archivos. El resto del proceso
+              se organiza a partir de su entrada.
             </p>
-            <ul aria-labelledby="synthetic-examples-heading" className="mt-2 flex flex-wrap gap-2">
-              {SYNTHETIC_EXAMPLES.map((example) => (
-                <li key={example.id}>
+            <p className="sx-card-note">
+              Use una sola entrada por trabajo: texto pegado o archivos, no ambos.
+            </p>
+
+            <div className="sx-intake-sections">
+              <section aria-labelledby="paste-text-heading" className="sx-intake">
+                <h3 id="paste-text-heading" className="sx-h3">
+                  Pegar texto clínico
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed sx-muted">
+                  Texto libre, como notas, informes o correspondencia.
+                </p>
+                <section aria-labelledby="synthetic-examples-heading" className="mt-4">
+                  <h4
+                    id="synthetic-examples-heading"
+                    className="text-sm font-bold text-neutral-800"
+                  >
+                    Ejemplos sintéticos
+                  </h4>
+                  <p className="mt-1 text-sm leading-relaxed sx-muted">
+                    Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el borrador;
+                    no crea ningún trabajo.
+                  </p>
+                  <ul
+                    aria-labelledby="synthetic-examples-heading"
+                    className="mt-2 flex flex-wrap gap-2"
+                  >
+                    {SYNTHETIC_EXAMPLES.map((example) => (
+                      <li key={example.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleExample(example.text)}
+                          title={example.description}
+                          className={`sx-pill ${focusRing}`}
+                        >
+                          {example.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <div className="mt-4">
                   <button
                     type="button"
-                    onClick={() => handleExample(example.text)}
-                    title={example.description}
-                    className={`rounded-lg border border-primary bg-surface-light px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+                    onClick={() => {
+                      void handlePaste();
+                    }}
+                    disabled={props.isExtracting || pasteBusy}
+                    aria-busy={props.isExtracting || pasteBusy}
+                    className={`sx-btn-outline ${focusRing}`}
                   >
-                    {example.label}
+                    Pegar desde el portapapeles
                   </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                void handlePaste();
-              }}
-              disabled={props.isExtracting || pasteBusy}
-              aria-busy={props.isExtracting || pasteBusy}
-              className={`rounded-lg border border-primary-dark bg-white px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-light disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
-            >
-              Pegar desde el portapapeles
-            </button>
-            <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-              Lee el contenido actual del portapapeles en este navegador. También puede usar Ctrl+V
-              directamente en el campo de texto.
-            </p>
-            {pasteError && (
-              <p
-                role="alert"
-                className="mt-2 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
+                  <p className="mt-1 text-sm leading-relaxed sx-muted">
+                    Lee el contenido actual del portapapeles en este navegador. También puede usar
+                    Ctrl+V directamente en el campo de texto.
+                  </p>
+                  {pasteError && (
+                    <p role="alert" className="sx-alert mt-2">
+                      {pasteError}
+                    </p>
+                  )}
+                </div>
+                <label htmlFor="paste-text" className="sx-field-label">
+                  Pegar texto
+                </label>
+                <textarea
+                  id="paste-text"
+                  value={props.draftText}
+                  onChange={(event) => commitDraftText(event.target.value)}
+                  rows={7}
+                  className={`sx-textarea ${focusRing}`}
+                />
+              </section>
+
+              <section
+                aria-labelledby="select-files-heading"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsDragging(false);
+                  // REC-08: drag/drop converges on the same draft-files staging as
+                  // file selection — no second classifier, no silent loss/reorder.
+                  // CORA-80-02: a drop carrying ZERO files (e.g. dropped text or a
+                  // non-file payload) is not a file selection and must not replace,
+                  // clear or reorder an existing staged selection. Only real
+                  // non-empty drops reach the canonical staging path.
+                  const droppedFiles = Array.from(event.dataTransfer.files);
+                  if (droppedFiles.length === 0) return;
+                  props.onFilesDropped(droppedFiles);
+                }}
+                className={`sx-intake ${isDragging ? "sx-intake--dragging" : ""}`}
               >
-                {pasteError}
-              </p>
-            )}
-          </div>
-          <label htmlFor="paste-text" className="mt-4 block text-sm font-semibold text-neutral-800">
-            Pegar texto
-          </label>
-          <textarea
-            id="paste-text"
-            value={props.draftText}
-            onChange={(event) => commitDraftText(event.target.value)}
-            rows={7}
-            className={`mt-1 w-full rounded-lg border border-primary bg-surface-light px-3 py-2 text-sm ${focusRing}`}
-          />
-        </section>
-
-        <section
-          aria-labelledby="select-files-heading"
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(event) => {
-            event.preventDefault();
-            setIsDragging(false);
-            // REC-08: drag/drop converges on the same draft-files staging as
-            // file selection — no second classifier, no silent loss/reorder.
-            // CORA-80-02: a drop carrying ZERO files (e.g. dropped text or a
-            // non-file payload) is not a file selection and must not replace,
-            // clear or reorder an existing staged selection. Only real
-            // non-empty drops reach the canonical staging path.
-            const droppedFiles = Array.from(event.dataTransfer.files);
-            if (droppedFiles.length === 0) return;
-            props.onFilesDropped(droppedFiles);
-          }}
-          className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
-            isDragging ? "border-2 border-primary-dark" : "border-primary/40"
-          }`}
-        >
-          <h3 id="select-files-heading" className="font-display text-lg font-bold text-neutral-800">
-            Elegir archivos
-          </h3>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            Documentos (TXT, PDF, DOCX) o tablas estructuradas (CSV, XLS, XLSX).
-          </p>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
-            Arrastre y suelte archivos aquí o use el selector. Arrastrar y seleccionar siguen el
-            mismo proceso.
-          </p>
-          <label
-            htmlFor="select-files"
-            className="mt-4 block text-sm font-semibold text-neutral-800"
-          >
-            Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)
-          </label>
-          <input
-            id="select-files"
-            type="file"
-            multiple
-            accept={SUPPORTED_EXTENSIONS.join(",")}
-            onChange={props.onFileSelection}
-            className={`mt-1 block w-full text-sm ${focusRing}`}
-          />
-          {isDragging && (
-            <p
-              role="status"
-              className="mt-2 rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
-            >
-              Suelte los archivos para añadirlos al borrador.
-            </p>
-          )}
-          {selectedCount > 0 && (
-            <div className="mt-3 rounded-lg border border-primary/40 bg-surface-light p-3">
-              <p className="text-sm font-semibold text-neutral-800">
-                {selectedCount === 1
-                  ? "1 archivo seleccionado"
-                  : `${selectedCount} archivos seleccionados`}
-              </p>
-              <ul aria-label="Archivos seleccionados" className="mt-2 space-y-1.5">
-                {props.draftFiles.map((file, index) => (
-                  <li
-                    key={`${file.name}-${index}`}
-                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="break-all font-medium text-neutral-800">{file.name}</span>
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-neutral-700">
-                      {selectedFileFamilyLabel(file.name)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                <h3 id="select-files-heading" className="sx-h3">
+                  Elegir archivos
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed sx-muted">
+                  Documentos (TXT, PDF, DOCX) o tablas estructuradas (CSV, XLS, XLSX).
+                </p>
+                <p className="mt-1 text-sm leading-relaxed sx-muted">
+                  Arrastre y suelte archivos aquí o use el selector. Arrastrar y seleccionar siguen
+                  el mismo proceso.
+                </p>
+                <label htmlFor="select-files" className="sx-field-label">
+                  Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)
+                </label>
+                <input
+                  id="select-files"
+                  type="file"
+                  multiple
+                  accept={SUPPORTED_EXTENSIONS.join(",")}
+                  onChange={props.onFileSelection}
+                  className={`mt-1 block w-full text-sm ${focusRing}`}
+                />
+                {isDragging && (
+                  <p role="status" className="sx-status mt-2">
+                    Suelte los archivos para añadirlos al borrador.
+                  </p>
+                )}
+                {selectedCount > 0 && (
+                  <div className="sx-staged">
+                    <p className="sx-staged-count">
+                      {selectedCount === 1
+                        ? "1 archivo seleccionado"
+                        : `${selectedCount} archivos seleccionados`}
+                    </p>
+                    <ul aria-label="Archivos seleccionados" className="mt-2 space-y-1.5">
+                      {props.draftFiles.map((file, index) => (
+                        <li
+                          key={`${file.name}-${index}`}
+                          className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="sx-staged-name">{file.name}</span>
+                          <span className="sx-staged-family">
+                            {selectedFileFamilyLabel(file.name)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
             </div>
-          )}
-        </section>
-      </div>
 
-      <div className="mt-5 max-w-3xl space-y-4">
-        {props.batchRead && (
-          <p
-            role="status"
-            className="rounded border border-primary bg-white px-3 py-2 text-sm font-semibold text-neutral-800"
-          >
-            Leyendo documentos… {props.batchRead.done} de {props.batchRead.total} leídos.
-          </p>
-        )}
-        {failedItems.length > 0 && (
-          <section
-            aria-labelledby="batch-read-failures-heading"
-            className="rounded border border-primary-dark bg-surface-light px-3 py-2"
-          >
-            <h3 id="batch-read-failures-heading" className="text-sm font-bold text-primary-dark">
-              Documentos que no se pudieron leer
-            </h3>
-            <ul
-              aria-label="Documentos con error"
-              className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
-            >
-              {failedItems.map((item) => (
-                <li key={item.index}>
-                  <span className="font-semibold">{item.name}</span>:{" "}
-                  {localizeDomainErrorMessage(item.error.message)}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-        {props.inputError && (
-          <p
-            role="alert"
-            className="rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark"
-          >
-            {props.inputError}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={props.onCreate}
-          disabled={props.isExtracting}
-          aria-busy={props.isExtracting}
-          className={`rounded-lg bg-primary-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
-        >
-          Crear trabajo
-        </button>
+            <div className="sx-card-foot">
+              {props.batchRead && (
+                <p role="status" className="sx-status">
+                  Leyendo documentos… {props.batchRead.done} de {props.batchRead.total} leídos.
+                </p>
+              )}
+              {failedItems.length > 0 && (
+                <section aria-labelledby="batch-read-failures-heading" className="sx-failures">
+                  <h3 id="batch-read-failures-heading" className="text-sm font-bold text-[#943f49]">
+                    Documentos que no se pudieron leer
+                  </h3>
+                  <ul
+                    aria-label="Documentos con error"
+                    className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
+                  >
+                    {failedItems.map((item) => (
+                      <li key={item.index}>
+                        <span className="font-semibold">{item.name}</span>:{" "}
+                        {localizeDomainErrorMessage(item.error.message)}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {props.inputError && (
+                <p role="alert" className="sx-alert">
+                  {props.inputError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={props.onCreate}
+                disabled={props.isExtracting}
+                aria-busy={props.isExtracting}
+                className={`sx-btn-primary ${focusRing}`}
+              >
+                Crear trabajo
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <IntendedUseGuidance jobKind={props.batchJob ? props.batchJob.kind : null} />
