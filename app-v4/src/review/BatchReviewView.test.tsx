@@ -256,8 +256,8 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
         fireEvent.change(screen.getByLabelText("Tipo de dato"), {
           target: { value: "Dato de documento A" },
         });
-      } else fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, mantener original";
+      } else fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, conservar original";
       const oldConfirm = screen.getByRole("button", { name: confirmName });
       fireEvent.click(screen.getByRole("button", { name: /doc-b\.txt/ }));
       expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();

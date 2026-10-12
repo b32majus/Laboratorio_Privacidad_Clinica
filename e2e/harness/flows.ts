@@ -131,8 +131,8 @@ export async function gotoReviewWithDetections(page: Page): Promise<void> {
 export async function keepOriginalThroughUi(page: Page): Promise<void> {
   const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
   const decision = inspector.locator('dt:text-is("Decisión actual") + dd');
-  const confirmation = inspector.getByRole("group", { name: "Confirmar mantener original" });
-  await inspector.getByRole("button", { name: "Mantener original", exact: true }).click();
+  const confirmation = inspector.getByRole("group", { name: "Confirmar conservar original" });
+  await inspector.getByRole("button", { name: "Conservar original", exact: true }).click();
   await expect
     .poll(
       async () =>
@@ -141,7 +141,7 @@ export async function keepOriginalThroughUi(page: Page): Promise<void> {
     .toBe(true);
   if ((await confirmation.count()) > 0) {
     await expect(confirmation).toBeVisible();
-    await confirmation.getByRole("button", { name: "Sí, mantener original", exact: true }).click();
+    await confirmation.getByRole("button", { name: "Sí, conservar original", exact: true }).click();
   }
   await expect(decision).toHaveText("Original conservado");
   await expect(confirmation).toHaveCount(0);

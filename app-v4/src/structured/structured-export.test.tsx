@@ -278,7 +278,7 @@ describe("ExportStep — structured", () => {
 
       fireEvent.click(safeButton);
       const safeCsv = await textOf(capture.downloads[0]);
-      expect(capture.downloads[0].fileName).toBe("safe-structured-output.csv");
+      expect(capture.downloads[0].fileName).toBe("salida-estructurada-segura.csv");
       expect(safeCsv.split("\n")[0]).toBe(
         "ID_ESTUDIO,Fecha_Visita,Fecha_Nacimiento,Diagnostico,CampoLibre"
       );
@@ -297,7 +297,7 @@ describe("ExportStep — structured", () => {
       fireEvent.click(confirm);
       await waitFor(() => expect(capture.downloads).toHaveLength(2));
       const audit = await textOf(capture.downloads[1]);
-      expect(capture.downloads[1].fileName).toBe("structured-confidential-audit.txt");
+      expect(capture.downloads[1].fileName).toBe("auditoria-confidencial-estructurada.txt");
       expect(audit.startsWith(CONFIDENTIAL_AUDIT_WARNING_LINE)).toBe(true);
       expect(audit).toContain("P-001");
       // Kept columns carry no correspondence: the audit holds Study-ID and
@@ -344,7 +344,7 @@ describe("ExportStep — structured Safe XLSX (H-28)", () => {
         screen.queryByRole("button", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
       await waitFor(() => expect(capture.downloads).toHaveLength(1));
-      expect(capture.downloads[0].fileName).toBe("safe-structured-output.xlsx");
+      expect(capture.downloads[0].fileName).toBe("salida-estructurada-segura.xlsx");
 
       const workbook = readWorkbook(await bytesOf(capture.downloads[0]));
       expect(workbook.sheetNames[0]).toBe("Data");
@@ -393,7 +393,7 @@ describe("ExportStep — structured Confidential confirmation (H-42 slice)", () 
       expect(capture.downloads).toHaveLength(0);
       fireEvent.click(screen.getByRole("button", { name: /confirmar descarga confidencial/i }));
       await waitFor(() => expect(capture.downloads).toHaveLength(1));
-      expect(capture.downloads[0].fileName).toBe("structured-confidential-audit.xlsx");
+      expect(capture.downloads[0].fileName).toBe("auditoria-confidencial-estructurada.xlsx");
       // The confirmation resets after confirm: no panel, no second download.
       expect(
         screen.queryByRole("group", { name: /confirmar descarga confidencial/i })

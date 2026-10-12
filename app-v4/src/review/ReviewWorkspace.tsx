@@ -1021,7 +1021,7 @@ function InspectorPane(props: {
           <ul>
             <li>A: aceptar la propuesta actual.</li>
             <li>M: editar sustitución, sin aplicar.</li>
-            <li>K: mantener original, con la confirmación correspondiente.</li>
+            <li>K: conservar original, con la confirmación correspondiente.</li>
             <li>F: marcar texto seleccionado en el original.</li>
             <li>Alt + ↓ / ↑: siguiente / anterior pendiente, sin volver al inicio.</li>
           </ul>
@@ -1200,7 +1200,7 @@ function InspectorPane(props: {
                 Aceptar detección
               </button>
               <p id="accept-no-proposal-note" className="text-xs text-neutral-700">
-                No hay propuesta que aceptar: aplica una modificación o mantén el original.
+                No hay propuesta que aceptar: aplica una modificación o conserva el original.
               </p>
             </>
           ) : (
@@ -1243,7 +1243,7 @@ function InspectorPane(props: {
             aria-controls={props.keepOriginalPending ? "keep-original-confirmation" : undefined}
             className={`w-full rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
           >
-            Mantener original
+            Conservar original
           </button>
           {props.keepOriginalPending && (
             <div
@@ -1260,7 +1260,7 @@ function InspectorPane(props: {
               className="rounded border-2 border-primary-dark bg-white p-3 text-sm text-neutral-800"
             >
               <h4 id="keep-original-heading" className="font-bold">
-                Confirmar mantener original
+                Confirmar conservar original
               </h4>
               <p id="keep-original-consequence" className="mt-1 leading-relaxed">
                 El texto original, identificable, permanecerá sin cambios en el resultado preparado
@@ -1280,7 +1280,7 @@ function InspectorPane(props: {
                   onClick={props.onConfirmKeepOriginal}
                   className={`rounded bg-primary-dark px-3 py-2 font-semibold text-white hover:bg-primary ${focusRing}`}
                 >
-                  Sí, mantener original
+                  Sí, conservar original
                 </button>
               </div>
             </div>

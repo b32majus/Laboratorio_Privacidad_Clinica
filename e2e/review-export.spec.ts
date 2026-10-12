@@ -84,7 +84,7 @@ for (const width of [375, 1280]) {
     await selectDetection(new RegExp(DNI));
     await page.getByLabel("Sustitución").fill(DNI_REPLACEMENT);
     const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
-    const keep = page.getByRole("button", { name: "Mantener original", exact: true });
+    const keep = page.getByRole("button", { name: "Conservar original", exact: true });
     const back = page.getByRole("button", { name: "Volver a hallazgos" });
     const returnToList = async () => {
       await back.focus();
@@ -105,7 +105,7 @@ for (const width of [375, 1280]) {
     }
     await keep.focus();
     await keep.press("Enter");
-    const confirmation = page.getByRole("group", { name: "Confirmar mantener original" });
+    const confirmation = page.getByRole("group", { name: "Confirmar conservar original" });
     await expect(confirmation).toContainText(
       "El texto original, identificable, permanecerá sin cambios en el resultado preparado para compartir."
     );
@@ -123,7 +123,7 @@ for (const width of [375, 1280]) {
     if (width === 375) await returnToList();
     await keep.focus();
     await keep.press("Enter");
-    await page.getByRole("button", { name: "Sí, mantener original" }).press("Enter");
+    await page.getByRole("button", { name: "Sí, conservar original" }).press("Enter");
     await expect(keep).toBeFocused();
     await expect(inspector).toContainText(/Decisión actual\s*Original conservado/);
     await expect(progress).toContainText("Original conservado: 1");
@@ -140,9 +140,9 @@ for (const width of [375, 1280]) {
 
     // Restored: the email original is EXPLICITLY kept by reviewer decision.
     await selectDetection(new RegExp(EMAIL.replace(".", "\\.")));
-    await page.getByRole("button", { name: "Mantener original", exact: true }).click();
+    await page.getByRole("button", { name: "Conservar original", exact: true }).click();
     await expect(progress).toContainText("Original conservado: 0");
-    await page.getByRole("button", { name: "Sí, mantener original" }).click();
+    await page.getByRole("button", { name: "Sí, conservar original" }).click();
     await expect(progress).toContainText("Original conservado: 1");
 
     // Accepted: phone and NHC disappear from the final text (deletion proposals).

@@ -70,7 +70,7 @@ function failureInputs(): { name: string; mimeType: string; buffer: Buffer }[] {
 /** Complete the currently open document's single pending detection. */
 async function acceptOpenDetection(page: Page): Promise<void> {
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /12345678A/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
@@ -85,15 +85,17 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
     .setInputFiles([...syntheticDocuments(), ...failureInputs()]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-  const docList = page.getByRole("list", { name: "Batch document status" });
+  const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
   const filters = page.getByRole("group", { name: "Filtrar documentos del lote" });
   await expect(filters.getByRole("button", { name: /^Necesitan atención \(12\)/ })).toBeVisible();
 
   // --- Blocked Result: reachable while unauthorized, zero artifact -----------
   // The batch Result is reached through the Privacy Gate (the Gate stays an
   // intact, visitable checkpoint in the path — no direct review skip).
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 2");
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  await expect(page.getByRole("group", { name: "Recuentos de documentos del lote" })).toContainText(
+    "Con error: 2"
+  );
   await page.getByRole("button", { name: "Ir al resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   await expect(page.locator("[data-result-state]")).toHaveAttribute("data-result-state", "blocked");
@@ -123,9 +125,13 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   expect(downloads).toBe(0);
 
   // --- Privacy Gate stays visitable in the path ------------------------------
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 2");
-  await expect(page.getByRole("alert").filter({ hasText: /batch items? failed/ })).toHaveCount(1);
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  await expect(page.getByRole("group", { name: "Recuentos de documentos del lote" })).toContainText(
+    "Con error: 2"
+  );
+  await expect(
+    page.getByRole("alert").filter({ hasText: /documentos del lote no se pudieron procesar/ })
+  ).toHaveCount(1);
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
 
   // --- Recovery: deliberately remove both local failures ----------------------

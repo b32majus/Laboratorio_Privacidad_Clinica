@@ -49,28 +49,37 @@ async function gatePairs(page: Page): Promise<MeasuredPair[]> {
     { label: "Gate eyebrow", locator: page.locator("main header p").first() },
     {
       label: "Gate checkpoint body",
-      locator: page.getByRole("region", { name: "Decision checkpoint" }).locator("p").first(),
+      locator: page
+        .getByRole("region", { name: "Punto de control de la decisión" })
+        .locator("p")
+        .first(),
     },
     {
       label: "Gate checkpoint badge",
-      locator: page.getByRole("region", { name: "Decision checkpoint" }).locator("span").first(),
+      locator: page
+        .getByRole("region", { name: "Punto de control de la decisión" })
+        .locator("span")
+        .first(),
     },
     {
       label: "Output availability heading",
-      locator: page.getByRole("heading", { name: "Output availability" }),
+      locator: page.getByRole("heading", { name: "Disponibilidad de la salida" }),
     },
     {
       label: "Attention facts heading",
-      locator: page.getByRole("heading", { name: "Attention facts" }),
+      locator: page.getByRole("heading", { name: "Hechos que requieren atención" }),
     },
     {
       label: "Attention facts body",
-      locator: page.getByRole("region", { name: "Attention facts" }).locator("p").first(),
+      locator: page
+        .getByRole("region", { name: "Hechos que requieren atención" })
+        .locator("p")
+        .first(),
     },
     {
       label: "Kept-original warning item",
       locator: page
-        .getByRole("list", { name: "Kept-original warnings" })
+        .getByRole("list", { name: "Avisos de originales conservados" })
         .getByRole("listitem")
         .first(),
     },
@@ -119,14 +128,16 @@ for (const width of [375, 768, 1280]) {
     await gotoReviewWithDetections(page);
 
     // Pending Gate (action-required state with alert + checkpoint).
-    await page.getByRole("button", { name: "Privacy Gate" }).click();
-    await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
+    await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+    await expect(
+      page.getByRole("region", { name: "Punto de control de la decisión" })
+    ).toBeVisible();
     await assertNoHorizontalOverflow(page, `pending Gate @${width}px`);
 
     // Completed Review → completed Gate + Export.
     await page.getByRole("button", { name: "Volver a la revisión" }).click();
     await completeReview(page);
-    await page.getByRole("button", { name: "Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
     await assertNoHorizontalOverflow(page, `completed Gate @${width}px`);
 
     await page.getByRole("button", { name: "Ir al resultado" }).click();
@@ -213,17 +224,17 @@ test("changed normal-text pairs meet WCAG AA against the rendered composited bac
   // Pending Gate first: the action-required checkpoint and the blocked-reason
   // alert share the exact styling used by the Export blocked reasons.
   await gotoReviewWithDetections(page);
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  await expect(page.getByRole("region", { name: "Punto de control de la decisión" })).toBeVisible();
   await expect(page.getByRole("alert")).toBeVisible();
   measured.push(await expectContrast(page.getByRole("alert"), "Gate pending blocked reason"));
 
   // Completed Gate: checkpoint + availability + a kept-original attention fact.
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
   await completeReview(page);
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
-  await expect(page.getByRole("list", { name: "Kept-original warnings" })).toBeVisible();
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  await expect(page.getByRole("region", { name: "Punto de control de la decisión" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Avisos de originales conservados" })).toBeVisible();
   for (const pair of await gatePairs(page)) {
     measured.push(await expectContrast(pair.locator, `Gate ${pair.label}`));
   }
@@ -298,23 +309,27 @@ test("a pending, failure-free batch Gate never asserts a factual error item", as
   await createBatchJob(page, BATCH_DOCS);
   // Quiet shell (#84): the batch queue lands directly on Review. Wait for the
   // batch review to install its sessions before navigating to the Gate.
-  await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending:");
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await expect(page.getByRole("status", { name: "Progreso de la revisión" })).toContainText(
+    "Pendientes:"
+  );
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
 
-  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 0");
+  await expect(page.getByRole("group", { name: "Recuentos de documentos del lote" })).toContainText(
+    "Con error: 0"
+  );
 
-  const checkpoint = page.getByRole("region", { name: "Decision checkpoint" });
-  await expect(checkpoint).toContainText("Action required");
-  await expect(checkpoint).not.toContainText(/factual error item/i);
+  const checkpoint = page.getByRole("region", { name: "Punto de control de la decisión" });
+  await expect(checkpoint).toContainText("Necesita atención");
+  await expect(checkpoint).not.toContainText(/elemento de error factual|error registrado/i);
   // The single body paragraph reports the real cause, never an error.
   await expect(checkpoint.locator("p").first()).not.toContainText(/error/i);
   await expect(checkpoint.locator("p").first()).toContainText(
-    /mandatory review decisions are still pending/i
+    /decisiones de revisión obligatorias/i
   );
 
   // The separate pending-review alert stays factual and is still shown.
   await expect(page.getByRole("alert")).toHaveCount(1);
   await expect(page.getByRole("alert")).toContainText(
-    "Safe export is blocked while 2 mandatory review decisions are pending."
+    "La descarga segura está bloqueada mientras 2 decisiones de revisión obligatorias están pendientes."
   );
 });

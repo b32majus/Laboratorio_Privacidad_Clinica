@@ -11,14 +11,14 @@ for (const width of [375, 1280]) {
     await page.getByRole("textbox", { name: "Pegar texto" }).fill(buildHighVolumeText());
     await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-    const inspector = page.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
     const decision = inspector.locator('dt:text-is("Decisión actual") + dd');
     const context = inspector.locator('dt:text-is("Contexto") + dd');
     const currentOriginal = inspector.locator('dt:text-is("Original") + dd');
     const next = inspector.getByRole("button", { name: "Siguiente pendiente" });
     const previous = inspector.getByRole("button", { name: "Anterior pendiente" });
     const accept = inspector.getByRole("button", { name: "Aceptar detección" });
-    const progress = page.getByRole("status", { name: "Review progress" });
+    const progress = page.getByRole("status", { name: "Progreso de la revisión" });
     const noOverflow = async () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     };
@@ -29,7 +29,7 @@ for (const width of [375, 1280]) {
     };
 
     await expect(progress).toContainText("Total: 24");
-    await expect(progress).toContainText("Pending: 24");
+    await expect(progress).toContainText("Pendientes: 24");
     await expect(currentOriginal).toHaveText("12345670A");
     await expect(decision).toHaveText("Pendiente");
     await expect(previous).toBeDisabled();
@@ -45,11 +45,11 @@ for (const width of [375, 1280]) {
     await next.press("Alt+ArrowDown");
     await expect(currentOriginal).toHaveText("600-123-450");
     await expect(next).toBeFocused();
-    await expect(progress).toContainText("Pending: 24");
+    await expect(progress).toContainText("Pendientes: 24");
     await next.press("a");
     await expect(currentOriginal).toHaveText("600-123-450");
     await expect(decision).toHaveText("Aceptada");
-    await expect(progress).toContainText("Pending: 23");
+    await expect(progress).toContainText("Pendientes: 23");
     await next.press("m");
     const replacement = page.getByLabel("Sustitución");
     await expect(replacement).toBeFocused();
@@ -67,7 +67,7 @@ for (const width of [375, 1280]) {
     await next.click();
     await expect(currentOriginal).toHaveText("paciente0@example.com");
     await next.press("k");
-    const confirmation = inspector.getByRole("group", { name: "Confirmar mantener original" });
+    const confirmation = inspector.getByRole("group", { name: "Confirmar conservar original" });
     await expect(confirmation).toBeVisible();
     const cancel = confirmation.getByRole("button", { name: "Cancelar", exact: true });
     await expect(cancel).toBeFocused();
@@ -88,16 +88,18 @@ for (const width of [375, 1280]) {
     // #81 keyboard route still authorizes only a real original-text Range.
     const mark = page.getByRole("button", { name: "Marcar dato no detectado" });
     await mark.focus();
-    await page.getByRole("group", { name: "Document text with detections" }).evaluate((group) => {
-      const anchor = group.querySelector('[data-source-start="0"]');
-      if (!anchor?.firstChild) throw new Error("Missing synthetic source anchor");
-      const range = document.createRange();
-      range.setStart(anchor.firstChild, 0);
-      range.setEnd(anchor.firstChild, 7);
-      const selection = window.getSelection()!;
-      selection.removeAllRanges();
-      selection.addRange(range);
-    });
+    await page
+      .getByRole("group", { name: "Texto del documento con hallazgos" })
+      .evaluate((group) => {
+        const anchor = group.querySelector('[data-source-start="0"]');
+        if (!anchor?.firstChild) throw new Error("Missing synthetic source anchor");
+        const range = document.createRange();
+        range.setStart(anchor.firstChild, 0);
+        range.setEnd(anchor.firstChild, 7);
+        const selection = window.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
     await mark.press("f");
     await expect(page.getByLabel("Tipo de dato")).toBeFocused();
     await page.getByLabel("Tipo de dato").fill("CONTEXTO SINTÉTICO");
@@ -116,7 +118,7 @@ for (const width of [375, 1280]) {
       .getByRole("textbox", { name: "Pegar texto" })
       .fill("La paciente acudió ayer. Fisioterapeuta Nélida Otxoa realizó la sesión.");
     await page.getByRole("button", { name: "Crear trabajo" }).click();
-    await expect(progress).toContainText("Low confidence: 1");
+    await expect(progress).toContainText("Baja confianza: 1");
     await expect(decision).toHaveText("Pendiente");
     await expect(accept).toBeInViewport();
     await noOverflow();

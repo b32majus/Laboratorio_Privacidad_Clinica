@@ -874,7 +874,7 @@ describe("App document intake (T06)", () => {
         name: /12345678A/,
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
     expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
       "Pendientes: 1"
     );
@@ -882,8 +882,8 @@ describe("App document intake (T06)", () => {
     expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
       "Original conservado: 0"
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
     fireEvent.click(taskButton("Ver resultado"));
     expect(
       screen.getByRole("region", { name: "Originales conservados deliberadamente" })
@@ -896,14 +896,16 @@ describe("App document intake (T06)", () => {
       })
     );
     fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    const oldConfirm = screen.getByRole("button", { name: "Sí, conservar original" });
     fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
     fireEvent.click(oldConfirm);
     fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: "DNI 12345678A" } });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitForReviewWorkspace();
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Sí, conservar original" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
       "Pendientes: 1"
     );
@@ -1228,8 +1230,8 @@ describe("App document batch (T17 #21 WU-C2)", () => {
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirm = screen.queryByRole("button", { name: "Sí, mantener original" });
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirm = screen.queryByRole("button", { name: "Sí, conservar original" });
       if (confirm) fireEvent.click(confirm);
     }
   }
@@ -1569,11 +1571,11 @@ describe("App structured Configure workspace (T20 #24)", () => {
         name: /12345678A/,
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
     expect(
       screen.getByRole("status", { name: "Progreso de la revisión de texto libre" })
     ).toHaveTextContent("Decisiones pendientes: 1");
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
     expect(
       screen.getByRole("status", { name: "Progreso de la revisión de texto libre" })
     ).toHaveTextContent("Revisión de texto libre preparada: Sí");

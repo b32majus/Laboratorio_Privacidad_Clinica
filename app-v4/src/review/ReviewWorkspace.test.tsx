@@ -332,7 +332,7 @@ describe("Review productivity — scoped shortcuts", () => {
     const help = screen.getByRole("region", { name: "Atajos de revisión" });
     expect(help).toHaveTextContent("A: aceptar");
     expect(help).toHaveTextContent("M: editar sustitución");
-    expect(help).toHaveTextContent("K: mantener original");
+    expect(help).toHaveTextContent("K: conservar original");
     expect(help).toHaveTextContent("F: marcar texto seleccionado");
     expect(help).toHaveTextContent("Alt + ↓ / ↑");
     fireEvent.click(screen.getByRole("button", { name: "Cerrar ayuda de atajos" }));
@@ -349,7 +349,7 @@ describe("Review productivity — scoped shortcuts", () => {
     );
     fireEvent.keyDown(focusWork(), { key: "ArrowUp", altKey: true });
     fireEvent.keyDown(focusWork(), { key: "k" });
-    expect(screen.getByRole("group", { name: "Confirmar mantener original" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Confirmar conservar original" })).toBeInTheDocument();
     const before = ref.current;
     fireEvent.keyDown(screen.getByRole("button", { name: "Cancelar" }), { key: "a" });
     fireEvent.keyDown(focusWork(), { key: "ArrowDown", altKey: true });
@@ -383,7 +383,7 @@ describe("Review productivity — scoped shortcuts", () => {
       expect(control).toHaveFocus();
       expect(onDecide).not.toHaveBeenCalled();
       expect(
-        screen.queryByRole("group", { name: "Confirmar mantener original" })
+        screen.queryByRole("group", { name: "Confirmar conservar original" })
       ).not.toBeInTheDocument();
       expect(
         screen.getByRole("complementary", { name: "Inspector del hallazgo" })
@@ -438,7 +438,7 @@ describe("Review productivity — scoped shortcuts", () => {
   });
 });
 
-describe("Mantener original — explicit contextual intent", () => {
+describe("Conservar original — explicit contextual intent", () => {
   it("never silently accepts a low-confidence candidate while intent is pending or cancelled", () => {
     const session = createReviewSession({
       originalText: "Candidato sintético",
@@ -456,7 +456,7 @@ describe("Mantener original — explicit contextual intent", () => {
     const ref = { current: session };
     render(<Harness initial={session} sessionRef={ref} />);
     fireEvent.click(detectionSpanButton("Candidato sintético"));
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
     expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
       "Baja confianza: 1"
     );
@@ -478,15 +478,15 @@ describe("Mantener original — explicit contextual intent", () => {
       const onDecide = vi.fn();
       render(<ReviewWorkspace session={session} onDecide={onDecide} onAddManual={vi.fn()} />);
       fireEvent.click(detectionSpanButton("Valor sintético"));
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
       if (["FECHA", "EDAD", "UBICACION"].includes(type)) {
         expect(onDecide).toHaveBeenCalledExactlyOnceWith(session.detections[0].id, "restored", {});
         expect(
-          screen.queryByRole("button", { name: "Sí, mantener original" })
+          screen.queryByRole("button", { name: "Sí, conservar original" })
         ).not.toBeInTheDocument();
       } else {
         expect(onDecide).not.toHaveBeenCalled();
-        expect(screen.getByRole("button", { name: "Sí, mantener original" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Sí, conservar original" })).toBeInTheDocument();
       }
       expect(session.decisions).toEqual({});
     }
@@ -501,28 +501,36 @@ describe("Mantener original — explicit contextual intent", () => {
     const view = render(<ReviewWorkspace session={first} {...props} />);
     const open = () => {
       fireEvent.click(detectionSpanButton("Carmen Sánchez"));
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      return screen.getByRole("button", { name: "Sí, mantener original" });
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      return screen.getByRole("button", { name: "Sí, conservar original" });
     };
     const entityConfirm = open();
     fireEvent.click(detectionSpanButton("612345678"));
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Sí, conservar original" })
+    ).not.toBeInTheDocument();
     fireEvent.click(entityConfirm);
     const sessionConfirm = open();
     view.rerender(<ReviewWorkspace session={second} {...props} />);
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Sí, conservar original" })
+    ).not.toBeInTheDocument();
     fireEvent.click(sessionConfirm);
     view.rerender(<ReviewWorkspace session={first} {...props} />);
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Sí, conservar original" })
+    ).not.toBeInTheDocument();
     open();
     fireEvent.keyDown(screen.getByRole("button", { name: "Cancelar" }), { key: "Escape" });
-    expect(screen.getByRole("button", { name: /^Mantener original$/ })).toHaveFocus();
+    expect(screen.getByRole("button", { name: /^Conservar original$/ })).toHaveFocus();
     const unmountedConfirm = open();
     view.unmount();
     fireEvent.click(unmountedConfirm);
     render(<ReviewWorkspace session={first} {...props} />);
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Sí, conservar original" })
+    ).not.toBeInTheDocument();
     expect(onDecide).not.toHaveBeenCalled();
     expect(first.decisions).toEqual({});
     expect(second.decisions).toEqual({});
@@ -553,8 +561,8 @@ describe("Mantener original — explicit contextual intent", () => {
       fireEvent.change(screen.getByLabelText("Nota (opcional)"), {
         target: { value: "Nota sintética" },
       });
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const warning = screen.getByRole("group", { name: "Confirmar mantener original" });
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const warning = screen.getByRole("group", { name: "Confirmar conservar original" });
       expect(warning).toHaveTextContent(
         "El texto original, identificable, permanecerá sin cambios en el resultado preparado para compartir."
       );
@@ -569,16 +577,16 @@ describe("Mantener original — explicit contextual intent", () => {
       expect(onDecide).not.toHaveBeenCalled();
       expect(screen.getByLabelText("Sustitución")).toHaveValue("CORRECCIÓN");
       expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("Nota sintética");
-      expect(screen.getByRole("button", { name: /^Mantener original$/ })).toHaveFocus();
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirm = screen.getByRole("button", { name: "Sí, mantener original" });
+      expect(screen.getByRole("button", { name: /^Conservar original$/ })).toHaveFocus();
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirm = screen.getByRole("button", { name: "Sí, conservar original" });
       fireEvent.click(confirm);
       fireEvent.click(confirm);
       expect(onDecide).toHaveBeenCalledTimes(1);
       expect(onDecide).toHaveBeenCalledWith(target.id, "restored", { note: "Nota sintética" });
       expect(getProgress(session)?.restored).toBe(1);
       expect(getFinalText(session)).toContain(target.original);
-      expect(screen.getByRole("button", { name: /^Mantener original$/ })).toHaveFocus();
+      expect(screen.getByRole("button", { name: /^Conservar original$/ })).toHaveFocus();
       fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "CORRECCIÓN" } });
       fireEvent.click(screen.getByRole("button", { name: /aplicar modificación/i }));
       expect(getFinalText(session)).not.toContain(target.original);
@@ -718,12 +726,12 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
 
     // Complete the rest with explicit keep-original decisions.
     fireEvent.click(detectionSpanButton("612345678"));
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
     rerender(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     fireEvent.click(detectionSpanButton("2024/089756"));
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
 
     const expected = SOURCE.slice(0, NAME_START) + "PACIENTE REEMPLAZO" + SOURCE.slice(NAME_END);
     expect(getFinalText(sessionRef.current)).toBe(expected);
@@ -733,8 +741,8 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     const sessionRef = { current: buildSession() };
     render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
 
     const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
     expect(progress).toHaveTextContent("Original conservado: 1");
@@ -1291,8 +1299,8 @@ describe("ReviewWorkspace — mobile route from selection to decision controls (
     const sessionRef = { current: buildSession() };
     render(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
-    for (const action of ["Cancelar", "Sí, mantener original"]) {
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
+    for (const action of ["Cancelar", "Sí, conservar original"]) {
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
       fireEvent.click(screen.getByRole("button", { name: action }));
       const before = sessionRef.current;
       const back = screen.getByRole("button", { name: "Volver a hallazgos" });

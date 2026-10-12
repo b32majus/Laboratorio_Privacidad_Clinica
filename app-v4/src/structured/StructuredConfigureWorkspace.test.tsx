@@ -262,9 +262,9 @@ describe("StructuredConfigureWorkspace — contextual inspector", () => {
     // Identifier -> Remove: the Action is a visible fact, not a choice.
     selectColumn("NHC");
     expect(actionSelect("NHC")).toBeNull();
-    expect(within(inspector()).getByText("Acción:").nextElementSibling).toHaveTextContent(
-      "Eliminar"
-    );
+    expect(
+      within(inspector()).getByText("Tratamiento efectivo:").nextElementSibling
+    ).toHaveTextContent("Eliminar");
     // REC-03 WU-C (D-021 free-text columns): a text-like Sensitive column
     // offers exactly the bounded Keep / Process-as-text choice.
     selectColumn("Diagnostico");
@@ -273,9 +273,9 @@ describe("StructuredConfigureWorkspace — contextual inspector", () => {
     expect(
       Array.from(sensitiveSelect.querySelectorAll("option")).map((option) => option.value)
     ).toEqual(["keep", "process-as-text"]);
-    expect(within(inspector()).getByText("Acción:").nextElementSibling).toHaveTextContent(
-      "Conservar"
-    );
+    expect(
+      within(inspector()).getByText("Tratamiento efectivo:").nextElementSibling
+    ).toHaveTextContent("Conservar");
     // Unknown explains the resolution path instead of offering Keep directly;
     // a text-like Unknown additionally offers the explicit Process-as-text path.
     selectColumn("CampoLibre");
@@ -297,7 +297,7 @@ describe("StructuredConfigureWorkspace — contextual inspector", () => {
     selectColumn("NHC");
     expect(actionSelect("NHC")).toBeNull();
     const panel = inspector();
-    expect(within(panel).getByText("Acción:").nextElementSibling).toHaveTextContent(
+    expect(within(panel).getByText("Tratamiento efectivo:").nextElementSibling).toHaveTextContent(
       "ID de estudio (derivado/bloqueado)"
     );
     expect(
@@ -315,7 +315,7 @@ describe("StructuredConfigureWorkspace — contextual inspector", () => {
     selectColumn("Fecha_Nac");
     expect(actionSelect("Fecha_Nac")).toBeNull();
     const panel = inspector();
-    expect(within(panel).getByText("Acción:").nextElementSibling).toHaveTextContent(
+    expect(within(panel).getByText("Tratamiento efectivo:").nextElementSibling).toHaveTextContent(
       "Política de fechas (derivado/bloqueado)"
     );
     expect(

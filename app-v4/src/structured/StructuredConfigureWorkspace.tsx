@@ -962,7 +962,7 @@ function ColumnInspector(props: {
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Acción:</dt>
+          <dt className="font-semibold">Tratamiento efectivo:</dt>
           <dd>
             {ACTION_LABELS[column.effectiveAction]}
             {column.actionSource === "explicit" ? ` (${EXPLICIT_ACTION_MARKER})` : ""}

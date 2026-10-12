@@ -28,16 +28,18 @@ test.describe("network privacy invariant (enforcing)", () => {
           "Telefono de contacto 600-123-456. Correo paciente1@example.com."
       );
     await page.getByRole("button", { name: "Crear trabajo" }).click();
-    await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(3);
+    await expect(page.getByRole("list", { name: "Hallazgos" }).getByRole("button")).toHaveCount(3);
 
     // Export gate while review is pending: the Privacy Gate shows the
     // fail-closed output availability and the Export step itself stays
     // inaccessible (title carries the blocked reason).
-    await page.getByRole("button", { name: "Privacy Gate" }).click();
-    await expect(page.getByRole("alert")).toContainText("mandatory review decision");
-    await expect(page.getByRole("status", { name: "Output availability facts" })).toContainText(
-      "Not ready"
+    await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+    await expect(page.getByRole("alert")).toContainText(
+      /decisi[oó]n(?:es)? de revisión obligatori[ao]s?/
     );
+    await expect(
+      page.getByRole("status", { name: "Datos de la disponibilidad de la salida" })
+    ).toContainText("No preparada");
     // Quiet shell (#84): the forward Result affordance stays visible but
     // fail-closed while a mandatory decision is pending.
     await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeDisabled();

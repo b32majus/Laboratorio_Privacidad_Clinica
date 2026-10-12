@@ -206,8 +206,8 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
         fireEvent.change(screen.getByLabelText("Tipo de dato"), {
           target: { value: "Dato de celda anterior" },
         });
-      } else fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, mantener original";
+      } else fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, conservar original";
       const oldConfirm = screen.getByRole("button", { name: confirmName });
       fireEvent.click(screen.getByRole("button", { name: /Notas, fila 3/ }));
       expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();

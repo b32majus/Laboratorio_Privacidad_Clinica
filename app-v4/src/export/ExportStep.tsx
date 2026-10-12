@@ -110,8 +110,8 @@ const focusRing =
 const SAFE_TXT_FILE_NAME = "texto-preparado.txt";
 /** REC-05 WU-C D-024 single-item Confidential Audit TXT filename (Spanish). */
 const CONFIDENTIAL_AUDIT_FILE_NAME = "auditoria-confidencial.txt";
-const SAFE_STRUCTURED_FILE_NAME = "safe-structured-output.csv";
-const CONFIDENTIAL_STRUCTURED_FILE_NAME = "structured-confidential-audit.txt";
+const SAFE_STRUCTURED_FILE_NAME = "salida-estructurada-segura.csv";
+const CONFIDENTIAL_STRUCTURED_FILE_NAME = "auditoria-confidencial-estructurada.txt";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
