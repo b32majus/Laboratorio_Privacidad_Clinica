@@ -55,7 +55,7 @@ const DOCUMENT_FILE = {
  */
 const MIGRATION_COPY = /not implemented yet|later V4 migration|arrives with a later V4/i;
 
-const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
+const POLICY_NAMES = ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"] as const;
 
 /** The rendered body must never carry migration-residue copy. */
 async function expectNoMigrationCopy(page: Page, label: string): Promise<void> {
@@ -76,14 +76,14 @@ test.describe("canonical flow traversal by Job kind", () => {
 
     // Quiet shell: the no-op Configure stop is never rendered for a text job
     // (issue #84 acceptance B) — the job lands on its real Review work.
-    await expect(page.getByRole("heading", { name: "Configure" })).toHaveCount(0);
-    await expect(page.getByRole("list", { name: "Detections" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Preparar datos" })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Hallazgos" })).toBeVisible();
     await completeReview(page);
 
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
-      "Review complete"
-    );
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: "Punto de control de la decisión" })
+    ).toContainText("Preparado");
     await expectNoMigrationCopy(page, "text Privacy Gate");
 
     await page.getByRole("button", { name: "Ir al resultado" }).click();
@@ -96,14 +96,14 @@ test.describe("canonical flow traversal by Job kind", () => {
 
     // Quiet shell: the no-op Configure stop is never rendered for a document
     // job (issue #84 acceptance B) — the job lands on its real Review work.
-    await expect(page.getByRole("heading", { name: "Configure" })).toHaveCount(0);
-    await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
+    await expect(page.getByRole("heading", { name: "Preparar datos" })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Hallazgos" }).getByRole("button")).toHaveCount(4);
     await completeReview(page);
 
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
-      "Review complete"
-    );
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: "Punto de control de la decisión" })
+    ).toContainText("Preparado");
     await page.getByRole("button", { name: "Ir al resultado" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
   });
@@ -113,17 +113,23 @@ test.describe("canonical flow traversal by Job kind", () => {
 
     // Quiet shell: the no-op Configure stop is never rendered for a batch
     // (issue #84 acceptance B) — the batch queue lands directly on Review.
-    await expect(page.getByRole("heading", { name: "Configure" })).toHaveCount(0);
-    await expect(page.getByRole("list", { name: "Batch document status" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Preparar datos" })).toHaveCount(0);
+    await expect(
+      page.getByRole("list", { name: "Estado de los documentos del lote" })
+    ).toBeVisible();
     // Wait for the async batch review to install its sessions before leaving
     // Review (the start writes the job back to the Review step).
-    await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending:");
-
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-    await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 0");
-    await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
-      "Action required"
+    await expect(page.getByRole("status", { name: "Progreso de la revisión" })).toContainText(
+      "Pendientes:"
     );
+
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+    await expect(
+      page.getByRole("group", { name: "Recuentos de documentos del lote" })
+    ).toContainText("Con error: 0");
+    await expect(
+      page.getByRole("region", { name: "Punto de control de la decisión" })
+    ).toContainText("Necesita atención");
     await expectNoMigrationCopy(page, "batch Privacy Gate");
     // The batch Result is reachable while unauthorized: it communicates
     // needs-attention without enabling artifact production.
@@ -141,7 +147,7 @@ test.describe("canonical flow traversal by Job kind", () => {
     // workspace (#85 owns that surface; issue #84 only removes the no-op
     // stops).
     await expect(
-      page.getByRole("status", { name: "Structured configuration facts" })
+      page.getByRole("status", { name: "Datos de la configuración estructurada" })
     ).toBeVisible();
     await expectNoMigrationCopy(page, "structured Configure");
 
@@ -149,8 +155,10 @@ test.describe("canonical flow traversal by Job kind", () => {
     // «Continuar a la revisión» detour and the no-op Review never renders;
     // the canonical onward action is the factual privacy check.
     await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-    await expect(page.getByRole("status", { name: "Structured export facts" })).toBeVisible();
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+    await expect(
+      page.getByRole("status", { name: "Datos de la salida estructurada" })
+    ).toBeVisible();
     await expectNoMigrationCopy(page, "structured Privacy Gate");
   });
 });
@@ -169,18 +177,20 @@ for (const width of [375, 768, 1280]) {
     // including a mobile selection state.
     await gotoReviewWithDetections(page);
     await assertNoHorizontalOverflow(page, `active Review @${width}px`);
-    await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+    await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
     await assertNoHorizontalOverflow(page, `Review selection @${width}px`);
 
     // Pending Gate.
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Decision checkpoint" })).toBeVisible();
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: "Punto de control de la decisión" })
+    ).toBeVisible();
     await assertNoHorizontalOverflow(page, `pending Gate @${width}px`);
 
     // Completed Gate + Export.
     await page.getByRole("button", { name: "Volver a la revisión" }).click();
     await completeReview(page);
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
     await assertNoHorizontalOverflow(page, `completed Gate @${width}px`);
     await page.getByRole("button", { name: "Ir al resultado" }).click();
     await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
@@ -190,8 +200,10 @@ for (const width of [375, 768, 1280]) {
     // state): no overflow on either changed surface.
     await createStructuredJob(page, STRUCTURED_CSV);
     await assertNoHorizontalOverflow(page, `structured Configure @${width}px`);
-    await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-    await expect(page.getByRole("status", { name: "Structured export facts" })).toBeVisible();
+    await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+    await expect(
+      page.getByRole("status", { name: "Datos de la salida estructurada" })
+    ).toBeVisible();
     await assertNoHorizontalOverflow(page, `structured Privacy Gate @${width}px`);
   });
 }
@@ -206,32 +218,32 @@ test("mobile selection routes directly to the decision controls without recordin
   await page.setViewportSize({ width: 375, height: 900 });
   await gotoReviewWithDetections(page);
 
-  const progress = page.getByRole("status", { name: "Review progress" });
-  await expect(progress).toContainText("Pending: 4");
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
+  await expect(progress).toContainText("Pendientes: 4");
 
-  await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+  await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
 
   const jump = page.locator(
-    'button:has-text("Go to decision controls for the selected detection")'
+    'button:has-text("Ir a los controles de decisión del hallazgo seleccionado")'
   );
   await expect(jump).toBeVisible();
   await jump.click();
 
   // Focus is handed to the inspector, so the decision controls are directly operable.
-  const inspector = page.getByRole("complementary", { name: "Entity inspector" });
+  const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
   await expect(inspector).toBeFocused();
   await expect(inspector.getByRole("button", { name: "Aceptar detección" })).toBeVisible();
 
   // The route is navigation only: selection never records a decision.
-  await expect(progress).toContainText("Pending: 4");
+  await expect(progress).toContainText("Pendientes: 4");
 });
 
 test("desktop Review stays three-column and hides the mobile route", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await gotoReviewWithDetections(page);
-  await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+  await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
 
-  const workspace = page.getByRole("region", { name: "Review workspace" });
+  const workspace = page.getByRole("region", { name: "Espacio de revisión" });
   await expect(workspace).toHaveClass(/lg:grid-cols-3/);
   // The token is load-bearing: at 1280px the grid really renders three columns.
   const columnCount = await workspace.evaluate(
@@ -240,7 +252,7 @@ test("desktop Review stays three-column and hides the mobile route", async ({ pa
   expect(columnCount).toBe(3);
 
   const jump = page.locator(
-    'button:has-text("Go to decision controls for the selected detection")'
+    'button:has-text("Ir a los controles de decisión del hallazgo seleccionado")'
   );
   await expect(jump).toBeHidden();
 });
@@ -262,7 +274,7 @@ for (const width of [375, 1280]) {
     await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     await expect(region).toContainText(
-      "Create a job to see which policies are available for its type."
+      "Cree un trabajo para ver qué políticas están disponibles para su tipo."
     );
 
     // Text job: all four entries, all four available (REC-02), current policy.
@@ -270,9 +282,9 @@ for (const width of [375, 1280]) {
     await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     for (const name of POLICY_NAMES) {
-      await expect(guidanceItem(page, name)).toContainText("Available");
+      await expect(guidanceItem(page, name)).toContainText("Disponible");
     }
-    await expect(region).toContainText("Política actual: Standard");
+    await expect(region).toContainText("Política actual: Estándar");
 
     // Structured job: all four available and the patient-ID requirement is
     // job-aware (present exactly for the per-patient shift policies).
@@ -280,16 +292,16 @@ for (const width of [375, 1280]) {
     await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     for (const name of POLICY_NAMES) {
-      await expect(guidanceItem(page, name)).toContainText("Available");
+      await expect(guidanceItem(page, name)).toContainText("Disponible");
     }
-    await expect(region).toContainText("Política actual: Standard");
-    await expect(guidanceItem(page, "External AI")).toContainText(
+    await expect(region).toContainText("Política actual: Estándar");
+    await expect(guidanceItem(page, "IA externa")).toContainText(
       "Requiere una columna explícita de identificador de paciente."
     );
-    await expect(guidanceItem(page, "Longitudinal Research")).toContainText(
+    await expect(guidanceItem(page, "Investigación longitudinal")).toContainText(
       "Requiere una columna explícita de identificador de paciente."
     );
-    await expect(guidanceItem(page, "Standard")).not.toContainText(
+    await expect(guidanceItem(page, "Estándar")).not.toContainText(
       "Requiere una columna explícita de identificador de paciente."
     );
     await expectNoMigrationCopy(page, `policy workspace @${width}px`);
@@ -306,35 +318,35 @@ test("structured Configure keeps UNKNOWN, blockers and authority facts reachable
   await page.setViewportSize({ width: 1280, height: 900 });
   await createStructuredJob(page, STRUCTURED_CSV);
 
-  const summary = page.getByRole("status", { name: "Structured configuration facts" });
-  await expect(summary).toContainText("Columns requiring review: 1");
-  await expect(summary).toContainText("Structured export ready: No");
+  const summary = page.getByRole("status", { name: "Datos de la configuración estructurada" });
+  await expect(summary).toContainText("Columnas que requieren revisión: 1");
+  await expect(summary).toContainText("Exportación estructurada preparada: No");
 
   // Fail-closed blocker is visible without opening any disclosure.
-  await expect(page.getByRole("alert", { name: "Structured export block reasons" })).toContainText(
-    "Structured export is blocked while 1 column requires review."
-  );
+  await expect(
+    page.getByRole("alert", { name: "Motivos de bloqueo de la exportación estructurada" })
+  ).toContainText("La salida estructurada está bloqueada mientras 1 columna requiere revisión.");
 
   const freeRow = page
-    .getByRole("table", { name: "Column classification list" })
+    .getByRole("table", { name: "Lista de clasificación de columnas" })
     .locator("tbody tr")
     .filter({ hasText: "CampoLibre1" });
 
   // Authority facts that must never read as a false-ready state:
-  await expect(freeRow).toContainText("Review required");
-  await expect(freeRow).toContainText("Unknown");
+  await expect(freeRow).toContainText("Requiere revisión");
+  await expect(freeRow).toContainText("Desconocido");
 
   // The date-role fact and secondary evidence live in the selected column's
   // inspector; the date role stays outside the disclosure, the proposed
   // action only behind it.
   await freeRow.getByRole("button", { name: "CampoLibre1" }).click();
   const inspector = page.getByRole("complementary", { name: "Inspector de columna" });
-  await expect(inspector.getByText("Date role:")).toBeVisible();
+  await expect(inspector.getByText("Rol de fecha:")).toBeVisible();
 
-  await expect(inspector.getByText("Proposed action:")).toBeHidden();
+  await expect(inspector.getByText("Acción propuesta:")).toBeHidden();
   await inspector.locator("summary").click();
-  await expect(inspector.getByText("Proposed action:")).toBeVisible();
-  await expect(inspector).toContainText("Proposed action:Review required");
+  await expect(inspector.getByText("Acción propuesta:")).toBeVisible();
+  await expect(inspector).toContainText("Acción propuesta:Requiere revisión");
 
   // The single patient-ID authority and its current status stay shown once.
   const authority = page.getByRole("region", {

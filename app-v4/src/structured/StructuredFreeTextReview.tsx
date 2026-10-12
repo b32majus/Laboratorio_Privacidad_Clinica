@@ -27,6 +27,8 @@ import {
 import { ReviewWorkspace } from "../review/ReviewWorkspace";
 import type { StructuredConfiguration } from "./configuration";
 import type { StructuredFreeTextState } from "./free-text";
+import { localizeStructuredBlockReason } from "./reason-labels";
+import { localizeDomainErrorMessage } from "../presentation/domain-message-labels";
 import type { StructuredOutputPreparation } from "./transformed-dataset";
 
 const focusRing =
@@ -59,7 +61,7 @@ export type StructuredFreeTextReviewProps = {
 };
 
 function cellLabel(header: string, rowIndex: number): string {
-  return `${header === "" ? "(unnamed column)" : header}, row ${rowIndex + 1}`;
+  return `${header === "" ? "(columna sin nombre)" : header}, fila ${rowIndex + 1}`;
 }
 
 export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): ReactElement {
@@ -98,21 +100,22 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
   return (
     <section aria-labelledby="review-step-heading">
       <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
-        Review
+        Revisión
       </h2>
       <p className="mt-2 max-w-3xl text-base leading-relaxed">
         {routedCount === 1
-          ? "1 column is routed through the text privacy engine. Each non-blank cell is its own review session with the same decision semantics as text review."
-          : `${routedCount} columns are routed through the text privacy engine. Each non-blank cell is its own review session with the same decision semantics as text review.`}{" "}
-        Safe output stays blocked until every cell session is decided and every processing failure
-        is resolved.
+          ? "1 columna se dirige a través del motor de privacidad de texto. Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión que la revisión de texto."
+          : `${routedCount} columnas se dirigen a través del motor de privacidad de texto. Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión que la revisión de texto.`}{" "}
+        La salida preparada permanece bloqueada hasta que se decide cada sesión de celda y se
+        resuelve cada error de procesamiento.
       </p>
 
       {freeText === null ? (
         <div className="mt-3 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800">
           <p role="status">
-            The free-text cells have not been processed yet. Processing runs the text engine under
-            this job&apos;s privacy policy and creates one review session per non-blank cell.
+            Las celdas de texto libre todavía no se han procesado. El procesamiento ejecuta el motor
+            de texto bajo la política de privacidad de este trabajo y crea una sesión de revisión
+            por cada celda no vacía.
           </p>
           <button
             type="button"
@@ -120,11 +123,11 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
             disabled={running}
             className={`mt-2 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
           >
-            {running ? "Processing free-text cells…" : "Process free-text cells"}
+            {running ? "Procesando celdas de texto libre…" : "Procesar celdas de texto libre"}
           </button>
           {runError !== null && (
             <p role="alert" className="mt-2 font-semibold text-primary-dark">
-              {runError}
+              {localizeDomainErrorMessage(runError)}
             </p>
           )}
         </div>
@@ -132,17 +135,17 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
         <>
           <dl
             role="status"
-            aria-label="Free-text review progress"
+            aria-label="Progreso de la revisión de texto libre"
             className="mt-3 grid max-w-3xl grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
           >
-            <dt className="font-semibold">Cells:</dt>
+            <dt className="font-semibold">Celdas:</dt>
             <dd> {freeText.cells.length}</dd>
-            <dt className="font-semibold">Pending decisions:</dt>
+            <dt className="font-semibold">Decisiones pendientes:</dt>
             <dd> {pendingTotal}</dd>
-            <dt className="font-semibold">Failed cells:</dt>
+            <dt className="font-semibold">Celdas con error:</dt>
             <dd> {failedTotal}</dd>
-            <dt className="font-semibold">Free-text review ready:</dt>
-            <dd> {ready ? "Yes" : "No"}</dd>
+            <dt className="font-semibold">Revisión de texto libre preparada:</dt>
+            <dd> {ready ? "Sí" : "No"}</dd>
           </dl>
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -152,27 +155,27 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
               disabled={running}
               className={`rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
             >
-              {running ? "Reprocessing…" : "Reprocess free-text cells"}
+              {running ? "Reprocesando…" : "Reprocesar celdas de texto libre"}
             </button>
           </div>
           {runError !== null && (
             <p role="alert" className="mt-2 max-w-3xl font-semibold text-primary-dark">
-              {runError}
+              {localizeDomainErrorMessage(runError)}
             </p>
           )}
 
-          <nav aria-label="Free-text cells" className="mt-4 max-w-3xl">
-            <h3 className="font-display text-base font-bold text-primary-dark">Cells</h3>
+          <nav aria-label="Celdas de texto libre" className="mt-4 max-w-3xl">
+            <h3 className="font-display text-base font-bold text-primary-dark">Celdas</h3>
             <ul className="mt-2 space-y-1">
               {freeText.cells.map((cell, position) => {
                 const label = cellLabel(cell.cell.header, cell.cell.rowIndex);
                 const status = !cell.ok
-                  ? `Failed: ${cell.failure.message}`
+                  ? `Error: ${cell.failure.message}`
                   : (() => {
                       const pending = getPendingDetections(cell.session).length;
-                      if (pending === 1) return "1 pending decision";
-                      if (pending > 1) return `${pending} pending decisions`;
-                      return canFinalize(cell.session) ? "Ready" : "Pending review";
+                      if (pending === 1) return "1 decisión pendiente";
+                      if (pending > 1) return `${pending} decisiones pendientes`;
+                      return canFinalize(cell.session) ? "Preparada" : "Pendiente de revisión";
                     })();
                 return (
                   <li key={`${cell.cell.columnIndex}:${cell.cell.rowIndex}`}>
@@ -198,7 +201,7 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
           {active !== undefined && active !== null && active.ok && (
             <div className="mt-4">
               <h3 className="font-display text-base font-bold text-primary-dark">
-                Reviewing {cellLabel(active.cell.header, active.cell.rowIndex)}
+                Revisando {cellLabel(active.cell.header, active.cell.rowIndex)}
               </h3>
               <div className="mt-2">
                 <ReviewWorkspace
@@ -215,12 +218,12 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
               className="mt-4 max-w-3xl rounded border border-primary-dark bg-white px-3 py-2 text-sm text-primary-dark"
             >
               <h3 className="font-display text-base font-bold">
-                {cellLabel(active.cell.header, active.cell.rowIndex)} failed processing
+                {cellLabel(active.cell.header, active.cell.rowIndex)} no se pudo procesar
               </h3>
               <p className="mt-1 font-semibold">{active.failure.message}</p>
               <p className="mt-1">
-                Resolve it by reprocessing the free-text cells. The original cell is never kept as a
-                fallback.
+                Resuélvalo reprocesando las celdas de texto libre. La celda original nunca se
+                conserva como respaldo.
               </p>
             </div>
           )}
@@ -230,11 +233,11 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
       {blockedReasons.length > 0 && (
         <ul
           role="alert"
-          aria-label="Structured review blockers"
+          aria-label="Bloqueos de la revisión estructurada"
           className="mt-3 max-w-3xl list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
         >
           {blockedReasons.map((reason, index) => (
-            <li key={index}>{reason}</li>
+            <li key={index}>{localizeStructuredBlockReason(reason)}</li>
           ))}
         </ul>
       )}
@@ -245,7 +248,7 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
           onClick={() => props.onGoToStep("configure")}
           className={`rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
         >
-          Back to Configure
+          Volver a preparar datos
         </button>
         {ready && (
           <button
@@ -253,7 +256,7 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
             onClick={() => props.onGoToStep("privacy-gate")}
             className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
           >
-            Continue to Privacy Gate
+            Continuar a la comprobación de privacidad
           </button>
         )}
       </div>

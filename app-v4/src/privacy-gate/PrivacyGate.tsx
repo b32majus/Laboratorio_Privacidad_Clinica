@@ -28,6 +28,7 @@ import { useMemo, type ReactElement } from "react";
 import type { BatchItemStatus, Job, PrivacyPolicyId } from "../domain/job";
 import type { ReviewSession } from "../review/review-domain";
 import {
+  type PrivacyGateStructuredColumn,
   type PrivacyGateStructuredFacts,
   type PrivacyGateStructuredInput,
   type PrivacyGateView,
@@ -37,22 +38,45 @@ import {
   derivePrivacyGateView,
   pendingDecisionMessage,
 } from "./privacyGateModel";
+import { localizeStructuredBlockReason } from "../structured/reason-labels";
+import { localizeDomainErrorMessage } from "../presentation/domain-message-labels";
 
 const POLICY_LABELS: Record<PrivacyPolicyId, string> = {
-  standard: "Standard",
-  "external-ai": "External AI",
-  "longitudinal-research": "Longitudinal Research",
-  strict: "Strict",
+  standard: "Estándar",
+  "external-ai": "IA externa",
+  "longitudinal-research": "Investigación longitudinal",
+  strict: "Estricta",
 };
 
 /** Visible text label per batch item status: status is never conveyed by color. */
 const BATCH_STATUS_LABELS: Record<BatchItemStatus, string> = {
-  queued: "Queued",
-  reading: "Reading",
-  processing: "Processing",
-  "review-required": "Review required",
-  completed: "Completed",
+  queued: "En cola",
+  reading: "Leyendo",
+  processing: "Procesando",
+  "review-required": "Requiere revisión",
+  completed: "Completado",
   error: "Error",
+};
+
+/**
+ * Presentation-only Spanish labels for the derived structured column
+ * disposition and date role facts. The internal disposition/role codes are
+ * never altered; only the end-user wording shown in the gate is localized.
+ */
+const STRUCTURED_DISPOSITION_LABELS: Record<PrivacyGateStructuredColumn["disposition"], string> = {
+  "date-age": "Generalizar fecha/edad",
+  pseudonymize: "Seudonimizar",
+  keep: "Conservar",
+  remove: "Eliminar",
+  "study-id": "ID de estudio",
+  "free-text": "Texto libre",
+  unsupported: "No compatible",
+};
+
+const STRUCTURED_DATE_ROLE_LABELS: Record<PrivacyGateStructuredColumn["dateRole"], string> = {
+  none: "Ninguno",
+  visit: "Fecha de visita",
+  birth: "Fecha de nacimiento",
 };
 
 export type PrivacyGateProps = {
@@ -121,17 +145,17 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
     <section aria-labelledby="privacy-gate-step-heading">
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
-          Privacy Gate
+          Comprobación de privacidad
         </p>
         <h2
           id="privacy-gate-step-heading"
           className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
         >
-          Privacy Gate
+          Comprobación de privacidad
         </h2>
         <p className="mt-2 text-base leading-relaxed text-neutral-700">
-          Final readiness checkpoint before export: what was treated, what still blocks Safe Output,
-          and which factual warnings remain to consider.
+          Punto de control final de preparación antes de la descarga: qué se trató, qué sigue
+          bloqueando la salida segura y qué avisos objetivos quedan por considerar.
         </p>
       </header>
 
@@ -183,11 +207,11 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
             id="attention-facts-heading"
             className="font-display text-base font-bold text-neutral-800"
           >
-            Attention facts
+            Hechos que requieren atención
           </h3>
           <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-            Factual warnings and errors that stay visible with the review. They do not change the
-            recorded review decisions.
+            Avisos y errores objetivos que permanecen visibles junto con la revisión. No modifican
+            las decisiones de revisión registradas.
           </p>
           {view.errors.length > 0 && <JobErrors view={view} />}
           {view.warnings.length > 0 && <KeptOriginalWarnings view={view} />}
@@ -249,24 +273,24 @@ function GateCheckpoint({
   const body = blocked
     ? outputBlocked
       ? batchFailed
-        ? "Safe Output is blocked because a batch item failed; the failure details and remedy are shown below."
+        ? "La salida segura está bloqueada porque un documento del lote no se pudo procesar; los detalles del fallo y su solución se muestran a continuación."
         : hasJobErrors
-          ? "A factual error item below requires attention before you rely on this review."
+          ? "Un error registrado (abajo) necesita atención antes de que confíe en esta revisión."
           : pendingCount === 1
-            ? "1 mandatory review decision is still pending below before you rely on this review."
+            ? "Todavía queda 1 decisión de revisión obligatoria (abajo) antes de que confíe en esta revisión."
             : pendingCount > 1
-              ? `${pendingCount} mandatory review decisions are still pending below before you rely on this review.`
-              : "Safe Output is not available yet: the applicable output readiness rules below are not satisfied."
+              ? `Todavía quedan ${pendingCount} decisiones de revisión obligatorias (abajo) antes de que confíe en esta revisión.`
+              : "La salida segura todavía no está disponible: no se cumplen las reglas de preparación de la salida aplicables (abajo)."
       : hasJobErrors
-        ? "A factual error item below requires attention before you rely on this review."
+        ? "Un error registrado (abajo) necesita atención antes de que confíe en esta revisión."
         : pendingCount === 1
-          ? "1 mandatory review decision is still pending below before you rely on this review."
-          : `${pendingCount} mandatory review decisions are still pending below before you rely on this review.`
+          ? "Todavía queda 1 decisión de revisión obligatoria (abajo) antes de que confíe en esta revisión."
+          : `Todavía quedan ${pendingCount} decisiones de revisión obligatorias (abajo) antes de que confíe en esta revisión.`
     : batchAllRemovedBoundary
-      ? "No batch document remains available for review: every failed document was deliberately removed. The batch review is not complete."
+      ? "No queda ningún documento del lote disponible para revisión: todos los documentos con error se retiraron deliberadamente. La revisión del lote no está completa."
       : safeOutputReady
-        ? "Every mandatory review decision is recorded. Safe Output is ready to download in the Export step."
-        : "Every mandatory review decision is recorded. See Output availability below for which artifacts are available.";
+        ? "Todas las decisiones de revisión obligatorias están registradas. La salida segura está preparada para descargar en el paso Resultado."
+        : "Todas las decisiones de revisión obligatorias están registradas. Consulte la disponibilidad de la salida (abajo) para saber qué entregables están disponibles.";
   return (
     <section
       aria-labelledby="gate-checkpoint-heading"
@@ -280,13 +304,13 @@ function GateCheckpoint({
             actionRequired ? "bg-primary-dark" : "bg-surface-dark"
           }`}
         >
-          {actionRequired ? "Action required" : "Review complete"}
+          {actionRequired ? "Necesita atención" : "Preparado"}
         </span>
         <h3
           id="gate-checkpoint-heading"
           className="font-display text-lg font-bold text-neutral-800"
         >
-          Decision checkpoint
+          Punto de control de la decisión
         </h3>
       </div>
       <p className="mt-2 text-sm leading-relaxed text-neutral-800">{body}</p>
@@ -304,27 +328,32 @@ function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
   if (batch === null) return null;
   return (
     <section
-      aria-label="Batch items"
+      aria-label="Documentos del lote"
       className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-neutral-800">Batch items</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Documentos del lote</h3>
       <dl
         role="group"
-        aria-label="Batch item counts"
+        aria-label="Recuentos de documentos del lote"
         className="mt-2 grid grid-cols-3 gap-x-4 gap-y-1 text-sm text-neutral-800"
       >
-        <dt className="font-semibold">Pending:</dt>
+        <dt className="font-semibold">Pendientes:</dt>
         <dd> {batch.pendingCount}</dd>
-        <dt className="font-semibold">Completed:</dt>
+        <dt className="font-semibold">Completados:</dt>
         <dd> {batch.completedCount}</dd>
-        <dt className="font-semibold">Failed:</dt>
+        <dt className="font-semibold">Con error:</dt>
         <dd> {batch.failedCount}</dd>
       </dl>
-      <ul aria-label="Batch item status" className="mt-3 space-y-1 text-sm text-neutral-800">
+      <ul
+        aria-label="Estado de los documentos del lote"
+        className="mt-3 space-y-1 text-sm text-neutral-800"
+      >
         {batch.items.map((item) => (
           <li key={item.index}>
             <span className="font-semibold">{item.name}</span>: {BATCH_STATUS_LABELS[item.status]}
-            {item.errorMessage !== undefined && <> — {item.errorMessage}</>}
+            {item.errorMessage !== undefined && (
+              <> — {localizeDomainErrorMessage(item.errorMessage)}</>
+            )}
             {item.removed === true && <span className="font-semibold"> — Retirado del lote</span>}
             {item.acknowledged === true && (
               <span className="font-semibold"> — Error reconocido</span>
@@ -343,44 +372,46 @@ function BatchItems({ view }: { view: PrivacyGateView }): ReactElement | null {
 function StructuredSummary({ facts }: { facts: PrivacyGateStructuredFacts }): ReactElement {
   return (
     <section
-      aria-label="Structured export facts"
+      aria-label="Datos de la salida estructurada"
       className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-neutral-800">Structured export</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Salida estructurada</h3>
       <dl
         role="status"
-        aria-label="Structured export facts"
+        aria-label="Datos de la salida estructurada"
         className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
       >
-        <dt className="font-semibold">Columns:</dt>
+        <dt className="font-semibold">Columnas:</dt>
         <dd> {facts.columns.length}</dd>
-        <dt className="font-semibold">Columns requiring review:</dt>
+        <dt className="font-semibold">Columnas que requieren revisión:</dt>
         <dd> {facts.columnsRequiringReview}</dd>
-        <dt className="font-semibold">Unsupported columns:</dt>
+        <dt className="font-semibold">Columnas no compatibles:</dt>
         <dd> {facts.blockingCount}</dd>
       </dl>
       {facts.reasons.length > 0 && (
         <ul
           role="alert"
-          aria-label="Structured export block reasons"
+          aria-label="Motivos de bloqueo de la salida estructurada"
           className="mt-3 list-disc space-y-0.5 pl-6 text-sm font-semibold text-neutral-800"
         >
           {facts.reasons.map((reason, index) => (
-            <li key={index}>{reason}</li>
+            <li key={index}>{localizeStructuredBlockReason(reason)}</li>
           ))}
         </ul>
       )}
       <ul
-        aria-label="Structured column dispositions"
+        aria-label="Disposición de las columnas estructuradas"
         className="mt-3 space-y-1 text-sm text-neutral-800"
       >
         {facts.columns.map((column) => (
           <li key={column.columnIndex}>
             <span className="font-semibold">
-              {column.header === "" ? "(unnamed column)" : column.header}
+              {column.header === "" ? "(columna sin nombre)" : column.header}
             </span>
-            : {column.disposition}
-            {column.disposition === "date-age" ? ` (${column.dateRole})` : ""}
+            : {STRUCTURED_DISPOSITION_LABELS[column.disposition]}
+            {column.disposition === "date-age"
+              ? ` (${STRUCTURED_DATE_ROLE_LABELS[column.dateRole]})`
+              : ""}
           </li>
         ))}
       </ul>
@@ -392,21 +423,23 @@ function StructuredSummary({ facts }: { facts: PrivacyGateStructuredFacts }): Re
 function AvailabilityFacts({ view }: { view: PrivacyGateView }): ReactElement {
   return (
     <section
-      aria-label="Output availability"
+      aria-label="Disponibilidad de la salida"
       className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-neutral-800">Output availability</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">
+        Disponibilidad de la salida
+      </h3>
       <dl
         role="status"
-        aria-label="Output availability facts"
+        aria-label="Datos de la disponibilidad de la salida"
         className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
       >
-        <dt className="font-semibold">Privacy policy used:</dt>
+        <dt className="font-semibold">Política de privacidad usada:</dt>
         <dd> {POLICY_LABELS[view.policyId]}</dd>
-        <dt className="font-semibold">Safe output:</dt>
-        <dd> {view.safeOutputReady ? "Ready" : "Not ready"}</dd>
-        <dt className="font-semibold">Confidential audit:</dt>
-        <dd> {view.confidentialAuditReady ? "Available" : "Not available"}</dd>
+        <dt className="font-semibold">Salida segura:</dt>
+        <dd> {view.safeOutputReady ? "Preparada" : "No preparada"}</dd>
+        <dt className="font-semibold">Auditoría confidencial:</dt>
+        <dd> {view.confidentialAuditReady ? "Disponible" : "No disponible"}</dd>
       </dl>
       {view.batch !== null && (
         <div className="mt-3 space-y-1 text-sm text-neutral-800">
@@ -422,33 +455,33 @@ function AvailabilityFacts({ view }: { view: PrivacyGateView }): ReactElement {
 function ReviewSummary({ view }: { view: PrivacyGateView }): ReactElement {
   return (
     <section
-      aria-label="Review summary"
+      aria-label="Resumen de la revisión"
       className="mt-4 rounded-xl border border-primary/40 bg-white p-4"
     >
-      <h3 className="font-display text-base font-bold text-neutral-800">Review summary</h3>
+      <h3 className="font-display text-base font-bold text-neutral-800">Resumen de la revisión</h3>
       <dl
         role="group"
-        aria-label="Review summary facts"
+        aria-label="Datos del resumen de la revisión"
         className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
       >
-        <dt className="font-semibold">Detections treated:</dt>
+        <dt className="font-semibold">Hallazgos tratados:</dt>
         <dd>
-          {view.reviewedAccepted} accepted, {view.reviewedModified} modified
+          {view.reviewedAccepted} aceptados, {view.reviewedModified} modificados
         </dd>
-        <dt className="font-semibold">Accepted replacements:</dt>
+        <dt className="font-semibold">Sustituciones aceptadas:</dt>
         <dd> {view.reviewedAccepted}</dd>
-        <dt className="font-semibold">Modified replacements:</dt>
+        <dt className="font-semibold">Sustituciones modificadas:</dt>
         <dd> {view.reviewedModified}</dd>
-        <dt className="font-semibold">Manual detections:</dt>
+        <dt className="font-semibold">Hallazgos manuales:</dt>
         <dd> {view.manualDetections}</dd>
-        <dt className="font-semibold">Kept originals (restored):</dt>
+        <dt className="font-semibold">Originales conservados (restaurados):</dt>
         <dd> {view.restoredCount}</dd>
         {view.lowConfidenceCount > 0 && (
           <>
-            <dt className="font-semibold">Low-confidence candidates:</dt>
+            <dt className="font-semibold">Candidatos de baja confianza:</dt>
             <dd>
               {" "}
-              {view.lowConfidenceCount} total, {view.lowConfidencePendingCount} pending
+              {view.lowConfidenceCount} en total, {view.lowConfidencePendingCount} pendientes
             </dd>
           </>
         )}
@@ -460,15 +493,16 @@ function ReviewSummary({ view }: { view: PrivacyGateView }): ReactElement {
 /** Job errors surfaced factually, exactly as the job carries them. */
 function JobErrors({ view }: { view: PrivacyGateView }): ReactElement {
   return (
-    <section aria-label="Job errors" className="mt-3">
-      <h4 className="font-display text-sm font-bold text-neutral-800">Errors</h4>
+    <section aria-label="Errores del trabajo" className="mt-3">
+      <h4 className="font-display text-sm font-bold text-neutral-800">Errores</h4>
       <ul
-        aria-label="Job errors"
+        aria-label="Errores del trabajo"
         className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
       >
         {view.errors.map((error, index) => (
           <li key={index}>
-            <span className="font-mono">{error.code}</span> — {error.message}
+            <span className="font-mono">{error.code}</span> —{" "}
+            {localizeDomainErrorMessage(error.message)}
           </li>
         ))}
       </ul>
@@ -483,10 +517,10 @@ function JobErrors({ view }: { view: PrivacyGateView }): ReactElement {
  */
 function KeptOriginalWarnings({ view }: { view: PrivacyGateView }): ReactElement {
   return (
-    <section aria-label="Privacy gate warnings" className="mt-3">
-      <h4 className="font-display text-sm font-bold text-neutral-800">Warnings</h4>
+    <section aria-label="Avisos de la comprobación de privacidad" className="mt-3">
+      <h4 className="font-display text-sm font-bold text-neutral-800">Avisos</h4>
       <ul
-        aria-label="Kept-original warnings"
+        aria-label="Avisos de originales conservados"
         className="mt-1 list-disc space-y-1 pl-5 text-sm text-neutral-800"
       >
         {view.warnings.map((warning, index) => (

@@ -124,12 +124,12 @@ export function detectionTypes(session: ReviewSession): readonly string[] {
 export function statusLabel(status: DecisionStatus): string {
   switch (status) {
     case "accepted":
-      return "Accepted";
+      return "Aceptada";
     case "modified":
-      return "Modified";
+      return "Modificada";
     case "restored":
-      return "Restored";
+      return "Original conservado";
     default:
-      return "Pending";
+      return "Pendiente";
   }
 }

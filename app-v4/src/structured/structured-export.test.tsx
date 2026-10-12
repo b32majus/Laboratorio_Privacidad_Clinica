@@ -173,10 +173,10 @@ function readWorkbook(bytes: Uint8Array): {
   };
 }
 
-const SAFE_CSV_BUTTON = "Download Safe Structured Output (.csv)";
-const SAFE_XLSX_BUTTON = "Download Safe Structured Output (.xlsx)";
-const CONF_TXT_BUTTON = "Download Structured Confidential Audit (.txt)";
-const CONF_XLSX_BUTTON = "Download Structured Confidential Audit (.xlsx)";
+const SAFE_CSV_BUTTON = "Descargar salida estructurada segura (.csv)";
+const SAFE_XLSX_BUTTON = "Descargar salida estructurada segura (.xlsx)";
+const CONF_TXT_BUTTON = "Descargar auditoría confidencial estructurada (.txt)";
+const CONF_XLSX_BUTTON = "Descargar auditoría confidencial estructurada (.xlsx)";
 
 afterEach(() => {
   cleanup();
@@ -292,7 +292,7 @@ describe("ExportStep — structured", () => {
       // deliberate in-zone confirmation instead.
       fireEvent.click(auditButton);
       expect(capture.downloads).toHaveLength(1);
-      const confirm = screen.getByRole("button", { name: /confirm confidential download/i });
+      const confirm = screen.getByRole("button", { name: /confirmar descarga confidencial/i });
       expect(confirm).toBeInTheDocument();
       fireEvent.click(confirm);
       await waitFor(() => expect(capture.downloads).toHaveLength(2));
@@ -315,7 +315,7 @@ describe("ExportStep — structured", () => {
     expect(screen.getByRole("button", { name: SAFE_XLSX_BUTTON })).toBeDisabled();
     expect(screen.getByRole("button", { name: CONF_TXT_BUTTON })).toBeDisabled();
     expect(screen.getByRole("button", { name: CONF_XLSX_BUTTON })).toBeDisabled();
-    expect(screen.getByRole("alert")).toHaveTextContent(/requires review/);
+    expect(screen.getByRole("alert")).toHaveTextContent(/requiere revisión/i);
   });
 
   it("keeps the Confidential download blocked when only confidentialAuditReady is false", () => {
@@ -326,7 +326,7 @@ describe("ExportStep — structured", () => {
     expect(screen.getByRole("button", { name: CONF_TXT_BUTTON })).toBeDisabled();
     expect(screen.getByRole("button", { name: CONF_XLSX_BUTTON })).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Confidential Audit is not available for this job yet."
+      "La auditoría confidencial todavía no está disponible para este trabajo."
     );
   });
 });
@@ -341,7 +341,7 @@ describe("ExportStep — structured Safe XLSX (H-28)", () => {
       fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
       // No confirmation is ever involved for Safe downloads.
       expect(
-        screen.queryByRole("button", { name: /confirm confidential download/i })
+        screen.queryByRole("button", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
       await waitFor(() => expect(capture.downloads).toHaveLength(1));
       expect(capture.downloads[0].fileName).toBe("safe-structured-output.xlsx");
@@ -369,14 +369,14 @@ describe("ExportStep — structured Confidential confirmation (H-42 slice)", () 
     try {
       fireEvent.click(screen.getByRole("button", { name: CONF_TXT_BUTTON }));
       expect(capture.downloads).toHaveLength(0);
-      const confirmation = screen.getByRole("group", { name: /confidential download/i });
-      expect(confirmation).toHaveTextContent(/identifiable/i);
-      expect(confirmation).toHaveTextContent(/authorized internal/i);
+      const confirmation = screen.getByRole("group", { name: /confirmar descarga confidencial/i });
+      expect(confirmation).toHaveTextContent(/identificable/i);
+      expect(confirmation).toHaveTextContent(/interno autorizado/i);
 
-      fireEvent.click(screen.getByRole("button", { name: /cancel confidential download/i }));
+      fireEvent.click(screen.getByRole("button", { name: /cancelar descarga confidencial/i }));
       expect(capture.downloads).toHaveLength(0);
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
     } finally {
       capture.restore();
@@ -391,12 +391,12 @@ describe("ExportStep — structured Confidential confirmation (H-42 slice)", () 
     try {
       fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
       expect(capture.downloads).toHaveLength(0);
-      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirmar descarga confidencial/i }));
       await waitFor(() => expect(capture.downloads).toHaveLength(1));
       expect(capture.downloads[0].fileName).toBe("structured-confidential-audit.xlsx");
       // The confirmation resets after confirm: no panel, no second download.
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
 
       const workbook = readWorkbook(await bytesOf(capture.downloads[0]));
@@ -418,24 +418,28 @@ describe("ExportStep — structured Confidential confirmation (H-42 slice)", () 
     );
     try {
       fireEvent.click(screen.getByRole("button", { name: CONF_TXT_BUTTON }));
-      expect(screen.getByRole("group", { name: /confidential download/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("group", { name: /confirmar descarga confidencial/i })
+      ).toBeInTheDocument();
 
       // Another Job clears the transient confirmation (and downloads nothing).
       view.rerender(
         <ExportStep job={jobFor("job-2", true)} review={null} structured={structured} />
       );
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
       expect(capture.downloads).toHaveLength(0);
 
       // A newly blocked/stale preparation clears it too.
       fireEvent.click(screen.getByRole("button", { name: CONF_TXT_BUTTON }));
-      expect(screen.getByRole("group", { name: /confidential download/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("group", { name: /confirmar descarga confidencial/i })
+      ).toBeInTheDocument();
       const blocked = blockedInput();
       view.rerender(<ExportStep job={jobFor("job-2", false)} review={null} structured={blocked} />);
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
       expect(capture.downloads).toHaveLength(0);
     } finally {
@@ -477,7 +481,7 @@ describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", (
       fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
       // Explicit Confirm starts the real generation; the handler suspends on
       // the lazy load, so no bytes exist yet.
-      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirmar descarga confidencial/i }));
       const injection = findInjectedXlsxScript();
       expect(injection).not.toBeNull();
       expect(capture.downloads).toHaveLength(0);
@@ -486,7 +490,7 @@ describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", (
       const blocked = blockedInput();
       view.rerender(<ExportStep job={jobFor("job-1", true)} review={null} structured={blocked} />);
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
 
       // The now-irrelevant generation completes: no stale artifact may be
@@ -494,7 +498,7 @@ describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", (
       await completeXlsxGenerationWindow(injection as HTMLScriptElement);
       expect(capture.downloads).toHaveLength(0);
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
     } finally {
       capture.restore();
@@ -512,7 +516,7 @@ describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", (
     );
     try {
       fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
-      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirmar descarga confidencial/i }));
       const injection = findInjectedXlsxScript();
       expect(injection).not.toBeNull();
       expect(capture.downloads).toHaveLength(0);
@@ -522,13 +526,13 @@ describe("ExportStep — structured Confidential just-in-time guard (SPEC-1)", (
         <ExportStep job={jobFor("job-2", true)} review={null} structured={structured} />
       );
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
 
       await completeXlsxGenerationWindow(injection as HTMLScriptElement);
       expect(capture.downloads).toHaveLength(0);
       expect(
-        screen.queryByRole("group", { name: /confidential download/i })
+        screen.queryByRole("group", { name: /confirmar descarga confidencial/i })
       ).not.toBeInTheDocument();
     } finally {
       capture.restore();

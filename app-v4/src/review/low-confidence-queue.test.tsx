@@ -142,15 +142,15 @@ describe("T14 WU-C — the low-confidence candidate queue is visible and compose
     );
 
     // (b) Progress readout reports the factual low-confidence count.
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent("Low confidence: 1");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent("Baja confianza: 1");
 
     // The unfiltered list holds the candidate plus the kept entities.
-    const list = screen.getByRole("list", { name: /detections/i });
+    const list = screen.getByRole("list", { name: /hallazgos/i });
     expect(within(list).getAllByRole("listitem").length).toBeGreaterThan(1);
 
     // (a) The filter control exists as a native, keyboard-reachable button.
-    const filter = screen.getByRole("button", { name: /^Low confidence$/ });
+    const filter = screen.getByRole("button", { name: /^Baja confianza$/ });
     expect(filter.tagName).toBe("BUTTON");
     filter.focus();
     expect(filter).toHaveFocus();
@@ -162,20 +162,20 @@ describe("T14 WU-C — the low-confidence candidate queue is visible and compose
     // are still conveyed as text. The list truncates the detection text, so
     // the visible row is asserted on the candidate prefix plus its explicit
     // marker rather than on the full span.
-    const narrowed = screen.getByRole("list", { name: /detections/i });
+    const narrowed = screen.getByRole("list", { name: /hallazgos/i });
     const items = within(narrowed).getAllByRole("listitem");
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent(CANDIDATE_PREFIX);
-    expect(items[0]).toHaveTextContent("Pending");
-    expect(items[0]).toHaveTextContent(" · Low confidence");
+    expect(items[0]).toHaveTextContent("Pendiente");
+    expect(items[0]).toHaveTextContent(" · Baja confianza");
 
     // (c) Selecting the candidate shows its reason and marker as text.
     fireEvent.click(within(narrowed).getByRole("button", { name: new RegExp(CANDIDATE_PREFIX) }));
-    const inspector = screen.getByRole("complementary", { name: /entity inspector/i });
+    const inspector = screen.getByRole("complementary", { name: /inspector del hallazgo/i });
     expect(inspector).toHaveTextContent(CANDIDATE_ORIGINAL);
-    expect(inspector).toHaveTextContent("Detection reason");
+    expect(inspector).toHaveTextContent("Motivo del hallazgo");
     expect(inspector).toHaveTextContent("REVISION_MANUAL");
-    expect(inspector).toHaveTextContent(/below-threshold candidate/i);
+    expect(inspector).toHaveTextContent(/candidato por debajo del umbral/i);
   });
 
   it("oracle can disagree: the queue keys off the explicit marker, never the confidence number", async () => {

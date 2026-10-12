@@ -28,7 +28,7 @@ function taskButton(name: string) {
 
 /** Wait until the review workspace is actually installed (async engine seam). */
 async function waitForReviewWorkspace(timeout = 10_000) {
-  await screen.findByRole("region", { name: /review workspace/i }, { timeout });
+  await screen.findByRole("region", { name: /espacio de revisión/i }, { timeout });
 }
 
 function createTextJob() {
@@ -102,8 +102,10 @@ describe("network invariant monitor", () => {
       // The optional Privacy Gate destination stays reachable and local-only.
       fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
       await waitForReviewWorkspace();
-      fireEvent.click(taskButton("Privacy Gate"));
-      expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+      fireEvent.click(taskButton("Comprobación de privacidad"));
+      expect(
+        screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+      ).toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
 
       // Session reset via Nuevo trabajo returns to a fresh Input.
@@ -118,7 +120,9 @@ describe("network invariant monitor", () => {
       // Session reset via Borrar sesión discards all in-memory state.
       fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
       expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Comprobación de privacidad" })
+      ).not.toBeInTheDocument();
       expect(monitor.attempts()).toHaveLength(0);
     } finally {
       monitor.uninstall();
@@ -172,7 +176,7 @@ describe("network invariant monitor", () => {
       // Walk the reached surfaces (review → optional gate → back) and reset;
       // nothing may leave the process.
       await waitForReviewWorkspace();
-      fireEvent.click(taskButton("Privacy Gate"));
+      fireEvent.click(taskButton("Comprobación de privacidad"));
       fireEvent.click(taskButton("Volver a la revisión"));
       fireEvent.click(screen.getByRole("button", { name: "Borrar sesión" }));
       expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
@@ -214,28 +218,28 @@ describe("network invariant monitor", () => {
       // (T22 #26 WU-D: asynchronously through the lazy engine seam).
       const progress = await screen.findByRole(
         "status",
-        { name: /review progress/i },
+        { name: /progreso de la revisión/i },
         { timeout: 10_000 }
       );
-      expect(progress).toHaveTextContent(/Pending: [1-9]/);
+      expect(progress).toHaveTextContent(/Pendientes: [1-9]/);
       expect(monitor.attempts()).toHaveLength(0);
 
       // An explicit decision mutates only in-memory domain state.
       const firstDetectionButton = screen
-        .getAllByRole("list", { name: /detections/i })[0]
+        .getAllByRole("list", { name: /hallazgos/i })[0]
         .querySelector("button");
       expect(firstDetectionButton).not.toBeNull();
       fireEvent.click(firstDetectionButton as HTMLElement);
       fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
-      expect(progress).toHaveTextContent("Accepted: 1");
+      expect(progress).toHaveTextContent("Aceptadas: 1");
       expect(monitor.attempts()).toHaveLength(0);
 
       // Navigating away and back never resets or re-runs review.
-      fireEvent.click(taskButton("Privacy Gate"));
+      fireEvent.click(taskButton("Comprobación de privacidad"));
       fireEvent.click(taskButton("Volver a la revisión"));
       await waitFor(() =>
-        expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-          "Accepted: 1"
+        expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+          "Aceptadas: 1"
         )
       );
       expect(monitor.attempts()).toHaveLength(0);

@@ -13,10 +13,10 @@ import { App } from "./App";
  * textual states, the patient-ID requirement and the copy guardrails.
  */
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic policy guidance tests.";
-const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
+const POLICY_NAMES = ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"] as const;
 const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
 const FORBIDDEN_CLAIM =
-  /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy/i;
+  /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy|an[oó]nim[oa]|anonimizad|certificad|cumplimient|k-anonimato|privacidad diferencial/i;
 
 afterEach(cleanup);
 
@@ -31,7 +31,7 @@ function selectFiles(files: File[]) {
 
 /** Wait until the single/batch review workspace is actually installed. */
 async function waitForReviewWorkspace(timeout = 10_000) {
-  await screen.findByRole("region", { name: /review workspace/i }, { timeout });
+  await screen.findByRole("region", { name: /espacio de revisión/i }, { timeout });
 }
 
 function policySelect(): HTMLSelectElement {
@@ -69,13 +69,13 @@ describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
       screen.queryByRole("list", { name: "Guía de políticas de privacidad" })
     ).not.toBeInTheDocument();
     expect(guidanceRegion()).toHaveTextContent(
-      /create a job to see which policies are available for its type/i
+      /cree un trabajo para ver qué políticas están disponibles para su tipo/i
     );
     expect(guidanceItems()).toHaveLength(4);
     // No job kind exists yet, so neither availability state is claimed.
-    expect(within(guidanceRegion()).queryByText("Available")).not.toBeInTheDocument();
+    expect(within(guidanceRegion()).queryByText("Disponible")).not.toBeInTheDocument();
     expect(
-      within(guidanceRegion()).queryByText("Not available for this job type yet")
+      within(guidanceRegion()).queryByText("No disponible para este tipo de trabajo")
     ).not.toBeInTheDocument();
   });
 
@@ -83,9 +83,9 @@ describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
     render(<App />);
     const region = guidanceRegion();
     // No unsubstantiated qualitative characterization (the old "Balanced").
-    expect(region.textContent ?? "").not.toMatch(/\bbalanced\b/i);
+    expect(region.textContent ?? "").not.toMatch(/\bbalanced\b|\bequilibrad[oa]\b/i);
     for (const item of guidanceItems()) {
-      expect(item).toHaveTextContent(/job type/i);
+      expect(item).toHaveTextContent(/tipo de trabajo/i);
     }
   });
 });
@@ -101,14 +101,14 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
 
     const [standard, externalAi, longitudinal, strict] = guidanceItems();
     for (const item of [standard, externalAi, longitudinal, strict]) {
-      expect(item).toHaveTextContent("Available");
+      expect(item).toHaveTextContent("Disponible");
     }
-    expect(standard).toHaveTextContent("Standard");
-    expect(strict).toHaveTextContent("Strict");
-    expect(externalAi).toHaveTextContent("External AI");
-    expect(longitudinal).toHaveTextContent("Longitudinal Research");
+    expect(standard).toHaveTextContent("Estándar");
+    expect(strict).toHaveTextContent("Estricta");
+    expect(externalAi).toHaveTextContent("IA externa");
+    expect(longitudinal).toHaveTextContent("Investigación longitudinal");
 
-    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Estándar");
   });
 
   it("selects newly enabled policies through the text-job UI (REC-02)", () => {
@@ -118,11 +118,11 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
 
     fireEvent.change(select, { target: { value: "external-ai" } });
     expect(select.value).toBe("external-ai");
-    expect(guidanceRegion()).toHaveTextContent("Política actual: External AI");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: IA externa");
 
     fireEvent.change(select, { target: { value: "longitudinal-research" } });
     expect(select.value).toBe("longitudinal-research");
-    expect(guidanceRegion()).toHaveTextContent("Política actual: Longitudinal Research");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Investigación longitudinal");
   });
 
   it("applies the same availability to a document job", async () => {
@@ -137,7 +137,7 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
       expect(screen.getByRole("option", { name })).toBeEnabled();
     }
     for (const item of guidanceItems()) {
-      expect(item).toHaveTextContent("Available");
+      expect(item).toHaveTextContent("Disponible");
     }
   });
 
@@ -154,7 +154,7 @@ describe("Policy guidance on text/document/batch jobs (POLICY-01 #56, REC-02)", 
       expect(screen.getByRole("option", { name })).toBeEnabled();
     }
     for (const item of guidanceItems()) {
-      expect(item).toHaveTextContent("Available");
+      expect(item).toHaveTextContent("Disponible");
     }
   });
 });
@@ -171,8 +171,8 @@ const POLICY_DATE_SOURCE = "05/01/2024";
 
 /** The proposed replacement of the selected Entity Inspector detection. */
 function proposedReplacement(): string {
-  const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
-  const term = within(inspector).getByText("Proposed replacement");
+  const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
+  const term = within(inspector).getByText("Sustitución propuesta");
   return term.parentElement?.querySelector("dd")?.textContent?.trim() ?? "";
 }
 
@@ -185,11 +185,10 @@ async function runTextJobWithPolicy(policyId: "external-ai" | "longitudinal-rese
   // Quiet shell (issue #84): the real policy change invalidated the landing
   // attempt, so the shell offers the explicit review restart.
   fireEvent.click(await screen.findByRole("button", { name: "Iniciar revisión" }));
-  await waitFor(
-    () => expect(screen.getByRole("list", { name: "Detections" })).toBeInTheDocument(),
-    { timeout: 10_000 }
-  );
-  const fecha = within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+  await waitFor(() => expect(screen.getByRole("list", { name: "Hallazgos" })).toBeInTheDocument(), {
+    timeout: 10_000,
+  });
+  const fecha = within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
     name: /FECHA/,
   });
   fireEvent.click(fecha);
@@ -226,18 +225,18 @@ describe("Policy guidance on structured jobs (POLICY-01 #56)", () => {
     // NAME is the persistent header fact.
     await waitFor(() => expect(screen.getByText("labs.csv")).toBeInTheDocument());
 
-    for (const name of ["Standard", "External AI", "Longitudinal Research", "Strict"]) {
+    for (const name of ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"]) {
       expect(screen.getByRole("option", { name })).toBeEnabled();
     }
 
     const [standard, externalAi, longitudinal, strict] = guidanceItems();
     for (const item of [standard, externalAi, longitudinal, strict]) {
-      expect(item).toHaveTextContent("Available");
+      expect(item).toHaveTextContent("Disponible");
     }
 
     // Standard/Strict: month-level generalization for visit/event and birth dates.
-    expect(standard).toHaveTextContent(/month level/i);
-    expect(strict).toHaveTextContent(/month level/i);
+    expect(standard).toHaveTextContent(/nivel de mes/i);
+    expect(strict).toHaveTextContent(/nivel de mes/i);
     expect(standard).not.toHaveTextContent(
       "Requiere una columna explícita de identificador de paciente."
     );
@@ -247,18 +246,18 @@ describe("Policy guidance on structured jobs (POLICY-01 #56)", () => {
 
     // External AI / Longitudinal Research: per-patient shift + age bands, and
     // therefore an explicit patient-ID column requirement.
-    expect(externalAi).toHaveTextContent(/per-patient offset/i);
-    expect(externalAi).toHaveTextContent(/age bands at the event/i);
+    expect(externalAi).toHaveTextContent(/desfase determinista por paciente/i);
+    expect(externalAi).toHaveTextContent(/bandas de edad en el evento/i);
     expect(externalAi).toHaveTextContent(
       "Requiere una columna explícita de identificador de paciente."
     );
-    expect(longitudinal).toHaveTextContent(/per-patient visit-date shift/i);
-    expect(longitudinal).toHaveTextContent(/age-band birth dates/i);
+    expect(longitudinal).toHaveTextContent(/desfase de fecha de visita por paciente/i);
+    expect(longitudinal).toHaveTextContent(/bandas de edad para las fechas de nacimiento/i);
     expect(longitudinal).toHaveTextContent(
       "Requiere una columna explícita de identificador de paciente."
     );
 
-    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Estándar");
   });
 });
 
@@ -272,7 +271,7 @@ describe("Policy guidance accessibility (POLICY-01 #56)", () => {
     const list = () => screen.queryByRole("list", { name: "Guía de políticas de privacidad" });
     expect(list()).not.toBeInTheDocument();
     // The current-policy information stays permanently visible while collapsed.
-    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Estándar");
 
     const toggle = screen.getByRole("button", { name: "Guía detallada de políticas" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -286,7 +285,7 @@ describe("Policy guidance accessibility (POLICY-01 #56)", () => {
     // while the current-policy line survives.
     fireEvent.click(screen.getByRole("button", { name: "Guía detallada de políticas" }));
     expect(list()).not.toBeInTheDocument();
-    expect(guidanceRegion()).toHaveTextContent("Política actual: Standard");
+    expect(guidanceRegion()).toHaveTextContent("Política actual: Estándar");
   });
 
   it("keeps the policy select and the guidance region keyboard-focusable with visible focus", () => {
@@ -304,9 +303,9 @@ describe("Policy guidance accessibility (POLICY-01 #56)", () => {
     expect(guidance.className).toMatch(/focus-visible:ring-2/);
 
     // Availability is conveyed as text, never by color alone.
-    expect(guidance).toHaveTextContent("Available");
+    expect(guidance).toHaveTextContent("Disponible");
     for (const item of guidanceItems()) {
-      expect(item).toHaveTextContent("Available");
+      expect(item).toHaveTextContent("Disponible");
     }
   });
 });

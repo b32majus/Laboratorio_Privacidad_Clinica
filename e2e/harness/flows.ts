@@ -69,7 +69,7 @@ export async function createDocumentJob(page: Page, file: FileInput): Promise<vo
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   // Issue #84 correction: the internal kind is not header chrome; the created
   // job's landing workspace is the witness.
-  await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Espacio de revisión" })).toBeVisible();
 }
 
 /** Create a document-batch job and wait for the reads to settle onto Review. */
@@ -79,7 +79,7 @@ export async function createBatchJob(page: Page, files: readonly FileInput[]): P
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   // Issue #84 correction: the internal kind is not header chrome; the created
   // batch's landing workspace (installed once the reads settle) is the witness.
-  await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Espacio de revisión" })).toBeVisible();
 }
 
 /** Create a structured job from a committed CSV and assert the shell fact. */
@@ -124,12 +124,12 @@ export async function gotoReviewWithDetections(page: Page): Promise<void> {
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(REVIEW_FIXTURE_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
+  await expect(page.getByRole("list", { name: "Hallazgos" }).getByRole("button")).toHaveCount(4);
 }
 
 /** Keep the selected original through the current UI, including contextual confirmation. */
 export async function keepOriginalThroughUi(page: Page): Promise<void> {
-  const inspector = page.getByRole("complementary", { name: "Entity inspector" });
+  const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
   const decision = inspector.locator('dt:text-is("Decisión actual") + dd');
   const confirmation = inspector.getByRole("group", { name: "Confirmar mantener original" });
   await inspector.getByRole("button", { name: "Mantener original", exact: true }).click();
@@ -149,7 +149,7 @@ export async function keepOriginalThroughUi(page: Page): Promise<void> {
 
 /** Apply the terminal decisions to the four known detections of the text flow. */
 export async function completeReview(page: Page): Promise<void> {
-  const detections = page.getByRole("list", { name: "Detections" });
+  const detections = page.getByRole("list", { name: "Hallazgos" });
   const select = async (label: RegExp) => {
     await detections.getByRole("button", { name: label }).click();
   };
@@ -162,14 +162,16 @@ export async function completeReview(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Aceptar detección" }).click();
   await select(new RegExp(REVIEW_NHC));
   await page.getByRole("button", { name: "Aceptar detección" }).click();
-  await expect(page.getByRole("status", { name: "Review progress" })).toContainText("Pending: 0");
+  await expect(page.getByRole("status", { name: "Progreso de la revisión" })).toContainText(
+    "Pendientes: 0"
+  );
 }
 
 /** Complete the whole text flow and land on Export. */
 export async function gotoExportComplete(page: Page): Promise<void> {
   await gotoReviewWithDetections(page);
   await completeReview(page);
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
   const exportButton = page.getByRole("button", { name: "Ir al resultado" });
   await expect(exportButton).toBeEnabled();
   await exportButton.click();

@@ -83,7 +83,9 @@ describe("Input start examples (REC-08 #80)", () => {
       expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
       expect(screen.queryByText("Text job")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Iniciar revisión" })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Comprobación de privacidad" })
+      ).not.toBeInTheDocument();
       cleanup();
     }
   });
@@ -202,7 +204,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
         // Issue #84 correction: the internal kind is not header chrome, so the
         // created-job witness is the real Review landing itself (async engine
         // completion — same latency budget as the other async oracles).
-        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
       },
       { timeout: 10_000 }
     );
@@ -249,7 +251,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
         // Issue #84 correction: the internal kind is not header chrome, so the
         // created-job witness is the real Review landing itself (async engine
         // completion — same latency budget as the other async oracles).
-        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
       },
       { timeout: 10_000 }
     );
@@ -318,7 +320,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
         // Issue #84 correction: the internal kind is not header chrome, so the
         // created-job witness is the real Review landing itself (async engine
         // completion — same latency budget as the other async oracles).
-        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
       },
       { timeout: 10_000 }
     );
@@ -540,6 +542,6 @@ describe("Input start intended-use wording (REC-08 #80)", () => {
     // disclosure; expand it to read the per-policy availability facts.
     fireEvent.click(screen.getByRole("button", { name: "Guía detallada de políticas" }));
     const list = within(guidance).getByRole("list", { name: "Guía de políticas de privacidad" });
-    expect(within(list).getAllByText("Available")).toHaveLength(4);
+    expect(within(list).getAllByText("Disponible")).toHaveLength(4);
   });
 });

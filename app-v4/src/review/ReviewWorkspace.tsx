@@ -65,13 +65,13 @@ const CURRENT_DECISION_LABELS = {
 };
 
 const STATUS_FILTERS: readonly { readonly value: StatusFilter; readonly label: string }[] = [
-  { value: "all", label: "All statuses" },
-  { value: "pending", label: "Pending" },
-  { value: "decided", label: "Decided" },
-  { value: "accepted", label: "Accepted" },
-  { value: "restored", label: "Restored" },
-  { value: "manual", label: "Manual" },
-  { value: "low-confidence", label: "Low confidence" },
+  { value: "all", label: "Todos los estados" },
+  { value: "pending", label: "Pendientes" },
+  { value: "decided", label: "Decididos" },
+  { value: "accepted", label: "Aceptadas" },
+  { value: "restored", label: "Conservados" },
+  { value: "manual", label: "Manuales" },
+  { value: "low-confidence", label: "Baja confianza" },
 ];
 
 type KeepOriginalIntent = {
@@ -328,7 +328,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     if (id === selectedId) return true;
     if (replacementDraft !== "" || noteDraft !== "") {
       setNavigationError(
-        "Hay un borrador sin guardar. Aplica la decisión o descarta el borrador antes de cambiar de detección."
+        "Hay un borrador sin guardar. Aplica la decisión o descarta el borrador antes de cambiar de hallazgo."
       );
       focusInspector();
       return false;
@@ -476,7 +476,11 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           ? "Sin pendientes. Puedes corregir las decisiones desde la lista o el texto original."
           : `Pendientes de revisar: ${pending.length}.`}
       </p>
-      <div role="region" aria-label="Review workspace" className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div
+        role="region"
+        aria-label="Espacio de revisión"
+        className="mt-4 grid gap-4 lg:grid-cols-3"
+      >
         <InspectorPane
           error={error}
           onViewSource={() => {
@@ -693,45 +697,45 @@ function FilterProgressPane(props: {
   return (
     <div className="min-w-0 space-y-4">
       <section
-        aria-label="Review filters and progress"
+        aria-label="Filtros y progreso de la revisión"
         className="rounded border border-primary bg-surface-light p-3"
       >
-        <h3 className="font-display text-base font-bold text-primary-dark">Progress</h3>
+        <h3 className="font-display text-base font-bold text-primary-dark">Progreso</h3>
         {progress && (
           <dl
             role="status"
-            aria-label="Review progress"
+            aria-label="Progreso de la revisión"
             className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
           >
             <dt className="font-semibold">Total:</dt>
             <dd> {progress.total}</dd>
-            <dt className="font-semibold">Pending:</dt>
+            <dt className="font-semibold">Pendientes:</dt>
             <dd> {progress.pending}</dd>
-            <dt className="font-semibold">Decided:</dt>
+            <dt className="font-semibold">Decididos:</dt>
             <dd> {progress.decided}</dd>
-            <dt className="font-semibold">Accepted:</dt>
+            <dt className="font-semibold">Aceptadas:</dt>
             <dd> {progress.accepted}</dd>
-            <dt className="font-semibold">Modified:</dt>
+            <dt className="font-semibold">Modificadas:</dt>
             <dd> {progress.modified}</dd>
-            <dt className="font-semibold">Restored:</dt>
+            <dt className="font-semibold">Original conservado:</dt>
             <dd> {progress.restored}</dd>
-            <dt className="font-semibold">Manual:</dt>
+            <dt className="font-semibold">Manuales:</dt>
             <dd> {progress.manual}</dd>
-            <dt className="font-semibold">Low confidence:</dt>
+            <dt className="font-semibold">Baja confianza:</dt>
             <dd> {progress.lowConfidence}</dd>
             <dt className="col-span-2 mt-1 font-semibold">
-              All mandatory decisions complete: {progress.canFinalize ? "yes" : "no"}
+              Todas las decisiones obligatorias completadas: {progress.canFinalize ? "sí" : "no"}
             </dt>
           </dl>
         )}
       </section>
 
       <section
-        aria-label="Detection filters"
+        aria-label="Filtros de hallazgos"
         className="rounded border border-primary bg-surface-light p-3"
       >
-        <h3 className="font-display text-base font-bold text-primary-dark">Filters</h3>
-        <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Filter by status">
+        <h3 className="font-display text-base font-bold text-primary-dark">Filtros</h3>
+        <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Filtrar por estado">
           {STATUS_FILTERS.map((filter) => (
             <button
               key={filter.value}
@@ -752,7 +756,7 @@ function FilterProgressPane(props: {
           htmlFor="filter-by-type"
           className="mt-3 block text-sm font-semibold text-neutral-800"
         >
-          Filter by type
+          Filtrar por tipo
         </label>
         <select
           id="filter-by-type"
@@ -762,7 +766,7 @@ function FilterProgressPane(props: {
           }
           className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
         >
-          <option value="">All types</option>
+          <option value="">Todos los tipos</option>
           {detectionTypes(session).map((type) => (
             <option key={type} value={type}>
               {type}
@@ -772,16 +776,18 @@ function FilterProgressPane(props: {
       </section>
 
       <section
-        aria-label="Detection list"
+        aria-label="Lista de hallazgos"
         ref={props.detectionListRef}
         tabIndex={-1}
         className={`rounded border border-primary bg-surface-light p-3 ${focusRing}`}
       >
-        <h3 className="font-display text-base font-bold text-primary-dark">Detections</h3>
+        <h3 className="font-display text-base font-bold text-primary-dark">Hallazgos</h3>
         {detections.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-700">No detections match the current filters.</p>
+          <p className="mt-2 text-sm text-neutral-700">
+            Ningún hallazgo coincide con los filtros actuales.
+          </p>
         ) : (
-          <ul aria-label="Detections" className="mt-2 space-y-1">
+          <ul aria-label="Hallazgos" className="mt-2 space-y-1">
             {detections.map((detection) => {
               const status = decisionStatusOf(session, detection.id);
               return (
@@ -802,7 +808,7 @@ function FilterProgressPane(props: {
                     <span className="block text-xs">
                       {statusLabel(status)}
                       {detection.source === "manual" ? " · Manual" : ""}
-                      {detection.lowConfidence === true ? " · Low confidence" : ""}
+                      {detection.lowConfidence === true ? " · Baja confianza" : ""}
                     </span>
                   </button>
                 </li>
@@ -824,7 +830,7 @@ function FilterProgressPane(props: {
             onClick={onJumpToInspector}
             className={`mt-3 w-full rounded border border-primary-dark bg-primary-dark px-3 py-2 text-sm font-semibold text-white hover:bg-primary lg:hidden ${focusRing}`}
           >
-            Go to decision controls for the selected detection
+            Ir a los controles de decisión del hallazgo seleccionado
           </button>
         )}
       </section>
@@ -845,9 +851,9 @@ function DocumentPane(props: {
   const { session, segments, selectedId, onSelect, onUseSelection } = props;
   return (
     <div className="min-w-0 space-y-4">
-      <section aria-label="Document" className="rounded border border-primary bg-white p-3">
+      <section aria-label="Documento" className="rounded border border-primary bg-white p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-display text-base font-bold text-primary-dark">Document</h3>
+          <h3 className="font-display text-base font-bold text-primary-dark">Documento</h3>
           <button
             ref={props.markRef}
             type="button"
@@ -861,7 +867,7 @@ function DocumentPane(props: {
         <div
           ref={props.sourceRef}
           role="group"
-          aria-label="Document text with detections"
+          aria-label="Texto del documento con hallazgos"
           tabIndex={-1}
           className={`mt-2 max-h-[32rem] overflow-y-auto whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-neutral-900 ${focusRing}`}
         >
@@ -884,7 +890,7 @@ function DocumentPane(props: {
                 data-source-start={segment.start}
                 onClick={() => onSelect(detectionId)}
                 aria-current={isCurrent ? "true" : undefined}
-                aria-label={`${detection?.type ?? "Detection"}: "${segment.text}" — decision status: ${statusLabel(status)}`}
+                aria-label={`${detection?.type ?? "Hallazgo"}: "${segment.text}" — estado de la decisión: ${statusLabel(status)}`}
                 className={`mx-px rounded-sm px-0.5 underline decoration-2 underline-offset-2 ${statusDecor(status)} ${
                   isCurrent ? "ring-2 ring-primary-dark" : ""
                 } ${focusRing}`}
@@ -904,10 +910,13 @@ function DocumentPane(props: {
         )}
       </section>
 
-      <section aria-label="Preview" className="rounded border border-primary bg-surface-light p-3">
-        <h3 className="font-display text-base font-bold text-primary-dark">Preview</h3>
+      <section
+        aria-label="Vista previa"
+        className="rounded border border-primary bg-surface-light p-3"
+      >
+        <h3 className="font-display text-base font-bold text-primary-dark">Vista previa</h3>
         <p
-          aria-label="Preview derived from the review session"
+          aria-label="Vista previa derivada de la sesión de revisión"
           className="mt-2 max-h-[32rem] overflow-y-auto whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-neutral-900"
         >
           {previewOf(session)}
@@ -987,7 +996,7 @@ function InspectorPane(props: {
     <aside
       ref={props.inspectorRef}
       tabIndex={-1}
-      aria-label="Entity inspector"
+      aria-label="Inspector del hallazgo"
       className={`min-w-0 break-words rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1066,13 +1075,13 @@ function InspectorPane(props: {
       )}
       {props.hiddenByFilter && (
         <div className="mt-2 text-sm">
-          <p>La detección actual no aparece en la lista filtrada.</p>
+          <p>El hallazgo actual no aparece en la lista filtrada.</p>
           <button
             type="button"
             onClick={props.onShowAll}
             className={`mt-1 rounded border border-primary-dark px-2 py-2 font-semibold ${focusRing}`}
           >
-            Mostrar todas las detecciones
+            Mostrar todos los hallazgos
           </button>
         </div>
       )}
@@ -1086,7 +1095,7 @@ function InspectorPane(props: {
       )}
       {!selected ? (
         <p className="mt-2 text-sm text-neutral-700">
-          Selecciona una detección en la lista o el texto original para revisar o corregir su
+          Selecciona un hallazgo en la lista o en el texto original para revisar o corregir su
           decisión.
         </p>
       ) : (
@@ -1112,24 +1121,24 @@ function InspectorPane(props: {
           </dl>
           <details className="mt-2 text-sm">
             <summary className={`cursor-pointer font-semibold ${focusRing}`}>
-              Detalles de la detección
+              Detalles del hallazgo
             </summary>
             <dl className="mt-2 space-y-2 text-sm text-neutral-800">
               <div>
-                <dt className="font-semibold">Type</dt>
+                <dt className="font-semibold">Tipo</dt>
                 <dd>
                   {selected.type}
                   {selected.subtype ? ` / ${selected.subtype}` : ""}
                 </dd>
               </div>
               <div>
-                <dt className="font-semibold">Proposed replacement</dt>
+                <dt className="font-semibold">Sustitución propuesta</dt>
                 <dd>
                   {selected.proposed === undefined ? (
-                    <span>None proposed</span>
+                    <span>Sin propuesta</span>
                   ) : selected.proposed === "" ? (
                     <span>
-                      <code className="font-mono">(empty)</code> — deletion
+                      <code className="font-mono">(vacío)</code> — eliminación
                     </span>
                   ) : (
                     <code className="font-mono">{selected.proposed}</code>
@@ -1137,23 +1146,23 @@ function InspectorPane(props: {
                 </dd>
               </div>
               <div>
-                <dt className="font-semibold">Confidence</dt>
+                <dt className="font-semibold">Confianza</dt>
                 <dd>
                   {typeof selected.confidence === "number"
                     ? `${Math.round(selected.confidence * 100)}%`
-                    : "Not provided"}
+                    : "No disponible"}
                 </dd>
               </div>
               {selected.reason !== undefined && (
                 <div>
-                  <dt className="font-semibold">Detection reason</dt>
+                  <dt className="font-semibold">Motivo del hallazgo</dt>
                   <dd className="font-mono">{selected.reason}</dd>
                 </div>
               )}
               {selected.lowConfidence === true && (
                 <div>
-                  <dt className="font-semibold">Low confidence</dt>
-                  <dd>Yes — below-threshold candidate</dd>
+                  <dt className="font-semibold">Baja confianza</dt>
+                  <dd>Sí — candidato por debajo del umbral</dd>
                 </div>
               )}
             </dl>
@@ -1372,7 +1381,7 @@ function InspectorPane(props: {
           onClick={props.onReturnToDetections}
           className={`rounded border border-primary-dark px-2 py-2 text-sm font-semibold text-primary-dark lg:hidden ${focusRing}`}
         >
-          Volver a detecciones
+          Volver a hallazgos
         </button>
       </div>
     </aside>

@@ -51,27 +51,29 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
   // failed read is surfaced there immediately, by name (never hidden).
   await showAllDocuments(page);
 
-  const docList = page.getByRole("list", { name: "Batch document status" });
+  const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
   // The failed item stays listed in review, with its status and error.
   await expect(docList).toContainText("corrupt.pdf");
   await expect(docList).toContainText("Error");
 
   // Document 1 review: a real decision on its own session.
-  const progress = page.getByRole("status", { name: "Review progress" });
-  await expect(progress).toContainText("Pending: 1");
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
+  await expect(progress).toContainText("Pendientes: 1");
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /12345678A/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
 
   // Privacy Gate: the failed item and the real per-item counts are factual.
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  const batchCounts = page.getByRole("group", { name: "Batch item counts" });
-  await expect(batchCounts).toContainText("Failed: 1");
-  await expect(batchCounts).toContainText("Pending: 1");
-  await expect(page.getByRole("alert").last()).toContainText("a batch item failed");
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  const batchCounts = page.getByRole("group", { name: "Recuentos de documentos del lote" });
+  await expect(batchCounts).toContainText("Con error: 1");
+  await expect(batchCounts).toContainText("Pendientes: 1");
+  await expect(page.getByRole("alert").last()).toContainText(
+    "un documento del lote no se pudo procesar"
+  );
   await expect(page.getByRole("alert").last()).toContainText("corrupt.pdf");
 
   // Export is the batch Result: reachable while the artifact is
@@ -100,11 +102,11 @@ test("navigation never fabricates review completion and a reviewed batch has no 
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await showAllDocuments(page);
 
-  const docList = page.getByRole("list", { name: "Batch document status" });
-  const progress = page.getByRole("status", { name: "Review progress" });
+  const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
 
   // Viewing documents changes nothing: both stay Requiere revisión.
-  await expect(progress).toContainText("Pending: 1");
+  await expect(progress).toContainText("Pendientes: 1");
   await docList.getByRole("button", { name: /batch-doc-2\.txt/ }).click();
   await docList.getByRole("button", { name: /batch-doc-1\.txt/ }).click();
   await expect(docList.filter({ hasText: "batch-doc-2.txt" })).toContainText("Requiere revisión");
@@ -112,7 +114,7 @@ test("navigation never fabricates review completion and a reviewed batch has no 
 
   // First document completed — the batch is still not complete.
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /12345678A/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
@@ -122,7 +124,7 @@ test("navigation never fabricates review completion and a reviewed batch has no 
   // Complete the second document: the batch review is now truly complete.
   await docList.getByRole("button", { name: /batch-doc-2\.txt/ }).click();
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /87654321B/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
@@ -130,9 +132,9 @@ test("navigation never fabricates review completion and a reviewed batch has no 
 
   // A completed batch review reaches the ready batch Result: exactly one
   // primary Safe action producing the deterministic Safe manifest.
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText(
-    "Completed: 2"
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  await expect(page.getByRole("group", { name: "Recuentos de documentos del lote" })).toContainText(
+    "Completados: 2"
   );
   await page.getByRole("button", { name: "Ir al resultado" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
@@ -160,7 +162,7 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await showAllDocuments(page);
 
-  const docList = page.getByRole("list", { name: "Batch document status" });
+  const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
   const failedRow = docList.getByRole("listitem").filter({ hasText: "corrupt.pdf" });
 
   // A read failure keeps no retained text, so NO retry is offered (fail-closed).
@@ -171,14 +173,14 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   // UNRELATED documents carry completed review decisions BEFORE any recovery
   // action, so the assertions below can falsify loss of pre-existing work.
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /12345678A/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
   await docList.getByRole("button", { name: /batch-doc-2\.txt/ }).click();
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /87654321B/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
@@ -221,19 +223,23 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   await expect(docList.filter({ hasText: "batch-doc-1.txt" })).toContainText("Completado");
   await expect(docList.filter({ hasText: "batch-doc-2.txt" })).toContainText("Completado");
 
-  // Privacy Gate: the removed item is factual history ("Failed: 1" keeps it,
+  // Privacy Gate: the removed item is factual history ("Con error: 1" keeps it,
   // "Retirado del lote" names the disposition) but it is NO longer an active
   // blocker, so the fail-closed batch-failure alert is gone; the acknowledged
   // fact stays visible.
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText(
-    "Completed: 2"
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  await expect(page.getByRole("group", { name: "Recuentos de documentos del lote" })).toContainText(
+    "Completados: 2"
   );
-  await expect(page.getByRole("group", { name: "Batch item counts" })).toContainText("Failed: 1");
-  const batchItems = page.getByRole("list", { name: "Batch item status" });
+  await expect(page.getByRole("group", { name: "Recuentos de documentos del lote" })).toContainText(
+    "Con error: 1"
+  );
+  const batchItems = page.getByRole("list", { name: "Estado de los documentos del lote" });
   await expect(batchItems).toContainText("Retirado del lote");
   await expect(batchItems).toContainText("Error reconocido");
-  await expect(page.getByRole("alert").filter({ hasText: "a batch item failed" })).toHaveCount(0);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "un documento del lote no se pudo procesar" })
+  ).toHaveCount(0);
 
   // Export is the ready batch Result: the removed failure is manifest
   // history (error/retirado at its original index), never a blocker and
@@ -264,7 +270,7 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await showAllDocuments(page);
 
-  const docList = page.getByRole("list", { name: "Batch document status" });
+  const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
   await expect(docList).toContainText("corrupt.pdf");
   await expect(docList).toContainText("sample-scanned.pdf");
 
@@ -290,19 +296,25 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   // Privacy Gate boundary: with nothing pending, no active failure and no job
   // error, the checkpoint still NEVER asserts review completion (no
   // evaluable document remains) and never re-blocks on the resolved failures.
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
-  const checkpoint = page.getByRole("region", { name: "Decision checkpoint" });
-  await expect(checkpoint).toContainText("Action required");
-  await expect(checkpoint).not.toContainText("Review complete");
-  await expect(checkpoint).toContainText("No batch document remains available for review");
-  await expect(checkpoint).toContainText("deliberately removed");
-  await expect(checkpoint).not.toContainText("Every mandatory review decision is recorded");
-  await expect(page.getByRole("alert").filter({ hasText: "a batch item failed" })).toHaveCount(0);
-  const counts = page.getByRole("group", { name: "Batch item counts" });
-  await expect(counts).toContainText("Failed: 2");
-  await expect(counts).toContainText("Pending: 0");
-  await expect(counts).toContainText("Completed: 0");
-  await expect(page.getByRole("list", { name: "Batch item status" })).toContainText(
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
+  const checkpoint = page.getByRole("region", { name: "Punto de control de la decisión" });
+  await expect(checkpoint).toContainText("Necesita atención");
+  await expect(checkpoint).not.toContainText("Preparado");
+  await expect(checkpoint).toContainText(
+    "No queda ningún documento del lote disponible para revisión"
+  );
+  await expect(checkpoint).toContainText("retiraron deliberadamente");
+  await expect(checkpoint).not.toContainText(
+    "Todas las decisiones de revisión obligatorias están registradas"
+  );
+  await expect(
+    page.getByRole("alert").filter({ hasText: "un documento del lote no se pudo procesar" })
+  ).toHaveCount(0);
+  const counts = page.getByRole("group", { name: "Recuentos de documentos del lote" });
+  await expect(counts).toContainText("Con error: 2");
+  await expect(counts).toContainText("Pendientes: 0");
+  await expect(counts).toContainText("Completados: 0");
+  await expect(page.getByRole("list", { name: "Estado de los documentos del lote" })).toContainText(
     "Retirado del lote"
   );
 
@@ -355,7 +367,7 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
     .setInputFiles([...synthetic, ...failures]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-  const docList = page.getByRole("list", { name: "Batch document status" });
+  const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
   const filters = page.getByRole("group", { name: "Filtrar documentos del lote" });
   const filterButton = (label: RegExp) => filters.getByRole("button", { name: label });
 
@@ -371,7 +383,7 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
   // without scanning the queue, while the open document keeps its workspace.
   await docList.getByRole("button", { name: /synth-doc-01\.txt/ }).click();
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /12345678A/ })
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();

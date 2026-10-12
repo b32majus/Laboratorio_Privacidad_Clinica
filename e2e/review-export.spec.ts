@@ -61,35 +61,35 @@ for (const width of [375, 1280]) {
     await page.getByRole("textbox", { name: "Pegar texto" }).fill(FIXTURE_TEXT);
     await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-    const progress = page.getByRole("status", { name: "Review progress" });
-    const detections = page.getByRole("list", { name: "Detections" }).getByRole("button");
+    const progress = page.getByRole("status", { name: "Progreso de la revisión" });
+    const detections = page.getByRole("list", { name: "Hallazgos" }).getByRole("button");
 
     // The engine found exactly the four known identifiers of the fixture.
     await expect(detections).toHaveCount(4);
     await expect(progress).toContainText("Total: 4");
-    await expect(progress).toContainText("Pending: 4");
-    await expect(progress).toContainText("All mandatory decisions complete: no");
+    await expect(progress).toContainText("Pendientes: 4");
+    await expect(progress).toContainText("Todas las decisiones obligatorias completadas: no");
 
     // --- Export gate is fail-closed while decisions are pending -------------
-    await page.getByRole("button", { name: "Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
     await expect(page.getByRole("alert")).toContainText(
-      "Safe export is blocked while 4 mandatory review decisions are pending."
+      "La descarga segura está bloqueada mientras 4 decisiones de revisión obligatorias están pendientes."
     );
     await page.getByRole("button", { name: "Volver a la revisión" }).click();
 
     const selectDetection = (label: RegExp) =>
-      page.getByRole("list", { name: "Detections" }).getByRole("button", { name: label }).click();
+      page.getByRole("list", { name: "Hallazgos" }).getByRole("button", { name: label }).click();
 
     // Modified: the reviewer rewrites the DNI replacement.
     await selectDetection(new RegExp(DNI));
     await page.getByLabel("Sustitución").fill(DNI_REPLACEMENT);
-    const inspector = page.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
     const keep = page.getByRole("button", { name: "Mantener original", exact: true });
-    const back = page.getByRole("button", { name: "Volver a detecciones" });
+    const back = page.getByRole("button", { name: "Volver a hallazgos" });
     const returnToList = async () => {
       await back.focus();
       await back.press("Enter");
-      const list = page.getByRole("region", { name: "Detection list" });
+      const list = page.getByRole("region", { name: "Lista de hallazgos" });
       await expect(list).toBeFocused();
       await expect(list).toBeInViewport();
       expect(await list.evaluate((element) => getComputedStyle(element).boxShadow)).not.toBe(
@@ -98,7 +98,7 @@ for (const width of [375, 1280]) {
       await noOverflow();
     };
     if (width === 375) {
-      await page.getByRole("button", { name: /Go to decision controls/ }).press("Enter");
+      await page.getByRole("button", { name: /Ir a los controles de decisión/ }).press("Enter");
       await expect(inspector).toBeFocused();
     } else {
       await expect(back).toBeHidden();
@@ -111,23 +111,23 @@ for (const width of [375, 1280]) {
     );
     await expect(confirmation).not.toContainText(DNI);
     await expect(page.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused();
-    await expect(progress).toContainText("Restored: 0");
-    await expect(progress).toContainText("Pending: 4");
+    await expect(progress).toContainText("Original conservado: 0");
+    await expect(progress).toContainText("Pendientes: 4");
     await noOverflow();
     await capture("contextual-consequence");
     await page.getByRole("button", { name: "Cancelar", exact: true }).press("Escape");
     await expect(confirmation).toHaveCount(0);
     await expect(keep).toBeFocused();
     await expect(page.getByLabel("Sustitución")).toHaveValue(DNI_REPLACEMENT);
-    await expect(progress).toContainText("Restored: 0");
+    await expect(progress).toContainText("Original conservado: 0");
     if (width === 375) await returnToList();
     await keep.focus();
     await keep.press("Enter");
     await page.getByRole("button", { name: "Sí, mantener original" }).press("Enter");
     await expect(keep).toBeFocused();
     await expect(inspector).toContainText(/Decisión actual\s*Original conservado/);
-    await expect(progress).toContainText("Restored: 1");
-    await expect(progress).toContainText("Pending: 3");
+    await expect(progress).toContainText("Original conservado: 1");
+    await expect(progress).toContainText("Pendientes: 3");
     await capture("confirmed-current-decision");
     if (width === 375) {
       await returnToList();
@@ -136,25 +136,25 @@ for (const width of [375, 1280]) {
     // Confirmed decisions remain correctable using the ordinary controls.
     await page.getByLabel("Sustitución").fill(DNI_REPLACEMENT);
     await page.getByRole("button", { name: "Aplicar modificación" }).click();
-    await expect(progress).toContainText("Modified: 1");
+    await expect(progress).toContainText("Modificadas: 1");
 
     // Restored: the email original is EXPLICITLY kept by reviewer decision.
     await selectDetection(new RegExp(EMAIL.replace(".", "\\.")));
     await page.getByRole("button", { name: "Mantener original", exact: true }).click();
-    await expect(progress).toContainText("Restored: 0");
+    await expect(progress).toContainText("Original conservado: 0");
     await page.getByRole("button", { name: "Sí, mantener original" }).click();
-    await expect(progress).toContainText("Restored: 1");
+    await expect(progress).toContainText("Original conservado: 1");
 
     // Accepted: phone and NHC disappear from the final text (deletion proposals).
     await selectDetection(new RegExp(TELEFONO.replace("-", "-")));
     await page.getByRole("button", { name: "Aceptar detección" }).click();
     await selectDetection(new RegExp(NHC));
     await page.getByRole("button", { name: "Aceptar detección" }).click();
-    await expect(progress).toContainText("Pending: 0");
+    await expect(progress).toContainText("Pendientes: 0");
 
     // --- Manual detection affects the final output --------------------------
     const mark = page.getByRole("button", { name: "Marcar dato no detectado" });
-    const source = page.getByRole("group", { name: "Document text with detections" });
+    const source = page.getByRole("group", { name: "Texto del documento con hallazgos" });
     const form = page.getByRole("form", { name: "Marcar dato" });
     const captureSource = async () => {
       await mark.scrollIntoViewIfNeeded();
@@ -197,7 +197,7 @@ for (const width of [375, 1280]) {
     await expect(mark).toBeFocused();
     await expect(mark).toBeInViewport();
     await expect(progress).toContainText("Total: 4");
-    await expect(progress).toContainText("Pending: 0");
+    await expect(progress).toContainText("Pendientes: 0");
     await noOverflow();
     await captureSource();
     await page.getByLabel("Tipo de dato").fill("FARMACO");
@@ -209,8 +209,8 @@ for (const width of [375, 1280]) {
     await noOverflow();
     await capture("manual-pending-next-action");
     await expect(progress).toContainText("Total: 5");
-    await expect(progress).toContainText("Manual: 1");
-    await expect(progress).toContainText("Pending: 1");
+    await expect(progress).toContainText("Manuales: 1");
+    await expect(progress).toContainText("Pendientes: 1");
 
     await reviewMarked.press("Enter");
     await expect(inspector).toBeFocused();
@@ -218,16 +218,16 @@ for (const width of [375, 1280]) {
     await page.getByLabel("Sustitución").fill(MANUAL_REPLACEMENT);
     await page.getByRole("button", { name: "Aplicar modificación" }).click();
 
-    await expect(progress).toContainText("All mandatory decisions complete: yes");
+    await expect(progress).toContainText("Todas las decisiones obligatorias completadas: sí");
 
     // --- Privacy Gate: factual summary with kept-original warnings ----------
-    await page.getByRole("button", { name: "Privacy Gate" }).click();
+    await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
     await expect(page.getByRole("alert")).toHaveCount(0);
-    const warnings = page.getByRole("list", { name: "Kept-original warnings" });
-    await expect(warnings).toContainText("Kept original");
-    const summary = page.getByRole("group", { name: "Review summary facts" });
-    await expect(summary).toContainText("2 accepted, 2 modified");
-    await expect(summary).toContainText("Kept originals (restored): 1");
+    const warnings = page.getByRole("list", { name: "Avisos de originales conservados" });
+    await expect(warnings).toContainText("Original conservado");
+    const summary = page.getByRole("group", { name: "Datos del resumen de la revisión" });
+    await expect(summary).toContainText("2 aceptados, 2 modificados");
+    await expect(summary).toContainText("Originales conservados (restaurados): 1");
 
     // --- Export: two separate artifacts -------------------------------------
     await page.getByRole("button", { name: "Ir al resultado" }).click();

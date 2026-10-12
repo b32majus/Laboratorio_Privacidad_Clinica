@@ -81,7 +81,7 @@ function detectionSpanButton(original: string) {
 
 /** Real DOM Range: only source-anchored text nodes, not simulated offset input. */
 function selectSource(start: number, end: number) {
-  const group = screen.getByRole("group", { name: "Document text with detections" });
+  const group = screen.getByRole("group", { name: "Texto del documento con hallazgos" });
   const anchors = Array.from(group.querySelectorAll<HTMLElement>("[data-source-start]"));
   const boundary = (position: number, isEnd: boolean) => {
     const anchor = anchors.find((element) => {
@@ -111,7 +111,7 @@ describe("Review productivity — current context", () => {
     const base = buildSession();
     const session = addManualDetection(base, { start: 0, end: 6, type: "CONTEXTO" });
     render(<Harness initial={session} />);
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     expect(inspector).toHaveTextContent("OriginalNombre");
     expect(screen.getByRole("button", { name: "Anterior pendiente" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Siguiente pendiente" }));
@@ -134,7 +134,7 @@ describe("Review productivity — current context", () => {
     expect(screen.getByText("Dato añadido. Pendiente de revisar")).toBeInTheDocument();
     expect(screen.queryByLabelText("Sustitución")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Revisar dato marcado" }));
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "OriginalTexto"
     );
     expect(ref.current.decisions).toEqual({});
@@ -144,7 +144,7 @@ describe("Review productivity — current context", () => {
     const initial = applyDecision(base, base.detections[0].id, "accepted");
     const ref = { current: initial };
     const view = render(<Harness initial={initial} sessionRef={ref} />);
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     expect(inspector).toHaveTextContent("612345678");
     expect(ref.current).toBe(initial);
     fireEvent.click(detectionSpanButton("2024/089756"));
@@ -164,13 +164,13 @@ describe("Review productivity — current context", () => {
     fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "OLD" } });
     fireEvent.change(screen.getByLabelText("Nota (opcional)"), { target: { value: "OLD NOTE" } });
     view.rerender(<ReviewWorkspace session={second} {...handlers} />);
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "Carmen Sánchez"
     );
     expect(screen.getByLabelText("Sustitución")).toHaveValue("");
     expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("");
     view.rerender(<ReviewWorkspace session={first} {...handlers} />);
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "Carmen Sánchez"
     );
     expect(handlers.onDecide).not.toHaveBeenCalled();
@@ -201,11 +201,11 @@ describe("Review productivity — pending navigation", () => {
     });
     render(<Harness initial={session} />);
     fireEvent.click(screen.getByRole("button", { name: "Siguiente pendiente" }));
-    const source = screen.getByRole("group", { name: "Document text with detections" });
+    const source = screen.getByRole("group", { name: "Texto del documento con hallazgos" });
     const current = source.querySelectorAll('[aria-current="true"]');
     expect(Array.from(current, (element) => element.textContent).join("")).toBe("Carmen Sánchez");
     fireEvent.click(current[0]);
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "OriginalCarmen Sánchez"
     );
     expect(session.decisions).toEqual({});
@@ -217,14 +217,14 @@ describe("Review productivity — pending navigation", () => {
     const previous = screen.getByRole("button", { name: "Anterior pendiente" });
     const next = screen.getByRole("button", { name: "Siguiente pendiente" });
     expect(previous).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Filter by type"), { target: { value: "NOMBRE" } });
+    fireEvent.change(screen.getByLabelText("Filtrar por tipo"), { target: { value: "NOMBRE" } });
     fireEvent.click(next);
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     expect(inspector).toHaveTextContent("612345678");
-    expect(inspector).toHaveTextContent("La detección actual no aparece en la lista filtrada.");
-    expect(screen.getByLabelText("Filter by type")).toHaveValue("NOMBRE");
+    expect(inspector).toHaveTextContent("El hallazgo actual no aparece en la lista filtrada.");
+    expect(screen.getByLabelText("Filtrar por tipo")).toHaveValue("NOMBRE");
     expect(
-      within(screen.getByRole("group", { name: "Document text with detections" })).getByRole(
+      within(screen.getByRole("group", { name: "Texto del documento con hallazgos" })).getByRole(
         "button",
         { name: /612345678/ }
       )
@@ -235,9 +235,9 @@ describe("Review productivity — pending navigation", () => {
     expect(inspector).toHaveTextContent("2024/089756");
     fireEvent.click(previous);
     expect(inspector).toHaveTextContent("612345678");
-    fireEvent.click(screen.getByRole("button", { name: "Mostrar todas las detecciones" }));
-    expect(screen.getByLabelText("Filter by type")).toHaveValue("");
-    expect(screen.getByRole("region", { name: "Detection list" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar todos los hallazgos" }));
+    expect(screen.getByLabelText("Filtrar por tipo")).toHaveValue("");
+    expect(screen.getByRole("region", { name: "Lista de hallazgos" })).toHaveFocus();
     expect(ref.current).toBe(session);
   });
 
@@ -248,7 +248,7 @@ describe("Review productivity — pending navigation", () => {
     fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "BORRADOR" } });
     fireEvent.change(screen.getByLabelText("Nota (opcional)"), { target: { value: "NOTA" } });
     fireEvent.click(screen.getByRole("button", { name: "Siguiente pendiente" }));
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     expect(within(inspector).getByRole("alert")).toHaveTextContent("Hay un borrador sin guardar");
     expect(inspector).toHaveFocus();
     expect(screen.getByLabelText("Sustitución")).toHaveValue("BORRADOR");
@@ -282,7 +282,7 @@ describe("Review productivity — decision continuity", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aplicar modificación" }));
     expect(screen.getByLabelText("Sustitución")).toHaveValue("REVISADO");
     expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("NOTA");
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "Decisión actualPendiente"
     );
     expect(session.decisions).toEqual({});
@@ -305,7 +305,7 @@ describe("Review productivity — decision continuity", () => {
     expect(screen.getByText(/^Sin pendientes\./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Siguiente pendiente" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Anterior pendiente" })).toBeDisabled();
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "2024/089756"
     );
     fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "CORRECCIÓN" } });
@@ -319,7 +319,7 @@ describe("Review productivity — decision continuity", () => {
 
 describe("Review productivity — scoped shortcuts", () => {
   function focusWork() {
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     inspector.focus();
     return inspector;
   }
@@ -344,7 +344,7 @@ describe("Review productivity — scoped shortcuts", () => {
     fireEvent.keyDown(focusWork(), { key: "a" });
     expect(ref.current.decisions[session.detections[1].id]?.status).toBe("accepted");
     expect(ref.current.decisions[session.detections[0].id]).toBeUndefined();
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "612345678"
     );
     fireEvent.keyDown(focusWork(), { key: "ArrowUp", altKey: true });
@@ -370,12 +370,12 @@ describe("Review productivity — scoped shortcuts", () => {
           : kind === "textarea"
             ? screen.getByLabelText("Nota (opcional)")
             : kind === "select"
-              ? screen.getByLabelText("Filter by type")
+              ? screen.getByLabelText("Filtrar por tipo")
               : document.createElement("div");
       if (kind === "contenteditable") {
         control.setAttribute("contenteditable", "true");
         control.setAttribute("tabindex", "0");
-        screen.getByRole("complementary", { name: "Entity inspector" }).append(control);
+        screen.getByRole("complementary", { name: "Inspector del hallazgo" }).append(control);
       }
       control.focus();
       for (const key of ["a", "m", "k", "f"]) fireEvent.keyDown(control, { key });
@@ -385,9 +385,9 @@ describe("Review productivity — scoped shortcuts", () => {
       expect(
         screen.queryByRole("group", { name: "Confirmar mantener original" })
       ).not.toBeInTheDocument();
-      expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
-        "Decisión actualPendiente"
-      );
+      expect(
+        screen.getByRole("complementary", { name: "Inspector del hallazgo" })
+      ).toHaveTextContent("Decisión actualPendiente");
     }
   );
 
@@ -457,8 +457,8 @@ describe("Mantener original — explicit contextual intent", () => {
     render(<Harness initial={session} sessionRef={ref} />);
     fireEvent.click(detectionSpanButton("Candidato sintético"));
     fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent(
-      "Low confidence: 1"
+    expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
+      "Baja confianza: 1"
     );
     expect(ref.current).toBe(session);
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
@@ -591,23 +591,23 @@ describe("Mantener original — explicit contextual intent", () => {
 describe("ReviewWorkspace — progress and detection list derived from the session", () => {
   it("shows factual progress counts (never a score)", () => {
     render(<Harness initial={buildSession()} />);
-    const progress = screen.getByRole("status", { name: /review progress/i });
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
     expect(progress).toHaveTextContent("Total: 3");
-    expect(progress).toHaveTextContent("Pending: 3");
-    expect(progress).toHaveTextContent("Decided: 0");
-    expect(progress).toHaveTextContent("Accepted: 0");
-    expect(progress).toHaveTextContent("Modified: 0");
-    expect(progress).toHaveTextContent("Restored: 0");
-    expect(progress).toHaveTextContent("Manual: 0");
-    expect(progress).toHaveTextContent(/all mandatory decisions complete: no/i);
+    expect(progress).toHaveTextContent("Pendientes: 3");
+    expect(progress).toHaveTextContent("Decididos: 0");
+    expect(progress).toHaveTextContent("Aceptadas: 0");
+    expect(progress).toHaveTextContent("Modificadas: 0");
+    expect(progress).toHaveTextContent("Original conservado: 0");
+    expect(progress).toHaveTextContent("Manuales: 0");
+    expect(progress).toHaveTextContent(/todas las decisiones obligatorias completadas: no/i);
   });
 
   it("lists every detection with type and status label", () => {
     render(<Harness initial={buildSession()} />);
     // Status is conveyed by text, never by color alone.
-    expect(screen.getAllByText("Pending").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Pendiente").length).toBeGreaterThan(0);
     // Every detection in the session stays visible and listable.
-    const list = screen.getByRole("list", { name: /detections/i });
+    const list = screen.getByRole("list", { name: /hallazgos/i });
     expect(list).toHaveTextContent("NOMBRE");
     expect(list).toHaveTextContent("612345678");
     expect(list).toHaveTextContent("2024/089756");
@@ -617,7 +617,7 @@ describe("ReviewWorkspace — progress and detection list derived from the sessi
 describe("ReviewWorkspace — transient inspector drafts never cross detection identity", () => {
   /** Left-pane detection list button for one detection. */
   function leftListButton(original: string) {
-    return within(screen.getByRole("list", { name: /detections/i })).getByRole("button", {
+    return within(screen.getByRole("list", { name: /hallazgos/i })).getByRole("button", {
       name: new RegExp(original),
     });
   }
@@ -682,9 +682,9 @@ describe("ReviewWorkspace — transient inspector drafts never cross detection i
     fireEvent.click(documentSurfaceButton("2024/089756"));
     // No decision was recorded by mere selection.
     expect(Object.keys(sessionRef.current.decisions)).toHaveLength(0);
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent("Pending: 3");
-    expect(progress).toHaveTextContent("Decided: 0");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent("Pendientes: 3");
+    expect(progress).toHaveTextContent("Decididos: 0");
   });
 });
 
@@ -695,11 +695,11 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
     fireEvent.click(screen.getByRole("button", { name: /aceptar detección/i }));
 
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent("Pending: 2");
-    expect(progress).toHaveTextContent("Accepted: 1");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent("Pendientes: 2");
+    expect(progress).toHaveTextContent("Aceptadas: 1");
     // Preview is derived from the session, not from rendered markup.
-    const preview = screen.getByLabelText(/preview derived from the review session/i);
+    const preview = screen.getByLabelText(/vista previa derivada de la sesión de revisión/i);
     expect(preview).toHaveTextContent("PACIENTE-1");
     expect(preview).not.toHaveTextContent("Carmen Sánchez");
   });
@@ -712,8 +712,8 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
       target: { value: "PACIENTE REEMPLAZO" },
     });
     fireEvent.click(screen.getByRole("button", { name: /aplicar modificación/i }));
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Modified: 1"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Modificadas: 1"
     );
 
     // Complete the rest with explicit keep-original decisions.
@@ -736,16 +736,16 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
 
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent("Restored: 1");
-    expect(progress).toHaveTextContent("Decided: 1");
-    expect(progress).toHaveTextContent("Pending: 2");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent("Original conservado: 1");
+    expect(progress).toHaveTextContent("Decididos: 1");
+    expect(progress).toHaveTextContent("Pendientes: 2");
     // The restored detection stays visible with a text status label.
-    const list = screen.getByRole("list", { name: /detections/i });
-    expect(list).toHaveTextContent("Restored");
+    const list = screen.getByRole("list", { name: /hallazgos/i });
+    expect(list).toHaveTextContent("Original conservado");
     // The Restored filter narrows the list to restored detections only.
-    fireEvent.click(screen.getByRole("button", { name: /^Restored$/ }));
-    const filtered = screen.getByRole("list", { name: /detections/i });
+    fireEvent.click(screen.getByRole("button", { name: /^Conservados$/ }));
+    const filtered = screen.getByRole("list", { name: /hallazgos/i });
     expect(filtered).toHaveTextContent("Carmen Sánchez");
     expect(filtered).not.toHaveTextContent("612345678");
   });
@@ -783,15 +783,15 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     expect(getPreview(sessionRef.current)).toBe(getPreview(before));
     expect(screen.getByText("Dato añadido. Pendiente de revisar")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Revisar dato marcado" }));
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       "Teléfono"
     );
 
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent("Manual: 1");
-    expect(progress).toHaveTextContent("Pending: 3");
-    expect(progress).toHaveTextContent("Accepted: 1");
-    const list = screen.getByRole("list", { name: /detections/i });
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent("Manuales: 1");
+    expect(progress).toHaveTextContent("Pendientes: 3");
+    expect(progress).toHaveTextContent("Aceptadas: 1");
+    const list = screen.getByRole("list", { name: /hallazgos/i });
     expect(list).toHaveTextContent("Teléfono");
   });
 
@@ -806,7 +806,7 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     fireEvent.change(screen.getByLabelText("Sustitución"), {
       target: { value: "Borrador conservado" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Accepted" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceptadas" }));
     const before = sessionRef.current;
     selectSource(0, 31); // Faithful cross-segment selection; never silently narrowed.
     fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
@@ -823,12 +823,12 @@ describe("ReviewWorkspace — decision actions mutate the session", () => {
     expect(screen.getByRole("button", { name: "Marcar dato no detectado" })).toHaveFocus();
     expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("Nota conservada");
     expect(screen.getByLabelText("Sustitución")).toHaveValue("Borrador conservado");
-    expect(screen.getByRole("button", { name: "Accepted" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Aceptadas" })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
     expect(
-      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+      within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
         name: /Carmen Sánchez/,
       })
     ).toHaveAttribute("aria-current", "true");
@@ -920,7 +920,7 @@ describe("ReviewWorkspace — manual source authorization", () => {
     const initial = buildSession();
     const ref = { current: initial };
     render(<Harness initial={initial} sessionRef={ref} />);
-    const source = screen.getByRole("group", { name: "Document text with detections" });
+    const source = screen.getByRole("group", { name: "Texto del documento con hallazgos" });
     const range = document.createRange();
     selectSource(23, 31);
     const selection = window.getSelection()!;
@@ -930,7 +930,9 @@ describe("ReviewWorkspace — manual source authorization", () => {
     if (kind === "empty") selection.removeAllRanges();
     if (kind === "collapsed") selection.collapse(anchor.firstChild, 1);
     if (kind === "preview") {
-      range.selectNodeContents(screen.getByLabelText("Preview derived from the review session"));
+      range.selectNodeContents(
+        screen.getByLabelText("Vista previa derivada de la sesión de revisión")
+      );
       selection.removeAllRanges();
       selection.addRange(range);
     }
@@ -946,7 +948,7 @@ describe("ReviewWorkspace — manual source authorization", () => {
     if (kind === "cross-container") {
       range.setStart(anchor.firstChild!, 1);
       range.setEnd(
-        screen.getByLabelText("Preview derived from the review session").firstChild!,
+        screen.getByLabelText("Vista previa derivada de la sesión de revisión").firstChild!,
         31
       );
       selection.removeAllRanges();
@@ -1043,29 +1045,29 @@ describe("ReviewWorkspace — manual source authorization", () => {
     fireEvent.change(screen.getByLabelText("Nota (opcional)"), {
       target: { value: "Nota sin perder" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Accepted" }));
-    fireEvent.change(screen.getByLabelText("Filter by type"), { target: { value: "NOMBRE" } });
+    fireEvent.click(screen.getByRole("button", { name: "Aceptadas" }));
+    fireEvent.change(screen.getByLabelText("Filtrar por tipo"), { target: { value: "NOMBRE" } });
     selectSource(23, 31);
     fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
     fireEvent.change(screen.getByLabelText("Tipo de dato"), { target: { value: "Palabra" } });
     fireEvent.click(screen.getByRole("button", { name: "Añadir dato marcado" }));
     expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("Nota sin perder");
-    expect(screen.getByRole("list", { name: "Detections" })).not.toHaveTextContent("Teléfono");
+    expect(screen.getByRole("list", { name: "Hallazgos" })).not.toHaveTextContent("Teléfono");
     const next = screen.getByRole("button", { name: "Revisar dato marcado" });
     expect(next).toHaveFocus();
     fireEvent.click(next);
     expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("Nota sin perder");
     fireEvent.click(screen.getByRole("button", { name: "Descartar borrador" }));
     fireEvent.click(next);
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveFocus();
-    expect(screen.getByRole("complementary", { name: "Entity inspector" })).toHaveTextContent(
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveFocus();
+    expect(screen.getByRole("complementary", { name: "Inspector del hallazgo" })).toHaveTextContent(
       /Decisión actualPendiente/
     );
-    expect(screen.getByRole("button", { name: "Accepted" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Aceptadas" })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
-    expect(screen.getByLabelText("Filter by type")).toHaveValue("NOMBRE");
+    expect(screen.getByLabelText("Filtrar por tipo")).toHaveValue("NOMBRE");
     fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "PALABRA" } });
     fireEvent.click(screen.getByRole("button", { name: "Aplicar modificación" }));
     expect(ref.current.decisions).toMatchObject(initial.decisions);
@@ -1083,7 +1085,9 @@ describe("ReviewWorkspace — manual source authorization", () => {
     const ref = { current: initial };
     render(<Harness initial={initial} sessionRef={ref} />);
     const range = document.createRange();
-    range.selectNodeContents(screen.getByRole("group", { name: "Document text with detections" }));
+    range.selectNodeContents(
+      screen.getByRole("group", { name: "Texto del documento con hallazgos" })
+    );
     window.getSelection()?.addRange(range);
     fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
     expect(screen.getByLabelText("Texto seleccionado").textContent).toBe("Á🙂 Ana y Ana");
@@ -1151,8 +1155,8 @@ describe("ReviewWorkspace — accepted requires an existing proposal (C1)", () =
     // Clicking the disabled action records no decision (domain unchanged).
     fireEvent.click(accept);
     expect(Object.keys(sessionRef.current.decisions)).toHaveLength(0);
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Pending: 1"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Pendientes: 1"
     );
     // The block is explained factually, not by color alone.
     expect(accept).toHaveAccessibleDescription(/No hay propuesta/i);
@@ -1166,10 +1170,10 @@ describe("ReviewWorkspace — accepted requires an existing proposal (C1)", () =
       target: { value: "ID-REEMPLAZO" },
     });
     fireEvent.click(screen.getByRole("button", { name: /aplicar modificación/i }));
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Modified: 1"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Modificadas: 1"
     );
-    const preview = screen.getByLabelText(/preview derived from the review session/i);
+    const preview = screen.getByLabelText(/vista previa derivada de la sesión de revisión/i);
     expect(preview).toHaveTextContent("ID-REEMPLAZO");
     expect(preview).not.toHaveTextContent("2024/089756");
   });
@@ -1181,10 +1185,10 @@ describe("ReviewWorkspace — accepted requires an existing proposal (C1)", () =
     const accept = screen.getByRole("button", { name: /aceptar detección/i });
     expect(accept).toBeEnabled();
     fireEvent.click(accept);
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Accepted: 1"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Aceptadas: 1"
     );
-    const preview = screen.getByLabelText(/preview derived from the review session/i);
+    const preview = screen.getByLabelText(/vista previa derivada de la sesión de revisión/i);
     expect(preview).not.toHaveTextContent("612345678");
   });
 });
@@ -1200,13 +1204,13 @@ describe("ReviewWorkspace — transient UI state never certifies or mutates revi
     // Re-render with the same domain state (navigation away/back in App).
     rerender(<Harness initial={sessionRef.current} sessionRef={sessionRef} />);
     expect(sessionRef.current).toBe(afterDecision);
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Accepted: 1"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Aceptadas: 1"
     );
 
     // Pure UI interaction (filters, selection) must not mutate domain state.
-    fireEvent.click(screen.getByRole("button", { name: /^Pending/ }));
-    fireEvent.click(screen.getByRole("button", { name: /all statuses/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Pendientes/ }));
+    fireEvent.click(screen.getByRole("button", { name: /todos los estados/i }));
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
     expect(sessionRef.current).toBe(afterDecision);
   });
@@ -1219,21 +1223,21 @@ describe("ReviewWorkspace — filters", () => {
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
     fireEvent.click(screen.getByRole("button", { name: /aceptar detección/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /^Pending/ }));
-    let list = screen.getByRole("list", { name: /detections/i });
+    fireEvent.click(screen.getByRole("button", { name: /^Pendientes/ }));
+    let list = screen.getByRole("list", { name: /hallazgos/i });
     expect(list).not.toHaveTextContent("Carmen Sánchez");
     expect(list).toHaveTextContent("612345678");
 
-    fireEvent.click(screen.getByRole("button", { name: /^Accepted$/ }));
-    list = screen.getByRole("list", { name: /detections/i });
+    fireEvent.click(screen.getByRole("button", { name: /^Aceptadas$/ }));
+    list = screen.getByRole("list", { name: /hallazgos/i });
     expect(list).toHaveTextContent("Carmen Sánchez");
     expect(list).not.toHaveTextContent("612345678");
 
-    fireEvent.click(screen.getByRole("button", { name: /all statuses/i }));
-    fireEvent.change(screen.getByLabelText(/filter by type/i), {
+    fireEvent.click(screen.getByRole("button", { name: /todos los estados/i }));
+    fireEvent.change(screen.getByLabelText(/filtrar por tipo/i), {
       target: { value: "NOMBRE" },
     });
-    list = screen.getByRole("list", { name: /detections/i });
+    list = screen.getByRole("list", { name: /hallazgos/i });
     expect(list).toHaveTextContent("Carmen Sánchez");
     expect(list).not.toHaveTextContent("2024/089756");
   });
@@ -1242,7 +1246,7 @@ describe("ReviewWorkspace — filters", () => {
 describe("ReviewWorkspace — keyboard operability and responsive surfaces", () => {
   it("exposes primary actions as keyboard-operable buttons with visible focus", () => {
     render(<Harness initial={buildSession()} />);
-    const accept = screen.getByRole("button", { name: /all statuses/i });
+    const accept = screen.getByRole("button", { name: /todos los estados/i });
     expect(accept.tagName).toBe("BUTTON");
     accept.focus();
     expect(accept).toHaveFocus();
@@ -1258,21 +1262,23 @@ describe("ReviewWorkspace — keyboard operability and responsive surfaces", () 
   it("renders one responsive workspace containing filters/progress, document and inspector", () => {
     render(<Harness initial={buildSession()} />);
     // Same DOM for desktop and mobile: a responsive grid, stacked on small screens.
-    const container = screen.getByRole("region", { name: /review workspace/i });
+    const container = screen.getByRole("region", { name: /espacio de revisión/i });
     expect(container).toHaveClass("lg:grid-cols-3");
-    expect(screen.getByRole("status", { name: /review progress/i })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("group", { name: /document text with detections/i })
+      screen.getByRole("group", { name: /texto del documento con hallazgos/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("complementary", { name: /entity inspector/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: /inspector del hallazgo/i })
+    ).toBeInTheDocument();
     // No hover-only or color-only information: decisions are labeled in text.
-    expect(screen.getAllByText("Pending").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Pendiente").length).toBeGreaterThan(0);
   });
 
   it("inspector shows original, proposal, type, confidence and context when a detection is selected", () => {
     render(<Harness initial={buildSession()} />);
     fireEvent.click(detectionSpanButton("Carmen Sánchez"));
-    const inspector = screen.getByRole("complementary", { name: /entity inspector/i });
+    const inspector = screen.getByRole("complementary", { name: /inspector del hallazgo/i });
     expect(inspector).toHaveTextContent("Carmen Sánchez");
     expect(inspector).toHaveTextContent("PACIENTE-1");
     expect(inspector).toHaveTextContent("NOMBRE");
@@ -1289,13 +1295,13 @@ describe("ReviewWorkspace — mobile route from selection to decision controls (
       fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
       fireEvent.click(screen.getByRole("button", { name: action }));
       const before = sessionRef.current;
-      const back = screen.getByRole("button", { name: "Volver a detecciones" });
+      const back = screen.getByRole("button", { name: "Volver a hallazgos" });
       expect(back).toHaveClass("lg:hidden", "focus-visible:ring-2");
       fireEvent.click(back);
-      expect(screen.getByRole("region", { name: "Detection list" })).toHaveFocus();
+      expect(screen.getByRole("region", { name: "Lista de hallazgos" })).toHaveFocus();
       expect(sessionRef.current).toBe(before);
       expect(
-        within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+        within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
           name: /Carmen Sánchez/,
         })
       ).toHaveAttribute("aria-current", "true");
@@ -1304,7 +1310,7 @@ describe("ReviewWorkspace — mobile route from selection to decision controls (
   });
   /** Left-pane detection list button for one detection. */
   function leftListDetection(original: string): HTMLElement {
-    return within(screen.getByRole("list", { name: /detections/i })).getByRole("button", {
+    return within(screen.getByRole("list", { name: /hallazgos/i })).getByRole("button", {
       name: new RegExp(original),
     });
   }
@@ -1317,11 +1323,11 @@ describe("ReviewWorkspace — mobile route from selection to decision controls (
   }
 
   function inspector(): HTMLElement {
-    return screen.getByRole("complementary", { name: /entity inspector/i });
+    return screen.getByRole("complementary", { name: /inspector del hallazgo/i });
   }
 
   function route(): HTMLElement {
-    return screen.getByRole("button", { name: /go to decision controls/i });
+    return screen.getByRole("button", { name: /ir a los controles de decisión/i });
   }
 
   it("offers no route to the inspector when the session has no pending or selected detection", () => {
@@ -1329,7 +1335,7 @@ describe("ReviewWorkspace — mobile route from selection to decision controls (
       <Harness initial={createReviewSession({ originalText: "Texto sintético", detections: [] })} />
     );
     expect(
-      screen.queryByRole("button", { name: /go to decision controls/i })
+      screen.queryByRole("button", { name: /ir a los controles de decisión/i })
     ).not.toBeInTheDocument();
   });
 
@@ -1354,11 +1360,11 @@ describe("ReviewWorkspace — mobile route from selection to decision controls (
 
     // Moving focus is wayfinding, never a decision on the ReviewSession.
     expect(Object.keys(sessionRef.current.decisions)).toHaveLength(0);
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Pending: 3"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Pendientes: 3"
     );
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Decided: 0"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Decididos: 0"
     );
   });
 

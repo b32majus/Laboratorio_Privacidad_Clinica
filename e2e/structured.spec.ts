@@ -33,48 +33,48 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   await expect(page.locator("header")).not.toContainText("Structured job");
   // The structured comparative Configure workspace IS the structured review
   // surface (issue #85): the four-field comparison table carries the facts.
-  const summary = page.getByRole("status", { name: "Structured configuration facts" });
-  await expect(summary).toContainText("Columns: 3");
-  await expect(summary).toContainText("Columns requiring review: 1");
-  await expect(summary).toContainText("Structured export ready: No");
+  const summary = page.getByRole("status", { name: "Datos de la configuración estructurada" });
+  await expect(summary).toContainText("Columnas: 3");
+  await expect(summary).toContainText("Columnas que requieren revisión: 1");
+  await expect(summary).toContainText("Exportación estructurada preparada: No");
 
-  const table = page.getByRole("table", { name: "Column classification list" });
+  const table = page.getByRole("table", { name: "Lista de clasificación de columnas" });
   const freeRow = table.locator("tbody tr").filter({ hasText: "CampoLibre1" });
-  await expect(freeRow).toContainText("Review required");
-  await expect(freeRow).toContainText("Unknown");
+  await expect(freeRow).toContainText("Requiere revisión");
+  await expect(freeRow).toContainText("Desconocido");
   // Secondary facts are grouped behind the inspector's disclosure. Select the
   // row and expand it explicitly so this asserts a reviewer can reveal the
   // fact, not merely that it exists in collapsed DOM content.
   await freeRow.getByRole("button", { name: "CampoLibre1" }).click();
   const inspector = page.getByRole("complementary", { name: "Inspector de columna" });
   await inspector.locator("summary").click();
-  await expect(inspector).toContainText("Proposed action:Review required");
+  await expect(inspector).toContainText("Acción propuesta:Requiere revisión");
 
   // Fail-closed gate message: unknown is never kept or exported as-is.
-  await expect(page.getByRole("alert", { name: "Structured export block reasons" })).toContainText(
-    "Structured export is blocked while 1 column requires review."
-  );
+  await expect(
+    page.getByRole("alert", { name: "Motivos de bloqueo de la exportación estructurada" })
+  ).toContainText("La salida estructurada está bloqueada mientras 1 columna requiere revisión.");
 
   // Explicit reviewer classification through the domain override control.
-  await page.getByLabel("Reviewer classification for CampoLibre1").selectOption("insensitive");
-  await expect(summary).toContainText("Columns requiring review: 0");
-  await expect(summary).toContainText("Structured export ready: Yes");
+  await page.getByLabel("Clasificación del revisor para CampoLibre1").selectOption("insensitive");
+  await expect(summary).toContainText("Columnas que requieren revisión: 0");
+  await expect(summary).toContainText("Exportación estructurada preparada: Sí");
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(freeRow).toContainText("Insensitive");
+  await expect(freeRow).toContainText("No sensible");
   await expect(freeRow).toContainText("clasificación modificada");
 
   // Issue #85 §3.4: no free-text cells — no «Continuar a la revisión» detour
   // and no rendered no-op Review; the factual privacy check is the onward
   // destination from Configure.
   await expect(page.getByRole("button", { name: "Continuar a la revisión" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-  await expect(page.getByRole("status", { name: "Structured export facts" })).toContainText(
-    "Unsupported columns: 0"
+  await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+  await expect(page.getByRole("status", { name: "Datos de la salida estructurada" })).toContainText(
+    "Columnas no compatibles: 0"
   );
   await page.getByRole("button", { name: "Ir al resultado" }).click();
 
   const safeDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download Safe Structured Output (.csv)" }).click();
+  await page.getByRole("button", { name: "Descargar salida estructurada segura (.csv)" }).click();
   const safeDownload = await safeDownloadPromise;
   const safeCsv = fs.readFileSync((await safeDownload.path())!, "utf8");
   // Nombre (identifier) is removed; Diagnostico (sensitive) is kept.
@@ -87,10 +87,12 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   expect(safeCsv).toContain("Fractura");
 
   const auditDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
+  await page
+    .getByRole("button", { name: "Descargar auditoría confidencial estructurada (.txt)" })
+    .click();
   // REC-04 D-022 (H-42 structured slice): the identifiable Confidential
   // artifact requires the additional deliberate in-zone confirmation.
-  await page.getByRole("button", { name: "Confirm confidential download (.txt)" }).click();
+  await page.getByRole("button", { name: "Confirmar descarga confidencial (.txt)" }).click();
   const auditDownload = await auditDownloadPromise;
   const audit = fs.readFileSync((await auditDownload.path())!, "utf8");
   expect(audit).toContain("CONFIDENTIAL");

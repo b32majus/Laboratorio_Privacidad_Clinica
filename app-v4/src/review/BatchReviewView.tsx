@@ -68,6 +68,7 @@ import {
   type ReviewSession,
 } from "./review-domain";
 import { ReviewWorkspace } from "./ReviewWorkspace";
+import { localizeDomainErrorMessage } from "../presentation/domain-message-labels";
 
 const focusRing =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
@@ -317,7 +318,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
               ...scope,
               index,
               kind: "error",
-              text: `El reintento no se completó: ${result.failure.message}`,
+              text: `El reintento no se completó: ${localizeDomainErrorMessage(result.failure.message)}`,
             }
           : {
               ...scope,
@@ -406,12 +407,12 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
           role="alert"
           className={`mt-3 max-w-3xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
         >
-          {errorMessage}
+          {localizeDomainErrorMessage(errorMessage)}
         </p>
       )}
 
       <section
-        aria-label="Batch documents"
+        aria-label="Documentos del lote"
         className="mt-4 rounded border border-primary bg-surface-light p-3"
       >
         <h3 className="font-display text-base font-bold text-primary-dark">Documentos</h3>
@@ -468,7 +469,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
           </p>
         )}
 
-        <ul aria-label="Batch document status" className="mt-2 space-y-1">
+        <ul aria-label="Estado de los documentos del lote" className="mt-2 space-y-1">
           {visibleIndices.map((index) => {
             const file = files[index]!;
             const status = file.itemStatus ?? "queued";
@@ -511,7 +512,9 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
                       <span className="font-semibold">{file.name}</span>
                       {" — "}
                       <span>{BATCH_STATUS_LABELS[status]}</span>
-                      {file.itemError !== undefined && <> — {file.itemError.message}</>}
+                      {file.itemError !== undefined && (
+                        <> — {localizeDomainErrorMessage(file.itemError.message)}</>
+                      )}
                       {removed && <span className="font-semibold"> — Retirado del lote</span>}
                       {acknowledged && <span className="font-semibold"> — Error reconocido</span>}
                     </p>

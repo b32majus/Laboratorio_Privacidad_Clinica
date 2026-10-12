@@ -55,21 +55,22 @@ import {
   POLICY_AVAILABILITY_LABELS,
   POLICY_IDS,
 } from "./policy-guidance";
+import { localizeDomainErrorMessage } from "./presentation/domain-message-labels";
 import { useJobSession } from "./useJobSession";
 
 const STEP_LABELS: Record<FlowStep, string> = {
-  input: "Input",
-  configure: "Configure",
-  review: "Review",
-  "privacy-gate": "Privacy Gate",
-  export: "Export",
+  input: "Entrada",
+  configure: "Preparar datos",
+  review: "Revisión",
+  "privacy-gate": "Comprobación de privacidad",
+  export: "Resultado",
 };
 
 const POLICY_LABELS: Record<PrivacyPolicyId, string> = {
-  standard: "Standard",
-  "external-ai": "External AI",
-  "longitudinal-research": "Longitudinal Research",
-  strict: "Strict",
+  standard: "Estándar",
+  "external-ai": "IA externa",
+  "longitudinal-research": "Investigación longitudinal",
+  strict: "Estricta",
 };
 
 const SUPPORTED_EXTENSIONS = [".txt", ".pdf", ".docx", ".csv", ".xls", ".xlsx"];
@@ -621,7 +622,7 @@ export function App() {
         error instanceof PolicyError ||
         error instanceof ReviewSessionError
           ? error.message
-          : "That step is not available right now.";
+          : "Ese paso no está disponible ahora mismo.";
       if (step === "review") setReviewError(message);
       else setInputError({ kind: "text", message });
     }
@@ -1430,10 +1431,10 @@ function TaskActionBar(props: {
     // The Privacy Gate stays an optional, visitable destination from Review
     // for EVERY kind — including a structured job whose export gate is still
     // closed (the gate reports the factual blockers; G-HP2: never hidden,
-    // deleted or disabled — D-023/D-024). "Privacy Gate" is the accepted
-    // product term, deliberately untranslated:
-    // docs/specs/SPEC_V4_APP_AND_REVIEW.md §2/§6 establish it as the step's
-    // name, and every gate surface (headings, guidance, tests) uses it.
+    // deleted or disabled — D-023/D-024). Issue #90: the visible step label is
+    // the accepted Spanish product term `Comprobación de privacidad`
+    // (SOPHILUX_B_V1_FUNCTIONAL_RECONCILIATION §90-91); the internal
+    // `privacy-gate` step id is unchanged.
     if (isStepAccessible(job, "privacy-gate")) {
       actions.push(
         <button
@@ -1442,7 +1443,7 @@ function TaskActionBar(props: {
           onClick={() => onGoToStep("privacy-gate")}
           className={secondaryAction}
         >
-          Privacy Gate
+          Comprobación de privacidad
         </button>
       );
     }
@@ -1512,9 +1513,8 @@ function TaskActionBar(props: {
   if (step === "export") {
     // The optional Privacy Gate stays reachable from the Result (the former
     // pipeline allowed the gate round-trip; G-HP2: never hidden or deleted).
-    // "Privacy Gate" is the accepted product term, deliberately untranslated:
-    // docs/specs/SPEC_V4_APP_AND_REVIEW.md §2/§6 establish it as the step's
-    // name, and every gate surface (headings, guidance, tests) uses it.
+    // Issue #90: the visible step label is the accepted Spanish product term
+    // `Comprobación de privacidad`; the internal `privacy-gate` id is unchanged.
     if (isStepAccessible(job, "privacy-gate")) {
       actions.push(
         <button
@@ -1523,7 +1523,7 @@ function TaskActionBar(props: {
           onClick={() => onGoToStep("privacy-gate")}
           className={secondaryAction}
         >
-          Privacy Gate
+          Comprobación de privacidad
         </button>
       );
     }
@@ -1575,7 +1575,7 @@ function TaskActionBar(props: {
       // `isStepAccessible(job, "review")` the former review action used.
       actions.push(
         <button key="gate" type="button" onClick={onProceedToPrivacyGate} className={primaryAction}>
-          Privacy Gate
+          Comprobación de privacidad
         </button>
       );
     } else {
@@ -2043,7 +2043,8 @@ function InputStep(props: {
             >
               {failedItems.map((item) => (
                 <li key={item.index}>
-                  <span className="font-semibold">{item.name}</span>: {item.error.message}
+                  <span className="font-semibold">{item.name}</span>:{" "}
+                  {localizeDomainErrorMessage(item.error.message)}
                 </li>
               ))}
             </ul>
