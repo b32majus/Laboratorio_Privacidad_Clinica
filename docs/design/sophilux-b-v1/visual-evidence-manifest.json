@@ -1,0 +1,191 @@
+{
+  "source": "approved-user-Sophilux-B-V1-2026-10-11",
+  "renderedAt": "2026-10-12",
+  "disclaimer": "Synthetic demo screenshots; no domain, privacy or security conformance evidence",
+  "knownMobileIssue": "At 375px the originally approved source prototype can overflow to 413px due to header sizing; #91 must close this technical responsive gap without changing the accepted visual concept",
+  "browser": "Chromium via @playwright/test; no external network",
+  "screenshots": [
+    {
+      "view": "entrada",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/entrada-1440.png",
+      "sha256": "5d8f463b82690af2396d09264965b14045056a8675b0847c56ebd80cbc205f6a",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 1017
+      }
+    },
+    {
+      "view": "revision",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/revision-1440.png",
+      "sha256": "6cbd56c1703ef2742a2850ab4d0ef83947507ff51f14d3d61b80900d98f542fd",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 1165
+      }
+    },
+    {
+      "view": "lote",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/lote-1440.png",
+      "sha256": "f572bce9018c2fb81dd802ba9f752fe4fa2b12eb609af11c2b66201160c55fc1",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 1282
+      }
+    },
+    {
+      "view": "estructurado",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/estructurado-1440.png",
+      "sha256": "9087d36a2faae6cf6def2119cd17760c50739ac72254af7226128b4e1f8e6faa",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 2490
+      }
+    },
+    {
+      "view": "celdas",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/celdas-1440.png",
+      "sha256": "a1ac5a69ad6d26682724b8a206c1ef1123f5ef78aae6725d5c34e55695cd15bb",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 1002
+      }
+    },
+    {
+      "view": "comprobacion",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/comprobacion-1440.png",
+      "sha256": "4fb7452cc0510cf7c8fa57c0fcc6e41d323eb52b8913011e44d3164b531abbe2",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 1021
+      }
+    },
+    {
+      "view": "resultado",
+      "width": 1440,
+      "fullPage": false,
+      "file": "previews/resultado-1440.png",
+      "sha256": "9978b7793413ee67916d4655c8a365c567bd61b02883af4e2cf6b3e25a2a3510",
+      "pixels": {
+        "body": 1440,
+        "doc": 1440,
+        "viewport": 1440,
+        "height": 1231
+      }
+    },
+    {
+      "view": "entrada",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/entrada-375.png",
+      "sha256": "507eac4a48a78b853b36022dd3280a645faff1dd102661a2bee117d82a1a4455",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 1487
+      }
+    },
+    {
+      "view": "revision",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/revision-375.png",
+      "sha256": "a76acc5e697fb317cfa28be044e64327478131492bcf52d35b1c6945a975accd",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 2541
+      }
+    },
+    {
+      "view": "lote",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/lote-375.png",
+      "sha256": "6f87655c0c64d1c4001c10705fe898d8713a226058a9fefc312c323c243f1e96",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 2349
+      }
+    },
+    {
+      "view": "estructurado",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/estructurado-375.png",
+      "sha256": "f885ca99ae0cff070a71bdea11a8ec92c08c534460d206e9d31bcc9da29a9845",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 3471
+      }
+    },
+    {
+      "view": "celdas",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/celdas-375.png",
+      "sha256": "196e5fb2a13248a8d448c0eb47460b6ba7b83454492775890ab81abefc2d0a46",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 1855
+      }
+    },
+    {
+      "view": "comprobacion",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/comprobacion-375.png",
+      "sha256": "8dbd2639e41c4f38f516ed607bddf9fc01f351317f0b3da9188651175b9515db",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 1532
+      }
+    },
+    {
+      "view": "resultado",
+      "width": 375,
+      "fullPage": true,
+      "file": "previews/resultado-375.png",
+      "sha256": "adf2f8ad24f8dfd50a18f149dbc35ec5cd688c0ebf961326f793d2e70b55f796",
+      "pixels": {
+        "body": 413,
+        "doc": 413,
+        "viewport": 375,
+        "height": 2077
+      }
+    }
+  ]
+}

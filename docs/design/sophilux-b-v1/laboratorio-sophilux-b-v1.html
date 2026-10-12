@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Laboratorio · Sophilux B — Propuesta visual V1</title>
+  <style>
+/* SOPHILUX B — PROPOSED VISUAL LANGUAGE · v1 · Not production code. */
+:root {
+  --canvas: #f7f5f2;
+  --paper: #fffdfa;
+  --paper-muted: #f8f3ee;
+  --rose-soft: #f3e5e1;
+  --rose: #ba8d83;
+  --rose-deep: #835852;
+  --rose-line: #e8d6d0;
+  --ink: #252b30;
+  --ink-soft: #62666b;
+  --ink-faint: #7d7f82;
+  --line: #e9e3de;
+  --line-strong: #dfd4ce;
+  --sage: #467367;
+  --sage-paper: #eaf2eb;
+  --amber: #8b642e;
+  --amber-paper: #fbf3e3;
+  --red: #943f49;
+  --red-paper: #fff0f0;
+  --shadow: 0 14px 45px rgba(71,51,45,.052), 0 2px 5px rgba(71,51,45,.02);
+  --rounded: 15px;
+  --rounded-sm: 9px;
+  --serif: "Cormorant Garamond", "Iowan Old Style", "Baskerville", "Palatino Linotype", Georgia, serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin:0; background:var(--canvas); color:var(--ink); font: 14px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, textarea, select { font: inherit; }
+button { cursor:pointer; }
+button:focus-visible, textarea:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 3px solid #d7a299; outline-offset: 3px; }
+button:disabled { cursor:not-allowed; opacity:.52; }
+a { color:var(--rose-deep); }
+strong { font-weight:650; }
+.previewbar { background: #28272a; color:#fff; position:sticky; top:0; z-index:100; box-shadow:0 4px 20px rgba(0,0,0,.1); }
+.previewbar-inner { width:min(1440px,calc(100% - 46px)); margin:auto; min-height:57px; display:flex; align-items:center; gap:20px; }
+.preview-caption { display:flex; align-items:center; gap:9px; white-space:nowrap; font-size:10px; letter-spacing:.13em; color:#e6d4cf; }
+.preview-caption b {color:#fff; font-weight:550}
+.preview-caption small {letter-spacing:0; color:#aaa9ad; font-size:11px; border-left:1px solid #5d5655; padding-left:12px; margin-left:3px}
+.preview-dot { width:7px; height:7px; border-radius:50%; background:#d7b4a5; }
+.prototype-nav { margin-left:auto; display:flex; gap:3px; overflow-x:auto; scrollbar-width:thin; padding:8px 0; }
+.prototype-nav button {flex-shrink:0; border:1px solid transparent; color:#bebdc0; background:transparent; padding:8px 10px; font-size:11px; border-radius:7px; white-space:nowrap; }
+.prototype-nav button:hover {background:#3d3636;color:white}
+.prototype-nav button[aria-current="page"] {background:#54413f; color:#ffe9e3; border-color:#775d57}
+.sitebar { background:rgba(255,253,250,.94); border-bottom:1px solid var(--line); }
+.sitebar-inner {max-width:1440px; padding:0 42px; margin:0 auto; min-height:83px; display:flex; align-items:center; gap:28px}
+.brand {display:flex; align-items:center; gap:12px; flex-shrink:0;}
+.brand-mark { width:28px; height:34px; color:#ad8279; }
+.brand-mark svg {width:100%;height:100%}
+.brand-name {font:600 24px/.97 var(--serif); letter-spacing:-.025em; color:#2e292a}
+.brand-name span {font-weight:400}
+.brand-sub {font:600 8.5px var(--sans); letter-spacing:.22em; margin-top:6px; color:#a9837e}
+.sitebar-context { margin-left:auto; display:flex; align-items:center; gap:10px; color:#68706d; font-size:11px; white-space:nowrap; }
+.status-pip {display:inline-block; background:#7c9f86; border-radius:50%; width:6px; height:6px; flex:0 0 6px}
+.sitebar-context-sep {height:15px; width:1px; background:#e3d7d3; margin:0 4px}
+.sitebar-actions {display:flex; gap:7px; align-items:center}
+.quiet-btn,.icon-btn {background:white; border:1px solid var(--rose-line); border-radius:99px; color:var(--rose-deep); padding:9px 15px; font-size:11px; font-weight:650; white-space:nowrap}
+.icon-btn {width:34px;height:34px; padding:0; font:650 13px var(--serif)}
+.quiet-btn:hover,.icon-btn:hover {background:var(--rose-soft)}
+main {width:min(1356px, calc(100% - 84px)); margin:0 auto; min-height:65vh; padding:41px 0 65px;}
+.app-footer {border-top:1px solid var(--line); background:var(--paper);color:var(--ink-faint)}
+.footer-inner {max-width:1356px; padding:16px 10px; margin:0 auto; display:flex; justify-content:space-between; gap:14px; font-size:10px}
+.footer-heart {color:var(--rose);padding:0 5px}
+.footer-inner span:last-child {display:flex;align-items:center;gap:8px}
+.eyebrow {font-size:10px; font-weight:700; text-transform:uppercase;letter-spacing:.18em;color:var(--rose-deep);display:flex;align-items:center;gap:9px}
+.eyebrow:before {content:"";width:22px;height:1px;background:var(--rose);display:inline-block}
+.display-title { font:500 clamp(49px,5.0vw,74px)/.98 var(--serif); letter-spacing:-.05em; margin:14px 0 20px; color:#262b30; }
+.display-title em,.result-title em {font-weight:400; color:var(--rose); font-style:italic}
+.task-title {font:600 clamp(36px,3.6vw,52px)/1.06 var(--serif);letter-spacing:-.035em; margin:7px 0 10px;}
+.task-title em {color:var(--rose);font-weight:400}
+.task-description {font-size:13px;color:var(--ink-soft);max-width:720px;margin:0}
+.step-context {font-size:11px;color:var(--ink-faint);margin-bottom:12px}
+.screen-header {display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:23px}
+.meta-stack {display:flex; gap:9px; align-items:center; flex-wrap:wrap}
+.tiny-tag {font-size:11px; border:1px solid var(--line-strong);padding:7px 10px;border-radius:99px;color:var(--ink-soft);background:#fffdfa;white-space:nowrap}
+.tiny-tag.rose {color:var(--rose-deep);border-color:var(--rose-line);background:#fcf5f2}
+.tiny-tag.sage {color:var(--sage);border-color:#d9e6dd;background:var(--sage-paper)}
+.smallcaps {font-size:10px;text-transform:uppercase;font-weight:750;letter-spacing:.12em;color:#8d8685}
+.btn {border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;min-height:41px;padding:10px 17px;font-size:12px;font-weight:700;text-decoration:none;transition:background .15s, transform .15s}
+.btn:hover {transform:translateY(-1px)}
+.btn-primary {color:#fff;background:var(--rose-deep);border-color:var(--rose-deep);box-shadow:0 5px 11px rgba(131,88,82,.12)}
+.btn-primary:hover {background:#714945}
+.btn-outline {border-color:#d9c0b9;color:var(--rose-deep);background:transparent}
+.btn-outline:hover {background:#f8eae6}
+.btn-subtle {color:#5f5a59;border-color:var(--line);background:var(--paper)}
+.btn-subtle:hover {background:#f1ebe7}
+.btn-ink {background:var(--ink);color:#fff}
+.btn-sm {padding:7px 11px;min-height:33px;font-size:11px}
+.btn-danger {color:var(--red);background:#fffafa;border-color:#e9c7c9}
+.text-link {background:none;border:0;padding:4px 0;color:var(--rose-deep);font-weight:680;font-size:11px}
+.panel {background:var(--paper);border:1px solid var(--line);border-radius:var(--rounded);box-shadow:var(--shadow);min-width:0}
+.panel-pad {padding:22px 23px}
+.panel-title {font-size:13px;font-weight:750;margin:0;color:#35383b}
+.panel-sub {font-size:11px;color:var(--ink-faint);margin:4px 0 0}
+.soft-panel {border:1px solid var(--rose-line);background:#faf6f3;border-radius:var(--rounded-sm);padding:15px}
+.divider {height:1px;background:var(--line);margin:17px 0}
+.field-label {display:block;font-size:11px;font-weight:700;color:#464a4f;margin:0 0 7px}
+.form-select,.form-input,.form-textarea {border:1px solid #d9d2ce;border-radius:9px;background:#fff;width:100%;padding:10px 12px;color:var(--ink);font-size:12px;box-shadow:0 1px 0 rgba(0,0,0,.01)}
+.form-textarea {resize:vertical;line-height:1.7}
+.muted {color:var(--ink-soft)}
+.footnote {font-size:10px;color:var(--ink-faint)}
+.section-rule {display:flex;align-items:center;gap:12px;color:#8b7c78;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin:25px 0 12px}
+.section-rule:after {content:"";flex:1;height:1px;background:var(--line)}
+.tag {display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-size:10px;font-weight:680;color:var(--ink-soft);white-space:nowrap}
+.tag.danger {color:var(--red);border-color:#e9c4c7;background:#fff7f7}
+.tag.success {color:var(--sage);border-color:#c9dfd2;background:#eff6f0}
+.tag.warning {color:var(--amber);border-color:#ead6b1;background:#fffaf1}
+.dot {width:6px;height:6px;background:currentColor;border-radius:50%;display:inline-block}
+/* INTRO */
+.intro-grid {display:grid;grid-template-columns:minmax(0,.93fr) minmax(0,1.11fr);gap:45px;align-items:start}
+.intro-story {padding:18px 1vw 0 5px}
+.intro-story .display-title {max-width:580px}
+.intro-copy {font-size:14px;line-height:1.85;color:var(--ink-soft);max-width:470px;margin:15px 0 22px}
+.intro-assurance {display:flex;gap:14px; flex-wrap:wrap; align-items:center;max-width:490px; padding:17px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.intro-assurance span {font-size:11px;font-weight:650;color:var(--ink-soft);display:flex;gap:7px;align-items:center}
+.intro-assurance .check {color:var(--sage);font-size:14px}
+.intro-art {position:relative;margin-top:35px;max-width:460px;height:148px;border-radius:14px;overflow:hidden;background:linear-gradient(120deg,#e9d6d0 0%,#f1e4dc 33%,#dbd8d3 85%);}
+.intro-art:before {content:"";position:absolute;inset:16px 28px;border:1px solid rgba(255,255,255,.6);border-radius:150px 150px 0 0}
+.intro-art:after {content:"L";position:absolute;top:-60px;left:45%;font:italic 280px/1 var(--serif);color:rgba(127,90,86,.1)}
+.intro-art p {position:absolute;bottom:14px;left:22px;font:italic 21px var(--serif);color:#81635e;z-index:2;margin:0}
+.intake-card {overflow:hidden}
+.intake-head {padding:24px 25px 19px; border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.intake-switch {display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;border-radius:11px;background:var(--paper-muted);margin:18px 22px 0}
+.intake-switch button {border:0;background:transparent;border-radius:7px;padding:10px 8px;color:#817975;font-size:12px;font-weight:750}
+.intake-switch button.active {color:var(--rose-deep);background:white;box-shadow:0 2px 9px rgba(68,45,42,.085)}
+.intake-body {padding:19px 23px 20px}
+.examples {display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.example {border-radius:20px;border:1px solid var(--rose-line);background:white;color:var(--rose-deep);padding:5px 10px;font-size:10px}
+.intake-textarea {height:205px;min-height:205px}
+.droparea {min-height:224px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;border:1.4px dashed #d9bcb4;background:#fffaf8;border-radius:12px;padding:27px}
+.drop-icon {width:45px;height:45px;display:grid;place-items:center;border-radius:12px;background:var(--rose-soft);color:var(--rose-deep);font:400 28px var(--serif);margin-bottom:11px}
+.intake-foot {padding:17px 23px;display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid var(--line);background:#fdf9f6}
+.usage-note {font-size:11px;color:var(--ink-soft);max-width:380px}
+/* COMMON WORKSPACES */
+.subnav {display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:17px}
+.progress-track {height:5px;border-radius:20px;background:#eae5df;overflow:hidden}
+.progress-track > span {display:block;height:100%;background:var(--sage);width:72%;border-radius:20px}
+.progress-meta {display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-bottom:10px}
+.review-grid {display:grid;grid-template-columns:minmax(0,1.48fr) minmax(225px,.7fr) minmax(260px,.78fr);gap:14px;align-items:start}
+.document-pane,.detection-pane,.decision-pane {min-height:515px}
+.pane-header {padding:18px 19px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pane-scroll {padding:19px;}
+.doc-paper {background:#fff;min-height:364px;border:1px solid #ece5df;border-radius:9px;padding:25px 26px;font-size:12px;line-height:2.0;color:#343638;box-shadow:0 4px 20px rgba(95,68,56,.03)}
+.doc-paper h4 {font-family:var(--serif);font-size:28px;font-weight:600;line-height:1.15;margin:0 0 19px}
+.doc-paper p {margin:0 0 13px}
+.marked {border-bottom:1px solid #c18474;background:#f7e4dd;padding:2px 2px 3px;border-radius:2px;color:#70433b}
+.marked.green {background:#eaf2ec;border-bottom-color:#729d80;color:#345c46}
+.marked.soft {background:#f7eddb;border-bottom-color:#c7ae82}
+.doc-meta {margin-top:13px;display:flex;gap:7px;flex-wrap:wrap}
+.detection-items {list-style:none;margin:0;padding:10px}
+.detection-items button {border:1px solid transparent;display:block;width:100%;text-align:left;border-radius:8px;background:transparent;padding:12px 11px;margin-bottom:4px;color:var(--ink)}
+.detection-items button:hover {background:#f9f5f2}
+.detection-items button.active {background:#fbf2ee;border-color:var(--rose-line)}
+.detection-top {display:flex;justify-content:space-between;gap:5px;align-items:center;font-size:11px;font-weight:700}
+.detection-bottom {display:flex;justify-content:space-between;gap:4px;margin-top:5px;font-size:10px;color:var(--ink-faint)}
+.decision-body {padding:17px 19px}
+.decision-excerpt {font-family:var(--serif);font-size:28px;line-height:1.1;margin:10px 0 18px;color:#403638;overflow-wrap:anywhere}
+.decision-options {display:grid;gap:8px;margin-top:12px}
+.decision-option {text-align:left;padding:10px 12px;border-radius:9px;background:white;border:1px solid var(--line-strong);font-size:12px;color:var(--ink);font-weight:650}
+.decision-option small {display:block;font-weight:400;color:var(--ink-faint);font-size:10px;margin-top:2px}
+.decision-option.active {background:#fdf3ef;border-color:#ba8d83;color:var(--rose-deep)}
+.decision-form {margin-top:17px;padding:14px;background:#fbf8f5;border-radius:10px;border:1px solid var(--line)}
+.workspace-actions {margin-top:19px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+/* BATCH */
+.batch-summary {display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}
+.stat {border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:15px 18px}
+.stat strong {display:block;font:600 31px/1.05 var(--serif);color:var(--ink);}
+.stat span {display:block;font-size:10px;color:var(--ink-faint);margin-top:5px}
+.batch-grid {display:grid;grid-template-columns:340px minmax(0,1fr);align-items:start;gap:15px}
+.filter-strip {display:flex;gap:6px;flex-wrap:wrap;padding:13px 15px;border-bottom:1px solid var(--line)}
+.filter-chip {padding:6px 9px;border:1px solid var(--line);border-radius:99px;background:white;color:var(--ink-soft);font-size:10px}
+.filter-chip.active {background:#f9efeb;border-color:#e2beb5;color:var(--rose-deep);font-weight:730}
+.batch-items {padding:10px}
+.batch-item {display:flex;gap:11px;text-align:left;width:100%;border:1px solid transparent;border-radius:9px;padding:13px 10px;background:transparent;margin-bottom:4px;align-items:flex-start}
+.batch-item.selected {background:#fbf3ee;border-color:#e9d4cb}
+.batch-num {font-family:var(--serif);font-size:24px;line-height:1;color:var(--rose)}
+.batch-filename {font-weight:730;font-size:12px;display:block}
+.batch-subtitle {font-size:10px;color:var(--ink-faint);margin-top:3px}
+.batch-info {flex:1;min-width:0}
+.batch-preview {display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:14px;padding:17px}
+.batch-preview .doc-paper {padding:24px;min-height:368px}
+.batch-inspector {background:#f8f5f1;border:1px solid var(--line);border-radius:9px;padding:15px}
+/* STRUCTURED */
+.structured-summary {display:grid;grid-template-columns:repeat(3,1fr) 1.4fr;gap:10px;margin-bottom:13px}
+.summary-stat {border:1px solid var(--line);background:var(--paper);border-radius:11px;padding:13px 16px;min-width:0}
+.summary-stat strong {font:600 29px/1 var(--serif);color:#3b3535;display:block}
+.summary-stat span {font-size:10px;color:var(--ink-faint);display:block;margin-top:6px}
+.summary-stat.rose-wash {background:#f8efeb;border-color:#ecd8d1}
+.summary-stat .form-select {padding:7px;font-size:11px;margin-top:7px}
+.structured-grid {display:grid;grid-template-columns:minmax(0,1.8fr) minmax(275px,.8fr);gap:14px;align-items:start}
+.table-head {display:flex;justify-content:space-between;align-items:center;gap:10px;padding:17px 19px;border-bottom:1px solid var(--line)}
+.table-region {overflow-x:auto;max-width:100%;scrollbar-color:#e2c6bd transparent}
+.comparison {width:100%;min-width:650px;border-collapse:collapse;font-size:11px;text-align:left}
+.comparison th {padding:13px 13px;background:#f9f5f2;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#7b7370;font-weight:800}
+.comparison td {padding:12px 13px;border-top:1px solid var(--line);vertical-align:middle}
+.comparison tr.selected td {background:#fdf1ed}
+.comparison tr:hover td {background:#fff8f4}
+.colname-btn {text-align:left;padding:0;border:0;background:none;color:#474246;font-weight:700;font-size:11px}
+.comparison tr.selected .colname-btn {color:var(--rose-deep)}
+.inspector-body {padding:18px 20px}
+.inspector-name {font:600 28px/1 var(--serif);letter-spacing:-.02em;margin:7px 0 14px}
+.fact-row {display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:11px}
+.fact-row span {color:var(--ink-faint)}
+.compact-alert {display:flex;gap:10px;align-items:start;border:1px solid #eed5c6;background:#fff8f0;border-radius:9px;padding:12px 13px;color:#815b44;font-size:11px}
+.bottom-secondary {margin-top:14px;padding:10px 16px}
+.bottom-secondary summary {font-size:11px;color:var(--rose-deep);font-weight:750;cursor:pointer}
+/* TEXT-CELL REVIEW */
+.cell-grid {display:grid;grid-template-columns:285px minmax(0,1fr) 290px;gap:14px;align-items:start}
+.cell-list {padding:9px}
+.cell-item {border:1px solid transparent;border-radius:8px;text-align:left;width:100%;background:transparent;padding:12px;color:var(--ink)}
+.cell-item.active {border-color:var(--rose-line);background:#fdf2ef}
+.cell-item small {color:var(--ink-faint);display:block;margin-top:3px}
+.cell-text {font-size:13px;line-height:2.1;padding:31px;min-height:325px;color:var(--ink)}
+/* GATE */
+.gate-overview {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.8fr);gap:18px;align-items:start}
+.gate-hero {padding:35px 40px;background:linear-gradient(115deg,#fffdfa 40%,#f9f1ec 100%);border:1px solid var(--line);border-radius:16px;position:relative;overflow:hidden}
+.gate-hero:after {content:"✧";position:absolute;right:26px;top:5px;font:140px var(--serif);color:rgba(188,142,129,.12)}
+.gate-hero h2 {position:relative;font:500 49px/.98 var(--serif);max-width:500px;margin:8px 0 18px;letter-spacing:-.035em}
+.gate-checklist {display:grid;gap:0;margin-top:15px}
+.gate-check {display:flex;gap:13px;padding:17px 0;border-bottom:1px solid var(--line);font-size:12px}
+.gate-check .status-icon {font-size:14px;border-radius:50%;width:24px;height:24px;display:grid;place-items:center;background:#eaf2eb;color:var(--sage);flex-shrink:0}
+.gate-check strong {display:block}
+.gate-check small {display:block;margin-top:2px;font-size:11px;color:var(--ink-soft)}
+/* RESULT */
+.result-hero {display:grid;grid-template-columns: minmax(0,1.3fr) minmax(310px,.7fr);gap:25px;align-items:center;background:linear-gradient(115deg,#fbf5f0,#f5eae5);border:1px solid #ebd8d1;padding:31px 36px;border-radius:16px;position:relative;overflow:hidden}
+.result-hero:before {content:"";position:absolute;width:300px;height:300px;border:1px solid rgba(181,136,127,.21);border-radius:50%;right:14%;top:-185px}
+.result-title {font:500 clamp(46px,4.7vw,66px)/.94 var(--serif);letter-spacing:-.04em;margin:11px 0 15px;position:relative;z-index:1}
+.result-actions {position:relative;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.ready-stamp {border:1px solid #d5e4d7;background:#edf5ee;border-radius:12px;padding:19px 20px;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.ready-stamp strong {font-size:16px;color:var(--sage);margin:5px 0}
+.ready-stamp small {font-size:11px;color:#5c6f5f;line-height:1.6}
+.result-grid {display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.67fr);gap:16px;margin-top:17px}
+.prepared-note {background:#fbfaf8;border:1px solid var(--line);border-radius:9px;padding:23px;min-height:215px;color:#333;white-space:pre-line;font-size:12px;line-height:1.95}
+.confidential {background:#fffaf9;border:1px solid #e6c6c7;border-left:4px solid #bd8087;border-radius:13px;padding:23px;margin-top:18px}
+.confidential-heading {font-size:15px;font-weight:780;color:#8f545b;margin:0 0 8px}
+.confidential p {max-width:820px;color:#746264;font-size:12px;margin:0}
+.confidential button {margin-top:14px}
+.state-switch {display:flex;gap:5px;border:1px solid var(--line);border-radius:99px;background:white;padding:4px;width:max-content;max-width:100%}
+.state-switch button {border:none;padding:5px 10px;border-radius:99px;background:transparent;color:#777;font-size:10px}
+.state-switch button.active {background:var(--rose-soft);color:var(--rose-deep);font-weight:730}
+/* UTILITIES */
+.two-col {display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.toast {position:fixed;bottom:23px;left:50%;z-index:200;transform:translate(-50%,20px);padding:11px 17px;border-radius:10px;background:#302a29;color:#fff;box-shadow:0 12px 38px rgba(0,0,0,.22);font-size:12px;opacity:0;pointer-events:none;transition:.22s;max-width:calc(100vw - 30px)}
+.toast.visible {transform:translate(-50%,0);opacity:1}
+.visually-hidden {position:absolute;width:1px;height:1px;clip:rect(0,0,0,0);overflow:hidden;white-space:nowrap}
+@media (max-width:1180px) {
+  .previewbar-inner {width:calc(100% - 25px)} .preview-caption small {display:none}
+  main {width:calc(100% - 52px)} .sitebar-inner {padding:0 26px}
+  .review-grid {grid-template-columns:minmax(0,1.3fr) minmax(210px,.75fr);}
+  .decision-pane {grid-column:1 / -1;min-height:0}.decision-body {display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .batch-grid {grid-template-columns:295px minmax(0,1fr)}.batch-preview {grid-template-columns:minmax(0,1fr)}
+  .cell-grid {grid-template-columns:245px minmax(0,1fr)} .cell-grid > :last-child {grid-column:1/-1}
+}
+@media (max-width:850px) {
+  .sitebar-inner {min-height:75px}.brand-name {font-size:22px}.sitebar-context {display:none}
+  main {padding:30px 0 55px} .intro-grid,.gate-overview,.result-grid,.result-hero {grid-template-columns:1fr}
+  .intro-story {padding:0}.intro-art {display:none}.intro-copy {max-width:660px}
+  .display-title {font-size:60px;max-width:650px}.intake-card {max-width:100%}
+  .review-grid,.structured-grid {grid-template-columns:1fr}
+  .review-grid .decision-pane {grid-column:auto}
+  .review-grid .document-pane,.review-grid .detection-pane {min-height:0}
+  .structured-summary {grid-template-columns:repeat(2,1fr)}
+  .batch-grid {grid-template-columns:1fr}.batch-items {display:grid;grid-template-columns:1fr 1fr;gap:5px}.batch-preview {grid-template-columns:1fr 1fr}
+  .cell-grid {grid-template-columns:1fr}.cell-grid > :last-child {grid-column:auto}
+  .screen-header {align-items:flex-start;flex-direction:column}
+}
+@media (max-width:580px) {
+  .previewbar-inner {width:100%;padding:7px 11px;display:block}.preview-caption {font-size:9px;padding:2px 0 2px 4px}.prototype-nav {margin:0;padding:4px 0 0}
+  .prototype-nav button {font-size:10px;padding:7px 9px}
+  .sitebar-inner {padding:0 16px; min-height:66px;gap:10px}.brand-mark {width:23px;height:29px}.brand-name {font-size:19px}.brand-sub {font-size:7px}.quiet-btn {font-size:10px;padding:7px 9px}.icon-btn {display:none}
+  main {width:calc(100% - 28px);padding-top:25px}
+  .display-title {font-size:49px}.task-title {font-size:37px}.intro-story {padding:0 4px}.intro-copy {font-size:12px}
+  .intake-head,.intake-body,.intake-foot {padding-left:15px;padding-right:15px}.intake-head {padding-top:17px;padding-bottom:15px}
+  .intake-foot {display:flex;align-items:stretch;flex-direction:column}.intake-foot .btn {width:100%}.usage-note {font-size:10px}
+  .two-col,.batch-summary {grid-template-columns:1fr 1fr}
+  .panel-pad {padding:15px}.pane-header {padding:14px}.doc-paper {padding:17px;min-height:270px}.decision-body {display:block}
+  .batch-preview {grid-template-columns:1fr}.batch-items {grid-template-columns:1fr}.batch-grid {gap:12px}
+  .structured-summary {grid-template-columns:1fr 1fr}.summary-stat {padding:11px 12px}.summary-stat strong {font-size:26px}.summary-stat.rose-wash {grid-column:1/-1}
+  .gate-hero,.result-hero {padding:24px 20px}.gate-hero h2 {font-size:42px}.result-title {font-size:48px}
+  .footer-inner {padding:16px 17px;display:block}.footer-inner span:last-child {margin-top:4px}
+  .workspace-actions {align-items:stretch}.workspace-actions .btn {width:100%}
+}
+
+</style>
+</head>
+<body>
+  <div class="previewbar" role="region" aria-label="Controles del prototipo visual">
+    <div class="previewbar-inner">
+      <div class="preview-caption"><span class="preview-dot"></span><span>PROTOTIPO VISUAL <b>V1</b></span><small>Propuesta · no es la aplicación</small></div>
+      <nav class="prototype-nav" aria-label="Cambiar pantalla de ejemplo" id="prototype-nav"></nav>
+    </div>
+  </div>
+  <div class="app-shell">
+    <header class="sitebar" role="banner">
+      <div class="sitebar-inner">
+        <div class="brand" aria-label="Laboratorio de Privacidad Clínica">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 38 44" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 2 35 8v12c0 10-6.8 17.1-16 22C9.8 37.1 3 30 3 20V8L19 2Z" stroke="currentColor" stroke-width="1.9"/><path d="M19 7v29M7 19h24" stroke="currentColor" stroke-width="1.4"/><path d="M19 7 8 11v8h11V7ZM19 19v17c6-3.7 11-8.4 11-17H19Z" fill="currentColor" opacity=".14"/></svg>
+          </div>
+          <div><div class="brand-name">Laboratorio <span>de Privacidad</span></div><div class="brand-sub">CLÍNICA · SOPHILUX</div></div>
+        </div>
+        <div class="sitebar-context"><span class="status-pip"></span><span>Procesamiento local</span><span class="sitebar-context-sep"></span><span id="current-job-label">Sin trabajo activo</span></div>
+        <div class="sitebar-actions"><button type="button" class="quiet-btn" data-action="new">Nuevo trabajo</button><button type="button" class="icon-btn" aria-label="Ayuda contextual" data-action="help">?</button></div>
+      </div>
+    </header>
+    <main id="screen" tabindex="-1"></main>
+    <footer class="app-footer"><div class="footer-inner"><span>Laboratorio de Privacidad Clínica <span class="footer-heart">✧</span> Un espacio de trabajo con criterio</span><span><span class="status-pip"></span> Demostración con contenido sintético · no procesa datos reales</span></div></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+/* Interaction is presentational only. NO data processing, file reading, exports or backend. */
+const VIEWS = [
+  ["entrada", "Entrada"], ["revision", "Revisión"], ["lote", "Lote"],
+  ["estructurado", "Estructurado"], ["celdas", "Texto libre"],
+  ["comprobacion", "Privacidad"], ["resultado", "Resultado"]
+];
+const mock = {
+  current: "entrada", inputMode: "texto", selectedDetection:0, decisions: {},
+  batchFilter:"Todos", selectedDoc:0, selectedColumn:1, gateBlocked:false,
+  resultBlocked:false, patientId:"NHC", helpOpen:false
+};
+const detectionList = [
+  {label:"Nombre y apellidos",value:"María [EJEMPLO]",place:"Línea 2",kind:"Identificador"},
+  {label:"Identificador clínico",value:"NHC-000042",place:"Línea 2",kind:"Identificador"},
+  {label:"Fecha completa",value:"12/03/2025",place:"Línea 4",kind:"Cuasi-identificador"},
+  {label:"Teléfono",value:"600 000 000",place:"Línea 5",kind:"Identificador"},
+  {label:"Centro",value:"Hospital de Ejemplo",place:"Línea 1",kind:"Cuasi-identificador"}
+];
+const docs = [
+  {name:"consulta_urgencias_01.pdf",status:"Pendiente",note:"5 detecciones por revisar"},
+  {name:"seguimiento_02.docx",status:"Listo",note:"Revisión completada"},
+  {name:"alta_03.pdf",status:"Atención",note:"PDF sin texto extraíble"},
+  {name:"informe_04.txt",status:"Listo",note:"Salida preparada"},
+  {name:"notas_05.docx",status:"Pendiente",note:"2 detecciones por revisar"},
+  {name:"visita_06.pdf",status:"Listo",note:"Revisión completada"},
+  {name:"documento_07.pdf",status:"Atención",note:"Archivo dañado; no procesado"},
+];
+const structuredColumns = [
+ ["NHC","Identificador","ID de estudio","Definido"],
+ ["fecha_nacimiento","Cuasi-identificador","Revisar","Pendiente"],
+ ["sexo","Desconocida","Revisar","Pendiente"],
+ ["diagnostico","Sensible","Conservar","Definido"],
+ ["centro","Cuasi-identificador","Seudonimizar","Propuesta"],
+ ["notas_libres","Desconocida","Revisar","Pendiente"],
+ ...Array.from({length:26},(_,i)=>[
+  "CampoLibre"+String(i+1).padStart(2,"0"),"Desconocida","Revisar","Pendiente"
+ ])
+].map(([name,classification,action,status],i)=>({id:i,name,classification,action,status}));
+const h = String.raw;
+const icon = (name) => {
+ const icons={arrow:'→',check:'✓',back:'←',sparkle:'✧',chevron:'⌄',lock:'◇',plus:'+',forward:'↗'};
+ return icons[name]||'';
+};
+const btn = (text,action,kind="primary",extra="")=>`<button type="button" class="btn btn-${kind}" data-action="${action}" ${extra}>${text}</button>`;
+const chip = (text,type="")=>`<span class="tag ${type}">${type==="success"?'<span class="dot"></span>':''}${text}</span>`;
+const eyebrow = (text)=>`<div class="eyebrow">${text}</div>`;
+const heading = (label,title,description,meta='')=>`<div class="screen-header"><div><div class="step-context">${label}</div><h1 class="task-title">${title}</h1><p class="task-description">${description}</p></div>${meta?`<div class="meta-stack">${meta}</div>`:''}</div>`;
+
+function inputView(){
+ return `<div class="intro-grid">
+  <section class="intro-story" aria-label="Introducción y propósito">
+   ${eyebrow('TRABAJA CON TRANQUILIDAD')}
+   <h1 class="display-title">Protege los datos.<br><em>Conserva el sentido.</em></h1>
+   <p class="intro-copy">La información clínica merece un tratamiento cuidadoso. Revisa textos, documentos y tablas antes de compartirlos con herramientas de IA, sin perder el contexto que importa.</p>
+   <div class="intro-assurance"><span><b class="check">✓</b> Revisión humana</span><span><b class="check">✓</b> Trabajo local</span><span><b class="check">✓</b> Control sobre la salida</span></div>
+   <div class="intro-art" aria-hidden="true"><p>La privacidad también puede ser elegante.</p></div>
+  </section>
+  <section class="panel intake-card" aria-label="Nuevo trabajo">
+    <div class="intake-head"><div><div class="smallcaps">NUEVO TRABAJO</div><h2 style="font:600 27px/1.1 var(--serif);margin:5px 0 0">¿Qué vamos a revisar?</h2></div>${chip('Sesión nueva','success')}</div>
+    <div class="intake-switch" role="group" aria-label="Tipo de entrada"><button data-mode="texto" class="${mock.inputMode==='texto'?'active':''}" aria-pressed="${mock.inputMode==='texto'}">✎ &nbsp; Texto clínico</button><button data-mode="archivos" class="${mock.inputMode==='archivos'?'active':''}" aria-pressed="${mock.inputMode==='archivos'}">▤ &nbsp; Archivos y tablas</button></div>
+    <div class="intake-body">${mock.inputMode==='texto'?`
+     <label for="demo-text" class="field-label">Pega el contenido que quieras preparar</label>
+     <textarea class="form-textarea intake-textarea" id="demo-text" placeholder="Ejemplo: Nota de evolución clínica, informe de consulta o correspondencia…">Informe de seguimiento [EJEMPLO]. Paciente sintético con identificador NHC-000042. Consulta realizada el 12/03/2025.</textarea>
+     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 9px"><span class="footnote">Solo datos sintéticos en este prototipo.</span><button type="button" class="text-link" data-action="example">Usar ejemplo sintético</button></div>
+    `:`<div class="droparea"><div class="drop-icon" aria-hidden="true">↥</div><div style="font-size:14px;font-weight:750">Arrastra un documento o una tabla</div><p class="muted" style="font-size:11px;max-width:290px;margin:7px 0 15px">TXT, PDF, DOCX, CSV, XLS, XLSX. En el producto real, la lectura se realiza localmente.</p>${btn('Simular archivo cargado','file-demo','outline')}</div><p class="footnote" style="margin:12px 0 0">En esta maqueta no se leen ni suben archivos.</p>`}
+     <details style="margin-top:13px"><summary style="color:var(--rose-deep);font-size:11px;font-weight:700;cursor:pointer">Uso previsto y política de privacidad</summary><div class="soft-panel" style="font-size:11px;color:var(--ink-soft);margin-top:8px">Estándar, IA externa, Investigación longitudinal y Estricta son políticas diferentes. La disponibilidad depende del trabajo y se comprueba antes de preparar la salida.</div></details>
+    </div>
+    <div class="intake-foot"><span class="usage-note">Tu tarea empieza aquí: sin pantallas de bienvenida adicionales ni configuración innecesaria.</span>${btn(`Crear trabajo &nbsp; ${icon('arrow')}`,mock.inputMode==='texto'?'start-review':'start-batch')}</div>
+  </section>
+ </div>`;
+}
+function reviewView(){
+ const finished=Object.keys(mock.decisions).length;
+ const pct=Math.round(finished/detectionList.length*100);
+ const selected=detectionList[mock.selectedDetection];
+ return `${heading('REVISIÓN · TEXTO O DOCUMENTO','Revisa lo que <em>importa.</em>','Documento y decisiones, juntos. La evidencia está disponible sin apartar de la vista el texto que estás revisando.',chip('Trabajo · informe_ejemplo.txt')+chip(`${finished} de ${detectionList.length} decisiones`))}
+  <div class="subnav"><span class="smallcaps">PROGRESO DE REVISIÓN</span><div class="progress-track" style="width:160px"><span style="width:${pct}%"></span></div><span class="footnote">${pct}% completado</span><span style="margin-left:auto">${chip('Preparación pendiente','warning')}</span></div>
+  <div class="review-grid">
+   <section class="panel document-pane"><div class="pane-header"><div><h2 class="panel-title">Documento original</h2><p class="panel-sub">Lectura continua · detecciones señaladas</p></div>${chip('Solo lectura')}</div>
+    <div class="pane-scroll"><article class="doc-paper"><h4>Informe de seguimiento clínico</h4><p>Centro: <span class="marked soft">Hospital de Ejemplo</span><br>Paciente: <span class="marked">María [EJEMPLO]</span><br>Referencia: <span class="marked">NHC-000042</span></p><p>Motivo de consulta: seguimiento de proceso dermatológico y evaluación de respuesta clínica. Evolución favorable, sin incidencias relevantes.</p><p>Revisión realizada el <span class="marked soft">12/03/2025</span>. Próxima valoración pendiente de resultados de laboratorio.</p><p>Contacto administrativo: <span class="marked">600 000 000</span>. Se facilita información sobre los cuidados y el seguimiento previstos.</p><p>Documento de demostración. No contiene información de pacientes reales.</p></article><div class="doc-meta">${chip('3 identificadores')}${chip('2 cuasi-identificadores')}${chip('Contexto clínico preservado','success')}</div></div></section>
+   <section class="panel detection-pane"><div class="pane-header"><div><h2 class="panel-title">Hallazgos</h2><p class="panel-sub">Elige cuál revisar</p></div><span class="smallcaps">05</span></div><div class="detection-items" role="list">${detectionList.map((d,i)=>`<button role="listitem" class="${i===mock.selectedDetection?'active':''}" data-detection="${i}" aria-pressed="${i===mock.selectedDetection}"><span class="detection-top"><span>${d.label}</span>${mock.decisions[i]?chip('✓','success'):chip('Pend.','warning')}</span><span class="detection-bottom"><span>${d.place}</span><span>${d.kind}</span></span></button>`).join('')}</div></section>
+   <aside class="panel decision-pane"><div class="pane-header"><div><h2 class="panel-title">Decisión actual</h2><p class="panel-sub">Tienes la última palabra</p></div><span class="smallcaps">${String(mock.selectedDetection+1).padStart(2,'0')}/05</span></div><div class="decision-body"><div><span class="smallcaps">${selected.kind}</span><div class="decision-excerpt">${selected.value}</div><p class="muted" style="font-size:11px;margin:0">Detección propuesta. Comprueba el contexto antes de decidir.</p><div class="decision-options"><button class="decision-option ${mock.decisions[mock.selectedDetection]==='replace'?'active':''}" data-decision="replace">✓ &nbsp; Aceptar sustitución<small>Protege el identificador en la salida</small></button><button class="decision-option ${mock.decisions[mock.selectedDetection]==='modify'?'active':''}" data-decision="modify">✎ &nbsp; Modificar propuesta<small>Personaliza la sustitución</small></button><button class="decision-option ${mock.decisions[mock.selectedDetection]==='keep'?'active':''}" data-decision="keep">◇ &nbsp; Mantener original<small>Requiere decisión deliberada</small></button></div></div><div class="decision-form"><label for="review-replacement" class="field-label">Sustitución propuesta</label><input id="review-replacement" class="form-input" readonly value="[DATO PROTEGIDO]"><p class="footnote" style="margin:9px 0 0">Los originales conservados se advertirán explícitamente en Resultado.</p></div></div></aside>
+  </div>
+  <div class="workspace-actions"><button class="text-link" data-route="entrada">${icon('back')} &nbsp;Volver a entrada</button><div style="display:flex;gap:10px;align-items:center">${btn('Comprobar privacidad &nbsp; →','go-gate','primary')}</div></div>`;
+}
+function batchView(){
+ const current=docs[mock.selectedDoc];
+ const shown=docs.map((d,i)=>({...d,i})).filter(d=>mock.batchFilter==='Todos'||(mock.batchFilter==='Atención'&&d.status==='Atención')||(mock.batchFilter==='Pendientes'&&d.status==='Pendiente')||(mock.batchFilter==='Listos'&&d.status==='Listo'));
+ return `${heading('TRABAJO POR LOTES','Muchos documentos. <em>Una sola visión.</em>','Ves lo que requiere atención sin perder lo ya resuelto. Cada documento conserva su estado y sus acciones.',chip('lote_consultas_octubre')+chip('7 documentos'))}
+ <div class="batch-summary"><div class="stat"><strong>07</strong><span>Documentos en el lote</span></div><div class="stat"><strong>03</strong><span>Listos para salida</span></div><div class="stat"><strong>02</strong><span>Revisión pendiente</span></div><div class="stat"><strong style="color:var(--red)">02</strong><span>Con incidencia local</span></div></div>
+ <div class="batch-grid"><section class="panel"><div class="pane-header"><div><h2 class="panel-title">Cola de documentos</h2><p class="panel-sub">Selecciona un elemento para continuar</p></div></div><div class="filter-strip">${['Todos','Atención','Pendientes','Listos'].map(f=>`<button class="filter-chip ${mock.batchFilter===f?'active':''}" data-filter="${f}" aria-pressed="${mock.batchFilter===f}">${f}</button>`).join('')}</div><div class="batch-items">${shown.map(d=>`<button type="button" class="batch-item ${d.i===mock.selectedDoc?'selected':''}" data-doc="${d.i}" aria-pressed="${d.i===mock.selectedDoc}"><span class="batch-num">${String(d.i+1).padStart(2,'0')}</span><span class="batch-info"><span class="batch-filename">${d.name}</span><span class="batch-subtitle">${d.note}</span></span>${chip(d.status,d.status==='Atención'?'danger':d.status==='Listo'?'success':'warning')}</button>`).join('')}</div></section>
+ <section class="panel"><div class="pane-header"><div><h2 class="panel-title">Documento seleccionado</h2><p class="panel-sub">${current.name}</p></div>${chip(current.status,current.status==='Atención'?'danger':current.status==='Listo'?'success':'warning')}</div><div class="batch-preview"><article class="doc-paper"><h4>${current.status==='Atención'?'Atención requerida':'Resumen de consulta'}</h4>${current.status==='Atención'?'<p>Este documento no pudo procesarse correctamente. Los demás elementos del lote mantienen sus decisiones y resultados.</p><p>Comprueba el archivo original y vuelve a intentarlo o retíralo del lote deliberadamente.</p>':'<p>Paciente de demostración: <span class="marked">[IDENTIFICADOR DETECTADO]</span></p><p>Evaluación clínica documentada en consulta. Se propone proteger los identificadores preservando la descripción de los hallazgos.</p><p>Consulta registrada el <span class="marked soft">14/09/2025</span>. Seguimiento según evolución.</p>'}</article><aside class="batch-inspector"><div class="smallcaps">PRÓXIMA ACCIÓN</div><h3 class="inspector-name" style="margin-top:8px">${current.status==='Atención'?'Resolver incidencia':current.status==='Listo'?'Documento listo':'Continuar revisión'}</h3><p class="muted" style="font-size:11px;line-height:1.8">${current.status==='Atención'?'No se invalida el trabajo del resto del lote.':'Las decisiones de cada documento se conservan de forma independiente.'}</p>${current.status==='Atención'?btn('Reintentar este documento','retry-doc','outline'):current.status==='Listo'?btn('Ver resultado','go-result','primary'):btn('Revisar documento','go-review','primary')}<div class="divider"></div><button class="text-link" data-action="remove-doc">Retirar del lote…</button></aside></div></section></div>
+ <div class="workspace-actions"><span class="muted" style="font-size:11px">Los documentos con incidencia no desaparecen del resumen.</span>${btn('Ver resumen del lote &nbsp; →','go-result','primary')}</div>`;
+}
+function structuredView(){
+ const selected=structuredColumns[mock.selectedColumn];
+ return `${heading('CONFIGURACIÓN · TABLAS','Tus columnas, <em>bajo control.</em>','Clasificación, tratamiento y bloqueos en una sola comparación. Selecciona una columna para revisar sus decisiones.',chip('tabla_sintetica_32.csv')+chip('32 columnas'))}
+  <div class="structured-summary"><div class="summary-stat"><strong>32</strong><span>Columnas detectadas</span></div><div class="summary-stat"><strong>${structuredColumns.filter(c=>c.status==='Pendiente').length}</strong><span>Pendientes de revisión</span></div><div class="summary-stat"><strong>01</strong><span>Bloqueo de fecha por resolver</span></div><div class="summary-stat rose-wash"><label class="field-label" for="pid">Identificador único del paciente</label><select class="form-select" id="pid" data-pid><option ${mock.patientId==='NHC'?'selected':''}>NHC</option><option ${mock.patientId==='Sin seleccionar'?'selected':''}>Sin seleccionar</option><option ${mock.patientId==='CampoLibre01'?'selected':''}>CampoLibre01</option></select></div></div>
+  <div class="compact-alert" style="margin-bottom:14px"><span style="font-size:16px">◇</span><div><strong>La salida estructurada todavía no está preparada.</strong><br>Quedan columnas desconocidas y una fecha sin tratamiento aceptado. No se conservarán automáticamente.</div></div>
+  <div class="structured-grid"><section class="panel"><div class="table-head"><div><h2 class="panel-title">Comparativa de columnas</h2><p class="panel-sub">Datos sintéticos · fila seleccionada resaltada · desplazamiento horizontal propio en móvil</p></div>${chip('4 campos visibles')}</div><div class="table-region" tabindex="0" role="region" aria-label="Tabla comparativa desplazable"><table class="comparison"><thead><tr><th>Columna</th><th>Clasificación</th><th>Tratamiento efectivo</th><th>Estado</th></tr></thead><tbody>${structuredColumns.map((c)=>`<tr class="${c.id===mock.selectedColumn?'selected':''}"><td><button class="colname-btn" aria-pressed="${c.id===mock.selectedColumn}" data-column="${c.id}">${String(c.id+1).padStart(2,'0')}. ${c.name}</button></td><td>${c.classification}</td><td>${c.action}</td><td>${chip(c.status,c.status==='Pendiente'?'warning':c.status==='Definido'?'success':'')}</td></tr>`).join('')}</tbody></table></div></section>
+  <aside class="panel" id="column-inspector"><div class="pane-header"><div><span class="smallcaps">INSPECTOR CONTEXTUAL</span><h2 class="inspector-name">${selected.name}</h2></div>${chip(selected.status,selected.status==='Pendiente'?'warning':'success')}</div><div class="inspector-body"><div class="fact-row"><span>Clase actual</span><strong>${selected.classification}</strong></div><div class="fact-row"><span>Acción efectiva</span><strong>${selected.action}</strong></div><div class="fact-row"><span>Bloqueo</span><strong>${selected.status==='Pendiente'?'Sí, requiere decisión':'No'}</strong></div><div style="margin-top:19px"><label class="field-label" for="class-select">Modificar clasificación</label><select class="form-select" id="class-select" data-class><option ${selected.classification==='Desconocida'?'selected':''}>Desconocida</option><option ${selected.classification==='Identificador'?'selected':''}>Identificador</option><option ${selected.classification==='Cuasi-identificador'?'selected':''}>Cuasi-identificador</option><option ${selected.classification==='Sensible'?'selected':''}>Sensible</option><option ${selected.classification==='No sensible'?'selected':''}>No sensible</option></select></div><div style="margin-top:14px"><label class="field-label" for="action-select">Tratamiento permitido</label><select class="form-select" id="action-select" data-column-action><option ${selected.action==='Revisar'?'selected':''}>Revisar</option><option ${selected.action==='Eliminar'?'selected':''}>Eliminar</option><option ${selected.action==='Seudonimizar'?'selected':''}>Seudonimizar</option><option ${selected.action==='Conservar'?'selected':''}>Conservar</option><option ${selected.action==='Procesar como texto'?'selected':''}>Procesar como texto</option><option ${selected.action==='ID de estudio'?'selected':''}>ID de estudio</option></select></div><details style="margin-top:16px"><summary style="font-size:11px;font-weight:700;color:var(--rose-deep);cursor:pointer">Ver evidencia y propuesta detectada</summary><p class="footnote" style="margin:8px 0">Propuesta sintética, sin valores de pacientes. En producción, las acciones disponibles derivan de las autoridades de clasificación.</p></details><div class="divider"></div>${btn('Siguiente columna pendiente →','next-column','outline','style="width:100%"')}</div></aside></div>
+ <div class="workspace-actions"><details class="soft-panel" style="padding:11px 17px;min-width:230px"><summary style="font-size:11px;font-weight:750;color:var(--rose-deep);cursor:pointer">Opciones de salida y Study ID</summary><p class="footnote" style="margin:10px 0">Las opciones de formato no alteran los criterios de privacidad.</p><input class="form-input" value="ESTUDIO-" aria-label="Prefijo Study ID" readonly></details>${btn('Continuar a comprobación &nbsp; →','go-gate','outline')}</div>
+ <p class="footnote" style="margin-top:9px">En la aplicación real, los bloqueos impiden preparar la salida hasta resolver las decisiones pertinentes. Esta maqueta únicamente muestra la composición.</p>`;
+}
+function cellsView(){
+ return `${heading('REVISIÓN · CELDAS DE TEXTO LIBRE','El contexto <em>también cuenta.</em>','Cuando una columna se trata como texto libre, revisas las celdas que lo necesitan. Si no hay ninguna, este paso no aparece.',chip('tabla_sintetica_32.csv')+chip('3 celdas para revisar'))}
+  <div class="subnav">${chip('La clasificación de columnas se conserva','success')}${chip('Revisión de texto libre · activa','warning')}</div>
+  <div class="cell-grid"><section class="panel"><div class="pane-header"><div><h2 class="panel-title">Celdas pendientes</h2><p class="panel-sub">Columna: notas_libres</p></div>${chip('03')}</div><div class="cell-list"><button class="cell-item active">Fila 02 · notas_libres <small>Una detección por decidir</small></button><button class="cell-item">Fila 05 · notas_libres <small>Dos detecciones por decidir</small></button><button class="cell-item">Fila 08 · notas_libres <small>Sin cambios confirmados</small></button></div></section>
+  <section class="panel"><div class="pane-header"><div><h2 class="panel-title">Contenido de celda</h2><p class="panel-sub">Fila 02 · texto clínico preservado</p></div>${chip('Original sintético')}</div><article class="cell-text">Control de seguimiento. Se revisa a <span class="marked">[PACIENTE DE EJEMPLO]</span> por evolución dermatológica. La persona refiere mejoría y ausencia de eventos adversos. Próxima valoración el <span class="marked soft">12/11/2025</span>. Se mantiene el plan establecido.</article></section>
+  <aside class="panel"><div class="pane-header"><div><h2 class="panel-title">Resolver detección</h2><p class="panel-sub">Una decisión por vez</p></div></div><div class="inspector-body"><span class="smallcaps">IDENTIFICADOR EN CELDA</span><div class="decision-excerpt">[PACIENTE DE EJEMPLO]</div><div class="decision-options"><button class="decision-option" data-action="cell-accept">✓ &nbsp; Sustituir identificador</button><button class="decision-option" data-action="cell-modify">✎ &nbsp; Modificar sustitución</button><button class="decision-option" data-action="cell-keep">◇ &nbsp; Conservar deliberadamente</button></div><p class="footnote" style="margin-top:13px">Volver a Configurar no borra las decisiones de columnas.</p></div></aside></div>
+ <div class="workspace-actions"><button class="text-link" data-route="estructurado">← &nbsp; Volver a columnas</button>${btn('Comprobar privacidad &nbsp; →','go-gate','primary')}</div>`;
+}
+function gateView(){
+ const ready=!mock.gateBlocked;
+ return `${heading('PUNTO DE CONTROL · PRIVACIDAD','Antes de preparar <em>la salida.</em>','Una comprobación clara del estado actual, sin convertir la revisión en una pantalla de marketing.',`<div class="state-switch" aria-label="Estados ilustrativos"><button data-gate-state="ready" class="${ready?'active':''}" aria-pressed="${ready}">Ejemplo listo</button><button data-gate-state="blocked" class="${!ready?'active':''}" aria-pressed="${!ready}">Ejemplo bloqueado</button></div>`)}
+  <div class="gate-overview"><section class="gate-hero">${eyebrow('COMPROBACIÓN DEL TRABAJO')}<h2>La tranquilidad de <em style="color:var(--rose);font-weight:400">saber dónde estás.</em></h2><p class="task-description" style="font-size:13px;max-width:510px">El Laboratorio comprueba el estado de la revisión y la política vigente. Si falta una decisión, el proceso no ofrece una salida segura.</p><div style="margin-top:24px">${ready?chip('Preparación disponible','success'):chip('Salida no autorizada','danger')}</div></section>
+  <section class="panel panel-pad"><div class="smallcaps">ESTADO ACTUAL</div><h2 style="font:600 34px var(--serif);margin:7px 0 4px">${ready?'Todo listo para continuar':'Faltan decisiones'}</h2><p class="muted" style="font-size:11px">Política vigente · Estándar</p><div class="gate-checklist"><div class="gate-check"><span class="status-icon">✓</span><div><strong>Información cargada</strong><small>Trabajo identificado y preparado localmente</small></div></div><div class="gate-check"><span class="status-icon" style="${ready?'':'background:#fff0f0;color:#943f49'}">${ready?'✓':'!'}</span><div><strong>Revisión humana</strong><small>${ready?'Decisiones completadas':'2 detecciones pendientes de resolver'}</small></div></div><div class="gate-check"><span class="status-icon">✓</span><div><strong>Política de privacidad</strong><small>Vigente y reconocida para este tipo de trabajo</small></div></div></div><div style="margin-top:17px;display:grid;gap:8px">${ready?btn('Continuar al resultado &nbsp; →','go-result','primary'):btn('Volver a correcciones &nbsp; →','go-review','primary')}${btn('Revisar la política','policy-help','subtle')}</div></section></div>
+  <p class="footnote" style="margin-top:15px">Los estados anteriores son demostrativos. Los bloqueos reales dependen de las reglas de privacidad y de las decisiones humanas, no del diseño visual.</p>`;
+}
+function resultView(){
+ const ready=!mock.resultBlocked;
+ return `<div class="screen-header"><div><div class="step-context">RESULTADO · FINAL DEL RECORRIDO</div></div><div class="state-switch" aria-label="Estados ilustrativos"><button data-result-state="ready" class="${ready?'active':''}" aria-pressed="${ready}">Lista</button><button data-result-state="blocked" class="${!ready?'active':''}" aria-pressed="${!ready}">Necesita atención</button></div></div>
+ <section class="result-hero"><div>${eyebrow('TU INFORMACIÓN, PREPARADA CON CRITERIO')}<h1 class="result-title">${ready?'Ahora sí. <em>Con confianza.</em>':'Aún queda <em>una decisión.</em>'}</h1><p class="task-description" style="font-size:13px;max-width:565px;margin-bottom:20px">${ready?'Has revisado las detecciones y puedes continuar con el texto preparado. El resultado mantiene separado cualquier material confidencial.':'La revisión sigue pendiente. No se puede preparar ni descargar la salida hasta resolver las decisiones que faltan.'}</p><div class="result-actions">${btn('Copiar texto preparado &nbsp; ↗','copy-output','primary',ready?'':'disabled')}${btn('Volver a revisión','go-review','outline')}</div></div><aside class="ready-stamp" style="${ready?'':'background:#fff0ef;border-color:#eac6c4'}"><span style="font-size:24px;color:${ready?'var(--sage)':'var(--red)'}">${ready?'✓':'◇'}</span><strong style="${ready?'':'color:var(--red)'}">${ready?'Salida preparada':'Salida bloqueada'}</strong><small>${ready?'La acción principal es el texto preparado. Otros formatos quedan disponibles según el material.':'Las decisiones anteriores siguen disponibles para corregirse. No se muestra una falsa descarga.'}</small></aside></section>
+ <div class="result-grid"><section class="panel panel-pad"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2 class="panel-title">Texto preparado</h2><p class="panel-sub">Vista previa · contenido estrictamente sintético</p></div>${chip(ready?'Salida segura':'No disponible',ready?'success':'danger')}</div>${ready?`<div class="prepared-note" style="margin-top:15px">Informe de seguimiento clínico<br>Paciente: [IDENTIFICADOR PROTEGIDO]<br>Referencia: [NHC PROTEGIDO]<br><br>Seguimiento dermatológico. Evolución favorable, sin incidencias relevantes. Próxima valoración prevista según resultados.</div>`:`<div class="prepared-note" style="margin-top:15px;color:var(--ink-faint)">La vista previa se habilitará cuando la revisión esté completa. No hay contenido preparado disponible.</div>`}<div class="workspace-actions" style="margin-top:13px"><span class="footnote">${ready?'1 original conservado deliberadamente · revisar advertencia antes de compartir':'El resultado no se genera a partir de decisiones pendientes'}</span>${btn('Otros formatos ▾','other-formats','subtle','style="min-height:34px"')}</div></section>
+ <aside class="panel panel-pad"><span class="smallcaps">ANTES DE COMPARTIR</span><h2 style="font:600 30px/1.08 var(--serif);margin:9px 0 15px">Tu última mirada.</h2><p class="muted" style="font-size:12px;line-height:1.8">${ready?'Has conservado un dato original de manera deliberada. Comprueba que quieres incluirlo en el contexto de destino.':'Una o varias detecciones siguen pendientes. Regresa a la revisión y completa las decisiones.'}</p><div class="soft-panel" style="margin-top:17px;font-size:11px;color:var(--rose-deep)">${ready?'◇ Un original conservado no se oculta detrás de un indicador verde.':'◇ Una salida bloqueada no ofrece formatos alternativos.'}</div><div class="divider"></div>${btn('Regresar a la revisión','go-review','outline','style="width:100%"')}</aside></div>
+ <section class="confidential"><div style="display:flex;gap:13px;align-items:flex-start"><span style="font-size:26px;line-height:1;color:var(--red)">◇</span><div><h2 class="confidential-heading">Auditoría confidencial · acceso deliberado</h2><p>La correspondencia con datos originales nunca es un formato más de la salida segura. Exige una decisión explícita adicional y mantiene una separación visual inequívoca.</p>${btn('Solicitar acceso confidencial','confidential','danger',''+(ready?'':'disabled'))}</div></div></section>`;
+}
+function render(preserveScroll=false){
+ const y=window.scrollY;
+ const view=mock.current;
+ const nav=document.querySelector('#prototype-nav');
+ nav.innerHTML=VIEWS.map(([id,name],i)=>`<button type="button" data-route="${id}" aria-current="${view===id?'page':'false'}">${String(i+1).padStart(2,'0')} &nbsp;${name}</button>`).join('');
+ document.querySelector('#current-job-label').textContent = view==='entrada'?'Sin trabajo activo':view==='lote'?'Lote · 7 documentos':view==='estructurado'||view==='celdas'?'Tabla · 32 columnas':'Trabajo de ejemplo';
+ const views={entrada:inputView,revision:reviewView,lote:batchView,estructurado:structuredView,celdas:cellsView,comprobacion:gateView,resultado:resultView};
+ document.querySelector('#screen').innerHTML=views[view]();
+ document.title=`${VIEWS.find(v=>v[0]===view)?.[1]} · Laboratorio Sophilux B · Propuesta`;
+ if(preserveScroll) window.scrollTo(0,y);
+ else window.scrollTo(0,0);
+}
+let toastTimeout;
+function toast(message){const node=document.querySelector('#toast');node.textContent=message;node.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>node.classList.remove('visible'),4200)}
+function route(to){mock.current=to;location.hash=to;render();}
+document.addEventListener('click', e=>{
+ const target=e.target.closest('button'); if(!target)return;
+ const {route:dest,mode,detection,decision,filter,doc,column,gateState,resultState,action}=target.dataset;
+ if(dest){route(dest);return}
+ if(mode){mock.inputMode=mode;render(true);return}
+ if(detection!==undefined){mock.selectedDetection=Number(detection);render(true);return}
+ if(decision){mock.decisions[mock.selectedDetection]=decision;render(true);toast('Decisión simulada. La maqueta no procesa datos.');return}
+ if(filter){mock.batchFilter=filter;const shown=docs.map((d,i)=>({...d,i})).filter(d=>filter==='Todos'||(filter==='Atención'&&d.status==='Atención')||(filter==='Pendientes'&&d.status==='Pendiente')||(filter==='Listos'&&d.status==='Listo'));if(shown.length&&!shown.some(d=>d.i===mock.selectedDoc))mock.selectedDoc=shown[0].i;render(true);return}
+ if(doc!==undefined){mock.selectedDoc=Number(doc);render(true);return}
+ if(column!==undefined){mock.selectedColumn=Number(column);render(true);if(window.innerWidth<851)document.getElementById('column-inspector')?.scrollIntoView({behavior:'smooth',block:'start'});return}
+ if(gateState){mock.gateBlocked=gateState==='blocked';render(true);return}
+ if(resultState){mock.resultBlocked=resultState==='blocked';render(true);return}
+ if(!action)return;
+ switch(action){
+  case 'new':route('entrada');return;
+  case 'start-review':case 'go-review':route('revision');return;
+  case 'start-batch':case 'file-demo':route('lote');return;
+  case 'go-gate':route('comprobacion');return;
+  case 'go-result':route('resultado');return;
+  case 'next-column': {let next=structuredColumns.find(c=>c.id>mock.selectedColumn&&c.status==='Pendiente')||structuredColumns.find(c=>c.status==='Pendiente');if(next){mock.selectedColumn=next.id;render(true)}return;}
+  case 'help':toast('La ayuda detallada se diseñará por contexto, sin repetirse bajo cada pantalla.');return;
+  case 'example':document.getElementById('demo-text').value='Consulta sintética. Paciente [EJEMPLO]. NHC-000042. Seguimiento realizado el 12/03/2025.';toast('Ejemplo sintético cargado.');return;
+  case 'copy-output':toast('Demostración: el botón no copia ni genera información clínica.');return;
+  case 'other-formats':toast('Aquí se mostrarían únicamente los formatos autorizados para este material.');return;
+  case 'confidential':toast('En V4, esta acción requiere una confirmación adicional y explícita.');return;
+  case 'policy-help':toast('La política real depende del material y no se duplica en la interfaz.');return;
+  case 'retry-doc':case 'remove-doc':toast('Acción demostrativa: el lote no se modifica.');return;
+  default: toast('Interacción visual de ejemplo, sin procesamiento real.');
+ }
+});
+document.addEventListener('change',e=>{
+ if(e.target.matches('[data-pid]')){mock.patientId=e.target.value;render(true);toast('Selector simulado: no modifica la autoridad clínica real.');return;}
+ if(e.target.matches('[data-class]')){const c=structuredColumns[mock.selectedColumn];c.classification=e.target.value;c.status=e.target.value==='Desconocida'?'Pendiente':'Definido';if(c.status==='Definido'&&c.action==='Revisar')c.action='Conservar';render(true);toast('Fila actualizada en la propuesta visual; no se han aplicado reglas clínicas.');}
+ if(e.target.matches('[data-column-action]')){const c=structuredColumns[mock.selectedColumn];c.action=e.target.value;c.status=e.target.value==='Revisar'?'Pendiente':'Definido';render(true)}
+});
+window.addEventListener('hashchange',()=>{const dest=decodeURIComponent(location.hash.slice(1));if(VIEWS.some(v=>v[0]===dest)&&mock.current!==dest){mock.current=dest;render()}});
+const initial=decodeURIComponent(location.hash.slice(1));if(VIEWS.some(v=>v[0]===initial))mock.current=initial;
+render();
+
+</script>
+</body>
+</html>
