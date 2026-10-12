@@ -37,6 +37,7 @@ import type { StructuredConfiguration, StructuredDateRole } from "../structured/
 import type { ColumnClass } from "../structured/classification";
 import type { StructuredTransformPlan } from "../structured/transform-plan";
 import type { StructuredOutputPreparation } from "../structured/transformed-dataset";
+import { localizeDomainErrorMessage } from "../presentation/domain-message-labels";
 
 /** One factual gate warning (kept-original entries and similar). */
 export type PrivacyGateWarning = {
@@ -162,9 +163,25 @@ export type PrivacyGateView = {
  */
 export function pendingDecisionMessage(count: number): string {
   return count === 1
-    ? "Safe export is blocked while 1 mandatory review decision is pending."
-    : `Safe export is blocked while ${count} mandatory review decisions are pending.`;
+    ? "La descarga segura está bloqueada mientras 1 decisión de revisión obligatoria está pendiente."
+    : `La descarga segura está bloqueada mientras ${count} decisiones de revisión obligatorias están pendientes.`;
 }
+
+/**
+ * Presentation-boundary Spanish rendering of the domain's factual batch
+ * failure remedy ({@link batchFailureRemedy}). The domain helper stays the
+ * single authority for WHICH remedy applies; only its exact end-user wording
+ * is mapped here. An unrecognized remedy is passed through unchanged, so a
+ * future domain remedy can never be silently dropped by this mapping.
+ */
+const BATCH_FAILURE_REMEDY_ES: Readonly<Record<string, string>> = Object.freeze({
+  "Choose a supported Privacy Policy for the policy-blocked documents, and create a new job without the unreadable ones to continue.":
+    "Elija una política de privacidad compatible para los documentos bloqueados por la política, y cree un nuevo trabajo sin los que no se pueden leer para continuar.",
+  "Choose a supported Privacy Policy and start review again.":
+    "Elija una política de privacidad compatible y comience la revisión de nuevo.",
+  "Create a new job without it to continue.": "Cree un nuevo trabajo sin él para continuar.",
+  "Create a new job without them to continue.": "Cree un nuevo trabajo sin ellos para continuar.",
+});
 
 /**
  * Factual, fail-closed batch failure copy (T17 #21 SD-9, remedy copy corrected
@@ -178,14 +195,22 @@ export function pendingDecisionMessage(count: number): string {
 export function batchFailedItemsMessage(items: readonly PrivacyGateBatchItem[]): string {
   const failed = items.filter((item) => item.status === "error" && item.removed !== true);
   const detail = failed
-    .map((item) => `"${item.name}"${item.errorMessage ? ` — ${item.errorMessage}` : ""}`)
+    .map(
+      (item) =>
+        `"${item.name}"${
+          item.errorMessage ? ` — ${localizeDomainErrorMessage(item.errorMessage)}` : ""
+        }`
+    )
     .join("; ");
   const subject =
-    failed.length === 1 ? "a batch item failed" : `${failed.length} batch items failed`;
-  const remedy = batchFailureRemedy(
+    failed.length === 1
+      ? "un documento del lote no se pudo procesar"
+      : `${failed.length} documentos del lote no se pudieron procesar`;
+  const remedyEnglish = batchFailureRemedy(
     failed.map((item) => item.errorCode).filter((code): code is string => code !== undefined)
   );
-  return `Safe export is blocked because ${subject}: ${detail}. ${remedy}`;
+  const remedy = BATCH_FAILURE_REMEDY_ES[remedyEnglish] ?? remedyEnglish;
+  return `La descarga segura está bloqueada porque ${subject}: ${detail}. ${remedy}`;
 }
 
 /**
@@ -199,8 +224,8 @@ export function batchFailedItemsMessage(items: readonly PrivacyGateBatchItem[]):
  */
 export function batchSafeSummaryAvailabilityMessage(ready: boolean): string {
   return ready
-    ? "Safe Output for a document batch is the Safe summary CSV (resumen-lote-seguro.csv); download it in the Result step once the batch review is complete."
-    : "Safe Output for a document batch is not ready yet: complete the batch review, or clear any active batch error, before preparing the Safe summary.";
+    ? "La salida segura de un lote de documentos es el CSV de resumen seguro (resumen-lote-seguro.csv); descárgalo en el paso Resultado cuando la revisión del lote esté completa."
+    : "La salida segura de un lote de documentos todavía no está lista: completa la revisión del lote o resuelve cualquier error activo del lote antes de preparar el resumen seguro.";
 }
 
 /**
@@ -217,10 +242,10 @@ export function batchSafeSummaryAvailabilityMessage(ready: boolean): string {
  */
 export function batchConfidentialAuditAvailabilityMessage(ready: boolean): string {
   return ready
-    ? "La Auditoría Confidencial de un lote de documentos es el TXT de auditoría confidencial " +
+    ? "La Auditoría confidencial de un lote de documentos es el TXT de auditoría confidencial " +
         "del lote (auditoria-confidencial-lote.txt); prepáralo en el paso Resultado, detrás de " +
         "una confirmación explícita, cuando la revisión del lote esté completa."
-    : "La Auditoría Confidencial de un lote de documentos todavía no está lista: completa la " +
+    : "La Auditoría confidencial de un lote de documentos todavía no está lista: completa la " +
         "revisión del lote o resuelve cualquier error activo del lote antes de prepararla.";
 }
 
@@ -416,7 +441,7 @@ function deriveSingleView(job: Job, review: ReviewSession): PrivacyGateView {
     progress.restoredDetections.map((detection) =>
       Object.freeze({
         code: "kept-original",
-        message: `Kept original — ${detection.type}: the original text was deliberately kept by reviewer decision (restored).`,
+        message: `Original conservado — ${detection.type}: el texto original se conservó deliberadamente por decisión del revisor (restaurado).`,
       })
     )
   );
@@ -478,7 +503,7 @@ function aggregateBatchSessions(sessions: readonly ReviewSession[]): BatchSessio
       warnings.push(
         Object.freeze({
           code: "kept-original",
-          message: `Kept original — ${detection.type}: the original text was deliberately kept by reviewer decision (restored).`,
+          message: `Original conservado — ${detection.type}: el texto original se conservó deliberadamente por decisión del revisor (restaurado).`,
         })
       );
     }

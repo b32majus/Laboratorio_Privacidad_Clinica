@@ -56,6 +56,8 @@ import {
   type StructuredDateRole,
 } from "./configuration";
 import type { StructuredSummary } from "./transformed-dataset";
+import { localizeStructuredBlockReason, localizeStructuredEvidence } from "./reason-labels";
+import { localizeDomainErrorMessage } from "../presentation/domain-message-labels";
 import type { StudyIdPrefixResolution } from "./output-options";
 import type { ColumnSampleType } from "./column-profile";
 import type { ProposedAction } from "./classification";
@@ -65,45 +67,45 @@ const focusRing =
 
 /** Visible class labels: classification is never conveyed by color alone. */
 const CLASS_LABELS: Record<ColumnClass, string> = {
-  identifier: "Identifier",
-  "quasi-identifier": "Quasi-Identifier",
-  sensitive: "Sensitive",
-  insensitive: "Insensitive",
-  unknown: "Unknown",
+  identifier: "Identificador",
+  "quasi-identifier": "Cuasi-identificador",
+  sensitive: "Sensible",
+  insensitive: "No sensible",
+  unknown: "Desconocido",
 };
 
 /** Visible action labels for the effective productive Action (D-021, REC-03 WU-B). */
 const ACTION_LABELS: Record<StructuredAction, string> = {
-  "study-id": "Study ID",
-  "date-policy": "Date policy",
-  remove: "Remove",
-  keep: "Keep",
-  pseudonymize: "Pseudonymize",
-  "process-as-text": "Process as text",
-  "review-required": "Review required",
+  "study-id": "ID de estudio",
+  "date-policy": "Política de fechas",
+  remove: "Eliminar",
+  keep: "Conservar",
+  pseudonymize: "Seudonimizar",
+  "process-as-text": "Procesar como texto",
+  "review-required": "Requiere revisión",
 };
 
 /** Visible proposal labels (class/header proposal, a subset of the Action vocabulary). */
 const PROPOSAL_LABELS: Record<ProposedAction, string> = {
-  remove: "Remove",
-  pseudonymize: "Pseudonymize",
-  keep: "Keep",
-  "review-required": "Review required",
+  remove: "Eliminar",
+  pseudonymize: "Seudonimizar",
+  keep: "Conservar",
+  "review-required": "Requiere revisión",
 };
 
 const TYPE_LABELS: Record<ColumnSampleType, string> = {
-  number: "Number",
-  date: "Date",
-  boolean: "Boolean",
-  text: "Text",
-  empty: "Empty",
+  number: "Número",
+  date: "Fecha",
+  boolean: "Booleano",
+  text: "Texto",
+  empty: "Vacío",
 };
 
 /** Visible date-role labels: ordinal meaning is never conveyed by color alone. */
 const DATE_ROLE_LABELS: Record<StructuredDateRole, string> = {
-  none: "None",
-  visit: "Visit date",
-  birth: "Birth date",
+  none: "Ninguno",
+  visit: "Fecha de visita",
+  birth: "Fecha de nacimiento",
 };
 
 /** Row text marker for a reviewer-overridden classification (issue #85, Spanish-first). */
@@ -224,8 +226,8 @@ export function StructuredConfigureWorkspace(
       <p className="mt-1.5 text-sm leading-relaxed">
         Compare todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y
         lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puede cambiar
-        cualquiera. Las columnas desconocidas (Unknown) siempre requieren revisión y nunca se tratan
-        como seguras para conservar.
+        cualquiera. Las columnas con clasificación desconocida siempre requieren revisión y nunca se
+        tratan como seguras para conservar.
       </p>
 
       {errorMessage !== null && (
@@ -233,7 +235,7 @@ export function StructuredConfigureWorkspace(
           role="alert"
           className={`mt-3 max-w-3xl rounded border border-primary-dark bg-surface-light px-3 py-2 text-sm font-semibold text-primary-dark ${focusRing}`}
         >
-          {errorMessage}
+          {localizeDomainErrorMessage(errorMessage)}
         </p>
       )}
 
@@ -255,7 +257,7 @@ export function StructuredConfigureWorkspace(
             role="status"
             className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm font-semibold text-neutral-800"
           >
-            Reading the structured source…
+            Leyendo el origen estructurado…
           </p>
         ) : null
       ) : (
@@ -289,14 +291,16 @@ function HeaderRowSelection(props: {
   const [selected, setSelected] = useState(headerRow.candidateRowIndices[0] ?? 0);
   return (
     <section
-      aria-label="Workbook header row selection"
+      aria-label="Selección de la fila de encabezado del libro"
       className="mt-4 max-w-3xl rounded border border-primary bg-surface-light p-3"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Select the header row</h3>
+      <h3 className="font-display text-base font-bold text-primary-dark">
+        Seleccione la fila de encabezado
+      </h3>
       <p className="mt-2 text-sm text-neutral-800">
-        The worksheet “{headerRow.sheetName}” has no single clear header row. Choose which of the
-        inspected rows is the header; rows above it are skipped as explanatory notes, never data.
-        The first row is never assumed.
+        La hoja «{headerRow.sheetName}» no tiene una única fila de encabezado clara. Elija cuál de
+        las filas inspeccionadas es el encabezado; las filas anteriores se omiten como notas
+        explicativas, nunca como datos. La primera fila nunca se da por supuesta.
       </p>
       <form
         className="mt-3 flex flex-wrap items-end gap-2"
@@ -310,7 +314,7 @@ function HeaderRowSelection(props: {
             htmlFor="structured-header-row"
             className="block text-sm font-semibold text-neutral-800"
           >
-            Header row
+            Fila de encabezado
           </label>
           <select
             id="structured-header-row"
@@ -320,7 +324,9 @@ function HeaderRowSelection(props: {
           >
             {Array.from({ length: headerRow.inspectedRowCount }, (_, index) => (
               <option key={index} value={index}>
-                {candidates.has(index) ? `Row ${index + 1} (header candidate)` : `Row ${index + 1}`}
+                {candidates.has(index)
+                  ? `Fila ${index + 1} (candidata a encabezado)`
+                  : `Fila ${index + 1}`}
               </option>
             ))}
           </select>
@@ -329,7 +335,7 @@ function HeaderRowSelection(props: {
           type="submit"
           className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
         >
-          Use row {selected + 1} as header
+          Usar la fila {selected + 1} como encabezado
         </button>
       </form>
     </section>
@@ -344,13 +350,13 @@ function SheetSelection(props: {
   const [selected, setSelected] = useState(sheetNames[0] ?? "");
   return (
     <section
-      aria-label="Workbook sheet selection"
+      aria-label="Selección de hoja del libro"
       className="mt-4 max-w-3xl rounded border border-primary bg-surface-light p-3"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Select a worksheet</h3>
+      <h3 className="font-display text-base font-bold text-primary-dark">Seleccione una hoja</h3>
       <p className="mt-2 text-sm text-neutral-800">
-        This workbook has several sheets. Choose the sheet to classify; the first sheet is never
-        selected silently.
+        Este libro tiene varias hojas. Elija la hoja que se va a clasificar; la primera hoja nunca
+        se selecciona de forma silenciosa.
       </p>
       <form
         className="mt-3 flex flex-wrap items-end gap-2"
@@ -364,7 +370,7 @@ function SheetSelection(props: {
             htmlFor="structured-sheet"
             className="block text-sm font-semibold text-neutral-800"
           >
-            Worksheet
+            Hoja
           </label>
           <select
             id="structured-sheet"
@@ -383,7 +389,7 @@ function SheetSelection(props: {
           type="submit"
           className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
         >
-          Load sheet
+          Cargar hoja
         </button>
       </form>
     </section>
@@ -500,7 +506,7 @@ function ConfigurationView(props: {
           <summary
             className={`cursor-pointer select-none px-3 py-2 font-display text-base font-bold text-primary-dark ${focusRing}`}
           >
-            <h3>Output options</h3>
+            <h3>Opciones de salida</h3>
           </summary>
           <div className="px-3 pb-3">
             <OutputOptionsSection outputOptions={outputOptions} />
@@ -526,34 +532,36 @@ function ConfigurationSummary(props: {
   const ready = exportReadiness === null ? configuration.exportReady : exportReadiness.ready;
   const reasons = exportReadiness === null ? [] : exportReadiness.reasons;
   return (
-    <section aria-label="Structured configuration summary" className="min-w-0">
-      <h3 className="font-display text-sm font-bold text-primary-dark">Configuration summary</h3>
+    <section aria-label="Resumen de la configuración estructurada" className="min-w-0">
+      <h3 className="font-display text-sm font-bold text-primary-dark">
+        Resumen de la configuración
+      </h3>
       <dl
         role="status"
-        aria-label="Structured configuration facts"
+        aria-label="Datos de la configuración estructurada"
         className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-neutral-800"
       >
         <div className="flex gap-1">
-          <dt className="font-semibold">Columns:</dt>
+          <dt className="font-semibold">Columnas:</dt>
           <dd> {configuration.columns.length}</dd>
         </div>
         <div className="flex gap-1">
-          <dt className="font-semibold">Columns requiring review:</dt>
+          <dt className="font-semibold">Columnas que requieren revisión:</dt>
           <dd> {pending}</dd>
         </div>
         <div className="flex gap-1">
-          <dt className="font-semibold">Structured export ready:</dt>
-          <dd> {ready ? "Yes" : "No"}</dd>
+          <dt className="font-semibold">Exportación estructurada preparada:</dt>
+          <dd> {ready ? "Sí" : "No"}</dd>
         </div>
       </dl>
       {reasons.length > 0 ? (
         <ul
           role="alert"
-          aria-label="Structured export block reasons"
+          aria-label="Motivos de bloqueo de la exportación estructurada"
           className="mt-2 list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
         >
           {reasons.map((reason, index) => (
-            <li key={index}>{reason}</li>
+            <li key={index}>{localizeStructuredBlockReason(reason)}</li>
           ))}
         </ul>
       ) : (
@@ -563,9 +571,10 @@ function ConfigurationSummary(props: {
             className="mt-2 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
           >
             {pending === 1
-              ? "Structured export is blocked while 1 column requires review."
-              : `Structured export is blocked while ${pending} columns require review.`}{" "}
-            Unknown columns are never kept or exported as-is; choose an explicit class for each.
+              ? "La exportación estructurada está bloqueada mientras 1 columna requiera revisión."
+              : `La exportación estructurada está bloqueada mientras ${pending} columnas requieran revisión.`}{" "}
+            Las columnas con clasificación desconocida nunca se conservan ni se exportan tal cual;
+            elija una clase explícita para cada una.
           </p>
         )
       )}
@@ -615,7 +624,7 @@ function PatientIdAuthority(props: {
         <option value="">Sin seleccionar</option>
         {configuration.columns.map((column) => (
           <option key={column.columnIndex} value={column.header}>
-            {column.header === "" ? "(unnamed column)" : column.header}
+            {column.header === "" ? "(columna sin nombre)" : column.header}
           </option>
         ))}
       </select>
@@ -653,17 +662,17 @@ function OutputOptionsSection(props: {
   const { outputOptions } = props;
   const { summary } = outputOptions;
   return (
-    <section aria-label="Structured output options">
+    <section aria-label="Opciones de salida estructurada">
       <p className="mt-1 text-sm text-neutral-800">
-        How generated Study IDs are formatted. Changing these options never changes patient grouping
-        or row order — only the generated token text.
+        Cómo se formatean los ID de estudio generados. Cambiar estas opciones nunca cambia la
+        agrupación de pacientes ni el orden de las filas; solo el texto del identificador generado.
       </p>
       <div className="mt-3">
         <label
           htmlFor="structured-study-id-prefix"
           className="block text-sm font-semibold text-neutral-800"
         >
-          Study-ID prefix
+          Prefijo de ID de estudio
         </label>
         <input
           id="structured-study-id-prefix"
@@ -677,13 +686,13 @@ function OutputOptionsSection(props: {
           className={`mt-1 w-full max-w-sm rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
         />
         <p className="mt-1 text-xs text-neutral-700">
-          Blank uses the default PAC. Otherwise letters and digits, starting with a letter, up to 10
-          characters (for example HS1 gives HS1_001, HS1_002, …).
+          En blanco usa el valor predeterminado PAC. En caso contrario, letras y dígitos, empezando
+          por una letra, hasta 10 caracteres (por ejemplo, HS1 da HS1_001, HS1_002, …).
         </p>
         {outputOptions.prefixInvalid !== null && (
           <p
             role="alert"
-            aria-label="Study-ID prefix invalid"
+            aria-label="Prefijo de ID de estudio no válido"
             id="structured-study-id-prefix-invalid"
             className="mt-2 rounded border border-primary-dark bg-white px-3 py-2 text-sm font-semibold text-primary-dark"
           >
@@ -704,36 +713,36 @@ function OutputOptionsSection(props: {
             onChange={(event) => outputOptions.onToggleVisitNumber(event.target.checked)}
             className={`mt-0.5 ${focusRing}`}
           />
-          Visit numbering (Visita_Num)
+          Numeración de visitas (Visita_Num)
         </label>
         <p className="mt-1 text-xs text-neutral-700">
           {outputOptions.visitAvailable
-            ? "Adds a numeric Visita_Num column after ID_ESTUDIO: 1-based occurrence per patient in input row order. It is not visit chronology."
-            : "Available when a patient-ID column is selected."}
+            ? "Añade una columna numérica Visita_Num después de ID_ESTUDIO: aparición 1-based por paciente en el orden de fila de entrada. No es la cronología de las visitas."
+            : "Disponible cuando se selecciona una columna de identificación de paciente."}
         </p>
       </div>
       <div className="mt-3 rounded border border-neutral-300 bg-white p-2">
-        <h4 className="text-xs font-bold text-primary-dark">Structured output facts</h4>
+        <h4 className="text-xs font-bold text-primary-dark">Datos de salida estructurada</h4>
         <dl
           role="status"
-          aria-label="Structured output facts"
+          aria-label="Datos de salida estructurada"
           className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
         >
-          <dt className="font-semibold">Data rows:</dt>
+          <dt className="font-semibold">Filas de datos:</dt>
           <dd>{summary.rowCount}</dd>
           {summary.patient !== null ? (
             <>
-              <dt className="font-semibold">Patients:</dt>
+              <dt className="font-semibold">Pacientes:</dt>
               <dd>{summary.patient.uniquePatients}</dd>
-              <dt className="font-semibold">Linked rows:</dt>
+              <dt className="font-semibold">Filas vinculadas:</dt>
               <dd>{summary.patient.linkedRows}</dd>
-              <dt className="font-semibold">Average linked rows per patient:</dt>
+              <dt className="font-semibold">Media de filas vinculadas por paciente:</dt>
               <dd>{summary.patient.averageLinkedRowsPerPatient}</dd>
             </>
           ) : (
             <>
-              <dt className="font-semibold">Patients:</dt>
-              <dd>unavailable without a selected patient-ID column</dd>
+              <dt className="font-semibold">Pacientes:</dt>
+              <dd>no disponible sin una columna de identificación de paciente seleccionada</dd>
             </>
           )}
         </dl>
@@ -771,7 +780,7 @@ function ColumnComparisonTable(props: {
         className={`mt-2 overflow-x-auto ${focusRing}`}
       >
         <table
-          aria-label="Column classification list"
+          aria-label="Lista de clasificación de columnas"
           className="w-full min-w-[36rem] border-collapse text-sm"
         >
           <thead>
@@ -827,7 +836,7 @@ function ComparisonRow(props: {
   onSelect: (columnIndex: number) => void;
 }): ReactElement {
   const { column, isPatientId, isSelected, onSelect } = props;
-  const columnName = column.header === "" ? "(unnamed column)" : column.header;
+  const columnName = column.header === "" ? "(columna sin nombre)" : column.header;
   const cellClass = "border-t border-primary/40 px-2 py-2 align-top";
   return (
     <tr className={isSelected ? "bg-white" : undefined}>
@@ -887,7 +896,7 @@ function ComparisonRow(props: {
       */}
       <td className={`${cellClass} font-semibold`}>
         {column.requiresReview ? (
-          <span className="text-primary-dark">Review required</span>
+          <span className="text-primary-dark">Requiere revisión</span>
         ) : (
           <span className="text-neutral-800">{ROW_SETTLED_LABEL}</span>
         )}
@@ -925,7 +934,7 @@ function ColumnInspector(props: {
   const selectId = `structured-class-${column.columnIndex}`;
   const actionSelectId = `structured-action-${column.columnIndex}`;
   const dateRoleSelectId = `structured-date-role-${column.columnIndex}`;
-  const columnName = column.header === "" ? "(unnamed column)" : column.header;
+  const columnName = column.header === "" ? "(columna sin nombre)" : column.header;
   return (
     <aside
       aria-label="Inspector de columna"
@@ -946,14 +955,14 @@ function ColumnInspector(props: {
       */}
       <dl className="mt-2 space-y-1 text-sm text-neutral-800">
         <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Classification:</dt>
+          <dt className="font-semibold">Clasificación:</dt>
           <dd>
             {CLASS_LABELS[column.effectiveClass]}
             {column.overridden ? ` (${OVERRIDDEN_MARKER})` : ""}
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Action:</dt>
+          <dt className="font-semibold">Tratamiento efectivo:</dt>
           <dd>
             {ACTION_LABELS[column.effectiveAction]}
             {column.actionSource === "explicit" ? ` (${EXPLICIT_ACTION_MARKER})` : ""}
@@ -966,13 +975,13 @@ function ColumnInspector(props: {
           </dd>
         </div>
         <div className="flex flex-wrap gap-2">
-          <dt className="font-semibold">Date role:</dt>
+          <dt className="font-semibold">Rol de fecha:</dt>
           <dd>{DATE_ROLE_LABELS[column.dateRole]}</dd>
         </div>
         {isPatientId && (
           <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Patient ID:</dt>
-            <dd>This column is the single patient-ID authority.</dd>
+            <dt className="font-semibold">ID de paciente:</dt>
+            <dd>Esta columna es la única autoridad de identificación del paciente.</dd>
           </div>
         )}
       </dl>
@@ -986,52 +995,52 @@ function ColumnInspector(props: {
         <summary
           className={`cursor-pointer rounded text-sm font-semibold text-primary-dark ${focusRing}`}
         >
-          Evidence and detected details for {columnName}
+          Evidencia y detalles detectados de {columnName}
         </summary>
         <dl className="mt-2 space-y-1 text-sm text-neutral-800">
           <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Detected class:</dt>
+            <dt className="font-semibold">Clase detectada:</dt>
             <dd>{CLASS_LABELS[column.detectedClass]}</dd>
           </div>
           <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Proposed action:</dt>
+            <dt className="font-semibold">Acción propuesta:</dt>
             <dd>{PROPOSAL_LABELS[column.proposedAction]}</dd>
           </div>
           <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Inferred type:</dt>
+            <dt className="font-semibold">Tipo inferido:</dt>
             <dd>{TYPE_LABELS[column.inferredType]}</dd>
           </div>
           <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Confidence:</dt>
+            <dt className="font-semibold">Confianza:</dt>
             <dd>{Math.round(column.confidence * 100)}%</dd>
           </div>
           <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Non-empty values:</dt>
+            <dt className="font-semibold">Valores no vacíos:</dt>
             <dd>{column.nonEmptyCount}</dd>
           </div>
         </dl>
 
         <div className="mt-2">
-          <h4 className="text-xs font-bold text-primary-dark">Evidence</h4>
+          <h4 className="text-xs font-bold text-primary-dark">Evidencia</h4>
           <ul
-            aria-label={`Evidence for column ${columnName}`}
+            aria-label={`Evidencia de la columna ${columnName}`}
             className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-700"
           >
             {column.evidence.map((item, index) => (
-              <li key={index}>{item}</li>
+              <li key={index}>{localizeStructuredEvidence(item)}</li>
             ))}
           </ul>
         </div>
 
         {onSetDateRole !== undefined && (
           <p className="mt-2 text-xs text-neutral-700">
-            Temporal meaning only; it never changes the classification and is never inferred.
+            Solo significado temporal; nunca cambia la clasificación y nunca se infiere.
           </p>
         )}
       </details>
 
       <label htmlFor={selectId} className="mt-3 block text-sm font-semibold text-neutral-800">
-        Reviewer classification for {columnName}
+        Clasificación del revisor para {columnName}
       </label>
       <select
         id={selectId}
@@ -1052,7 +1061,7 @@ function ColumnInspector(props: {
             htmlFor={dateRoleSelectId}
             className="mt-3 block text-sm font-semibold text-neutral-800"
           >
-            Date role for {columnName}
+            Rol de fecha para {columnName}
           </label>
           <select
             id={dateRoleSelectId}
@@ -1087,7 +1096,7 @@ function ColumnInspector(props: {
               htmlFor={actionSelectId}
               className="mt-3 block text-sm font-semibold text-neutral-800"
             >
-              Reviewer action for {columnName}
+              Acción del revisor para {columnName}
             </label>
             <select
               id={actionSelectId}
@@ -1107,10 +1116,10 @@ function ColumnInspector(props: {
         )}
       {column.actionLocked && (
         <p className="mt-3 text-sm text-neutral-800">
-          <span className="font-semibold">Action locked:</span>{" "}
+          <span className="font-semibold">Acción bloqueada:</span>{" "}
           {isPatientId
-            ? "the patient-ID authority derives Study ID; no other action can be selected."
-            : "the explicit date role derives Date policy; no other action can be selected."}
+            ? "la autoridad de identificación del paciente deriva ID de estudio; no se puede seleccionar otra acción."
+            : "el rol de fecha explícito deriva la política de fechas; no se puede seleccionar otra acción."}
         </p>
       )}
       {onOverrideAction !== undefined &&
@@ -1118,13 +1127,14 @@ function ColumnInspector(props: {
         column.effectiveClass === "unknown" &&
         (column.allowedActions.includes("process-as-text") ? (
           <p className="mt-3 text-sm text-neutral-800">
-            Unknown columns cannot be kept directly. Change the classification above, or route this
-            text column through the text engine with “Process as text”.
+            Las columnas con clasificación desconocida no se pueden conservar directamente. Cambie
+            la clasificación de arriba, o dirija esta columna de texto por el motor de texto con
+            «Procesar como texto».
           </p>
         ) : (
           <p className="mt-3 text-sm text-neutral-800">
-            Unknown columns cannot take a productive action directly. Change the classification
-            above to resolve this column.
+            Las columnas con clasificación desconocida no pueden recibir una acción productiva
+            directamente. Cambie la clasificación de arriba para resolver esta columna.
           </p>
         ))}
 

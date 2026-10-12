@@ -136,11 +136,11 @@ describe("PrivacyGate (T08 U3)", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(
-      "Safe export is blocked while 2 mandatory review decisions are pending."
+      "La descarga segura está bloqueada mientras 2 decisiones de revisión obligatorias están pendientes."
     );
     // Fail-closed availability: nothing is ready while a decision is pending.
-    expect(screen.getByText("Safe output:")).toBeInTheDocument();
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
+    expect(screen.getByText("Salida segura:")).toBeInTheDocument();
+    expect(screen.getByText("No preparada")).toBeInTheDocument();
   });
 
   it("renders factual treated counts for a completed review with accepted and modified decisions", () => {
@@ -155,13 +155,13 @@ describe("PrivacyGate (T08 U3)", () => {
     // No blocked state once every mandatory decision is complete.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
-    const summary = screen.getByRole("group", { name: /review summary/i });
-    expect(summary).toHaveTextContent("Accepted replacements: 1");
-    expect(summary).toHaveTextContent("Modified replacements: 1");
-    expect(summary).toHaveTextContent("Manual detections: 0");
+    const summary = screen.getByRole("group", { name: /resumen de la revisión/i });
+    expect(summary).toHaveTextContent("Sustituciones aceptadas: 1");
+    expect(summary).toHaveTextContent("Sustituciones modificadas: 1");
+    expect(summary).toHaveTextContent("Hallazgos manuales: 0");
 
     // Availability derived from the job's outputs (written by the bridge).
-    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Preparada")).toBeInTheDocument();
   });
 
   it(
@@ -176,17 +176,17 @@ describe("PrivacyGate (T08 U3)", () => {
       });
       const { container } = renderGate(withBridgeOutputs(job, review), review);
 
-      const summary = screen.getByRole("group", { name: /review summary/i });
+      const summary = screen.getByRole("group", { name: /resumen de la revisión/i });
       // Neutral, factual aggregate wording: counts over ALL detection types.
-      expect(summary).toHaveTextContent("Detections treated:");
-      expect(summary).toHaveTextContent("Accepted replacements: 1");
-      expect(summary).toHaveTextContent("Modified replacements: 1");
+      expect(summary).toHaveTextContent("Hallazgos tratados:");
+      expect(summary).toHaveTextContent("Sustituciones aceptadas: 1");
+      expect(summary).toHaveTextContent("Sustituciones modificadas: 1");
 
       // The direct-identifier classification claim must be gone from the
       // whole rendered output, not only from the summary list.
-      expect(container.textContent ?? "").not.toMatch(/direct identifier/i);
+      expect(container.textContent ?? "").not.toMatch(/direct identifier|identificador directo/i);
 
-      expect(screen.getByText("Ready")).toBeInTheDocument();
+      expect(screen.getByText("Preparada")).toBeInTheDocument();
     }
   );
 
@@ -197,26 +197,26 @@ describe("PrivacyGate (T08 U3)", () => {
     review = applyDecision(review, review.detections[1].id, "restored");
     renderGate(withBridgeOutputs(job, review), review);
 
-    const warnings = screen.getByRole("list", { name: /kept-original warnings/i });
+    const warnings = screen.getByRole("list", { name: /avisos de originales conservados/i });
     expect(warnings).toHaveTextContent("kept-original");
     // Exact factual wording: the original was deliberately kept by reviewer
     // decision — restored is a legitimate completed decision, never framed
     // as correspondence leakage.
     expect(warnings).toHaveTextContent(
-      "the original text was deliberately kept by reviewer decision (restored)"
+      "el texto original se conservó deliberadamente por decisión del revisor (restaurado)"
     );
     expect(warnings.textContent).not.toMatch(/leak/i);
 
     // The review is complete (restored counts as decided): no blocked state.
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText("Preparada")).toBeInTheDocument();
   });
 
   it("shows the privacy policy used", () => {
     const job = setPolicy(buildJob(), "strict");
     renderGate(job, buildSession());
-    expect(screen.getByText("Privacy policy used:")).toBeInTheDocument();
-    expect(screen.getByText("Strict")).toBeInTheDocument();
+    expect(screen.getByText("Política de privacidad usada:")).toBeInTheDocument();
+    expect(screen.getByText("Estricta")).toBeInTheDocument();
   });
 
   it("surfaces job errors factually when the job carries them", () => {
@@ -228,7 +228,7 @@ describe("PrivacyGate (T08 U3)", () => {
       ],
     } as Job;
     renderGate(job, buildSession());
-    const errors = screen.getByRole("list", { name: /job errors/i });
+    const errors = screen.getByRole("list", { name: /errores del trabajo/i });
     expect(errors).toHaveTextContent("extraction-failed");
     expect(errors).toHaveTextContent("Extraction failed for a synthetic document.");
   });
@@ -276,9 +276,9 @@ describe("PrivacyGate — low-confidence candidate facts (T14 #18 WU-C)", () => 
     review = applyDecision(review, review.detections[0].id, "restored");
     const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
 
-    const summary = screen.getByRole("group", { name: /review summary/i });
-    expect(summary).toHaveTextContent("Low-confidence candidates:");
-    expect(summary).toHaveTextContent("1 total, 0 pending");
+    const summary = screen.getByRole("group", { name: /resumen de la revisión/i });
+    expect(summary).toHaveTextContent("Candidatos de baja confianza:");
+    expect(summary).toHaveTextContent("1 en total, 0 pendientes");
     // Factual counts only: no score, safe percentage, anonymity or certification.
     expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
   });
@@ -288,8 +288,8 @@ describe("PrivacyGate — low-confidence candidate facts (T14 #18 WU-C)", () => 
     review = applyDecision(review, review.detections[0].id, "accepted");
     review = applyDecision(review, review.detections[1].id, "accepted");
     const { container } = renderGate(withBridgeOutputs(buildJob(), review), review);
-    expect(screen.getByRole("group", { name: /review summary/i })).toBeInTheDocument();
-    expect(container.textContent ?? "").not.toMatch(/low-confidence/i);
+    expect(screen.getByRole("group", { name: /resumen de la revisión/i })).toBeInTheDocument();
+    expect(container.textContent ?? "").not.toMatch(/baja confianza/i);
   });
 });
 
@@ -412,17 +412,17 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
   it("lists every batch item with a visible status and the failed item's message", () => {
     renderGate(failedBatchJob(), null);
 
-    const list = screen.getByRole("list", { name: /batch item status/i });
+    const list = screen.getByRole("list", { name: /estado de los documentos del lote/i });
     expect(list).toHaveTextContent("informe-a.txt");
     expect(list).toHaveTextContent("Error");
     expect(list).toHaveTextContent("El PDF no tiene capa de texto.");
     expect(list).toHaveTextContent("informe-b.txt");
-    expect(list).toHaveTextContent("Completed");
+    expect(list).toHaveTextContent("Completado");
 
-    const counts = screen.getByRole("group", { name: /batch item counts/i });
-    expect(counts).toHaveTextContent("Pending: 0");
-    expect(counts).toHaveTextContent("Completed: 1");
-    expect(counts).toHaveTextContent("Failed: 1");
+    const counts = screen.getByRole("group", { name: /recuentos de documentos del lote/i });
+    expect(counts).toHaveTextContent("Pendientes: 0");
+    expect(counts).toHaveTextContent("Completados: 1");
+    expect(counts).toHaveTextContent("Con error: 1");
   });
 
   it("names the failed file and the remedy in the blocked copy", () => {
@@ -431,7 +431,7 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent('"informe-a.txt"');
     expect(alert).toHaveTextContent("El PDF no tiene capa de texto.");
-    expect(alert).toHaveTextContent("Create a new job without it to continue.");
+    expect(alert).toHaveTextContent("Cree un nuevo trabajo sin él para continuar.");
   });
 
   it("blocks with the pending count across non-error items while review is incomplete", () => {
@@ -439,12 +439,14 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(
-      "Safe export is blocked while 2 mandatory review decisions are pending."
+      "La descarga segura está bloqueada mientras 2 decisiones de revisión obligatorias están pendientes."
     );
-    const list = screen.getByRole("list", { name: /batch item status/i });
-    expect(list).toHaveTextContent("Queued");
+    const list = screen.getByRole("list", { name: /estado de los documentos del lote/i });
+    expect(list).toHaveTextContent("En cola");
     // No failed-items copy when there are no error items.
-    expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/no se pudo procesar|no se pudieron procesar/i)
+    ).not.toBeInTheDocument();
   });
 
   it("never claims a factual error item for a pending, failure-free batch checkpoint", () => {
@@ -453,19 +455,19 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     // so the checkpoint must not select the error-specific sentence.
     renderGate(pendingBatchJob(), null);
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent("Action required");
-    expect(checkpoint).not.toHaveTextContent("Review complete");
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Necesita atención");
+    expect(checkpoint).not.toHaveTextContent("Preparado");
     // No factual error is present, so none may be claimed.
     expect(checkpoint).not.toHaveTextContent(/error/i);
-    expect(checkpoint).not.toHaveTextContent(/factual error item/i);
+    expect(checkpoint).not.toHaveTextContent(/factual error item|error registrado/i);
     // The real cause — pending review decisions — is what the body reports.
-    expect(checkpoint).toHaveTextContent(/mandatory review decisions are still pending/i);
+    expect(checkpoint).toHaveTextContent(/decisiones de revisión obligatorias/i);
 
     // The separate factual pending-review alert is unchanged and still shown.
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(
-      "Safe export is blocked while 2 mandatory review decisions are pending."
+      "La descarga segura está bloqueada mientras 2 decisiones de revisión obligatorias están pendientes."
     );
   });
 
@@ -477,33 +479,36 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
 
     renderGate(job, null);
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
     // Never the completion badge while view.complete is false.
-    expect(checkpoint).toHaveTextContent("Action required");
-    expect(checkpoint).not.toHaveTextContent("Review complete");
-    expect(checkpoint).not.toHaveTextContent("Every mandatory review decision is recorded");
+    expect(checkpoint).toHaveTextContent("Necesita atención");
+    expect(checkpoint).not.toHaveTextContent("Preparado");
+    expect(checkpoint).not.toHaveTextContent(
+      "Todas las decisiones de revisión obligatorias están registradas"
+    );
     // The body states the factual boundary reason…
-    expect(checkpoint).toHaveTextContent(/No batch document remains available for review/i);
-    expect(checkpoint).toHaveTextContent(/deliberately removed/i);
+    expect(checkpoint).toHaveTextContent(
+      /No queda ningún documento del lote disponible para revisión/i
+    );
+    expect(checkpoint).toHaveTextContent(/se retiraron deliberadamente/i);
     // …and never re-blocks on the already-resolved failures.
-    expect(checkpoint).not.toHaveTextContent(/batch item failed/i);
+    expect(checkpoint).not.toHaveTextContent(/no se pudo procesar|no se pudieron procesar/i);
 
     // The removed items stay factual history: counted as failed, marked
     // removed, not hidden and not completed.
-    const counts = screen.getByRole("group", { name: /batch item counts/i });
-    expect(counts).toHaveTextContent("Failed: 2");
-    expect(counts).toHaveTextContent("Pending: 0");
-    expect(counts).toHaveTextContent("Completed: 0");
-    const items = screen.getByRole("list", { name: /batch item status/i });
+    const counts = screen.getByRole("group", { name: /recuentos de documentos del lote/i });
+    expect(counts).toHaveTextContent("Con error: 2");
+    expect(counts).toHaveTextContent("Pendientes: 0");
+    expect(counts).toHaveTextContent("Completados: 0");
+    const items = screen.getByRole("list", { name: /estado de los documentos del lote/i });
     expect(items).toHaveTextContent("Retirado del lote");
 
     // Downloads remain unavailable as before: both output surfaces stay
     // closed for the batch (no evaluable item means the Safe summary is not
     // ready; Confidential has no accepted batch format).
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
-    expect(screen.getByText("Not available")).toBeInTheDocument();
+    expect(screen.getByText("No disponible")).toBeInTheDocument();
     expect(
-      screen.getByText(/Safe Output for a document batch is not ready yet/)
+      screen.getByText(/La salida segura de un lote de documentos todavía no está lista/)
     ).toBeInTheDocument();
   });
 
@@ -518,21 +523,23 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     });
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText(/batch item failed/i)).not.toBeInTheDocument();
-    const counts = screen.getByRole("group", { name: /batch item counts/i });
-    expect(counts).toHaveTextContent("Failed: 0");
+    expect(
+      screen.queryByText(/no se pudo procesar|no se pudieron procesar/i)
+    ).not.toBeInTheDocument();
+    const counts = screen.getByRole("group", { name: /recuentos de documentos del lote/i });
+    expect(counts).toHaveTextContent("Con error: 0");
     // CORA-87-02: a completed error-free batch authorizes the Safe summary
     // (the same shared readiness authority the Result and serializer use).
     // #89: the batch Confidential Audit flag is the SAME synchronized
     // availability mirror, so the Gate states the same availability fact;
     // the deliberate warning/confirm interaction lives in the batch Result.
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Ready")).toBeInTheDocument();
-    expect(within(availability).getByText("Available")).toBeInTheDocument();
-    expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("Preparada")).toBeInTheDocument();
+    expect(within(availability).getByText("Disponible")).toBeInTheDocument();
+    expect(within(availability).getByText(/resumen-lote-seguro\.csv/)).toBeInTheDocument();
     expect(
       within(availability).getByText(
-        /La Auditoría Confidencial de un lote de documentos es el TXT de auditoría confidencial/
+        /La Auditoría confidencial de un lote de documentos es el TXT de auditoría confidencial/
       )
     ).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(
@@ -555,10 +562,12 @@ describe("PrivacyGate — shared Safe-summary readiness (CORA-87-02)", () => {
   it("shows the Safe summary as not ready for a pending batch", () => {
     renderGate(pendingBatchJob(), null);
 
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Not ready")).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("No preparada")).toBeInTheDocument();
     expect(
-      within(availability).getByText(/Safe Output for a document batch is not ready yet/)
+      within(availability).getByText(
+        /La salida segura de un lote de documentos todavía no está lista/
+      )
     ).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(
       /does not define a batch Safe Output format/
@@ -568,11 +577,11 @@ describe("PrivacyGate — shared Safe-summary readiness (CORA-87-02)", () => {
   it("shows the Safe summary as not ready with the factual blocker for an active-failure batch", () => {
     renderGate(failedBatchJob(), null);
 
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Not ready")).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("No preparada")).toBeInTheDocument();
     // The factual blocker remains the active failed item's named remedy.
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent(/batch item failed/i);
+    expect(alert).toHaveTextContent(/no se pudo procesar|no se pudieron procesar/i);
     expect(alert).toHaveTextContent('"informe-a.txt"');
   });
 });
@@ -594,11 +603,11 @@ describe("PrivacyGate — shared batch-Confidential availability (CORA-89-01)", 
       // Index 1's exact current session is missing from the bridged authority.
     });
 
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("No disponible")).toBeInTheDocument();
     expect(
       within(availability).getByText(
-        /La Auditoría Confidencial de un lote de documentos todavía no está lista/
+        /La Auditoría confidencial de un lote de documentos todavía no está lista/
       )
     ).toBeInTheDocument();
   });
@@ -609,11 +618,11 @@ describe("PrivacyGate — shared batch-Confidential availability (CORA-89-01)", 
       1: pendingBatchSession("batch-stale-1"),
     });
 
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("No disponible")).toBeInTheDocument();
     expect(
       within(availability).getByText(
-        /La Auditoría Confidencial de un lote de documentos todavía no está lista/
+        /La Auditoría confidencial de un lote de documentos todavía no está lista/
       )
     ).toBeInTheDocument();
   });
@@ -621,8 +630,8 @@ describe("PrivacyGate — shared batch-Confidential availability (CORA-89-01)", 
   it("keeps Confidential unavailable when no current session authority exists at all", () => {
     renderGate(withBatchOutputs(completedBatchJob()), null);
 
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Not available")).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("No disponible")).toBeInTheDocument();
   });
 });
 
@@ -686,10 +695,10 @@ describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", ()
 
     // The active document is B (its own detections are pending), yet A's
     // restored decision is reported by the gate.
-    const warnings = screen.getByRole("list", { name: /kept-original warnings/i });
+    const warnings = screen.getByRole("list", { name: /avisos de originales conservados/i });
     expect(warnings).toHaveTextContent("kept-original");
     expect(warnings).toHaveTextContent(
-      "the original text was deliberately kept by reviewer decision (restored)"
+      "el texto original se conservó deliberadamente por decisión del revisor (restaurado)"
     );
     expect(getProgress(sessionB).restored).toBe(0);
   });
@@ -701,7 +710,9 @@ describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", ()
 
     // Without the complete set, only B's (pending) facts are visible; A's
     // restored warning must not be inferred from B.
-    expect(screen.queryByRole("list", { name: /kept-original warnings/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("list", { name: /avisos de originales conservados/i })
+    ).not.toBeInTheDocument();
     // Sanity: A genuinely carries a restored decision.
     expect(getProgress(sessionA).restored).toBe(1);
   });
@@ -715,9 +726,9 @@ describe("PrivacyGate — batch restored-original warnings (T17 #21 CORR-B)", ()
 describe("PrivacyGate — decision checkpoint (UX-PILOT-02 #55)", () => {
   it("shows the action-required checkpoint while mandatory decisions are pending", () => {
     renderGate(buildJob(), buildSession());
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent("Action required");
-    expect(checkpoint).not.toHaveTextContent("Review complete");
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Necesita atención");
+    expect(checkpoint).not.toHaveTextContent("Preparado");
   });
 
   it("shows the review-complete checkpoint once Safe Output is ready", () => {
@@ -726,10 +737,10 @@ describe("PrivacyGate — decision checkpoint (UX-PILOT-02 #55)", () => {
     review = applyDecision(review, review.detections[1].id, "accepted");
     renderGate(withBridgeOutputs(buildJob(), review), review);
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent("Review complete");
-    expect(checkpoint).toHaveTextContent("Safe Output is ready to download");
-    expect(checkpoint).not.toHaveTextContent("Action required");
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Preparado");
+    expect(checkpoint).toHaveTextContent("La salida segura está preparada para descargar");
+    expect(checkpoint).not.toHaveTextContent("Necesita atención");
   });
 
   it("keeps factual attention facts visible in a labelled group", () => {
@@ -738,17 +749,17 @@ describe("PrivacyGate — decision checkpoint (UX-PILOT-02 #55)", () => {
     review = applyDecision(review, review.detections[1].id, "accepted");
     renderGate(withBridgeOutputs(buildJob(), review), review);
 
-    const attention = screen.getByRole("region", { name: "Attention facts" });
-    expect(attention).toHaveTextContent(/warnings and errors/i);
+    const attention = screen.getByRole("region", { name: "Hechos que requieren atención" });
+    expect(attention).toHaveTextContent(/avisos y errores/i);
     expect(
-      within(attention).getByRole("list", { name: /kept-original warnings/i })
+      within(attention).getByRole("list", { name: /avisos de originales conservados/i })
     ).toBeInTheDocument();
   });
 });
 
 /**
  * UX-PILOT-02 (#55) spec conformance: the checkpoint must never say
- * "Review complete" while the current authority blocks the applicable output.
+ * "Preparado" while the current authority blocks the applicable output.
  * A structured job with an unresolved quasi-identifier date column (no
  * explicit date role, no bounded explicit action) is blocked with that column
  * requiring review (REC-03 WU-B, D-021: no silent generalize).
@@ -789,13 +800,13 @@ describe("PrivacyGate — structured checkpoint state (UX-PILOT-02 #55)", () => 
       <PrivacyGate job={job} review={null} structured={{ configuration, plan, preparation }} />
     );
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent("Action required");
-    expect(checkpoint).not.toHaveTextContent("Review complete");
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Necesita atención");
+    expect(checkpoint).not.toHaveTextContent("Preparado");
     // The unresolved quasi column is a pending review decision, so the body
     // names it factually (never a generic sentence, never an error).
     const body = checkpoint.querySelector("p");
-    expect(body?.textContent ?? "").toMatch(/mandatory review decision/i);
+    expect(body?.textContent ?? "").toMatch(/decisión de revisión obligatoria/i);
     expect(body?.textContent ?? "").not.toMatch(/error/i);
   });
 });
@@ -817,10 +828,10 @@ describe("PrivacyGate — checkpoint cause discrimination (UX-CLOSEOUT-01 #63)",
     // blocked; the only real cause is the two pending mandatory decisions.
     const { container } = renderGate(buildJob(), buildSession());
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent("Action required");
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Necesita atención");
     // The real cause — pending review decisions — is what the body reports.
-    expect(checkpoint).toHaveTextContent(/mandatory review decisions are still pending/i);
+    expect(checkpoint).toHaveTextContent(/decisiones de revisión obligatorias/i);
     // No factual error is present, so none may be claimed.
     expect(checkpoint).not.toHaveTextContent(/error/i);
     expect(container.textContent ?? "").not.toMatch(FORBIDDEN_CLAIMS);
@@ -835,10 +846,10 @@ describe("PrivacyGate — checkpoint cause discrimination (UX-CLOSEOUT-01 #63)",
     // only real cause is the failed batch item (view.errors is empty).
     renderGate(failedBatchJob(), null);
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent("Action required");
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Necesita atención");
     // The body distinguishes the failed-item cause...
-    expect(checkpoint).toHaveTextContent(/batch item failed/i);
+    expect(checkpoint).toHaveTextContent(/no se pudo procesar|no se pudieron procesar/i);
     // ...and never asserts a job `errors` item, since view.errors is empty.
     expect(checkpoint).not.toHaveTextContent(/factual error item/i);
     expect(checkpoint).not.toHaveTextContent(/error/i);
@@ -851,8 +862,8 @@ describe("PrivacyGate — checkpoint cause discrimination (UX-CLOSEOUT-01 #63)",
     // The original audit #62 F3 case, restated as a shape assertion.
     renderGate(pendingBatchJob(), null);
 
-    const checkpoint = screen.getByRole("region", { name: "Decision checkpoint" });
-    expect(checkpoint).toHaveTextContent(/mandatory review decisions are still pending/i);
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent(/decisiones de revisión obligatorias/i);
     expect(checkpoint).not.toHaveTextContent(/error/i);
     expect(checkpoint.querySelectorAll("span")).toHaveLength(1);
     expect(checkpoint.querySelectorAll("p")).toHaveLength(1);

@@ -140,7 +140,7 @@ function materializeWorkbook(): string {
 
 function columnRow(page: Page, header: string) {
   return page
-    .getByRole("table", { name: "Column classification list" })
+    .getByRole("table", { name: "Lista de clasificación de columnas" })
     .locator("tbody tr")
     .filter({ has: page.getByRole("button", { name: header }) });
 }
@@ -171,73 +171,84 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   // Issue #85 F1 (CORA-85-01 correction 2): no structured configuration exists
   // yet (no sheet loaded, no header row confirmed), so the Privacy Gate is NOT
   // reachable — the action is never offered and the handler would no-op.
-  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Comprobación de privacidad", exact: true })
+  ).toHaveCount(0);
 
   // Explicit multi-sheet selection first: never the silent first sheet.
-  await expect(page.getByRole("heading", { name: "Select a worksheet" })).toBeVisible();
-  await page.getByLabel("Worksheet").selectOption("Urgencias");
-  await page.getByRole("button", { name: "Load sheet" }).click();
+  await expect(page.getByRole("heading", { name: "Seleccione una hoja" })).toBeVisible();
+  await page.getByLabel("Hoja", { exact: true }).selectOption("Urgencias");
+  await page.getByRole("button", { name: "Cargar hoja" }).click();
 
   // Ambiguous cover line + real header: explicit header-row choice, never a
   // silent first row. Row 4 (0-based index 3) is the real header.
-  await expect(page.getByRole("heading", { name: "Select the header row" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Seleccione la fila de encabezado" })
+  ).toBeVisible();
   // Issue #85 F1: still no resolved configuration (header row pending) — the
   // Privacy Gate action remains absent through sheet selection.
-  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
-  await page.getByLabel("Header row", { exact: true }).selectOption("3");
-  await page.getByRole("button", { name: "Use row 4 as header" }).click();
+  await expect(
+    page.getByRole("button", { name: "Comprobación de privacidad", exact: true })
+  ).toHaveCount(0);
+  await page.getByLabel("Fila de encabezado", { exact: true }).selectOption("3");
+  await page.getByRole("button", { name: "Usar la fila 4 como encabezado" }).click();
 
   // The resolved schema reaches Configure: 10 hospital columns.
-  const summary = page.getByRole("status", { name: "Structured configuration facts" });
-  await expect(summary).toContainText("Columns: 10");
+  const summary = page.getByRole("status", { name: "Datos de la configuración estructurada" });
+  await expect(summary).toContainText("Columnas: 10");
   // Issue #85 F1: the resolved configuration makes the Privacy Gate reachable
   // again and the factual onward action is offered once more.
-  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Comprobación de privacidad", exact: true })
+  ).toHaveCount(1);
 
   await page.getByLabel("Columna de identificación del paciente").selectOption("NHC");
   await selectColumn(page, "Fecha_Visita");
-  await page.getByLabel("Date role for Fecha_Visita").selectOption("visit");
+  await page.getByLabel("Rol de fecha para Fecha_Visita").selectOption("visit");
   await selectColumn(page, "Fecha_Nacimiento");
-  await page.getByLabel("Date role for Fecha_Nacimiento").selectOption("birth");
+  await page.getByLabel("Rol de fecha para Fecha_Nacimiento").selectOption("birth");
   await selectColumn(page, "Notas");
-  await page.getByLabel("Reviewer action for Notas").selectOption("process-as-text");
+  await page.getByLabel("Acción del revisor para Notas").selectOption("process-as-text");
   await selectColumn(page, "Edad_Num");
-  await page.getByLabel("Reviewer classification for Edad_Num").selectOption("insensitive");
+  await page.getByLabel("Clasificación del revisor para Edad_Num").selectOption("insensitive");
   await selectColumn(page, "Atiende");
-  await page.getByLabel("Reviewer classification for Atiende").selectOption("insensitive");
+  await page.getByLabel("Clasificación del revisor para Atiende").selectOption("insensitive");
   await selectColumn(page, "Observaciones");
-  await page.getByLabel("Reviewer classification for Observaciones").selectOption("insensitive");
-  await expect(summary).toContainText("Columns requiring review: 0");
+  await page.getByLabel("Clasificación del revisor para Observaciones").selectOption("insensitive");
+  await expect(summary).toContainText("Columnas que requieren revisión: 0");
 
   // Stronger authorities visibly lock their derived action.
-  await expect(columnRow(page, "NHC")).toContainText("Study ID");
+  await expect(columnRow(page, "NHC")).toContainText("ID de estudio");
   await expect(columnRow(page, "NHC")).toContainText("derivado/bloqueado");
-  await expect(columnRow(page, "Fecha_Visita")).toContainText("Date policy");
-  await expect(columnRow(page, "Centro")).toContainText("Pseudonymize");
-  await expect(columnRow(page, "Diagnostico")).toContainText("Keep");
-  await expect(columnRow(page, "Notas")).toContainText("Process as text");
+  await expect(columnRow(page, "Fecha_Visita")).toContainText("Política de fechas");
+  await expect(columnRow(page, "Centro")).toContainText("Seudonimizar");
+  await expect(columnRow(page, "Diagnostico")).toContainText("Conservar");
+  await expect(columnRow(page, "Notas")).toContainText("Procesar como texto");
 
   // Output options: custom prefix; visit numbering is enabled by the
   // patient-ID heritage default. (Issue #85 composed-hierarchy correction:
   // the options area now sits below the comparison table, collapsed behind a
   // native disclosure — this selector-only expansion keeps every control
   // reachable; the assertions themselves are unchanged.)
-  await page.locator("summary").filter({ hasText: "Output options" }).click();
-  await page.getByLabel("Study-ID prefix").fill("hs1");
-  await expect(page.getByLabel("Visit numbering (Visita_Num)")).toBeChecked();
-  const facts = page.getByRole("status", { name: "Structured output facts" });
-  await expect(facts).toContainText("Patients:");
-  await expect(facts).not.toContainText("unavailable");
+  await page.locator("summary").filter({ hasText: "Opciones de salida" }).click();
+  await page.getByLabel("Prefijo de ID de estudio").fill("hs1");
+  await expect(page.getByLabel("Numeración de visitas (Visita_Num)")).toBeChecked();
+  const facts = page.getByRole("status", { name: "Datos de salida estructurada" });
+  await expect(facts).toContainText("Pacientes:");
+  await expect(facts).not.toContainText("no disponible");
 }
 
 /** Decide every pending detection of the active free-text cell workspace. */
 async function decideActiveCell(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Pending", exact: true }).click();
-  const workspaceProgress = page.getByRole("status", { name: "Review progress", exact: true });
-  const pendingCount = workspaceProgress.locator('dt:text-is("Pending:") + dd');
+  await page.getByRole("button", { name: "Pendientes", exact: true }).click();
+  const workspaceProgress = page.getByRole("status", {
+    name: "Progreso de la revisión",
+    exact: true,
+  });
+  const pendingCount = workspaceProgress.locator('dt:text-is("Pendientes:") + dd');
   for (let guard = 0; guard < 30; guard += 1) {
     if ((await pendingCount.innerText()).trim() === "0") break;
-    await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+    await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
     const accept = page.getByRole("button", { name: "Aceptar detección" });
     if (await accept.isEnabled()) await accept.click();
     else await keepOriginalThroughUi(page);
@@ -247,25 +258,25 @@ async function decideActiveCell(page: Page): Promise<void> {
 
 async function reviewComposedFreeText(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Continuar a la revisión" }).click();
-  await page.getByRole("button", { name: "Process free-text cells" }).click();
-  const progress = page.getByRole("status", { name: "Free-text review progress" });
-  await expect(progress).toContainText("Cells: 2");
-  await page.getByRole("button", { name: /Notas, row 1/ }).click();
+  await page.getByRole("button", { name: "Procesar celdas de texto libre" }).click();
+  const progress = page.getByRole("status", { name: "Progreso de la revisión de texto libre" });
+  await expect(progress).toContainText("Celdas: 2");
+  await page.getByRole("button", { name: /Notas, fila 1/ }).click();
   await decideActiveCell(page);
-  await page.getByRole("button", { name: /Notas, row 2/ }).click();
+  await page.getByRole("button", { name: /Notas, fila 2/ }).click();
   await decideActiveCell(page);
-  await expect(progress).toContainText("Pending decisions: 0");
-  await expect(progress).toContainText("Free-text review ready: Yes");
+  await expect(progress).toContainText("Decisiones pendientes: 0");
+  await expect(progress).toContainText("Revisión de texto libre preparada: Sí");
 }
 
 async function openComposedGate(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-  const gateFacts = page.getByRole("status", { name: "Structured export facts" });
-  await expect(gateFacts).toContainText("Columns: 10");
-  await expect(gateFacts).toContainText("Columns requiring review: 0");
-  await expect(gateFacts).toContainText("Unsupported columns: 0");
-  await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
-    "Review complete"
+  await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+  const gateFacts = page.getByRole("status", { name: "Datos de la salida estructurada" });
+  await expect(gateFacts).toContainText("Columnas: 10");
+  await expect(gateFacts).toContainText("Columnas que requieren revisión: 0");
+  await expect(gateFacts).toContainText("Columnas no compatibles: 0");
+  await expect(page.getByRole("region", { name: "Punto de control de la decisión" })).toContainText(
+    "Preparado"
   );
 }
 
@@ -280,7 +291,7 @@ test("composed hospital workbook traverses sheet/header → options → review �
 
   // Safe CSV: custom prefix + visit numbering compose consistently.
   const safeDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download Safe Structured Output (.csv)" }).click();
+  await page.getByRole("button", { name: "Descargar salida estructurada segura (.csv)" }).click();
   const safeDownload = await safeDownloadPromise;
   const safeCsv = fs.readFileSync((await safeDownload.path())!, "utf8");
   const lines = safeCsv.split("\n");
@@ -315,7 +326,7 @@ test("composed hospital workbook traverses sheet/header → options → review �
   // Safe XLSX downloads directly (no confirmation) and reads back with
   // typed values/blanks, no originals, literal formula-like strings.
   const safeXlsxPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download Safe Structured Output (.xlsx)" }).click();
+  await page.getByRole("button", { name: "Descargar salida estructurada segura (.xlsx)" }).click();
   const safeXlsxDownload = await safeXlsxPromise;
   const safeXlsxBytes = new Uint8Array(fs.readFileSync((await safeXlsxDownload.path())!));
   const safeWorkbook = readWorkbook(safeXlsxBytes);
@@ -346,9 +357,11 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   await page.getByRole("button", { name: "Ir al resultado" }).click();
 
   // First TXT click downloads nothing and reveals the confirmation.
-  await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
+  await page
+    .getByRole("button", { name: "Descargar auditoría confidencial estructurada (.txt)" })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Confirm confidential download (.txt)" })
+    page.getByRole("heading", { name: "Confirmar descarga confidencial (.txt)" })
   ).toBeVisible();
   const missedTxt = await page.waitForEvent("download", { timeout: 1000 }).then(
     () => false,
@@ -357,9 +370,9 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   expect(missedTxt).toBe(true);
 
   // Cancel downloads nothing and resets the confirmation.
-  await page.getByRole("button", { name: "Cancel confidential download" }).click();
+  await page.getByRole("button", { name: "Cancelar descarga confidencial" }).click();
   await expect(
-    page.getByRole("heading", { name: "Confirm confidential download (.txt)" })
+    page.getByRole("heading", { name: "Confirmar descarga confidencial (.txt)" })
   ).toHaveCount(0);
   const missedCancel = await page.waitForEvent("download", { timeout: 1000 }).then(
     () => false,
@@ -368,9 +381,11 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   expect(missedCancel).toBe(true);
 
   // Explicit Confirm downloads exactly the selected TXT format once.
-  await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
+  await page
+    .getByRole("button", { name: "Descargar auditoría confidencial estructurada (.txt)" })
+    .click();
   const auditPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Confirm confidential download (.txt)" }).click();
+  await page.getByRole("button", { name: "Confirmar descarga confidencial (.txt)" }).click();
   const auditDownload = await auditPromise;
   const audit = fs.readFileSync((await auditDownload.path())!, "utf8");
   expect(audit).toContain("CONFIDENTIAL");
@@ -378,16 +393,16 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   expect(audit).toContain("HS1_001");
   expect(audit).toContain("12345678A");
   await expect(
-    page.getByRole("heading", { name: "Confirm confidential download (.txt)" })
+    page.getByRole("heading", { name: "Confirmar descarga confidencial (.txt)" })
   ).toHaveCount(0);
 
   // Confidential XLSX: first click downloads nothing; Confirm downloads the
   // authorized correspondence workbook (warning first).
   await page
-    .getByRole("button", { name: "Download Structured Confidential Audit (.xlsx)" })
+    .getByRole("button", { name: "Descargar auditoría confidencial estructurada (.xlsx)" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Confirm confidential download (.xlsx)" })
+    page.getByRole("heading", { name: "Confirmar descarga confidencial (.xlsx)" })
   ).toBeVisible();
   const missedXlsx = await page.waitForEvent("download", { timeout: 1000 }).then(
     () => false,
@@ -396,7 +411,7 @@ test("structured Confidential TXT/XLSX require the additional confirmation befor
   expect(missedXlsx).toBe(true);
 
   const xlsxPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Confirm confidential download (.xlsx)" }).click();
+  await page.getByRole("button", { name: "Confirmar descarga confidencial (.xlsx)" }).click();
   const xlsxDownload = await xlsxPromise;
   const xlsxBytes = new Uint8Array(fs.readFileSync((await xlsxDownload.path())!));
   const workbook = readWorkbook(xlsxBytes);

@@ -49,13 +49,13 @@ export type PolicyAvailability = "available" | "unavailable" | "unknown";
 
 /** The exact textual availability states required by the Work Order. */
 export const POLICY_AVAILABILITY_LABELS: Readonly<Record<"available" | "unavailable", string>> = {
-  available: "Available",
-  unavailable: "Not available for this job type yet",
+  available: "Disponible",
+  unavailable: "No disponible para este tipo de trabajo",
 };
 
 /** Honest note shown before any job exists (no job kind to evaluate). */
 export const NO_JOB_AVAILABILITY_NOTE =
-  "Create a job to see which policies are available for its type.";
+  "Cree un trabajo para ver qué políticas están disponibles para su tipo.";
 
 function isTypedPolicyFailure(error: unknown): boolean {
   return error instanceof PolicyError || error instanceof StructuredDateAgePolicyError;
@@ -116,34 +116,34 @@ export type PolicyGuidanceEntry = {
 
 const GENERIC_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
   standard:
-    "Accepted standard processing profile. The transformations it applies and its availability depend on the job type.",
+    "Perfil de tratamiento estándar aceptado. Las transformaciones que aplica y su disponibilidad dependen del tipo de trabajo.",
   "external-ai":
-    "Accepted External AI policy. The transformations it applies and its availability depend on the job type.",
+    "Política de IA externa aceptada. Las transformaciones que aplica y su disponibilidad dependen del tipo de trabajo.",
   "longitudinal-research":
-    "Accepted Longitudinal Research policy. The transformations it applies and its availability depend on the job type.",
+    "Política de investigación longitudinal aceptada. Las transformaciones que aplica y su disponibilidad dependen del tipo de trabajo.",
   strict:
-    "Accepted legacy strict processing profile. The transformations it applies and its availability depend on the job type.",
+    "Perfil de tratamiento estricto heredado aceptado. Las transformaciones que aplica y su disponibilidad dependen del tipo de trabajo.",
 };
 
 const DOCUMENT_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
   standard:
-    "Names are pseudonymized, direct identifiers are redacted, and dates, locations and ages are generalized.",
+    "Los nombres se seudonimizan, los identificadores directos se eliminan y las fechas, los lugares y las edades se generalizan.",
   "external-ai":
-    "Local-only preparation: dates are generalized to a lower precision (month or year) instead of preserving exact intervals, and locations and quasi-identifiers use the stricter generalization branch. Nothing is transmitted to an external service or AI provider.",
+    "Preparación solo local: las fechas se generalizan a una precisión menor (mes o año) en lugar de conservar intervalos exactos, y los lugares y cuasi-identificadores usan la rama de generalización más estricta. Nada se transmite a un servicio ni a un proveedor de IA externo.",
   "longitudinal-research":
-    "Local-only preparation: dates are shifted by one consistent Job-scoped offset so ordering and intervals between linked dates are preserved, and locations and quasi-identifiers use the stricter generalization branch. It does not grant research approval or governance authorization.",
+    "Preparación solo local: las fechas se desplazan con un único desfase coherente por trabajo, de modo que se conservan el orden y los intervalos entre fechas vinculadas, y los lugares y cuasi-identificadores usan la rama de generalización más estricta. No concede aprobación de investigación ni autorización de gobernanza.",
   strict:
-    "Applies the same per-category transformations as Standard, but uses the stricter generalization branch for locations and quasi-identifiers.",
+    "Aplica las mismas transformaciones por categoría que la política Estándar, pero usa la rama de generalización más estricta para lugares y cuasi-identificadores.",
 };
 
 const STRUCTURED_GUIDANCE: Readonly<Record<PrivacyPolicyId, string>> = {
-  standard: "Visit/event dates and birth dates are generalized to month level.",
+  standard: "Las fechas de visita/evento y las fechas de nacimiento se generalizan a nivel de mes.",
   "external-ai":
-    "Visit/event dates are shifted by a deterministic per-patient offset that preserves each patient's order and intervals; birth dates become age bands at the event.",
+    "Las fechas de visita/evento se desplazan con un desfase determinista por paciente que conserva el orden y los intervalos de cada paciente; las fechas de nacimiento se convierten en bandas de edad en el evento.",
   "longitudinal-research":
-    "Same per-patient visit-date shift and age-band birth dates as External AI, keeping each patient's timeline.",
+    "El mismo desfase de fecha de visita por paciente y las mismas bandas de edad para las fechas de nacimiento que la política IA externa, conservando la cronología de cada paciente.",
   strict:
-    "Same structured date/age rules as Standard: visit/event dates and birth dates are generalized to month level.",
+    "Las mismas reglas estructuradas de fecha/edad que la política Estándar: las fechas de visita/evento y las de nacimiento se generalizan a nivel de mes.",
 };
 
 function guidanceFor(policyId: PrivacyPolicyId, jobKind: JobKind | null): string {

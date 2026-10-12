@@ -94,13 +94,13 @@ function buildLongRefusalText(): string {
  * never by a re-derivation.
  */
 async function expectOnReview(page: Page): Promise<void> {
-  await expect(page.getByRole("region", { name: /review workspace/i })).toBeVisible();
+  await expect(page.getByRole("region", { name: /espacio de revisión/i })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toHaveCount(0);
 }
 
 async function expectOnResult(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toBeVisible();
-  await expect(page.getByRole("region", { name: /review workspace/i })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: /espacio de revisión/i })).toHaveCount(0);
 }
 
 /**
@@ -112,11 +112,11 @@ async function expectOnResult(page: Page): Promise<void> {
  */
 async function decideAllPendingThroughUi(page: Page): Promise<void> {
   await page
-    .getByRole("group", { name: "Filter by status" })
-    .getByRole("button", { name: "Pending" })
+    .getByRole("group", { name: "Filtrar por estado" })
+    .getByRole("button", { name: "Pendientes" })
     .click();
-  const detections = page.getByRole("list", { name: "Detections" }).getByRole("button");
-  const progress = page.getByRole("status", { name: "Review progress" });
+  const detections = page.getByRole("list", { name: "Hallazgos" }).getByRole("button");
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
 
   for (let guard = 0; guard < 200; guard += 1) {
     if ((await detections.count()) === 0) break;
@@ -128,8 +128,8 @@ async function decideAllPendingThroughUi(page: Page): Promise<void> {
       await keepOriginalThroughUi(page);
     }
   }
-  await expect(progress).toContainText("Pending: 0");
-  await expect(progress).toContainText("All mandatory decisions complete: yes");
+  await expect(progress).toContainText("Pendientes: 0");
+  await expect(progress).toContainText("Todas las decisiones obligatorias completadas: sí");
 }
 
 /** Run `action`, then assert it produced no download event within a settle window. */
@@ -159,9 +159,9 @@ test("high-volume pasted text reaches one ready Result and Copy + a secondary Sa
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(HIGH_VOLUME_TEXT);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
-  const progress = page.getByRole("status", { name: "Review progress" });
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
   await expect(progress).toContainText(`Total: ${HIGH_VOLUME_TOTAL}`);
-  await expect(progress).toContainText(`Pending: ${HIGH_VOLUME_TOTAL}`);
+  await expect(progress).toContainText(`Pendientes: ${HIGH_VOLUME_TOTAL}`);
 
   await decideAllPendingThroughUi(page);
   await expect(progress).toContainText(`Total: ${HIGH_VOLUME_TOTAL}`);
@@ -223,7 +223,7 @@ test("a supported single document reaches a ready Result whose primary action do
     mimeType: "text/plain",
     buffer: Buffer.from(REVIEW_FIXTURE_TEXT),
   });
-  await expect(page.getByRole("list", { name: "Detections" }).getByRole("button")).toHaveCount(4);
+  await expect(page.getByRole("list", { name: "Hallazgos" }).getByRole("button")).toHaveCount(4);
   await completeReview(page);
 
   // --- Friction witness: last decision → Result is ONE explicit task action --
@@ -281,7 +281,7 @@ test("a needs-attention Result states what remains, returns to the pending revie
   // (a deliberate correction — HPD-07/HPD-14, never silent acceptance).
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
   await expectOnReview(page);
-  const source = page.getByRole("group", { name: "Document text with detections" });
+  const source = page.getByRole("group", { name: "Texto del documento con hallazgos" });
   const mark = page.getByRole("button", { name: "Marcar dato no detectado" });
   await mark.focus();
   await source.evaluate((group) => {
@@ -300,8 +300,8 @@ test("a needs-attention Result states what remains, returns to the pending revie
   await page.getByLabel("Tipo de dato").fill("PRUEBA");
   await page.getByRole("button", { name: "Añadir dato marcado" }).click();
   await expect(page.getByText("Dato añadido. Pendiente de revisar")).toBeVisible();
-  const progress = page.getByRole("status", { name: "Review progress" });
-  await expect(progress).toContainText("Pending: 1");
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
+  await expect(progress).toContainText("Pendientes: 1");
 
   // The Result remains reachable (already visited) but is now needs-attention:
   // ONE explicit task action.
@@ -321,8 +321,8 @@ test("a needs-attention Result states what remains, returns to the pending revie
   // The correction path returns to the SAME pending review without losing work.
   await page.getByRole("button", { name: "Volver a la revisión" }).click();
   await expectOnReview(page);
-  await expect(progress).toContainText("Pending: 1");
-  await expect(progress).toContainText("Accepted: 2");
+  await expect(progress).toContainText("Pendientes: 1");
+  await expect(progress).toContainText("Aceptadas: 2");
 
   // Not-ready friction: ONE explicit task action into the not-ready Result and
   // ONE return action back to the SAME pending review (both witnessed above);
@@ -423,7 +423,7 @@ test("an unrepresentable PDF character fails the PDF action with zero download w
   await page.goto("/");
   await page.getByRole("textbox", { name: "Pegar texto" }).fill(buildLongRefusalText());
   await page.getByRole("button", { name: "Crear trabajo" }).click();
-  const progress = page.getByRole("status", { name: "Review progress" });
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
   // The long narrative itself carries realistic detected volume; decide it all
   // through the real review controls before reaching Result.
   await expect(progress).toContainText("Total:");

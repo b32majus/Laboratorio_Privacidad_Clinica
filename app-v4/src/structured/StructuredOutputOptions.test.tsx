@@ -43,8 +43,8 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
   });
   it("renders no output-options section without the prop (backward compatible)", () => {
     render(<StructuredConfigureWorkspace {...baseProps()} />);
-    expect(screen.queryByLabelText(/study-ID prefix/i)).toBeNull();
-    expect(screen.queryByText(/output options/i)).toBeNull();
+    expect(screen.queryByLabelText(/prefijo de ID de estudio/i)).toBeNull();
+    expect(screen.queryByText(/opciones de salida/i)).toBeNull();
   });
 
   it("edits the Study-ID prefix through the domain callback, never locally", () => {
@@ -64,7 +64,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         }}
       />
     );
-    const input = screen.getByLabelText(/study-ID prefix/i);
+    const input = screen.getByLabelText(/prefijo de ID de estudio/i);
     expect(input).toHaveValue("PAC");
     fireEvent.change(input, { target: { value: "hs1" } });
     // The control is controlled: every keystroke goes out through the domain
@@ -93,7 +93,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         }}
       />
     );
-    const alert = screen.getByRole("alert", { name: /study-ID prefix/i });
+    const alert = screen.getByRole("alert", { name: /prefijo de ID de estudio/i });
     expect(alert.textContent).toMatch(/invalid/);
   });
 
@@ -114,7 +114,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         }}
       />
     );
-    const checkbox = screen.getByLabelText(/visit numbering/i);
+    const checkbox = screen.getByLabelText(/numeración de visitas/i);
     expect(checkbox).toBeChecked();
     fireEvent.click(checkbox);
     expect(onToggleVisitNumber).toHaveBeenCalledWith(false);
@@ -134,8 +134,10 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         }}
       />
     );
-    expect(screen.getByLabelText(/visit numbering/i)).toBeDisabled();
-    expect(screen.getByText(/patient-ID column is selected/i)).toBeDefined();
+    expect(screen.getByLabelText(/numeración de visitas/i)).toBeDisabled();
+    expect(
+      screen.getByText(/disponible cuando se selecciona una columna de identificación de paciente/i)
+    ).toBeDefined();
   });
 
   it("shows factual counts — and unavailability, never guesses — for patient facts", () => {
@@ -154,7 +156,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         }}
       />
     );
-    const facts = screen.getByRole("status", { name: /structured output facts/i });
+    const facts = screen.getByRole("status", { name: /datos de salida estructurada/i });
     expect(facts.textContent).toMatch(/3/);
     expect(facts.textContent).toMatch(/2/);
     expect(facts.textContent).not.toMatch(/risk|score|chronolog|certif|anonym/i);
@@ -174,7 +176,7 @@ describe("StructuredConfigureWorkspace — output options and factual summary", 
         }}
       />
     );
-    const unavailable = screen.getByRole("status", { name: /structured output facts/i });
-    expect(unavailable.textContent).toMatch(/unavailable/i);
+    const unavailable = screen.getByRole("status", { name: /datos de salida estructurada/i });
+    expect(unavailable.textContent).toMatch(/no disponible/i);
   });
 });

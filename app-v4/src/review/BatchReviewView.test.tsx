@@ -198,11 +198,11 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     const view = render(
       <BatchReviewView job={job} sessions={sessions} activeIndex={0} {...handlers} />
     );
-    const items = within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button");
+    const items = within(screen.getByRole("list", { name: "Hallazgos" })).getAllByRole("button");
     fireEvent.click(items[items.length - 1]);
     fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "DOCUMENTO A" } });
     fireEvent.change(screen.getByLabelText("Nota (opcional)"), { target: { value: "NOTA A" } });
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     inspector.focus();
     view.rerender(<BatchReviewView job={job} sessions={sessions} activeIndex={1} {...handlers} />);
     expect(screen.getByLabelText("Sustitución")).toHaveValue("");
@@ -210,13 +210,13 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     expect(inspector).not.toHaveFocus();
     fireEvent.keyDown(inspector, { key: "a" });
     expect(handlers.onDecide).not.toHaveBeenCalled();
-    const current = within(screen.getByRole("list", { name: "Detections" })).getAllByRole(
+    const current = within(screen.getByRole("list", { name: "Hallazgos" })).getAllByRole(
       "button"
     )[0];
     expect(current).toHaveAttribute("aria-current", "true");
     view.rerender(<BatchReviewView job={job} sessions={sessions} activeIndex={0} {...handlers} />);
     expect(
-      within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
+      within(screen.getByRole("list", { name: "Hallazgos" })).getAllByRole("button")[0]
     ).toHaveAttribute("aria-current", "true");
     expect(screen.getByLabelText("Nota (opcional)")).toHaveValue("");
     expect(sessions[0].decisions).toEqual({});
@@ -244,20 +244,20 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
       }
       render(<ContextHarness />);
       fireEvent.click(
-        within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
+        within(screen.getByRole("list", { name: "Hallazgos" })).getAllByRole("button")[0]
       );
       if (mode === "manual") {
         const range = document.createRange();
         range.selectNodeContents(
-          screen.getByRole("group", { name: "Document text with detections" }).firstChild!
+          screen.getByRole("group", { name: "Texto del documento con hallazgos" }).firstChild!
         );
         window.getSelection()?.addRange(range);
         fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
         fireEvent.change(screen.getByLabelText("Tipo de dato"), {
           target: { value: "Dato de documento A" },
         });
-      } else fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, mantener original";
+      } else fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, conservar original";
       const oldConfirm = screen.getByRole("button", { name: confirmName });
       fireEvent.click(screen.getByRole("button", { name: /doc-b\.txt/ }));
       expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();
@@ -278,7 +278,7 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     // #86: the queue opens on Necesitan atención; choose Todos to see the
     // completed row alongside the attention rows.
     fireEvent.click(screen.getByRole("button", { name: "Todos (3)" }));
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
 
     // Spanish status labels, conveyed by text (never color alone).
     expect(within(list).getByText("Completado")).toBeInTheDocument();
@@ -370,7 +370,7 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     // #86: a removed error leaves active attention; it stays discoverable in
     // Retirados (and Todos).
     fireEvent.click(screen.getByRole("button", { name: "Retirados (1)" }));
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     expect(within(list).getByText(/Retirado del lote/)).toBeInTheDocument();
     expect(within(list).getByText(/Synthetic processing failure\./)).toBeInTheDocument();
     expect(list).toHaveTextContent("Error");
@@ -396,7 +396,7 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
   it("an acknowledged item keeps its error status, shows the fact and keeps retry/remove (after parent re-render)", async () => {
     const acknowledged = acknowledgeBatchItemError(processingFailureJob(), 2);
     await renderView({ job: acknowledged });
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     expect(within(list).getByText(/Error reconocido/)).toBeInTheDocument();
     expect(within(list).getByText("Error")).toBeInTheDocument();
     // Retry and removal stay available; the acknowledge action is gone.
@@ -474,7 +474,7 @@ describe("BatchReviewView failure recovery (#78, REC-06)", () => {
     // `queued` for both rows (review completion is a separate domain fact).
     const sessions = { 0: completedSession(await sessionFor(queuedOnly, 0)) };
     await renderView({ job: queuedOnly, sessions });
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     expect(within(list).getAllByText("En cola")).toHaveLength(2);
     for (const button of screen.getAllByRole("button")) {
       expect(button.tagName).toBe("BUTTON");
@@ -722,7 +722,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
     expect(screen.getByRole("button", { name: "Listos (2)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retirados (3)" })).toBeInTheDocument();
 
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     // The attention view is exactly its 8 rows, each with its factual status.
     expect(within(list).getAllByRole("listitem")).toHaveLength(8);
     expect(within(list).getAllByText("Requiere revisión")).toHaveLength(5);
@@ -742,7 +742,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
 
   it("locates completed and removed documents without the attention rows", async () => {
     await renderView({ job: orientationJob() });
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
 
     fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
@@ -758,7 +758,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
 
   it("keeps an acknowledged error in attention and a removed error out of it", async () => {
     await renderView({ job: orientationJob() });
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     const item = (name: string) => within(list).getByText(name);
 
     // item 10 (acknowledged) is still attention; item 12 (removed) is not.
@@ -803,10 +803,10 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
     }
     render(<FiltersHarness />);
 
-    const progress = () => screen.getByRole("status", { name: "Review progress" });
+    const progress = () => screen.getByRole("status", { name: "Progreso de la revisión" });
     // The seeded decisions are exactly what the active document's workspace
     // reports before any filter change.
-    expect(progress()).toHaveTextContent("All mandatory decisions complete: yes");
+    expect(progress()).toHaveTextContent("Todas las decisiones obligatorias completadas: sí");
 
     // Filtering through every working category selects nothing and discards no
     // decision: it is a pure presentation change.
@@ -822,17 +822,17 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
       "aria-current",
       "true"
     );
-    expect(progress()).toHaveTextContent("All mandatory decisions complete: yes");
+    expect(progress()).toHaveTextContent("Todas las decisiones obligatorias completadas: sí");
 
     // The unrelated successful document keeps its own independent session and
     // stays usable; further filter changes leave that work untouched too.
     fireEvent.click(screen.getByRole("button", { name: /queue-doc-02\.txt/ }));
     expect(onSelectDocument).toHaveBeenCalledWith(1);
-    expect(progress()).toHaveTextContent("All mandatory decisions complete: no");
+    expect(progress()).toHaveTextContent("Todas las decisiones obligatorias completadas: no");
     fireEvent.click(screen.getByRole("button", { name: "Retirados (3)" }));
     fireEvent.click(screen.getByRole("button", { name: "Listos (2)" }));
     expect(onSelectDocument).toHaveBeenCalledTimes(1);
-    expect(progress()).toHaveTextContent("All mandatory decisions complete: no");
+    expect(progress()).toHaveTextContent("Todas las decisiones obligatorias completadas: no");
   });
 
   it("re-derives counts and membership from authoritative job props after review completion", async () => {
@@ -886,7 +886,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
       "true"
     );
     expect(
-      screen.getByRole("list", { name: "Batch document status" }).querySelectorAll("li")
+      screen.getByRole("list", { name: "Estado de los documentos del lote" }).querySelectorAll("li")
     ).toHaveLength(2);
   });
 
@@ -898,7 +898,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
     // Default attention: the open completed document is outside it, but its
     // Review workspace survives and the UI states the fact.
     expect(screen.getByText(/no pertenece al filtro actual/i)).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: "Review progress" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Todos (16)" }));
     expect(screen.queryByText(/no pertenece al filtro actual/i)).not.toBeInTheDocument();
@@ -944,7 +944,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
 
   it("a removal performed from Necesitan atención keeps its consequence perceptible", async () => {
     render(<RemovalHarness initialJob={processingFailureJob()} />);
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     const failedRow = screen.getByText(/Synthetic processing failure\./).closest("li")!;
     fireEvent.click(within(failedRow).getByRole("button", { name: "Retirar del lote" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirmar retirada" }));
@@ -993,7 +993,7 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
         })
     );
     render(<RetryHarness initialJob={processingFailureJob()} retry={retry} />);
-    const list = screen.getByRole("list", { name: "Batch document status" });
+    const list = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     const failedRow = screen.getByText(/Synthetic processing failure\./).closest("li")!;
     fireEvent.click(within(failedRow).getByRole("button", { name: "Reintentar" }));
 

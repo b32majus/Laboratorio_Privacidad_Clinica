@@ -41,7 +41,7 @@ function columnRow(page: Page, header: string) {
   // Scope by the row's select button: a bare hasText filter would also match
   // nested content, and the comparative row is identified by its column.
   return page
-    .getByRole("table", { name: "Column classification list" })
+    .getByRole("table", { name: "Lista de clasificación de columnas" })
     .locator("tbody tr")
     .filter({ has: page.getByRole("button", { name: header }) });
 }
@@ -55,25 +55,28 @@ async function selectColumn(page: Page, header: string): Promise<void> {
 async function configureComposedJob(page: Page): Promise<void> {
   await page.getByLabel("Columna de identificación del paciente").selectOption("NHC");
   await selectColumn(page, "Fecha_Visita");
-  await page.getByLabel("Date role for Fecha_Visita").selectOption("visit");
+  await page.getByLabel("Rol de fecha para Fecha_Visita").selectOption("visit");
   await selectColumn(page, "Fecha_Nacimiento");
-  await page.getByLabel("Date role for Fecha_Nacimiento").selectOption("birth");
+  await page.getByLabel("Rol de fecha para Fecha_Nacimiento").selectOption("birth");
   await selectColumn(page, "Notas");
-  await page.getByLabel("Reviewer action for Notas").selectOption("process-as-text");
-  const summary = page.getByRole("status", { name: "Structured configuration facts" });
-  await expect(summary).toContainText("Columns requiring review: 0");
+  await page.getByLabel("Acción del revisor para Notas").selectOption("process-as-text");
+  const summary = page.getByRole("status", { name: "Datos de la configuración estructurada" });
+  await expect(summary).toContainText("Columnas que requieren revisión: 0");
 }
 
 /** Decide every pending detection of the active free-text cell workspace. */
 async function decideActiveCell(page: Page): Promise<void> {
   // Filter to pending detections so the first list item is always an
   // undecided one (re-clicking a decided detection would never advance).
-  await page.getByRole("button", { name: "Pending", exact: true }).click();
-  const workspaceProgress = page.getByRole("status", { name: "Review progress", exact: true });
-  const pendingCount = workspaceProgress.locator('dt:text-is("Pending:") + dd');
+  await page.getByRole("button", { name: "Pendientes", exact: true }).click();
+  const workspaceProgress = page.getByRole("status", {
+    name: "Progreso de la revisión",
+    exact: true,
+  });
+  const pendingCount = workspaceProgress.locator('dt:text-is("Pendientes:") + dd');
   for (let guard = 0; guard < 30; guard += 1) {
     if ((await pendingCount.innerText()).trim() === "0") break;
-    await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+    await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
     const accept = page.getByRole("button", { name: "Aceptar detección" });
     if (await accept.isEnabled()) await accept.click();
     else await keepOriginalThroughUi(page);
@@ -85,25 +88,25 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   page,
 }) => {
   await createComposedJob(page);
-  const summary = page.getByRole("status", { name: "Structured configuration facts" });
-  await expect(summary).toContainText("Columns: 7");
+  const summary = page.getByRole("status", { name: "Datos de la configuración estructurada" });
+  await expect(summary).toContainText("Columnas: 7");
   // Unresolved quasi/date-role columns and the Unknown free-text column keep
   // the export gate closed before configuration.
-  await expect(summary).toContainText("Columns requiring review: 3");
-  await expect(summary).toContainText("Structured export ready: No");
-  await expect(page.getByRole("alert", { name: "Structured export block reasons" })).toContainText(
-    /requires review/
-  );
+  await expect(summary).toContainText("Columnas que requieren revisión: 3");
+  await expect(summary).toContainText("Exportación estructurada preparada: No");
+  await expect(
+    page.getByRole("alert", { name: "Motivos de bloqueo de la exportación estructurada" })
+  ).toContainText(/requiere[n]? revisión/);
 
   await configureComposedJob(page);
 
   // Stronger authorities visibly lock their derived action.
-  await expect(columnRow(page, "NHC")).toContainText("Study ID");
+  await expect(columnRow(page, "NHC")).toContainText("ID de estudio");
   await expect(columnRow(page, "NHC")).toContainText("derivado/bloqueado");
-  await expect(columnRow(page, "Fecha_Visita")).toContainText("Date policy");
-  await expect(columnRow(page, "Centro")).toContainText("Pseudonymize");
-  await expect(columnRow(page, "Diagnostico")).toContainText("Keep");
-  await expect(columnRow(page, "Notas")).toContainText("Process as text");
+  await expect(columnRow(page, "Fecha_Visita")).toContainText("Política de fechas");
+  await expect(columnRow(page, "Centro")).toContainText("Seudonimizar");
+  await expect(columnRow(page, "Diagnostico")).toContainText("Conservar");
+  await expect(columnRow(page, "Notas")).toContainText("Procesar como texto");
 
   // No new step/mode appears: the quiet shell (#84) has no universal
   // navigation and offers exactly the canonical onward task action.
@@ -111,35 +114,35 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
 
   // Review: the free-text cells are unprocessed until the explicit run.
   await page.getByRole("button", { name: "Continuar a la revisión" }).click();
-  await expect(page.getByRole("status")).toContainText("not been processed yet");
-  await page.getByRole("button", { name: "Process free-text cells" }).click();
-  const progress = page.getByRole("status", { name: "Free-text review progress" });
-  await expect(progress).toContainText("Cells: 2");
+  await expect(page.getByRole("status")).toContainText(/no se han procesado/);
+  await page.getByRole("button", { name: "Procesar celdas de texto libre" }).click();
+  const progress = page.getByRole("status", { name: "Progreso de la revisión de texto libre" });
+  await expect(progress).toContainText("Celdas: 2");
 
   // Decide every pending detection in both cells (row-major queue names
   // which column/row cell is under review).
-  await page.getByRole("button", { name: /Notas, row 1/ }).click();
+  await page.getByRole("button", { name: /Notas, fila 1/ }).click();
   await decideActiveCell(page);
-  await page.getByRole("button", { name: /Notas, row 2/ }).click();
+  await page.getByRole("button", { name: /Notas, fila 2/ }).click();
   await decideActiveCell(page);
-  await expect(progress).toContainText("Pending decisions: 0");
-  await expect(progress).toContainText("Free-text review ready: Yes");
+  await expect(progress).toContainText("Decisiones pendientes: 0");
+  await expect(progress).toContainText("Revisión de texto libre preparada: Sí");
 
   // Privacy Gate: the composed readiness is factual and complete.
-  await page.getByRole("button", { name: "Privacy Gate", exact: true }).click();
-  const gateFacts = page.getByRole("status", { name: "Structured export facts" });
-  await expect(gateFacts).toContainText("Columns: 7");
-  await expect(gateFacts).toContainText("Columns requiring review: 0");
-  await expect(gateFacts).toContainText("Unsupported columns: 0");
+  await page.getByRole("button", { name: "Comprobación de privacidad", exact: true }).click();
+  const gateFacts = page.getByRole("status", { name: "Datos de la salida estructurada" });
+  await expect(gateFacts).toContainText("Columnas: 7");
+  await expect(gateFacts).toContainText("Columnas que requieren revisión: 0");
+  await expect(gateFacts).toContainText("Columnas no compatibles: 0");
   await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Decision checkpoint" })).toContainText(
-    "Review complete"
+  await expect(page.getByRole("region", { name: "Punto de control de la decisión" })).toContainText(
+    "Preparado"
   );
 
   // Export: separate Safe CSV and Confidential Audit downloads.
   await page.getByRole("button", { name: "Ir al resultado" }).click();
   const safeDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download Safe Structured Output (.csv)" }).click();
+  await page.getByRole("button", { name: "Descargar salida estructurada segura (.csv)" }).click();
   const safeDownload = await safeDownloadPromise;
   const safeCsv = fs.readFileSync((await safeDownload.path())!, "utf8");
   const lines = safeCsv.split("\n");
@@ -180,10 +183,12 @@ test("composed structured Job traverses Configure → Review → Privacy Gate �
   }
 
   const auditDownloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download Structured Confidential Audit (.txt)" }).click();
+  await page
+    .getByRole("button", { name: "Descargar auditoría confidencial estructurada (.txt)" })
+    .click();
   // REC-04 D-022 (H-42 structured slice): the identifiable Confidential
   // artifact requires the additional deliberate in-zone confirmation.
-  await page.getByRole("button", { name: "Confirm confidential download (.txt)" }).click();
+  await page.getByRole("button", { name: "Confirmar descarga confidencial (.txt)" }).click();
   const auditDownload = await auditDownloadPromise;
   const audit = fs.readFileSync((await auditDownload.path())!, "utf8");
   expect(audit).toContain("CONFIDENTIAL");
@@ -202,26 +207,28 @@ test("switching policy drops the free-text review and closes the gate (no stale 
   await configureComposedJob(page);
 
   await page.getByRole("button", { name: "Continuar a la revisión" }).click();
-  await page.getByRole("button", { name: "Process free-text cells" }).click();
-  await expect(page.getByRole("status", { name: "Free-text review progress" })).toContainText(
-    "Cells: 2"
-  );
+  await page.getByRole("button", { name: "Procesar celdas de texto libre" }).click();
+  await expect(
+    page.getByRole("status", { name: "Progreso de la revisión de texto libre" })
+  ).toContainText("Celdas: 2");
 
   // A real policy change invalidates the sessions processed under the
   // previous policy: Review returns to the unprocessed state.
   await page.getByLabel("Política de privacidad:").selectOption("external-ai");
-  await expect(page.getByRole("status")).toContainText("not been processed yet");
-  await expect(page.getByRole("button", { name: "Process free-text cells" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(/no se han procesado/);
+  await expect(page.getByRole("button", { name: "Procesar celdas de texto libre" })).toBeVisible();
 
   // Configure reports the export not ready, and the quiet shell stays
   // fail-closed (issue #84): no Privacy Gate or Result destination is offered
   // anywhere while the export gate is closed — only the canonical Configure
   // work and its onward review action.
-  await page.getByRole("button", { name: "Back to Configure" }).click();
-  await expect(page.getByRole("status", { name: "Structured configuration facts" })).toContainText(
-    "Structured export ready: No"
-  );
-  await expect(page.getByRole("button", { name: "Privacy Gate", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Volver a preparar datos" }).click();
+  await expect(
+    page.getByRole("status", { name: "Datos de la configuración estructurada" })
+  ).toContainText("Exportación estructurada preparada: No");
+  await expect(
+    page.getByRole("button", { name: "Comprobación de privacidad", exact: true })
+  ).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ir al resultado" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 });

@@ -75,6 +75,8 @@ import {
   deriveStructuredSummary,
   type StructuredOutputPreparation,
 } from "../structured/transformed-dataset";
+import { localizeStructuredBlockReason } from "../structured/reason-labels";
+import { localizeDomainErrorMessage } from "../presentation/domain-message-labels";
 import type { StructuredConfiguration } from "../structured/configuration";
 import type { StructuredTransformPlan } from "../structured/transform-plan";
 import { isFreeTextCellSetCurrent, type StructuredFreeTextState } from "../structured/free-text";
@@ -108,8 +110,8 @@ const focusRing =
 const SAFE_TXT_FILE_NAME = "texto-preparado.txt";
 /** REC-05 WU-C D-024 single-item Confidential Audit TXT filename (Spanish). */
 const CONFIDENTIAL_AUDIT_FILE_NAME = "auditoria-confidencial.txt";
-const SAFE_STRUCTURED_FILE_NAME = "safe-structured-output.csv";
-const CONFIDENTIAL_STRUCTURED_FILE_NAME = "structured-confidential-audit.txt";
+const SAFE_STRUCTURED_FILE_NAME = "salida-estructurada-segura.csv";
+const CONFIDENTIAL_STRUCTURED_FILE_NAME = "auditoria-confidencial-estructurada.txt";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
@@ -453,7 +455,7 @@ function StructuredExport({
         message:
           error instanceof Error
             ? error.message
-            : "Safe XLSX could not be generated from the prepared output.",
+            : "No se pudo generar la salida segura en XLSX a partir del resultado preparado.",
       });
     }
   };
@@ -503,7 +505,7 @@ function StructuredExport({
         message:
           error instanceof Error
             ? error.message
-            : "Confidential XLSX could not be generated from the prepared output.",
+            : "No se pudo generar la auditoría confidencial en XLSX a partir del resultado preparado.",
       });
     }
   };
@@ -514,25 +516,27 @@ function StructuredExport({
   return (
     <section aria-labelledby="export-step-heading">
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Export</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
+          Resultado
+        </p>
         <h2
           id="export-step-heading"
           className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
         >
-          Export
+          Resultado
         </h2>
         <p className="mt-2 text-base leading-relaxed text-neutral-700">
-          Two independent artifacts are produced from this structured configuration, downloaded
-          separately. Download only the one your destination is authorized to receive.
+          A partir de esta configuración estructurada se producen dos entregables independientes,
+          que se descargan por separado. Descargue solo el que su destino esté autorizado a recibir.
         </p>
       </header>
 
       <section aria-labelledby="safe-structured-heading" className={zoneCard}>
         <div className="border-b border-primary/30 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className={`${zoneBadge} bg-primary-dark`}>Deliverable</span>
+            <span className={`${zoneBadge} bg-primary-dark`}>Entregable</span>
             <h3 id="safe-structured-heading" className={zoneHeading}>
-              Safe Structured Output
+              Salida estructurada segura
             </h3>
           </div>
         </div>
@@ -549,7 +553,7 @@ function StructuredExport({
               className={`${blockedNote} list-disc space-y-0.5 pl-6`}
             >
               {reasons.map((reason, index) => (
-                <li key={index}>{reason}</li>
+                <li key={index}>{localizeStructuredBlockReason(reason)}</li>
               ))}
             </ul>
           )}
@@ -561,7 +565,7 @@ function StructuredExport({
             aria-describedby={blocked ? "safe-structured-blocked-reason" : undefined}
             className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            Download Safe Structured Output (.csv)
+            Descargar salida estructurada segura (.csv)
           </button>
           <button
             type="button"
@@ -570,11 +574,11 @@ function StructuredExport({
             aria-describedby={blocked ? "safe-structured-blocked-reason" : undefined}
             className={`mt-3 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            Download Safe Structured Output (.xlsx)
+            Descargar salida estructurada segura (.xlsx)
           </button>
           {xlsxError !== null && xlsxError.zone === "safe" && (
             <p role="alert" className={blockedNote}>
-              {xlsxError.message}
+              {localizeDomainErrorMessage(xlsxError.message)}
             </p>
           )}
         </div>
@@ -586,12 +590,12 @@ function StructuredExport({
       >
         <div className="bg-surface-dark px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className={`${zoneBadge} border border-white/70`}>Internal</span>
+            <span className={`${zoneBadge} border border-white/70`}>Interno</span>
             <h3
               id="structured-confidential-heading"
               className="font-display text-lg font-bold text-white"
             >
-              Structured Confidential Audit
+              Auditoría confidencial estructurada
             </h3>
           </div>
         </div>
@@ -600,13 +604,14 @@ function StructuredExport({
             {CONFIDENTIAL_AUDIT_WARNING_LINE}
           </p>
           <p className={`mt-2 ${zoneBody}`}>
-            The original↔transformed correspondence behind the Safe table (date/age, pseudonymized
-            and Study-ID columns, plus removed columns). It is an internal traceability record and
-            must never be shared or delivered outside the authorized audit trail.
+            La correspondencia original↔transformado detrás de la tabla segura (columnas de
+            fecha/edad, seudonimizadas e ID de estudio, además de las columnas eliminadas). Es un
+            registro de trazabilidad interno y nunca debe compartirse ni entregarse fuera de la
+            pista de auditoría autorizada.
           </p>
           {confidentialReasonVisible && (
             <p role="status" id="structured-confidential-blocked-reason" className={blockedNote}>
-              Confidential Audit is not available for this job yet.
+              La auditoría confidencial todavía no está disponible para este trabajo.
             </p>
           )}
           <button
@@ -616,7 +621,7 @@ function StructuredExport({
             aria-describedby={confidentialDescribedBy}
             className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            Download Structured Confidential Audit (.txt)
+            Descargar auditoría confidencial estructurada (.txt)
           </button>
           <button
             type="button"
@@ -625,7 +630,7 @@ function StructuredExport({
             aria-describedby={confidentialDescribedBy}
             className={`mt-3 rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white disabled:cursor-not-allowed disabled:opacity-70 ${focusRing}`}
           >
-            Download Structured Confidential Audit (.xlsx)
+            Descargar auditoría confidencial estructurada (.xlsx)
           </button>
           {pendingConfirmation !== null && !confidentialBlocked && (
             <div
@@ -637,12 +642,12 @@ function StructuredExport({
                 id="structured-confidential-confirm-heading"
                 className="text-sm font-bold text-neutral-800"
               >
-                Confirm confidential download ({pendingConfirmation === "txt" ? ".txt" : ".xlsx"})
+                Confirmar descarga confidencial ({pendingConfirmation === "txt" ? ".txt" : ".xlsx"})
               </h4>
               <p className="mt-1 text-sm leading-relaxed text-neutral-800">
-                This artifact contains identifiable, reversible original↔transformed correspondence
-                and is for authorized internal handling only. Confirm to download it once now, or
-                cancel to download nothing.
+                Este entregable contiene correspondencia identificable y reversible entre los
+                valores originales y sus transformados, y es solo para manejo interno autorizado.
+                Confirma para descargarlo una vez ahora, o cancela para no descargar nada.
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
@@ -650,21 +655,22 @@ function StructuredExport({
                   onClick={() => void handleConfirmConfidential()}
                   className={`rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary ${focusRing}`}
                 >
-                  Confirm confidential download ({pendingConfirmation === "txt" ? ".txt" : ".xlsx"})
+                  Confirmar descarga confidencial (
+                  {pendingConfirmation === "txt" ? ".txt" : ".xlsx"})
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelConfidential}
                   className={`rounded border border-surface-dark px-4 py-2 text-sm font-semibold text-neutral-800 hover:bg-surface-dark hover:text-white ${focusRing}`}
                 >
-                  Cancel confidential download
+                  Cancelar descarga confidencial
                 </button>
               </div>
             </div>
           )}
           {xlsxError !== null && xlsxError.zone === "confidential" && (
             <p role="alert" className={blockedNote}>
-              {xlsxError.message}
+              {localizeDomainErrorMessage(xlsxError.message)}
             </p>
           )}
         </div>

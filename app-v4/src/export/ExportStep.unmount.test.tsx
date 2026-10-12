@@ -265,8 +265,8 @@ function structuredJobFor(id: string, ready: boolean): Job {
 }
 
 describe("REC-07 prefactor #79 — Structured export unmount disposal", () => {
-  const SAFE_XLSX_BUTTON = "Download Safe Structured Output (.xlsx)";
-  const CONF_XLSX_BUTTON = "Download Structured Confidential Audit (.xlsx)";
+  const SAFE_XLSX_BUTTON = "Descargar salida estructurada segura (.xlsx)";
+  const CONF_XLSX_BUTTON = "Descargar auditoría confidencial estructurada (.xlsx)";
 
   it("produces ZERO download when the surface unmounts during the awaited Safe XLSX generation", async () => {
     const captured = captureDownloads();
@@ -320,7 +320,7 @@ describe("REC-07 prefactor #79 — Structured export unmount disposal", () => {
         });
 
       fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
-      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirmar descarga confidencial/i }));
       expect(captured.downloads).toHaveLength(0);
 
       view.unmount();
@@ -370,7 +370,7 @@ describe("REC-07 prefactor #79 — Structured export unmount disposal", () => {
     );
     try {
       fireEvent.click(screen.getByRole("button", { name: CONF_XLSX_BUTTON }));
-      fireEvent.click(screen.getByRole("button", { name: /confirm confidential download/i }));
+      fireEvent.click(screen.getByRole("button", { name: /confirmar descarga confidencial/i }));
       await flushAsyncWork();
 
       expect(captured.downloads).toHaveLength(1);

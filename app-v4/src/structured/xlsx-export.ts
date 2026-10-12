@@ -32,10 +32,11 @@ import type {
 import type { XlsxLib, XlsxWorksheet } from "./xlsx-loader";
 
 /** Suggested Safe XLSX filename (REC-10 owns localization later). */
-export const SAFE_STRUCTURED_XLSX_FILE_NAME = "safe-structured-output.xlsx" as const;
+export const SAFE_STRUCTURED_XLSX_FILE_NAME = "salida-estructurada-segura.xlsx" as const;
 
 /** Suggested Confidential XLSX filename (REC-10 owns localization later). */
-export const CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME = "structured-confidential-audit.xlsx" as const;
+export const CONFIDENTIAL_STRUCTURED_XLSX_FILE_NAME =
+  "auditoria-confidencial-estructurada.xlsx" as const;
 
 /** First (and primary) Safe worksheet: Safe headers + Safe rows. */
 export const SAFE_DATA_SHEET_NAME = "Data" as const;

@@ -16,7 +16,7 @@ import {
  * never invent an availability table or a second operator mapping.
  */
 const FORBIDDEN_CLAIM =
-  /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy/i;
+  /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy|an[oó]nim[oa]|anonimizad|certificad|cumplimient|k-anonimato|privacidad diferencial/i;
 
 function entryFor(jobKind: JobKind | null, policyId: PrivacyPolicyId) {
   const entry = buildPolicyGuidance(jobKind).find((candidate) => candidate.policyId === policyId);
@@ -30,8 +30,8 @@ describe("policy guidance availability derivation", () => {
   });
 
   it("exposes the exact textual availability states", () => {
-    expect(POLICY_AVAILABILITY_LABELS.available).toBe("Available");
-    expect(POLICY_AVAILABILITY_LABELS.unavailable).toBe("Not available for this job type yet");
+    expect(POLICY_AVAILABILITY_LABELS.available).toBe("Disponible");
+    expect(POLICY_AVAILABILITY_LABELS.unavailable).toBe("No disponible para este tipo de trabajo");
   });
 
   it("makes all four policies available for text/document/document-batch jobs (REC-02)", () => {
@@ -97,14 +97,16 @@ describe("policy guidance no-job copy (POLICY-01 #56)", () => {
       const guidance = entryFor(null, policyId).guidance;
       expect(guidance.length).toBeGreaterThan(0);
       // No unsubstantiated qualitative positioning (e.g. the old "Balanced").
-      expect(guidance).not.toMatch(/\bbalanced\b/i);
+      expect(guidance).not.toMatch(/\bbalanced\b|\bequilibrad[oa]\b/i);
       // Before a job exists the job kind is unknown, so the structured-only
       // per-patient shift / age-band / month-level behavior must NOT be
       // presented as this policy's behavior everywhere.
-      expect(guidance).not.toMatch(/per-patient|age[- ]band|month[- ]level/i);
+      expect(guidance).not.toMatch(
+        /per-patient|age[- ]band|month[- ]level|por paciente|banda de edad|nivel de mes/i
+      );
       // Every entry must be honest that behavior/availability depend on the
       // (still unknown) job type.
-      expect(guidance).toMatch(/job type/i);
+      expect(guidance).toMatch(/job type|tipo de trabajo/i);
     }
   });
 
@@ -112,7 +114,7 @@ describe("policy guidance no-job copy (POLICY-01 #56)", () => {
     for (const jobKind of [null, "text", "document", "document-batch"] as const) {
       for (const policyId of ["external-ai", "longitudinal-research"] as const) {
         expect(entryFor(jobKind, policyId).guidance).not.toMatch(
-          /no accepted operator mapping|not available for this job type yet/i
+          /no accepted operator mapping|not available for this job type yet|sin operador aceptado|no disponible para este tipo de trabajo/i
         );
       }
     }
@@ -132,8 +134,8 @@ describe("policy guidance text/document facts (REC-02)", () => {
   it("describes Standard as pseudonymize/redact/generalize", () => {
     for (const jobKind of TEXT_KINDS) {
       const guidance = entryFor(jobKind, "standard").guidance;
-      expect(guidance).toMatch(/pseudonymiz/i);
-      expect(guidance).toMatch(/redact/i);
+      expect(guidance).toMatch(/pseudonymiz|seudonimiz/i);
+      expect(guidance).toMatch(/redact|elimin/i);
       expect(guidance).toMatch(/generaliz/i);
     }
   });
@@ -141,20 +143,20 @@ describe("policy guidance text/document facts (REC-02)", () => {
   it("describes Strict as the stricter location/quasi generalization branch", () => {
     for (const jobKind of TEXT_KINDS) {
       const guidance = entryFor(jobKind, "strict").guidance;
-      expect(guidance).toMatch(/stricter/i);
-      expect(guidance).toMatch(/location|quasi/i);
+      expect(guidance).toMatch(/stricter|m[aá]s estricta/i);
+      expect(guidance).toMatch(/location|quasi|lugares|cuasi/i);
     }
   });
 
   it("describes External AI as local-only date-precision reduction that transmits nothing (ACCEPTANCE 18)", () => {
     for (const jobKind of TEXT_KINDS) {
       const guidance = entryFor(jobKind, "external-ai").guidance;
-      expect(guidance).toMatch(/local[- ]only/i);
-      expect(guidance).toMatch(/precision|generaliz/i);
-      expect(guidance).toMatch(/nothing is (?:transmitted|sent)/i);
+      expect(guidance).toMatch(/local[- ]only|solo local/i);
+      expect(guidance).toMatch(/precision|precisi[oó]n|generaliz/i);
+      expect(guidance).toMatch(/nothing is (?:transmitted|sent)|nada se transmite/i);
       // Never implies an outbound transfer to a service/provider.
       expect(guidance).not.toMatch(
-        /\bupload(?:s|ed)?\b|network request|sent to (?:an? )?(?:external|remote)/i
+        /\bupload(?:s|ed)?\b|network request|sent to (?:an? )?(?:external|remote)|\bsub(?:e|ir|ida)\b|petici[oó]n de red|enviad[oa]s? a (?:un )?(?:servicio|proveedor|externo)/i
       );
     }
   });
@@ -162,13 +164,13 @@ describe("policy guidance text/document facts (REC-02)", () => {
   it("describes Longitudinal Research as consistent Job-scoped shifting that grants no research approval (ACCEPTANCE 18)", () => {
     for (const jobKind of TEXT_KINDS) {
       const guidance = entryFor(jobKind, "longitudinal-research").guidance;
-      expect(guidance).toMatch(/local[- ]only/i);
-      expect(guidance).toMatch(/shift/i);
-      expect(guidance).toMatch(/order|interval/i);
-      expect(guidance).toMatch(/does not grant/i);
+      expect(guidance).toMatch(/local[- ]only|solo local/i);
+      expect(guidance).toMatch(/shift|desfase|desplaz/i);
+      expect(guidance).toMatch(/order|interval|orden|intervalo/i);
+      expect(guidance).toMatch(/does not grant|no concede/i);
       // No positive conferral of research approval/governance.
       expect(guidance).not.toMatch(
-        /research[- ]approved|approved for research|confers? (?:research )?approval/i
+        /research[- ]approved|approved for research|confers? (?:research )?approval|aprobad[oa] para investigaci[oó]n|(?<![Nn]o )concede (?:la )?aprobaci[oó]n|(?<![Nn]o )otorga (?:la )?aprobaci[oó]n/i
       );
     }
   });

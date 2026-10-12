@@ -31,7 +31,7 @@ import {
 
 const STRUCTURED_CSV = path.resolve(__dirname, "fixtures/policy-structured.csv");
 
-const POLICY_NAMES = ["Standard", "External AI", "Longitudinal Research", "Strict"] as const;
+const POLICY_NAMES = ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"] as const;
 
 test("text job: all four policies are selectable and shown available (REC-02)", async ({
   page,
@@ -46,7 +46,7 @@ test("text job: all four policies are selectable and shown available (REC-02)", 
   // Assert the reflected DOM property, the actual selectability contract.
   for (const name of POLICY_NAMES) {
     await expect(option(name)).toHaveJSProperty("disabled", false);
-    await expect(guidanceItem(page, name)).toContainText("Available");
+    await expect(guidanceItem(page, name)).toContainText("Disponible");
   }
 });
 
@@ -57,10 +57,10 @@ test("structured job: all four policies are selectable and shown available", asy
   const select = page.getByLabel("Política de privacidad:");
   for (const name of POLICY_NAMES) {
     await expect(select.getByRole("option", { name })).toHaveJSProperty("disabled", false);
-    // "Available" is capitalised; the unavailable string spells "available"
+    // "Disponible" is capitalised; the unavailable string spells "disponible"
     // lower-case, so this cannot silently match the unavailable state.
-    await expect(guidanceItem(page, name)).toContainText("Available");
-    await expect(guidanceItem(page, name)).not.toContainText("Not available");
+    await expect(guidanceItem(page, name)).toContainText("Disponible");
+    await expect(guidanceItem(page, name)).not.toContainText("No disponible");
   }
 });
 
@@ -85,22 +85,24 @@ async function createPolicyTextJob(
   // session, so processing under the selected policy is an explicit restart.
   await page.getByRole("button", { name: "Iniciar revisión" }).click();
   await expect(
-    page.getByRole("list", { name: "Detections" }).getByRole("button").first()
+    page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first()
   ).toBeVisible();
 }
 
-/** The Entity Inspector's "Proposed replacement" value for the selected detection. */
+/** The Entity Inspector's "Sustitución propuesta" value for the selected detection. */
 function proposedReplacement(page: import("@playwright/test").Page) {
-  return page.getByLabel("Entity inspector").locator('dt:text-is("Proposed replacement") + dd');
+  return page
+    .getByLabel("Inspector del hallazgo")
+    .locator('dt:text-is("Sustitución propuesta") + dd');
 }
 
 /**
- * #78 moved «Proposed replacement» into the collapsed «Detalles de la detección»
+ * #78 moved «Sustitución propuesta» into the collapsed «Detalles del hallazgo»
  * disclosure of the Entity Inspector. Open it (idempotently) before reading the
  * value; the real date transformation it reveals is asserted unchanged.
  */
 async function openDetectionDetails(page: import("@playwright/test").Page): Promise<void> {
-  const details = page.getByLabel("Entity inspector").locator("details");
+  const details = page.getByLabel("Inspector del hallazgo").locator("details");
   if (!(await details.evaluate((element) => (element as HTMLDetailsElement).open))) {
     await details.locator("summary").click();
   }
@@ -108,12 +110,12 @@ async function openDetectionDetails(page: import("@playwright/test").Page): Prom
 
 /** Accept/keep every pending decision until the review reports zero pending. */
 async function completeAllPending(page: import("@playwright/test").Page): Promise<void> {
-  const progress = page.getByRole("status", { name: "Review progress" });
-  const pendingCount = progress.locator('dt:text-is("Pending:") + dd');
-  await page.getByRole("button", { name: "Pending", exact: true }).click();
+  const progress = page.getByRole("status", { name: "Progreso de la revisión" });
+  const pendingCount = progress.locator('dt:text-is("Pendientes:") + dd');
+  await page.getByRole("button", { name: "Pendientes", exact: true }).click();
   for (let guard = 0; guard < 40; guard += 1) {
     if ((await pendingCount.innerText()).trim() === "0") break;
-    await page.getByRole("list", { name: "Detections" }).getByRole("button").first().click();
+    await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
     const accept = page.getByRole("button", { name: "Aceptar detección" });
     if (await accept.isEnabled()) await accept.click();
     else await keepOriginalThroughUi(page);
@@ -127,7 +129,7 @@ test("text job: External AI is selected and processes with reduced date precisio
   await createPolicyTextJob(page, "external-ai");
 
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /FECHA/ })
     .click();
   await openDetectionDetails(page);
@@ -135,7 +137,7 @@ test("text job: External AI is selected and processes with reduced date precisio
 
   await completeAllPending(page);
   // The completed review opens the output gate: Privacy Gate then Export.
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
   await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeEnabled();
 });
 
@@ -145,7 +147,7 @@ test("text job: Longitudinal Research is selected and processes with a consisten
   await createPolicyTextJob(page, "longitudinal-research");
 
   await page
-    .getByRole("list", { name: "Detections" })
+    .getByRole("list", { name: "Hallazgos" })
     .getByRole("button", { name: /FECHA/ })
     .click();
   await openDetectionDetails(page);
@@ -156,7 +158,7 @@ test("text job: Longitudinal Research is selected and processes with a consisten
 
   await completeAllPending(page);
   // The completed review opens the output gate: Privacy Gate then Export.
-  await page.getByRole("button", { name: "Privacy Gate" }).click();
+  await page.getByRole("button", { name: "Comprobación de privacidad" }).click();
   await expect(page.getByRole("button", { name: "Ir al resultado" })).toBeEnabled();
 });
 
@@ -185,15 +187,15 @@ test("changed policy guidance normal text meets WCAG AA against the rendered com
     { label: "Current policy line", locator: region.locator("p").nth(1) },
     {
       label: "Availability badge",
-      locator: guidanceItem(page, "Standard").getByText("Available", { exact: true }),
+      locator: guidanceItem(page, "Estándar").getByText("Disponible", { exact: true }),
     },
     {
       label: "Standard guidance body",
-      locator: guidanceItem(page, "Standard").locator("p").last(),
+      locator: guidanceItem(page, "Estándar").locator("p").last(),
     },
     {
       label: "External AI guidance body",
-      locator: guidanceItem(page, "External AI").locator("p").last(),
+      locator: guidanceItem(page, "IA externa").locator("p").last(),
     },
   ];
   for (const pair of pairs) {

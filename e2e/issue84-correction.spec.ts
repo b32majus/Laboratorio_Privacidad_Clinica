@@ -36,7 +36,11 @@ for (const [width, height] of [
     // REAL policy change from the Result: the session-dependent authorization
     // is invalidated; the stale Result and every download affordance vanish.
     await page.getByLabel("Política de privacidad:").selectOption("strict");
-    await expect(page.getByRole("heading", { level: 2, name: "Resultado" })).toHaveCount(0);
+    // I84-C1: `Export` is now the Spanish `Resultado`, which collides with the
+    // real Result step heading by name; the fail-closed intent is asserted on
+    // the established `data-result-state` seam instead (App.test.tsx does the
+    // same for the shell's generic unavailable step).
+    await expect(page.locator("[data-result-state]")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Descargar/ })).toHaveCount(0);
 
     // The truthful reason is visible, in professional Spanish (acceptance I).
@@ -52,9 +56,9 @@ for (const [width, height] of [
 
     // The review can be redone under the new policy: a fresh session with
     // every mandatory decision pending again (no stale output).
-    await expect(page.getByRole("region", { name: "Review workspace" })).toBeVisible();
-    await expect(page.getByRole("status", { name: "Review progress" })).toContainText(
-      /Pending: [1-9]/
+    await expect(page.getByRole("region", { name: "Espacio de revisión" })).toBeVisible();
+    await expect(page.getByRole("status", { name: "Progreso de la revisión" })).toContainText(
+      /Pendientes: [1-9]/
     );
 
     // CORA-84-02: the visited Result is backward-navigation history, not a
@@ -63,7 +67,7 @@ for (const [width, height] of [
     await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 
     await page.getByRole("button", {
-      name: "Privacy Gate",
+      name: "Comprobación de privacidad",
       exact: true,
     }).click();
 

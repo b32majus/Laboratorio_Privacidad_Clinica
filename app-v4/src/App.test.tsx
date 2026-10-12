@@ -36,13 +36,13 @@ function taskButton(name: string) {
 
 /** The comparative-row selection button for one structured column (issue #85). */
 function rowSelectButton(header: string) {
-  const table = screen.getByRole("table", { name: /column classification list/i });
+  const table = screen.getByRole("table", { name: /lista de clasificación de columnas/i });
   return within(table).getByRole("button", { name: header });
 }
 
 /** Wait until the single/batch review workspace is actually installed. */
 async function waitForReviewWorkspace(timeout = 10_000) {
-  await screen.findByRole("region", { name: /review workspace/i }, { timeout });
+  await screen.findByRole("region", { name: /espacio de revisión/i }, { timeout });
 }
 
 function createTextJob() {
@@ -101,7 +101,9 @@ describe("App shell", () => {
     // No destination exists merely to expose pipeline internals: with no job
     // there is no review/gate/result action anywhere in the shell.
     expectNoResultAction();
-    expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Comprobación de privacidad" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Iniciar revisión" })).not.toBeInTheDocument();
     // The universal five-step pipeline navigation is gone (issue #84).
     expect(screen.queryByRole("navigation", { name: "Job steps" })).not.toBeInTheDocument();
@@ -119,7 +121,7 @@ describe("App shell", () => {
     expectNoResultAction();
     // ...but the optional Privacy Gate destination stays reachable from
     // Review (G-HP2: the gate is never hidden, deleted or disabled).
-    expect(taskButton("Privacy Gate")).toBeEnabled();
+    expect(taskButton("Comprobación de privacidad")).toBeEnabled();
   });
 
   it("shows the persistent top-bar facts: job, policy, local-only processing — never the internal job kind", async () => {
@@ -127,7 +129,7 @@ describe("App shell", () => {
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(screen.getByText(LOCAL_ONLY_FACT)).toBeInTheDocument();
     expect(screen.getByLabelText("Política de privacidad:")).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Standard" }) as HTMLOptionElement).toHaveProperty(
+    expect(screen.getByRole("option", { name: "Estándar" }) as HTMLOptionElement).toHaveProperty(
       "selected",
       true
     );
@@ -170,11 +172,11 @@ describe("App shell", () => {
 
     // The structured job lands directly in its real Configure workspace (the
     // parsed canonical configuration arrives asynchronously).
-    const table = await screen.findByRole("table", { name: /column classification list/i });
+    const table = await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     expect(table).toHaveTextContent("NHC");
     expect(table).toHaveTextContent("CampoLibre");
-    const facts = screen.getByRole("status", { name: /structured configuration facts/i });
-    expect(facts).toHaveTextContent("Structured export ready: No");
+    const facts = screen.getByRole("status", { name: /datos de la configuración estructurada/i });
+    expect(facts).toHaveTextContent("Exportación estructurada preparada: No");
   });
 
   it("surfaces the typed domain error instead of guessing a job kind", async () => {
@@ -194,7 +196,9 @@ describe("App shell", () => {
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(screen.getByLabelText("Pegar texto")).toHaveValue("");
     expectNoResultAction();
-    expect(screen.queryByRole("button", { name: "Privacy Gate" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Comprobación de privacidad" })
+    ).not.toBeInTheDocument();
   });
 
   it("Nuevo trabajo returns to a fresh Input state", async () => {
@@ -252,8 +256,10 @@ describe("App shell", () => {
     await waitForReviewWorkspace();
     expect(screen.getByRole("heading", { level: 2, name: "Revisión" })).toBeInTheDocument();
 
-    fireEvent.click(taskButton("Privacy Gate"));
-    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+    ).toBeInTheDocument();
     fireEvent.click(taskButton("Volver a la revisión"));
     await waitForReviewWorkspace();
 
@@ -268,7 +274,7 @@ describe("App shell", () => {
 
     createTextJob();
     await waitForReviewWorkspace();
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
     createTextJob();
     await waitForReviewWorkspace();
@@ -284,8 +290,10 @@ describe("App shell", () => {
     await waitForReviewWorkspace();
     // The no-op unstructured Configure surface no longer exists as a stop: no
     // Configure heading is rendered on the ordinary text journey.
-    expect(screen.queryByRole("heading", { level: 2, name: "Configure" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Preparar datos" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
   });
 
   it("keeps the shell task actions keyboard operable with real buttons", async () => {
@@ -294,14 +302,16 @@ describe("App shell", () => {
     await waitForReviewWorkspace();
 
     // The gate action is a real, enabled, focusable button.
-    const gate = taskButton("Privacy Gate");
+    const gate = taskButton("Comprobación de privacidad");
     expect(gate.tagName).toBe("BUTTON");
     expect(gate).toBeEnabled();
     gate.focus();
     expect(gate).toHaveFocus();
 
     fireEvent.click(gate);
-    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+    ).toBeInTheDocument();
     // From the gate, the return action is reachable and focusable too.
     const back = taskButton("Volver a la revisión");
     back.focus();
@@ -401,37 +411,39 @@ describe("App review workspace (T07)", () => {
   it("runs the engine once at the review landing and renders the workspace", async () => {
     render(<App />);
     await createReviewJob();
-    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent(/Pending: [1-9]/);
-    expect(screen.getByRole("group", { name: /document text with detections/i })).toHaveTextContent(
-      "Carmen Sánchez"
-    );
+    expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent(/Pendientes: [1-9]/);
+    expect(
+      screen.getByRole("group", { name: /texto del documento con hallazgos/i })
+    ).toHaveTextContent("Carmen Sánchez");
   });
 
   it("navigating away and back preserves review decisions and never re-runs the engine", async () => {
     render(<App />);
     await createReviewJob();
     const pendingBefore = screen
-      .getByRole("status", { name: /review progress/i })
-      .textContent?.match(/Pending: (\d+)/)?.[1];
+      .getByRole("status", { name: /progreso de la revisión/i })
+      .textContent?.match(/Pendientes: (\d+)/)?.[1];
 
     const firstDetection = screen
-      .getAllByRole("list", { name: /detections/i })[0]
+      .getAllByRole("list", { name: /hallazgos/i })[0]
       .querySelector("button") as HTMLElement;
     fireEvent.click(firstDetection);
     fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
-    expect(screen.getByRole("status", { name: /review progress/i })).toHaveTextContent(
-      "Accepted: 1"
+    expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toHaveTextContent(
+      "Aceptadas: 1"
     );
 
-    fireEvent.click(taskButton("Privacy Gate"));
-    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+    ).toBeInTheDocument();
     fireEvent.click(taskButton("Volver a la revisión"));
     await waitForReviewWorkspace();
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    expect(progress).toHaveTextContent("Accepted: 1");
-    expect(progress).not.toHaveTextContent(`Pending: ${pendingBefore}`);
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progress).toHaveTextContent("Aceptadas: 1");
+    expect(progress).not.toHaveTextContent(`Pendientes: ${pendingBefore}`);
   });
 
   it("never routes a structured job without free-text cells through the no-op review and returns from the gate to Configure", async () => {
@@ -441,7 +453,7 @@ describe("App review workspace (T07)", () => {
       target: { files: [csvFile] },
     });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
 
     // No detour: the «Continuar a la revisión» action and the no-op notice
     // are gone (issue #85 §3.4).
@@ -450,17 +462,17 @@ describe("App review workspace (T07)", () => {
 
     // The factual privacy check is reached within the same intentional
     // navigation (canonical internal order preserved; no rendered Review).
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(
-      await screen.findByRole("status", { name: /structured export facts/i })
+      await screen.findByRole("status", { name: /datos de la salida estructurada/i })
     ).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /espacio de revisión/i })).not.toBeInTheDocument();
 
     // `Volver` from the gate returns to meaningful Configure, never the
     // no-op Review.
     fireEvent.click(taskButton("Volver a la configuración"));
     expect(
-      await screen.findByRole("table", { name: /column classification list/i })
+      await screen.findByRole("table", { name: /lista de clasificación de columnas/i })
     ).toBeInTheDocument();
   });
 
@@ -473,36 +485,36 @@ describe("App review workspace (T07)", () => {
       target: { files: [csvFile] },
     });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
 
     // Route the text column through the text engine; the review detour is real.
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Acción del revisor para CampoLibre"), {
       target: { value: "process-as-text" },
     });
     fireEvent.click(taskButton("Continuar a la revisión"));
     expect(
-      await screen.findByRole("button", { name: "Process free-text cells" })
+      await screen.findByRole("button", { name: "Procesar celdas de texto libre" })
     ).toBeInTheDocument();
 
     // Back in Configure, take the column back out of free-text routing.
-    fireEvent.click(screen.getByRole("button", { name: "Back to Configure" }));
-    await screen.findByRole("table", { name: /column classification list/i });
+    fireEvent.click(screen.getByRole("button", { name: "Volver a preparar datos" }));
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Acción del revisor para CampoLibre"), {
       target: { value: "review-required" },
     });
 
     // The detour is gone although `review` is an already-visited step: the
     // stored visitedSteps never resurrect the no-op Review (issue #85 §3.5).
     expect(screen.queryByRole("button", { name: "Continuar a la revisión" })).toBeNull();
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(
-      await screen.findByRole("status", { name: /structured export facts/i })
+      await screen.findByRole("status", { name: /datos de la salida estructurada/i })
     ).toBeInTheDocument();
     fireEvent.click(taskButton("Volver a la configuración"));
     expect(
-      await screen.findByRole("table", { name: /column classification list/i })
+      await screen.findByRole("table", { name: /lista de clasificación de columnas/i })
     ).toBeInTheDocument();
   });
 
@@ -524,17 +536,17 @@ describe("App privacy gate (T08 U3)", () => {
   }
 
   function pendingCount(): number {
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    return Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    return Number(progress.textContent?.match(/Pendientes: (\d+)/)?.[1] ?? "0");
   }
 
   /** Accept detections one by one until no pending mandatory decision remains.
    * Uses the Pending filter so accepted detections leave the list and the
    * loop provably terminates. */
   function acceptAllDetections() {
-    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pendientes" }));
     for (;;) {
-      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const lists = screen.queryAllByRole("list", { name: "Hallazgos" });
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
@@ -544,8 +556,8 @@ describe("App privacy gate (T08 U3)", () => {
 
   function expectedBlockedMessage(count: number): string {
     return count === 1
-      ? "Safe export is blocked while 1 mandatory review decision is pending."
-      : `Safe export is blocked while ${count} mandatory review decisions are pending.`;
+      ? "La descarga segura está bloqueada mientras 1 decisión de revisión obligatoria está pendiente."
+      : `La descarga segura está bloqueada mientras ${count} decisiones de revisión obligatorias están pendientes.`;
   }
 
   it("renders the gate with safeOutputReady true after every decision is resolved", async () => {
@@ -554,17 +566,21 @@ describe("App privacy gate (T08 U3)", () => {
     acceptAllDetections();
     expect(pendingCount()).toBe(0);
 
-    fireEvent.click(taskButton("Privacy Gate"));
-    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+    ).toBeInTheDocument();
 
     // Output availability is real derived state, written by the state bridge.
-    expect(screen.getByText("Safe output:")).toBeInTheDocument();
-    expect(screen.getByText("Ready")).toBeInTheDocument();
-    expect(screen.getByText("Confidential audit:")).toBeInTheDocument();
+    expect(screen.getByText("Salida segura:")).toBeInTheDocument();
+    expect(screen.getByText("Preparada")).toBeInTheDocument();
+    expect(screen.getByText("Auditoría confidencial:")).toBeInTheDocument();
     // Scoped to the gate's availability facts: the Policy workspace above also
     // renders the exact textual state "Available" per policy (POLICY-01 #56).
-    const availabilityFacts = screen.getByRole("status", { name: /output availability facts/i });
-    expect(within(availabilityFacts).getByText("Available")).toBeInTheDocument();
+    const availabilityFacts = screen.getByRole("status", {
+      name: /datos de la disponibilidad de la salida/i,
+    });
+    expect(within(availabilityFacts).getByText("Disponible")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     // The export gate agrees with review completeness (D-004).
@@ -574,19 +590,19 @@ describe("App privacy gate (T08 U3)", () => {
   it("stays fail-closed: the gate shows the pending state while a decision is pending", async () => {
     render(<App />);
     await createReviewJob();
-    const list = screen.getAllByRole("list", { name: /detections/i })[0];
+    const list = screen.getAllByRole("list", { name: /hallazgos/i })[0];
     fireEvent.click(within(list).queryAllByRole("button")[0] as HTMLElement);
     fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
     const pending = pendingCount();
     expect(pending).toBeGreaterThan(0);
 
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent(expectedBlockedMessage(pending));
 
     // Fail-closed availability: nothing became ready while decisions remain.
-    expect(screen.getByText("Not ready")).toBeInTheDocument();
-    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+    expect(screen.getByText("No preparada")).toBeInTheDocument();
+    expect(screen.queryByText("Preparada")).not.toBeInTheDocument();
     expect(taskButton("Ir al resultado")).toBeDisabled();
   });
 
@@ -605,8 +621,10 @@ describe("App privacy gate (T08 U3)", () => {
     // optional destination reachable from Review (G-HP2: no new destination).
     fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
     await waitForReviewWorkspace();
-    fireEvent.click(taskButton("Privacy Gate"));
-    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+    ).toBeInTheDocument();
   });
 });
 
@@ -621,15 +639,15 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
   }
 
   function pendingCount(): number {
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    return Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    return Number(progress.textContent?.match(/Pendientes: (\d+)/)?.[1] ?? "0");
   }
 
   /** Accept detections one by one until no pending mandatory decision remains. */
   function acceptAllDetections() {
-    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pendientes" }));
     for (;;) {
-      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const lists = screen.queryAllByRole("list", { name: "Hallazgos" });
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
@@ -644,7 +662,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     expect(pendingCount()).toBe(0);
     // From the Privacy Gate step, the Result action is the real derived-gate
     // assertion (not step-ordering).
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(taskButton("Ir al resultado")).toBeEnabled();
 
     // The select stays enabled: the invalidation must be state-enforced,
@@ -664,17 +682,17 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     // because the REAL policy change invalidated the previous outcome).
     fireEvent.click(taskButton("Volver a la revisión"));
     await waitForReviewWorkspace();
-    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
     expect(pendingCount()).toBeGreaterThan(0);
 
     // Completing the review again re-opens the gate, which reports the NEW
     // policy factually — the old review was never relabelled to it.
     acceptAllDetections();
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(taskButton("Ir al resultado")).toBeEnabled();
-    const facts = screen.getByRole("status", { name: /output availability facts/i });
-    expect(facts).toHaveTextContent("Privacy policy used: Strict");
-    expect(facts).toHaveTextContent("Safe output: Ready");
+    const facts = screen.getByRole("status", { name: /datos de la disponibilidad de la salida/i });
+    expect(facts).toHaveTextContent("Política de privacidad usada: Estricta");
+    expect(facts).toHaveTextContent("Salida segura: Preparada");
   });
 
   it("a policy change from the direct Result keeps a truthful way back to Review (issue #84 correction)", async () => {
@@ -693,8 +711,11 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
       target: { value: "strict" },
     });
 
-    // No stale Safe download surface remains.
-    expect(screen.queryByRole("heading", { level: 2, name: "Resultado" })).not.toBeInTheDocument();
+    // No stale Safe download surface remains. ExportStep's own workspace
+    // carries `data-result-state`; the shell's generic unavailable step does
+    // not, so its absence proves the Result workspace actually unmounted even
+    // though the step heading label («Resultado») is identical in both states.
+    expect(document.querySelector("[data-result-state]")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Descargar documento preparado/ })
     ).not.toBeInTheDocument();
@@ -727,7 +748,7 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     render(<App />);
     await createReviewJob();
     acceptAllDetections();
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(taskButton("Ir al resultado")).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
@@ -735,9 +756,9 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     });
 
     expect(taskButton("Ir al resultado")).toBeEnabled();
-    const facts = screen.getByRole("status", { name: /output availability facts/i });
-    expect(facts).toHaveTextContent("Privacy policy used: Standard");
-    expect(facts).toHaveTextContent("Safe output: Ready");
+    const facts = screen.getByRole("status", { name: /datos de la disponibilidad de la salida/i });
+    expect(facts).toHaveTextContent("Política de privacidad usada: Estándar");
+    expect(facts).toHaveTextContent("Salida segura: Preparada");
   });
 
   it("all four policies are selectable through the UI on a text job (REC-02)", async () => {
@@ -747,23 +768,23 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
 
     // Since REC-02 every accepted policy has a text mapping, so all four
     // options are enabled and selectable.
-    for (const name of ["Standard", "External AI", "Longitudinal Research", "Strict"]) {
+    for (const name of ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"]) {
       expect(screen.getByRole("option", { name })).toBeEnabled();
     }
 
     const policySelect = screen.getByLabelText("Política de privacidad:") as HTMLSelectElement;
     fireEvent.change(policySelect, { target: { value: "external-ai" } });
     expect(policySelect.value).toBe("external-ai");
-    expect(
-      (screen.getByRole("option", { name: "External AI" }) as HTMLOptionElement).selected
-    ).toBe(true);
+    expect((screen.getByRole("option", { name: "IA externa" }) as HTMLOptionElement).selected).toBe(
+      true
+    );
 
     // The newly enabled text policy reaches Review and never surfaces a
     // spurious typed failure. A real policy change invalidated the previous
     // session, so the shell offers the explicit review restart.
     fireEvent.click(await screen.findByRole("button", { name: "Iniciar revisión" }));
     await waitForReviewWorkspace();
-    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -779,13 +800,13 @@ describe("App policy change vs an existing review (PR #40 corrective C1+C2)", ()
     // previous session was invalidated, the review restart stays explicit and
     // no Result action appears.
     await screen.findByRole("button", { name: "Iniciar revisión" });
-    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /espacio de revisión/i })).not.toBeInTheDocument();
     expectNoResultAction();
     // The gate destination stays fail-closed: without an active review session
     // it renders no output facts at all (unchanged baseline behavior), and the
     // forward Result affordance stays visible but disabled.
-    fireEvent.click(taskButton("Privacy Gate"));
-    expect(screen.queryByText("Ready")).not.toBeInTheDocument();
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    expect(screen.queryByText("Preparada")).not.toBeInTheDocument();
     expect(taskButton("Ir al resultado")).toBeDisabled();
   });
 });
@@ -811,9 +832,9 @@ describe("App single-item Result revisit provenance (issue #84 correction)", () 
   }
 
   function acceptAllDetections() {
-    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pendientes" }));
     for (;;) {
-      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const lists = screen.queryAllByRole("list", { name: "Hallazgos" });
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
@@ -849,18 +870,20 @@ describe("App document intake (T06)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitForReviewWorkspace();
     fireEvent.click(
-      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+      within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
         name: /12345678A/,
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent("Pending: 1");
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent(
-      "Restored: 0"
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
+      "Pendientes: 1"
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
+      "Original conservado: 0"
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
     fireEvent.click(taskButton("Ver resultado"));
     expect(
       screen.getByRole("region", { name: "Originales conservados deliberadamente" })
@@ -868,22 +891,26 @@ describe("App document intake (T06)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
     await waitForReviewWorkspace();
     fireEvent.click(
-      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+      within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
         name: /12345678A/,
       })
     );
     fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    const oldConfirm = screen.getByRole("button", { name: "Sí, mantener original" });
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    const oldConfirm = screen.getByRole("button", { name: "Sí, conservar original" });
     fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
     fireEvent.click(oldConfirm);
     fireEvent.change(screen.getByLabelText("Pegar texto"), { target: { value: "DNI 12345678A" } });
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitForReviewWorkspace();
-    expect(screen.queryByRole("button", { name: "Sí, mantener original" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent("Pending: 1");
-    expect(screen.getByRole("status", { name: "Review progress" })).toHaveTextContent(
-      "Restored: 0"
+    expect(
+      screen.queryByRole("button", { name: "Sí, conservar original" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
+      "Pendientes: 1"
+    );
+    expect(screen.getByRole("status", { name: "Progreso de la revisión" })).toHaveTextContent(
+      "Original conservado: 0"
     );
     expectNoResultAction();
   });
@@ -1043,9 +1070,9 @@ describe("App export step (T08 U4)", () => {
   }
 
   function acceptAllDetections() {
-    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pendientes" }));
     for (;;) {
-      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const lists = screen.queryAllByRole("list", { name: "Hallazgos" });
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
@@ -1059,7 +1086,7 @@ describe("App export step (T08 U4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await waitForReviewWorkspace();
     acceptAllDetections();
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     fireEvent.click(taskButton("Ir al resultado"));
     expect(screen.getByRole("heading", { level: 2, name: "Resultado" })).toBeInTheDocument();
   }
@@ -1159,7 +1186,7 @@ describe("App export step (T08 U4)", () => {
       // Force unrelated re-renders and a full Result remount (gate round-trip;
       // a REAL policy change invalidates the review by contract — see the C2
       // flow oracle — so it must not be used here).
-      fireEvent.click(taskButton("Privacy Gate"));
+      fireEvent.click(taskButton("Comprobación de privacidad"));
       fireEvent.click(taskButton("Ir al resultado"));
       fireEvent.change(screen.getByLabelText("Política de privacidad:"), {
         target: { value: "standard" },
@@ -1197,20 +1224,20 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 
   /** Complete the ACTIVE document's mandatory decisions via restored. */
   function completeActiveDocument() {
-    fireEvent.click(screen.getByRole("button", { name: "Pending" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pendientes" }));
     for (;;) {
-      const lists = screen.queryAllByRole("list", { name: "Detections" });
+      const lists = screen.queryAllByRole("list", { name: "Hallazgos" });
       const first = lists[0] ? within(lists[0]).queryAllByRole("button")[0] : undefined;
       if (!first) break;
       fireEvent.click(first);
-      fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirm = screen.queryByRole("button", { name: "Sí, mantener original" });
+      fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirm = screen.queryByRole("button", { name: "Sí, conservar original" });
       if (confirm) fireEvent.click(confirm);
     }
   }
 
   function documentSelector(): HTMLElement {
-    return screen.getByRole("region", { name: "Batch documents" });
+    return screen.getByRole("region", { name: "Documentos del lote" });
   }
 
   it("creates a batch with one failed document: the failure stays visible and the artifact stays blocked while the Result communicates it", async () => {
@@ -1229,26 +1256,28 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     expect(selector).toHaveTextContent("historia-buena.txt");
     expect(selector).toHaveTextContent(/historia-buena\.txt — Requiere revisión/);
     expect(selector).toHaveTextContent(/corrupt\.docx — Error/);
-    expect(selector).toHaveTextContent(/could not be parsed/i);
+    expect(selector).toHaveTextContent(/no se pudo interpretar/i);
     // The failed item exposes no review button (no session exists).
     expect(within(selector).queryByRole("button", { name: /corrupt\.docx/ })).toBeNull();
 
     // Privacy Gate lists both items with their statuses and blocks, naming the
     // failed file with its message.
-    fireEvent.click(taskButton("Privacy Gate"));
-    expect(screen.getByRole("heading", { level: 2, name: "Privacy Gate" })).toBeInTheDocument();
-    const batchList = screen.getByRole("list", { name: "Batch item status" });
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Comprobación de privacidad" })
+    ).toBeInTheDocument();
+    const batchList = screen.getByRole("list", { name: "Estado de los documentos del lote" });
     expect(within(batchList).getByText("historia-buena.txt")).toBeInTheDocument();
     expect(within(batchList).getByText("corrupt.docx")).toBeInTheDocument();
-    expect(batchList).toHaveTextContent(/historia-buena\.txt: Review required/);
+    expect(batchList).toHaveTextContent(/historia-buena\.txt: Requiere revisión/);
     expect(batchList).toHaveTextContent(/corrupt\.docx: Error/);
-    expect(batchList).toHaveTextContent(/could not be parsed/i);
+    expect(batchList).toHaveTextContent(/no se pudo interpretar/i);
 
     const failedAlert = screen
       .getAllByRole("alert")
       .find((alert) => /corrupt\.docx/.test(alert.textContent ?? ""));
     expect(failedAlert).toBeDefined();
-    expect(failedAlert).toHaveTextContent(/could not be parsed/i);
+    expect(failedAlert).toHaveTextContent(/no se pudo interpretar/i);
 
     // REC-07 #87: the batch Result stays reachable while the artifact is
     // unauthorized — it communicates blocked without enabling production.
@@ -1261,7 +1290,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
     await waitFor(
       () => {
-        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
       },
       { timeout: 10_000 }
     );
@@ -1306,29 +1335,29 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     const docB = within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ });
     fireEvent.click(docB);
     expect(docB).toHaveAttribute("aria-current", "true");
-    const progress = screen.getByRole("status", { name: /review progress/i });
-    const pendingB = Number(progress.textContent?.match(/Pending: (\d+)/)?.[1] ?? "0");
+    const progress = screen.getByRole("status", { name: /progreso de la revisión/i });
+    const pendingB = Number(progress.textContent?.match(/Pendientes: (\d+)/)?.[1] ?? "0");
     expect(pendingB).toBeGreaterThan(0);
     expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
 
     // Navigate away and back: nothing was auto-accepted or flipped.
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     fireEvent.click(taskButton("Volver a la revisión"));
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument()
+      expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument()
     );
     // Returning to Review remounts the queue and restores #86's default
     // attention filter; choose Todos before asserting cross-document state.
     fireEvent.click(screen.getByRole("button", { name: "Todos (2)" }));
     expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Completado/);
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
-    const progressAfter = screen.getByRole("status", { name: /review progress/i });
-    expect(progressAfter.textContent?.match(/Pending: (\d+)/)?.[1]).toBe(String(pendingB));
+    const progressAfter = screen.getByRole("status", { name: /progreso de la revisión/i });
+    expect(progressAfter.textContent?.match(/Pendientes: (\d+)/)?.[1]).toBe(String(pendingB));
     // B's review controls are present and untouched: nothing was auto-accepted.
-    const detectionButtons = within(
-      screen.getByRole("list", { name: "Detections" })
-    ).queryAllByRole("button");
+    const detectionButtons = within(screen.getByRole("list", { name: "Hallazgos" })).queryAllByRole(
+      "button"
+    );
     expect(detectionButtons.length).toBeGreaterThan(0);
   });
 
@@ -1356,7 +1385,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // The quiet shell is already on the batch queue while reads are in flight:
     // no processing and a factual reading state.
     await waitFor(() => expect(documentSelector()).toHaveTextContent(/doc-a\.txt — Leyendo/));
-    expect(screen.queryByRole("region", { name: /review workspace/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /espacio de revisión/i })).not.toBeInTheDocument();
 
     // Settle the read: the one-shot batch attempt starts automatically.
     await act(async () => {
@@ -1364,7 +1393,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     });
     await waitFor(
       () => {
-        expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+        expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
       },
       { timeout: 10_000 }
     );
@@ -1391,7 +1420,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     });
     await waitFor(() => expect(screen.queryByText(/leyendo documentos/i)).not.toBeInTheDocument());
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Batch documents" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Documentos del lote" })).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -1433,7 +1462,7 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     });
     expect(documentSelector()).toHaveTextContent(/doc-b\.txt — Requiere revisión/);
     expect(documentSelector()).not.toHaveTextContent(/doc-a\.txt — Error/);
-    expect(screen.getByRole("region", { name: /review workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
   });
 
   it("keeps a non-active document's restored-original warning visible at the Privacy Gate (T17 #21 CORR-B)", async () => {
@@ -1456,14 +1485,16 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // Switch the ACTIVE document to B; doc A's restored decisions still exist.
     fireEvent.click(within(documentSelector()).getByRole("button", { name: /doc-b\.txt/ }));
 
-    fireEvent.click(taskButton("Privacy Gate"));
-    const warnings = screen.getByRole("list", { name: /kept-original warnings/i });
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    const warnings = screen.getByRole("list", { name: /avisos de originales conservados/i });
     expect(warnings).toHaveTextContent("kept-original");
     expect(warnings).toHaveTextContent(
-      "the original text was deliberately kept by reviewer decision (restored)"
+      "el texto original se conservó deliberadamente por decisión del revisor (restaurado)"
     );
     // B (the active document) is still pending; the warning came from A.
-    expect(screen.getByRole("alert")).toHaveTextContent(/mandatory review decision/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /decisión de revisión obligatoria|decisiones de revisión obligatorias/i
+    );
     fireEvent.click(taskButton("Ir al resultado"));
     const resultWarning = screen.getByRole("region", {
       name: "Originales conservados deliberadamente",
@@ -1501,12 +1532,12 @@ describe("App document batch (T17 #21 WU-C2)", () => {
     // Privacy Gate: review is complete and the exact current batch-session
     // authority is present, so both the Safe summary and the #89 batch
     // Confidential Audit are factually available at the gate.
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    const availability = screen.getByRole("region", { name: "Output availability" });
-    expect(within(availability).getByText("Ready")).toBeInTheDocument();
-    expect(within(availability).getByText("Available")).toBeInTheDocument();
-    expect(within(availability).getByText(/Safe summary CSV/)).toBeInTheDocument();
+    const availability = screen.getByRole("region", { name: "Disponibilidad de la salida" });
+    expect(within(availability).getByText("Preparada")).toBeInTheDocument();
+    expect(within(availability).getByText("Disponible")).toBeInTheDocument();
+    expect(within(availability).getByText(/CSV de resumen seguro/)).toBeInTheDocument();
 
     // Export is the ready batch Result: exactly one primary Safe action, and
     // returning to Review preserves both completions (no loss, no fabrication).
@@ -1527,45 +1558,49 @@ describe("App document batch (T17 #21 WU-C2)", () => {
 describe("App structured Configure workspace (T20 #24)", () => {
   it("forwards current structured kept-original facts to Result and re-derives after correction/policy replacement", async () => {
     createStructuredJob("NHC,CampoLibre\nP-001,DNI 12345678A");
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer action for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Acción del revisor para CampoLibre"), {
       target: { value: "process-as-text" },
     });
     fireEvent.click(taskButton("Continuar a la revisión"));
-    fireEvent.click(screen.getByRole("button", { name: "Process free-text cells" }));
-    await screen.findByRole("list", { name: "Detections" }, { timeout: 10_000 });
+    fireEvent.click(screen.getByRole("button", { name: "Procesar celdas de texto libre" }));
+    await screen.findByRole("list", { name: "Hallazgos" }, { timeout: 10_000 });
     fireEvent.click(
-      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+      within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
         name: /12345678A/,
       })
     );
-    fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-    expect(screen.getByRole("status", { name: "Free-text review progress" })).toHaveTextContent(
-      "Pending decisions: 1"
+    fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+    expect(
+      screen.getByRole("status", { name: "Progreso de la revisión de texto libre" })
+    ).toHaveTextContent("Decisiones pendientes: 1");
+    fireEvent.click(screen.getByRole("button", { name: "Sí, conservar original" }));
+    expect(
+      screen.getByRole("status", { name: "Progreso de la revisión de texto libre" })
+    ).toHaveTextContent("Revisión de texto libre preparada: Sí");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continuar a la comprobación de privacidad" })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Sí, mantener original" }));
-    expect(screen.getByRole("status", { name: "Free-text review progress" })).toHaveTextContent(
-      "Free-text review ready: Yes"
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Continue to Privacy Gate" }));
     await waitFor(() => expect(taskButton("Ir al resultado")).toBeEnabled());
     fireEvent.click(taskButton("Ir al resultado"));
     const warning = screen.getByRole("region", { name: "Originales conservados deliberadamente" });
     expect(warning).toHaveTextContent("IDENTIFICADOR: 1");
     expect(warning).not.toHaveTextContent("12345678A");
     expect(
-      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
+      screen.getByRole("button", { name: "Descargar salida estructurada segura (.csv)" })
     ).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Volver a la revisión" }));
-    await screen.findByRole("list", { name: "Detections" }, { timeout: 10_000 });
+    await screen.findByRole("list", { name: "Hallazgos" }, { timeout: 10_000 });
     fireEvent.click(
-      within(screen.getByRole("list", { name: "Detections" })).getByRole("button", {
+      within(screen.getByRole("list", { name: "Hallazgos" })).getByRole("button", {
         name: /12345678A/,
       })
     );
     fireEvent.click(screen.getByRole("button", { name: "Aceptar detección" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue to Privacy Gate" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continuar a la comprobación de privacidad" })
+    );
     await waitFor(() => expect(taskButton("Ir al resultado")).toBeEnabled());
     fireEvent.click(taskButton("Ir al resultado"));
     expect(
@@ -1578,7 +1613,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
       screen.queryByRole("region", { name: "Originales conservados deliberadamente" })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Download Safe Structured Output (.csv)" })
+      screen.getByRole("button", { name: "Descargar salida estructurada segura (.csv)" })
     ).toBeDisabled();
   });
   const CSV = [
@@ -1598,126 +1633,130 @@ describe("App structured Configure workspace (T20 #24)", () => {
 
   it("shows the five-class classification, unknown review and the single patient-ID authority", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("NHC"));
-    expect(screen.getByLabelText("Reviewer classification for NHC")).toHaveValue("identifier");
+    expect(screen.getByLabelText("Clasificación del revisor para NHC")).toHaveValue("identifier");
     fireEvent.click(rowSelectButton("Fecha_Nac"));
-    expect(screen.getByLabelText("Reviewer classification for Fecha_Nac")).toHaveValue(
+    expect(screen.getByLabelText("Clasificación del revisor para Fecha_Nac")).toHaveValue(
       "quasi-identifier"
     );
     fireEvent.click(rowSelectButton("Diagnostico"));
-    expect(screen.getByLabelText("Reviewer classification for Diagnostico")).toHaveValue(
+    expect(screen.getByLabelText("Clasificación del revisor para Diagnostico")).toHaveValue(
       "sensitive"
     );
     fireEvent.click(rowSelectButton("CampoLibre"));
-    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue("unknown");
+    expect(screen.getByLabelText("Clasificación del revisor para CampoLibre")).toHaveValue(
+      "unknown"
+    );
     expect(
       screen.getAllByRole("region", { name: /autoridad de identificación del paciente/i })
     ).toHaveLength(1);
     expect(
-      screen.getByRole("status", { name: /structured configuration facts/i })
-    ).toHaveTextContent("Structured export ready: No");
+      screen.getByRole("status", { name: /datos de la configuración estructurada/i })
+    ).toHaveTextContent("Exportación estructurada preparada: No");
   });
 
   it("resolves the unknown review gate only through an explicit override and an explicit date role", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     // Unknown is not KEEP and keeps the gate closed until the human decides.
     expect(
-      screen.getByRole("status", { name: /structured configuration facts/i })
-    ).toHaveTextContent("Structured export ready: No");
+      screen.getByRole("status", { name: /datos de la configuración estructurada/i })
+    ).toHaveTextContent("Exportación estructurada preparada: No");
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Clasificación del revisor para CampoLibre"), {
       target: { value: "insensitive" },
     });
     // Resolving unknown alone is NOT enough: the date column still has no
     // accepted disposition until a human assigns it an explicit date role.
     expect(
-      screen.getByRole("status", { name: /structured configuration facts/i })
-    ).toHaveTextContent("Structured export ready: No");
+      screen.getByRole("status", { name: /datos de la configuración estructurada/i })
+    ).toHaveTextContent("Exportación estructurada preparada: No");
     fireEvent.click(rowSelectButton("Fecha_Nac"));
-    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+    fireEvent.change(screen.getByLabelText("Rol de fecha para Fecha_Nac"), {
       target: { value: "birth" },
     });
     expect(
-      screen.getByRole("status", { name: /structured configuration facts/i })
-    ).toHaveTextContent("Structured export ready: Yes");
+      screen.getByRole("status", { name: /datos de la configuración estructurada/i })
+    ).toHaveTextContent("Exportación estructurada preparada: Sí");
   });
 
   it("exposes the exact structured gate facts at the Privacy Gate", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Clasificación del revisor para CampoLibre"), {
       target: { value: "insensitive" },
     });
     fireEvent.click(rowSelectButton("Fecha_Nac"));
-    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+    fireEvent.change(screen.getByLabelText("Rol de fecha para Fecha_Nac"), {
       target: { value: "birth" },
     });
     // No free-text cells: the privacy check is reached from Configure within
     // one intentional navigation (issue #85 §3.4); no review detour exists.
     expect(screen.queryByRole("button", { name: "Continuar a la revisión" })).toBeNull();
-    fireEvent.click(taskButton("Privacy Gate"));
-    const facts = screen.getByRole("status", { name: /structured export facts/i });
-    expect(facts).toHaveTextContent("Columns: 4");
-    expect(facts).toHaveTextContent("Columns requiring review: 0");
-    expect(facts).toHaveTextContent("Unsupported columns: 0");
-    expect(screen.getByRole("list", { name: /structured column dispositions/i })).toHaveTextContent(
-      "NHC: remove"
-    );
-    expect(screen.getByRole("list", { name: /structured column dispositions/i })).toHaveTextContent(
-      "Fecha_Nac: date-age (birth)"
-    );
+    fireEvent.click(taskButton("Comprobación de privacidad"));
+    const facts = screen.getByRole("status", { name: /datos de la salida estructurada/i });
+    expect(facts).toHaveTextContent("Columnas: 4");
+    expect(facts).toHaveTextContent("Columnas que requieren revisión: 0");
+    expect(facts).toHaveTextContent("Columnas no compatibles: 0");
+    expect(
+      screen.getByRole("list", { name: /disposición de las columnas estructuradas/i })
+    ).toHaveTextContent("NHC: Eliminar");
+    expect(
+      screen.getByRole("list", { name: /disposición de las columnas estructuradas/i })
+    ).toHaveTextContent("Fecha_Nac: Generalizar fecha/edad (Fecha de nacimiento)");
   });
 
   it("never offers a stale structured Result after readiness is invalidated again (issue #85 §3.6)", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     // Reach the ready structured Result once: explicit Unknown resolution and
     // an explicit date role make the preparation ready.
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Clasificación del revisor para CampoLibre"), {
       target: { value: "insensitive" },
     });
     fireEvent.click(rowSelectButton("Fecha_Nac"));
-    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+    fireEvent.change(screen.getByLabelText("Rol de fecha para Fecha_Nac"), {
       target: { value: "birth" },
     });
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     await waitFor(() => expect(taskButton("Ir al resultado")).toBeEnabled());
     fireEvent.click(taskButton("Ir al resultado"));
     // The structured Result workspace (heading «Export») is reached once.
-    await screen.findByRole("heading", { level: 2, name: "Export" });
+    await screen.findByRole("heading", { level: 2, name: "Resultado" });
 
     // Historical Result visit: return to meaningful Configure (issue #85
     // §3.4) and resolve a column back to Unknown so the preparation blocks
     // again (§3.6: policy/readiness later invalidates Result).
     fireEvent.click(taskButton("Volver a la configuración"));
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Clasificación del revisor para CampoLibre"), {
       target: { value: "unknown" },
     });
     expect(
-      screen.getByRole("status", { name: /structured configuration facts/i })
-    ).toHaveTextContent("Structured export ready: No");
+      screen.getByRole("status", { name: /datos de la configuración estructurada/i })
+    ).toHaveTextContent("Exportación estructurada preparada: No");
 
     // The Privacy Gate itself stays reachable and enabled (G-HP2), but the
     // Result affordance does NOT resurrect from the historical visit: for a
     // structured job `review.complete` is the CURRENT derived output gate
     // (`withDerivedStructuredState`), and it is false again.
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     expect(
-      await screen.findByRole("status", { name: /structured export facts/i })
+      await screen.findByRole("status", { name: /datos de la salida estructurada/i })
     ).toBeInTheDocument();
     const resultAction = taskButton("Ir al resultado");
     expect(resultAction).toBeDisabled();
     // A click on the disabled affordance performs NO navigation: the shell
     // stays on the Privacy Gate, never on a stale Result.
     fireEvent.click(resultAction);
-    expect(screen.getByRole("status", { name: /structured export facts/i })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 2, name: "Export" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: /datos de la salida estructurada/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: "Resultado" })).not.toBeInTheDocument();
   });
 
   it("refuses a multi-file structured selection fail-closed", async () => {
@@ -1734,28 +1773,28 @@ describe("App structured Configure workspace (T20 #24)", () => {
 
   it("keeps structured classification and date-role state when navigating away and back", async () => {
     createStructuredJob(CSV);
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("CampoLibre"));
-    fireEvent.change(screen.getByLabelText("Reviewer classification for CampoLibre"), {
+    fireEvent.change(screen.getByLabelText("Clasificación del revisor para CampoLibre"), {
       target: { value: "sensitive" },
     });
     fireEvent.click(rowSelectButton("Fecha_Nac"));
-    fireEvent.change(screen.getByLabelText("Date role for Fecha_Nac"), {
+    fireEvent.change(screen.getByLabelText("Rol de fecha para Fecha_Nac"), {
       target: { value: "visit" },
     });
     // No free-text cells: onward to the gate, then back to meaningful
     // Configure (issue #85 §3.4).
-    fireEvent.click(taskButton("Privacy Gate"));
+    fireEvent.click(taskButton("Comprobación de privacidad"));
     fireEvent.click(taskButton("Volver a la configuración"));
-    await screen.findByRole("table", { name: /column classification list/i });
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
     fireEvent.click(rowSelectButton("CampoLibre"));
-    expect(screen.getByLabelText("Reviewer classification for CampoLibre")).toHaveValue(
+    expect(screen.getByLabelText("Clasificación del revisor para CampoLibre")).toHaveValue(
       "sensitive"
     );
     fireEvent.click(rowSelectButton("Fecha_Nac"));
-    expect(screen.getByLabelText("Date role for Fecha_Nac")).toHaveValue("visit");
+    expect(screen.getByLabelText("Rol de fecha para Fecha_Nac")).toHaveValue("visit");
     expect(
-      screen.getByRole("status", { name: /structured configuration facts/i })
-    ).toHaveTextContent("Structured export ready: Yes");
+      screen.getByRole("status", { name: /datos de la configuración estructurada/i })
+    ).toHaveTextContent("Exportación estructurada preparada: Sí");
   });
 });

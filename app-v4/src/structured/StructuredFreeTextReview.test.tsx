@@ -137,7 +137,7 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
     const view = render(<StructuredFreeTextReview {...props} activeCell={0} />);
     fireEvent.change(screen.getByLabelText("Sustitución"), { target: { value: "CELDA A" } });
     fireEvent.change(screen.getByLabelText("Nota (opcional)"), { target: { value: "NOTA A" } });
-    const inspector = screen.getByRole("complementary", { name: "Entity inspector" });
+    const inspector = screen.getByRole("complementary", { name: "Inspector del hallazgo" });
     inspector.focus();
     view.rerender(<StructuredFreeTextReview {...props} activeCell={1} />);
     expect(screen.getByLabelText("Sustitución")).toHaveValue("");
@@ -194,25 +194,25 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
       }
       render(<ContextHarness />);
       fireEvent.click(
-        within(screen.getByRole("list", { name: "Detections" })).getAllByRole("button")[0]
+        within(screen.getByRole("list", { name: "Hallazgos" })).getAllByRole("button")[0]
       );
       if (mode === "manual") {
         const range = document.createRange();
         range.selectNodeContents(
-          screen.getByRole("group", { name: "Document text with detections" }).firstChild!
+          screen.getByRole("group", { name: "Texto del documento con hallazgos" }).firstChild!
         );
         window.getSelection()?.addRange(range);
         fireEvent.click(screen.getByRole("button", { name: "Marcar dato no detectado" }));
         fireEvent.change(screen.getByLabelText("Tipo de dato"), {
           target: { value: "Dato de celda anterior" },
         });
-      } else fireEvent.click(screen.getByRole("button", { name: /^Mantener original$/ }));
-      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, mantener original";
+      } else fireEvent.click(screen.getByRole("button", { name: /^Conservar original$/ }));
+      const confirmName = mode === "manual" ? "Añadir dato marcado" : "Sí, conservar original";
       const oldConfirm = screen.getByRole("button", { name: confirmName });
-      fireEvent.click(screen.getByRole("button", { name: /Notas, row 3/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Notas, fila 3/ }));
       expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();
       fireEvent.click(oldConfirm);
-      fireEvent.click(screen.getByRole("button", { name: /Notas, row 1/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Notas, fila 1/ }));
       expect(screen.queryByRole("button", { name: confirmName })).not.toBeInTheDocument();
       expect(onDecide).not.toHaveBeenCalled();
       expect(onAddManual).not.toHaveBeenCalled();
@@ -222,19 +222,19 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
   );
   it("names every cell by column and row with a text status (no session internals)", () => {
     renderReview(0);
-    const queue = screen.getByRole("navigation", { name: "Free-text cells" });
-    expect(within(queue).getByText("Notas, row 1")).toBeInTheDocument();
-    expect(within(queue).getByText("Notas, row 3")).toBeInTheDocument();
+    const queue = screen.getByRole("navigation", { name: "Celdas de texto libre" });
+    expect(within(queue).getByText("Notas, fila 1")).toBeInTheDocument();
+    expect(within(queue).getByText("Notas, fila 3")).toBeInTheDocument();
     // The failed cell is visible with its typed message (queue + gate reason).
     expect(screen.getAllByText(/stub engine refused this cell/).length).toBeGreaterThanOrEqual(1);
     // The pending cell names its pending count as text.
-    expect(screen.getAllByText(/1 pending decision/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/1 decisión pendiente/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it("selecting a queue cell navigates without touching review state", () => {
     const handlers = renderReview(0);
-    const queue = screen.getByRole("navigation", { name: "Free-text cells" });
-    fireEvent.click(within(queue).getByRole("button", { name: /Notas, row 3/i }));
+    const queue = screen.getByRole("navigation", { name: "Celdas de texto libre" });
+    fireEvent.click(within(queue).getByRole("button", { name: /Notas, fila 3/i }));
     expect(handlers.onSelectFreeTextCell).toHaveBeenCalledWith(1);
     expect(handlers.onDecide).not.toHaveBeenCalled();
   });
@@ -242,9 +242,9 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
   it("the active cell reuses the review workspace for its session", () => {
     renderReview(0);
     // The active cell's session content is reviewed in place.
-    expect(screen.getByText("Reviewing Notas, row 1")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Review workspace" })).toBeInTheDocument();
-    const detectionList = screen.getByRole("region", { name: "Detection list" });
+    expect(screen.getByText("Revisando Notas, fila 1")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Espacio de revisión" })).toBeInTheDocument();
+    const detectionList = screen.getByRole("region", { name: "Lista de hallazgos" });
     expect(within(detectionList).getByRole("button", { name: /NOMBRE/ })).toBeInTheDocument();
   });
 
@@ -270,7 +270,7 @@ describe("StructuredFreeTextReview — bounded cell queue", () => {
         onGoToStep={vi.fn()}
       />
     );
-    const run = screen.getByRole("button", { name: /process free-text cells/i });
+    const run = screen.getByRole("button", { name: /procesar celdas de texto libre/i });
     fireEvent.click(run);
     expect(onRun).toHaveBeenCalledTimes(1);
   });
