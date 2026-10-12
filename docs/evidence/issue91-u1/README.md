@@ -26,7 +26,7 @@ shot.
 | `entrada-poblada-1440-completa.png` | **Página completa** | **Entrada poblada** | 1440×900 | Ídem a página completa |
 | `entrada-vacia-375-viewport.png` | **Primer viewport** | **Entrada vacía** | 375×800 | Identidad, controles y ayuda secundaria refluidos en columna |
 | `entrada-vacia-375-completa.png` | **Página completa** | **Entrada vacía** | 375×800 | Flujo completo de tarea en columna, sin overflow |
-| `entrada-poblada-375-viewport.png` | **Primer viewport** | **Entrada poblada** (ejemplo sintético elegido, desplegable cerrado) | 375×800 | Sin overflow, todos los controles visibles |
+| `entrada-poblada-375-viewport.png` | **Primer viewport** | **Entrada poblada** (ejemplo sintético elegido, desplegable cerrado) | 375×800 | Sin overflow, todos los controles visibles. Captura con window.scrollY = 0 después de cerrar el desplegable; muestra la cabecera y el comienzo de Entrada. El borrador poblado se acredita en la captura completa correspondiente. |
 | `entrada-poblada-375-completa.png` | **Página completa** | **Entrada poblada** | 375×800 | Ídem a página completa |
 
 ## CORA-91-U1-V01 visual verdict (measured on the real app, this exact build)

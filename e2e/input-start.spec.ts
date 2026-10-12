@@ -348,6 +348,7 @@ for (const width of [375, 1280]) {
     expect(intendedUseBox).not.toBeNull();
     expect(privacyPolicyBox).not.toBeNull();
     expect(textareaBox!.y).toBeLessThan(intendedUseBox!.y);
+    expect(createBox!.y).toBeLessThan(intendedUseBox!.y);
     expect(createBox!.y).toBeLessThan(privacyPolicyBox!.y);
   });
 }
