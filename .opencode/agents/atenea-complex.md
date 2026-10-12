@@ -1,7 +1,7 @@
 ---
 description: Atenea complex coordinator. Orchestrates the current Complex route and independent assurance.
 mode: primary
-model: nan/mimo-v2.6-flash
+model: nan/glm5.3-flash#high
 permissions:
   - action: edit
     resource: "*"

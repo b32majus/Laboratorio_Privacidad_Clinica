@@ -46,7 +46,9 @@ REPO-LOCAL REFS
   only paths guaranteed readable from this worktree
 ```
 
-A reviewer capsule normally carries the candidate/fixed point, acceptance, protected boundaries, relevant adjudications and existing evidence. A corrector capsule normally carries only the authorized findings, allowed surface, protected behavior and focused closure evidence.
+A reviewer capsule normally carries the candidate/fixed point, acceptance, protected boundaries, relevant adjudications and existing evidence. A corrector capsule carries one coherent bounded repair (related findings may share it), allowed surface, protected behavior and exact required focused checks. Do not offer optional broad/full regression or combine independent logic and visual recomposition merely to save a dispatch; ask Cora to re-scope incompatible findings within the existing correction budget.
+
+For an **already diagnosed** correction, the parent transports Cora's concrete edit prescription (file/target/change) and the single focused proof, **not** a generic “investigate and fix” instruction. Do not duplicate the repository policy or ask the child to rediscover an established cause. If no safe edit is yet known, a narrowly scoped diagnostic request is different from authorizing a speculative correction.
 
 ## Forbidden dependency
 
