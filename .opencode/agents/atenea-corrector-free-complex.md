@@ -1,7 +1,7 @@
 ---
 description: Single-pass free-complex corrector, deliberately using a model different from the Space Bunny writer.
 mode: subagent
-model: opencode/mimo-v2.6-flash-free
+model: opencode/muse-spark-1.3-contributor-free
 permissions:
   - action: edit
     resource: "*"

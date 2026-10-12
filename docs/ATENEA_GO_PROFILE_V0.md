@@ -1,13 +1,13 @@
 # Atenea Go Profile v0
 
-Status: **QUALIFICATION CANDIDATE — CURRENT C-087 GO PROFILE (introduced under C-084)**
-Date: 2026-10-06
+Status: **CURRENT C-087 GO PROFILE — revised model bindings candidate, real Train canary pending**
+Date: 2026-10-06 (qualification accepted 2026-10-10)
 
 ## Purpose
 
-`atenea-go` is not a lower complexity class and is not yet a quality-equivalence claim. It is Atenea under an explicit **human-selected `go` cost policy**: a bounded hybrid route that can be field-qualified on real project tickets.
+`atenea-go` is not a lower complexity class or a claim of quality-equivalence with Standard. It is Atenea under an explicit **human-selected `go` cost policy**: a bounded hybrid route now qualified for routine accepted real-project work.
 
-Go is a **qualification candidate pending real-ticket field evidence**. It is not quality-equivalent to Standard Volume, and this document does not promote it as such.
+**Previous bindings** were operationally qualified for bounded Go Volume and Complex on 2026-10-10. The revised 2026-10-12 role bindings do not inherit qualification; a real clean-boundary Train canary is required. See `ATENEA_GO_OPERATIONAL_QUALIFICATION_C087_20261010.md`.
 
 Atenea keeps two independent routing dimensions:
 
@@ -35,17 +35,17 @@ Cora advises the risk class from the work. The human/project owns cost policy. `
 
 | Role | Binding |
 | --- | --- |
-| coordinator | `opencode-go/mimo-v2.6-flash` |
-| explorer | `nan/qwen3.6` |
+| coordinator | `opencode-go/deepseek-v4.1-flash` |
+| explorer | `nan/mimo-v2.6-flash` |
 | implementer | `opencode-go/muse-spark-1.3-contributor` |
 | merger | `opencode-go/mimo-v2.6-flash` |
-| Standards review | `nan/qwen3.6` |
+| Standards review | `nan/mimo-v2.6-flash` |
 | Spec review | `openai/gpt-6-luna#high` |
-| volume correction | fresh `opencode-go/muse-spark-1.3-contributor` |
+| volume correction | fresh `opencode-go/deepseek-v4.1-flash` |
 | complex correction | fresh `opencode-go/deepseek-v4.1-flash` |
 | integrated audit | Cora when material |
 
-The profile deliberately combines OpenCode Go for coordinator/writer/merger/correction capacity, NaN `qwen3.6` only as the already no-counter explorer/Standards route, and OpenAI Luna High for Spec assurance.
+The proposed route uses OpenCode Go for coordinator/writer/merger/correction, NaN `mimo-v2.6-flash` for Explorer and Standards to conserve Go quota, and OpenAI Luna High for Spec. No provider fallback is allowed.
 
 ## Risk inside Go
 
@@ -56,14 +56,14 @@ Cost policy: go
 Risk class: volume | complex
 ```
 
-For both risk classes, MiMo coordinates, Muse implements, Qwen performs Standards review and Luna High performs Spec review.
+For both risk classes, DeepSeek V4.1 Go coordinates, Muse implements, MiMo NaN performs Standards and Explorer, and Luna High performs Spec review.
 
 `go + volume` uses the ordinary bounded C-084 loop with the Go bindings.
 
 `go + complex` remains Go. It does **not** unlock another provider or model. Instead:
 
 - review closes the Go implementer's write phase; review findings go to fresh Go corrector sessions;
-- `Risk class: volume` findings go first to a fresh `atenea-corrector-go-volume` (Muse Go);
+- `Risk class: volume` findings go to a fresh `atenea-corrector-go-volume` (DeepSeek V4.1 Go);
 - `Risk class: complex` findings go directly to a fresh `atenea-corrector-go-complex` (DeepSeek V4.1 Flash Go), with focused finding-scoped closure and a Cora integrated audit before merge recommendation when the work is material;
 - the existing maximum of **two** fresh, finding-scoped correction attempts for the same already-authorized finding envelope is unchanged; a new material finding/scope change or a blocker after attempt #2 is HUMAN STOP;
 - do not add extra routine reviews or full suites merely because risk is `complex`; evidence follows the ordinary C-086 phase layering.
@@ -106,4 +106,4 @@ When the Go inventory changes, Cora may propose a new catalog/binding at a clean
 
 ## Qualification evidence
 
-Real project tickets remain the quality evidence that matters. Go stays a qualification candidate until field evidence is recorded in the repository's normal qualification surface; synthetic probes and model presence are not quality-equivalence claims.
+The **former Go bindings** were operationally qualified for bounded Volume/Complex. This revised role matrix is a candidate requiring human authorization and a real end-to-end Train canary before promotion. Historical evidence remains in `ATENEA_GO_OPERATIONAL_QUALIFICATION_C087_20261010.md` and `QUALIFICATION.md`.

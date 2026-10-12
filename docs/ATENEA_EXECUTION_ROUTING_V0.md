@@ -40,7 +40,7 @@ Human/project authority owns cost policy. Cora recommends risk class from accept
 
 Free bindings: `docs/ATENEA_FREE_PROFILE_V0.md` + `docs/ATENEA_FREE_MODEL_CATALOG_V0.md`.
 
-Go bindings: `docs/ATENEA_GO_PROFILE_V0.md` + `docs/ATENEA_GO_MODEL_CATALOG_V0.md`. Go is **operationally qualified for bounded volume and complex**, with evidence in `docs/ATENEA_GO_OPERATIONAL_QUALIFICATION_C087_20261010.md`. Neither profile has silent fallback.
+Go bindings: `docs/ATENEA_GO_PROFILE_V0.md` + `docs/ATENEA_GO_MODEL_CATALOG_V0.md`. Go was **operationally qualified only with its prior bindings**. Revised Go/Free matrices are candidates and need separate field evidence, without inherited qualification. See `docs/ATENEA_GO_OPERATIONAL_QUALIFICATION_C087_20261010.md`. Neither profile has silent fallback.
 
 ### Experimental OpenAI opt-in (post-C-087 field trial; not qualified)
 
@@ -52,6 +52,12 @@ The human may select `cost_policy: openai_experimental` at a **clean** work-unit
 | `complex` | `atenea-openai-frontier` | GPT-6.1 Sol High implementation / fresh correction; GPT-6 Luna High Spec |
 
 Both reuse NaN MiMo coordinator, NaN Qwen 3.8 explorer and MiMo merger. Standards is NaN DeepSeek V4 Flash in Sprint and NaN GLM 5.3 Flash High in Frontier. See `docs/ATENEA_OPENAI_EXPERIMENTAL_PROFILE_V0.md` for the exact seven-role map, preflight, limitations and field-evidence requirements. No silent fallback or mid-run profile switch.
+
+## Go/Free candidate boundary (2026-10-12)
+
+Standard Volume/Complex and experimental OpenAI model bindings are unchanged. The new Go/Free role assignments are detailed in their profile and catalog documents; no active Train may change models mid-unit. The project-local `.opencode/agents` must be reconciled with the approved Atenea version before launch: updating Atenea alone does not update another project's copied agents.
+
+A merger handles mechanical/fast-forward integration only; a material semantic conflict requires HUMAN STOP and Cora/human adjudication even if Git reports a clean merge. An exceptional GLM intervention requires explicit human authorization, never automatic fallback, and Free must not use paid routes absent separately approved cost-policy change. Up to two fresh finding-scoped correction attempts; coordinator and corrector sharing one model family is allowed only as distinct role sessions.
 
 ## Risk selection
 

@@ -1,7 +1,7 @@
 ---
 description: Read-only Go-profile Standards reviewer, independent from the Muse Go writer.
 mode: subagent
-model: nan/qwen3.6
+model: nan/mimo-v2.6-flash
 permissions:
   - action: edit
     resource: "*"

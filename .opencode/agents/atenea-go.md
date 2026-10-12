@@ -1,7 +1,7 @@
 ---
 description: Atenea Go qualification-candidate coordinator. Orchestrates Matt skills and exact Go role bindings; does not author repository changes directly.
 mode: primary
-model: opencode-go/mimo-v2.6-flash
+model: opencode-go/deepseek-v4.1-flash
 permissions:
   - action: edit
     resource: "*"
