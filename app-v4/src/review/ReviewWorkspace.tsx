@@ -464,7 +464,12 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   };
 
   return (
-    <section ref={workspaceRef} onKeyDown={handleShortcut} aria-labelledby="review-step-heading">
+    <section
+      className="sx-review-workspace"
+      ref={workspaceRef}
+      onKeyDown={handleShortcut}
+      aria-labelledby="review-step-heading"
+    >
       <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
         Revisión
       </h2>
@@ -476,11 +481,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           ? "Sin pendientes. Puedes corregir las decisiones desde la lista o el texto original."
           : `Pendientes de revisar: ${pending.length}.`}
       </p>
-      <div
-        role="region"
-        aria-label="Espacio de revisión"
-        className="mt-4 grid gap-4 lg:grid-cols-3"
-      >
+      <div role="region" aria-label="Espacio de revisión" className="sx-review-grid mt-4">
         <InspectorPane
           error={error}
           onViewSource={() => {
@@ -695,7 +696,7 @@ function FilterProgressPane(props: {
   const progress = getProgress(session);
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="sx-review-findings min-w-0 space-y-4">
       <section
         aria-label="Filtros y progreso de la revisión"
         className="rounded border border-primary bg-surface-light p-3"
@@ -850,7 +851,7 @@ function DocumentPane(props: {
 }): ReactElement {
   const { session, segments, selectedId, onSelect, onUseSelection } = props;
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="sx-review-document min-w-0 space-y-4">
       <section aria-label="Documento" className="rounded border border-primary bg-white p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-base font-bold text-primary-dark">Documento</h3>
@@ -997,7 +998,7 @@ function InspectorPane(props: {
       ref={props.inspectorRef}
       tabIndex={-1}
       aria-label="Inspector del hallazgo"
-      className={`min-w-0 break-words rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
+      className={`sx-review-inspector min-w-0 break-words rounded border border-primary bg-surface-light p-3 self-start ${focusRing}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-display text-base font-bold text-primary-dark">Decisión actual</h3>

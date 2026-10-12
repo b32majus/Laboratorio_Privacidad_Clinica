@@ -942,7 +942,13 @@ export function App() {
           select, local-only processing fact) with the same accessible names,
           titles, help ids and control order; presentation only. */}
       <header className="sx-sitebar">
-        <div className={`mx-auto px-4 ${currentStep === "input" ? "max-w-[1350px]" : "max-w-5xl"}`}>
+        <div
+          className={`mx-auto px-4 ${
+            currentStep === "input" || (currentStep === "review" && review !== null && !isBatch)
+              ? "max-w-[1350px]"
+              : "max-w-5xl"
+          }`}
+        >
           <div className="sx-sitebar-row">
             <div className="sx-brand">
               <span className="sx-brand-mark" aria-hidden="true">
@@ -1049,7 +1055,11 @@ export function App() {
 
       <main
         id="main-content"
-        className={`mx-auto px-4 py-8 ${currentStep === "input" ? "max-w-[1350px]" : "max-w-5xl"}`}
+        className={`mx-auto px-4 py-8 ${
+          currentStep === "input" || (currentStep === "review" && review !== null && !isBatch)
+            ? "max-w-[1350px]"
+            : "max-w-5xl"
+        }`}
       >
         {currentStep === "input" ? (
           <InputStep
@@ -1110,11 +1120,13 @@ export function App() {
             }
           />
         ) : currentStep === "review" && review ? (
-          <ReviewWorkspace
-            session={review}
-            onDecide={session.decide}
-            onAddManual={session.addManual}
-          />
+          <div className="sx-review-task">
+            <ReviewWorkspace
+              session={review}
+              onDecide={session.decide}
+              onAddManual={session.addManual}
+            />
+          </div>
         ) : currentStep === "review" && job && job.kind === "structured" ? (
           hasFreeTextColumns && structuredConfiguration !== null ? (
             <StructuredFreeTextReview

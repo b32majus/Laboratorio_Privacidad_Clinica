@@ -592,3 +592,48 @@
     font-size: clamp(38px, 11vw, 49px);
   }
 }
+
+/* #91 U2a: real single Review — approved three-area Sophilux composition. */
+.sophilux-shell .sx-review-task .sx-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.48fr) minmax(220px, 0.73fr) minmax(285px, 0.84fr);
+  grid-template-areas: "document findings inspector";
+  gap: 14px;
+  align-items: start;
+}
+.sophilux-shell .sx-review-task .sx-review-document {
+  grid-area: document;
+  min-width: 0;
+}
+.sophilux-shell .sx-review-task .sx-review-findings {
+  grid-area: findings;
+  min-width: 0;
+}
+.sophilux-shell .sx-review-task .sx-review-inspector {
+  grid-area: inspector;
+  min-width: 0;
+}
+.sophilux-shell .sx-review-task .sx-review-document > section,
+.sophilux-shell .sx-review-task .sx-review-findings > section,
+.sophilux-shell .sx-review-task .sx-review-inspector {
+  border: 1px solid var(--sx-line);
+  border-radius: 13px;
+  background: var(--sx-paper);
+  box-shadow: var(--sx-shadow);
+}
+.sophilux-shell .sx-review-task .sx-review-workspace > h2 {
+  color: var(--sx-ink);
+  font-family: var(--sx-serif);
+  font-size: clamp(32px, 3.5vw, 46px);
+  line-height: 1.05;
+}
+.sophilux-shell .sx-review-task .sx-review-grid [aria-current="true"] {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 1px;
+}
+@media (max-width: 1023px) {
+  .sophilux-shell .sx-review-task .sx-review-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "inspector" "document" "findings";
+  }
+}
