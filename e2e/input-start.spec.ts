@@ -41,7 +41,7 @@ test("examples fill the pasted-text draft without creating a job", async ({ page
   // offers no task action while no job exists.
   await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
   await expect(page.getByRole("button", { name: "Iniciar revisión" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Privacy Gate" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Comprobación de privacidad" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 });
 

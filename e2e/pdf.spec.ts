@@ -29,9 +29,9 @@ test("a text-layer PDF extracts its text and reaches review", async ({ page }) =
   await expect(page.getByRole("banner")).toContainText("sample-clinical-note.pdf");
 
   // The exact intended text of the fixture is on the review surface.
-  await expect(page.getByRole("group", { name: "Document text with detections" })).toContainText(
-    PDF_TEXT
-  );
+  await expect(
+    page.getByRole("group", { name: "Texto del documento con hallazgos" })
+  ).toContainText(PDF_TEXT);
 });
 
 test("a scanned PDF without text layer fails explicitly and creates no job", async ({ page }) => {
