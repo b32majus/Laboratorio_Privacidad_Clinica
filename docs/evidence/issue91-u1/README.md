@@ -4,14 +4,50 @@ Unit 1 writer evidence. All captures are REAL Chromium screenshots of the
 actual running V4 production build (`vite preview` of `npm run build:v4`),
 using the maintained synthetic examples only — no PHI.
 
-## Screenshots (variant / viewport annotated)
+Updated by **CORA-91-U1-V01** (human-approved visual correction): secondary
+session help and examples/clipboard guidance are now native closed-by-default
+disclosures (`<details>`), Entrada uses `max-w-[1350px]`, and the previous four
+single captures were renamed/replaced by the eight clearly-annotated captures
+below (viewport vs full page, empty vs populated).
 
-| File | Variant | Viewport | Content |
-|---|---|---|---|
-| `entrada-vacia-1440.png` | **Entrada vacía** (sin trabajo, borrador vacío) | 1440×900 | Editorial story a la izquierda, intake real a la derecha, borrador vacío, "Aún no hay trabajo" |
-| `entrada-poblada-1440.png` | **Entrada poblada** (borrador rellenado eligiendo el ejemplo sintético "Ejemplo: consulta de urgencias") | 1440×900 | Mismo texto sintético del JSON `ejemplos/01-consulta-urgencias.json` en el borrador; ningún trabajo creado |
-| `entrada-vacia-375.png` | **Entrada vacía** | 375×800 | Identidad, controles y CTA refluidos en columna |
-| `entrada-poblada-375.png` | **Entrada poblada** (ejemplo sintético elegido) | 375×800 | Sin overflow, todos los controles visibles |
+## Screenshots (variant / viewport / frame annotated)
+
+Every capture shows BOTH disclosures closed (`Ayuda sobre las acciones de
+sesión` and `Ejemplos sintéticos y ayuda para pegar`); the populated variant
+was produced by opening the disclosure, choosing the real synthetic example
+`Ejemplo: consulta de urgencias`, and closing the disclosure again before the
+shot.
+
+| File | Frame | Variant | Viewport | Content |
+|---|---|---|---|---|
+| `entrada-vacia-1440-viewport.png` | **Primer viewport** | **Entrada vacía** (sin trabajo, borrador vacío) | 1440×900 | Editorial story a la izquierda, intake real a la derecha, borrador vacío, "Aún no hay trabajo"; `Crear trabajo` dentro del primer viewport |
+| `entrada-vacia-1440-completa.png` | **Página completa** | **Entrada vacía** | 1440×900 | Ídem + guía "Uso previsto" y "Política de privacidad" por debajo de la tarea |
+| `entrada-poblada-1440-viewport.png` | **Primer viewport** | **Entrada poblada** (ejemplo sintético `01-consulta-urgencias.json` elegido, desplegable vuelto a cerrar) | 1440×900 | Texto sintético real en el borrador; ningún trabajo creado |
+| `entrada-poblada-1440-completa.png` | **Página completa** | **Entrada poblada** | 1440×900 | Ídem a página completa |
+| `entrada-vacia-375-viewport.png` | **Primer viewport** | **Entrada vacía** | 375×800 | Identidad, controles y ayuda secundaria refluidos en columna |
+| `entrada-vacia-375-completa.png` | **Página completa** | **Entrada vacía** | 375×800 | Flujo completo de tarea en columna, sin overflow |
+| `entrada-poblada-375-viewport.png` | **Primer viewport** | **Entrada poblada** (ejemplo sintético elegido, desplegable cerrado) | 375×800 | Sin overflow, todos los controles visibles |
+| `entrada-poblada-375-completa.png` | **Página completa** | **Entrada poblada** | 375×800 | Ídem a página completa |
+
+## CORA-91-U1-V01 visual verdict (measured on the real app, this exact build)
+
+- **Desktop 1440×900, Entrada vacía:** `Crear trabajo` `boundingBox` =
+  `{x: 710.78, y: 829.42, width: 123, height: 41.5}` →
+  `y + height = 870.92 ≤ 900` — **completamente dentro del viewport inicial**
+  (antes de la corrección quedaba fuera).
+- **Móvil 375 px (vacía y poblada):**
+  `document.documentElement.scrollWidth = 375 ≤ window.innerWidth = 375` —
+  sin overflow horizontal y sin recorte global (`overflow-x: hidden`/`clip`
+  no se han añadido).
+- Desplegables `details.sx-session-help` y `details.sx-intake-extras`
+  **cerrados por defecto** en las ocho capturas (verificado por atributo
+  `open` ausente al capturar).
+- En poblada el borrador contiene el texto sintético real (292 caracteres) y
+  el desplegable se cerró antes de capturar: abrir/cerrar nunca cambia el
+  borrador ni crea trabajo.
+- La jerarquía Sophilux B V1 se conserva: historia editorial junto a la tarea
+  en escritorio, reflow en una columna en móvil; texto, archivos, acciones de
+  sesión y CTA siguen operables (los E2E focalizados lo verifican).
 
 ## 375 px overflow verdict (VF-08)
 
@@ -25,13 +61,18 @@ Measured on the rendered document, no global clipping present (none added):
 - The existing focused E2E witnesses also pass on this exact build:
   `e2e/input-start.spec.ts` "fits the viewport without horizontal overflow at
   375px/1280px" (shared `assertNoHorizontalOverflow`) and "primary
-  add-information task is visible, reachable and ahead of guidance".
+  add-information task is visible, reachable and ahead of guidance", plus the
+  new CORA-91-U1-V01 witness "secondary examples help is closed by default
+  and never affects the draft or the job".
 
 ## Focused writer proofs (final candidate bytes)
 
 1. `npm run typecheck:v4` — PASS.
 2. `npx vitest run app-v4/src/App.input-start.test.tsx` — PASS (25/25).
-3. `npx playwright test e2e/input-start.spec.ts --workers=2` — PASS (13/13).
+3. `npx playwright test e2e/input-start.spec.ts --workers=2` — PASS (14/14,
+   including the new focused disclosure witness).
+4. `npm run format:check:v4` — PASS.
+5. `git diff --check` — clean.
 
 ## Comparison against approved previews (`previews/entrada-{1440,375}.png`)
 

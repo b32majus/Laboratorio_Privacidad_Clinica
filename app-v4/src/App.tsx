@@ -942,7 +942,7 @@ export function App() {
           select, local-only processing fact) with the same accessible names,
           titles, help ids and control order; presentation only. */}
       <header className="sx-sitebar">
-        <div className={`mx-auto px-4 ${currentStep === "input" ? "max-w-6xl" : "max-w-5xl"}`}>
+        <div className={`mx-auto px-4 ${currentStep === "input" ? "max-w-[1350px]" : "max-w-5xl"}`}>
           <div className="sx-sitebar-row">
             <div className="sx-brand">
               <span className="sx-brand-mark" aria-hidden="true">
@@ -994,11 +994,14 @@ export function App() {
             </div>
           </div>
           <div className="sx-sitebar-context">
-            <p id="session-actions-help">
-              Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta de
-              forma deliberada todos los datos del trabajo en memoria, el estado de revisión y los
-              borradores de esta sesión del navegador.
-            </p>
+            <details className="sx-session-help">
+              <summary>Ayuda sobre las acciones de sesión</summary>
+              <p id="session-actions-help">
+                Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta
+                de forma deliberada todos los datos del trabajo en memoria, el estado de revisión y
+                los borradores de esta sesión del navegador.
+              </p>
+            </details>
             <p>
               <span className="sx-fact-label">Trabajo:</span>{" "}
               {job ? job.name : "Aún no hay trabajo"}
@@ -1046,7 +1049,7 @@ export function App() {
 
       <main
         id="main-content"
-        className={`mx-auto px-4 py-8 ${currentStep === "input" ? "max-w-6xl" : "max-w-5xl"}`}
+        className={`mx-auto px-4 py-8 ${currentStep === "input" ? "max-w-[1350px]" : "max-w-5xl"}`}
       >
         {currentStep === "input" ? (
           <InputStep
@@ -1932,36 +1935,46 @@ function InputStep(props: {
                 <p className="mt-1 text-sm leading-relaxed sx-muted">
                   Texto libre, como notas, informes o correspondencia.
                 </p>
-                <section aria-labelledby="synthetic-examples-heading" className="mt-4">
-                  <h4
-                    id="synthetic-examples-heading"
-                    className="text-sm font-bold text-neutral-800"
-                  >
-                    Ejemplos sintéticos
-                  </h4>
-                  <p className="mt-1 text-sm leading-relaxed sx-muted">
-                    Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el borrador;
-                    no crea ningún trabajo.
+                <details className="sx-intake-extras">
+                  <summary>Ejemplos sintéticos y ayuda para pegar</summary>
+
+                  <section aria-labelledby="synthetic-examples-heading" className="mt-3">
+                    <h4
+                      id="synthetic-examples-heading"
+                      className="text-sm font-bold text-neutral-800"
+                    >
+                      Ejemplos sintéticos
+                    </h4>
+                    <p className="mt-1 text-sm leading-relaxed sx-muted">
+                      Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el borrador;
+                      no crea ningún trabajo.
+                    </p>
+                    <ul
+                      aria-labelledby="synthetic-examples-heading"
+                      className="mt-2 flex flex-wrap gap-2"
+                    >
+                      {SYNTHETIC_EXAMPLES.map((example) => (
+                        <li key={example.id}>
+                          <button
+                            type="button"
+                            onClick={() => handleExample(example.text)}
+                            title={example.description}
+                            className={`sx-pill ${focusRing}`}
+                          >
+                            {example.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+
+                  <p className="mt-2 text-sm leading-relaxed sx-muted">
+                    Lee el contenido actual del portapapeles en este navegador. También puede usar
+                    Ctrl+V directamente en el campo de texto.
                   </p>
-                  <ul
-                    aria-labelledby="synthetic-examples-heading"
-                    className="mt-2 flex flex-wrap gap-2"
-                  >
-                    {SYNTHETIC_EXAMPLES.map((example) => (
-                      <li key={example.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleExample(example.text)}
-                          title={example.description}
-                          className={`sx-pill ${focusRing}`}
-                        >
-                          {example.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-                <div className="mt-4">
+                </details>
+
+                <div className="mt-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -1973,10 +1986,6 @@ function InputStep(props: {
                   >
                     Pegar desde el portapapeles
                   </button>
-                  <p className="mt-1 text-sm leading-relaxed sx-muted">
-                    Lee el contenido actual del portapapeles en este navegador. También puede usar
-                    Ctrl+V directamente en el campo de texto.
-                  </p>
                   {pasteError && (
                     <p role="alert" className="sx-alert mt-2">
                       {pasteError}

@@ -516,6 +516,47 @@
   padding: 16px;
 }
 
+/* U1 visual correction: secondary help, never a second workflow. */
+
+.sx-session-help {
+  order: 4;
+  flex: 0 0 100%;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.sx-session-help > summary,
+.sx-intake-extras > summary {
+  cursor: pointer;
+  color: var(--sx-rose-deep);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.sx-session-help > p {
+  max-width: 900px;
+  margin-top: 7px;
+  line-height: 1.55;
+}
+
+.sx-intake-extras {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sx-line);
+}
+
+.sx-intake-extras[open] > summary {
+  margin-bottom: 8px;
+}
+
+.sx-session-help > summary:focus-visible,
+.sx-intake-extras > summary:focus-visible {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
 /* ------------------------------------------------------------------ */
 /* Approved responsive reflow (VF-08): stack columns, keep everything  */
 /* reachable, never clip globally.                                     */
