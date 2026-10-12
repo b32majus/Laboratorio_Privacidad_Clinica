@@ -9,7 +9,7 @@ This file maps roles to project-local native OpenCode V2 agents. It does not dup
 
 | Role | volume | complex |
 | --- | --- | --- |
-| coordinator | `atenea-volume` → MiMo 2.6 Flash | `atenea-complex` → MiMo 2.6 Flash |
+| coordinator | `atenea-volume` → MiMo 2.6 Flash | `atenea-complex` → GLM 5.3 Flash high |
 | explorer | `atenea-explorer` → Qwen 3.8 Flash | same |
 | implementer | `atenea-implementer-volume` → DeepSeek V4 Flash | `atenea-implementer-complex` → GLM 5.3 Flash high |
 | merger | `atenea-merger` → MiMo 2.6 Flash | same |
@@ -81,7 +81,7 @@ A writer implements the supplied envelope. It does not perform open-ended siblin
 
 ## Evidence economy
 
-Writer evidence is focused. Broad/full suites default to an integration/publication boundary unless current repository/ticket authority needs them earlier. Correctors run focused evidence for supplied findings. Profile choice by itself never mandates extra routine reviews or full suites.
+Writer evidence is focused. Broad/full suites default to integration/publication unless the accepted handoff explicitly names one existing integrated candidate witness and its command for a material cross-surface risk; the coordinator runs that witness once after the fixed candidate and before canonical reviewers. Correctors run only the required focused closure checks, not optional full regressions; out-of-scope reds are reported instead of pursued. Profile choice alone never mandates extra reviews or suites.
 
 ## Standard writer/context economy
 
