@@ -59,6 +59,10 @@ The exact CSS values are reference targets but may require accessible adjustment
 
 This is a **known responsive fit debt assigned to #91**, not grounds to undo human aesthetic acceptance, add a new product Train, or silently edit approved V1 source. #91 shall preserve the same identity while ensuring `document.documentElement.scrollWidth <= viewportWidth` in the real application, where only the Structured table's own explicitly labeled region may scroll horizontally. The prototype source has intentionally remained byte-identical and its evidence records the defect rather than pretending PASS.
 
+## Ratified visual–functional companion authority (2026-10-12)
+
+The product owner approved **D1–D4 and VF-01…VF-08** in the [functional reconciliation](SOPHILUX_B_V1_FUNCTIONAL_RECONCILIATION.md). Read it alongside this accepted visual contract: it maps these seven compositions to real V4 capabilities, errors, status and onward actions without copying any simulated behavior. The original approved HTML/CSS/JS is **unchanged**. No domain or privacy permissions change, and #90/#91 **have not been launched**.
+
 ## Implementation and C-087 handoff boundaries
 
 - **#90** remains the exhaustive professional Spanish pass. Use the accepted screen context and visual microcopy tone, but preserve canonical domain/status semantics, technical IDs and any existing fail-closed alerts. Translation must not introduce false equivalence.

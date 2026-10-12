@@ -1,6 +1,7 @@
 # Sophilux B V1 × Laboratorio V4 — reconciliación visual-funcional
 
-> **STATUS: PROPUESTA DE RECONCILIACIÓN PARA APROBACIÓN HUMANA (2026-10-12).**
+> **STATUS: HUMAN APPROVED · CONTRATO VISUAL-FUNCIONAL CONGELADO (2026-10-12).**
+> La persona responsable aprobó expresamente **D1–D4 y VF-01…VF-08**. Este contrato complementa, sin modificar, la identidad visual V1 ni las reglas de privacidad y dominio.
 > Comparación **READ-ONLY** sobre `origin/3.0-main@34cd303486ef7aa697c738a66a3b52ce56d98940`, posterior a #85 y al PR #117. El HTML/CSS/JS visual ya aprobado **no se modifica**. Este documento **no** es una nueva auditoría general, una revisión de seguridad, una verificación de cumplimiento 88+42+12, un Train, ni autorización para #90/#91.
 >
 > **Objeto exacto:** las **7 vistas aprobadas** de Sophilux B V1, no «32 pantallas»: «32» es la densidad del caso sintético de **columnas Structured**. Se inspeccionaron el prototipo `docs/design/sophilux-b-v1/{app.js,index.html,styles.css,ACCEPTED_VISUAL_CONTRACT.md}`, `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`, reconciliación final del 5/oct y consumidores reales de V4 citados abajo. No se infieren capacidades de controles simulados ni se inspecciona código fuera de los consumidores afectados.
@@ -102,18 +103,18 @@ Para CADA elemento visual con capacidad real registrar: **hecho de entrada** →
 
 - Verificar como estaba planificado la correspondencia de fuentes de decisiones y requisitos y recorridos E2E compuestos, incluidas las familias de estado; NO considerar la maqueta con datos sintéticos prueba de salida segura.
 
-## 7. Decisión humana necesaria para congelar ESTE contrato (no para reabrir la estética)
+## 7. Decisión humana ratificada — D1–D4 y VF-01…VF-08
 
-La aprobación de V1 ya cubre tipografías, composición general, color, jerarquía y espíritu Sophilux. **Lo único pendiente es ratificar que las adaptaciones funcionales obligatorias mantengan esa misma composición**:
+La persona responsable **ha ratificado** todas las adaptaciones D1–D4 y condiciones VF-01 a VF-08 el 2026-10-12. La aprobación visual previa permanece intacta; las funciones reales se integrarán sin copiar navegación, decisiones o controles simulados del prototipo:
 
 - **D1 — Revisión:** filtros, marcado manual, borrador editable y conservar-original se alojan como controles **contextuales** de los tres paneles, sin construir cuarta pantalla ni ocupar el documento.
 - **D2 — Lote:** un error conserva su fila/estado; el panel de la derecha pasa a **detalle de incidencia** cuando no hay sesión activa, con acciones permitidas y sus confirmaciones.
 - **D3 — Resultado:** la hero/tarjeta/advertencia/Confidential de V1 son el **sistema visual común**; la acción principal y la zona central se adaptan al material y al estado verdadero. Se conserva advertencia visible con originales mantenidos, no se certifica anonimato.
 - **D4 — Comprobación/Structured:** la vista de privacidad es contextual y opcional; hoja/cabecera pre-tabla se muestra solo cuando faltan decisiones; las siete vistas **no** implican siete pasos obligatorios.
 
-**Propuesta de aprobación humana en una frase:** «Apruebo la reconciliación VF-01…VF-08 y D1…D4; se mantiene Sophilux B V1 como identidad, y los elementos funcionales se incorporan según el modelo real, sin copiar simulaciones».
+**Decisión humana recibida:** «Apruebo D1–D4 y las condiciones VF-01 a VF-08 de la reconciliación Sophilux B V1. Congela y publica el contrato visual-funcional en Laboratorio, sin lanzar todavía #90 ni #91».
 
-Hasta esa ratificación: **READY_FOR_HUMAN_RECONCILIATION_APPROVAL**, no una nueva autoridad canónica. No hay prueba de bloqueo técnico del dominio ni necesidad de volver a auditar. Tras aprobación, versionar **este documento** como contrato complementario con link desde `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`, en un PR solo documental; después preparar #90 desde la rama canónica. No seleccionar ni lanzar #90/#91 por adelantado.
+**DISPOSICIÓN:** contrato aprobado. Será autoridad canónica tras su publicación documental en `3.0-main` y su referencia expresa en `HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md`. No hay bloqueo de dominio demostrado. **#90 y #91 siguen sin autorización de ejecución ni despliegue**; sus preparaciones futuras emplearán la autoridad integrada.
 
 ## 8. Rutas de fuente y prueba para implementador/revisor
 
