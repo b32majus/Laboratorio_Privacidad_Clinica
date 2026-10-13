@@ -78,3 +78,7 @@ The product owner approved **D1–D4 and VF-01…VF-08** in the [functional reco
 - The screenshot host and reviewer toolbar are local visualization mechanisms only; not deployed.
 - All committed paths are under `docs/`; the operational V4 code, tests, agents, runtime, CI and domain are unaffected.
 - **Human approval: complete.** This freeze does not itself authorize new #90/#91 Train execution or production deployment.
+
+## Adenda de fidelidad de implementación (2026-10-14)
+
+El maestro de 2026-10-12 **sigue congelado y no se modifica**. Tras comparar la herramienta mostrada con el HTML aprobado, la responsable detectó divergencias materiales de composición en Entrada y Revisión. El estado, procedencia, distinción entre desviación observada y nueva preferencia posterior, y prioridad de #92 antes de una recomposición UX están registrados en [IMPLEMENTATION_FIDELITY_REGISTER_20261014.md](IMPLEMENTATION_FIDELITY_REGISTER_20261014.md). Esta nota **no** reabre #91, no aprueba una nueva maqueta y no acredita ningún cambio funcional.
