@@ -689,3 +689,44 @@
     grid-template-areas: "inspector" "document" "findings";
   }
 }
+
+/* #91 U4 Structured: real controlled four-field comparison and contextual inspector. */
+.sophilux-shell .sx-structured-task .sx-structured-workspace > h2 {
+  color: var(--sx-ink);
+  font-family: var(--sx-serif);
+  font-size: clamp(32px, 3.2vw, 43px);
+  line-height: 1.08;
+}
+.sophilux-shell .sx-structured-task .sx-structured-configuration,
+.sophilux-shell .sx-structured-task .sx-structured-grid > *,
+.sophilux-shell .sx-structured-task .sx-structured-status-band > * {
+  min-width: 0;
+}
+.sophilux-shell .sx-structured-task .sx-structured-status-band,
+.sophilux-shell .sx-structured-task .sx-structured-table,
+.sophilux-shell .sx-structured-task .sx-structured-inspector,
+.sophilux-shell .sx-structured-task .sx-structured-workspace > section[aria-label] {
+  border: 1px solid var(--sx-line);
+  border-radius: 13px;
+  background: var(--sx-paper);
+  box-shadow: var(--sx-shadow);
+}
+.sophilux-shell .sx-structured-task .sx-structured-grid {
+  grid-template-columns: minmax(0, 1.85fr) minmax(310px, 0.9fr);
+  align-items: start;
+  gap: 14px;
+}
+.sophilux-shell .sx-structured-task .sx-structured-table [aria-pressed="true"] {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 1px;
+}
+.sophilux-shell .sx-structured-task .sx-structured-table [role="region"] {
+  max-width: 100%;
+  min-width: 0;
+}
+@media (max-width: 1023px) {
+  .sophilux-shell .sx-structured-task .sx-structured-grid,
+  .sophilux-shell .sx-structured-task .sx-structured-status-band {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

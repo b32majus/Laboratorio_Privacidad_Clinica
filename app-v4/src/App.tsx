@@ -944,7 +944,9 @@ export function App() {
       <header className="sx-sitebar">
         <div
           className={`mx-auto px-4 ${
-            currentStep === "input" || (currentStep === "review" && (isBatch || review !== null))
+            currentStep === "input" ||
+            (currentStep === "review" && (isBatch || review !== null)) ||
+            (currentStep === "configure" && job?.kind === "structured")
               ? "max-w-[1350px]"
               : "max-w-5xl"
           }`}
@@ -1056,7 +1058,9 @@ export function App() {
       <main
         id="main-content"
         className={`mx-auto px-4 py-8 ${
-          currentStep === "input" || (currentStep === "review" && (isBatch || review !== null))
+          currentStep === "input" ||
+          (currentStep === "review" && (isBatch || review !== null)) ||
+          (currentStep === "configure" && job?.kind === "structured")
             ? "max-w-[1350px]"
             : "max-w-5xl"
         }`}
@@ -1075,28 +1079,30 @@ export function App() {
             onCreate={handleCreateFromDraft}
           />
         ) : currentStep === "configure" && job && job.kind === "structured" ? (
-          <StructuredConfigureWorkspace
-            key={job.id}
-            configuration={structuredConfiguration}
-            errorMessage={structuredError}
-            sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
-            headerRow={structuredHeader?.jobId === job.id ? structuredHeader : null}
-            onSelectSheet={handleSelectStructuredSheet}
-            onSelectHeaderRow={handleSelectStructuredHeaderRow}
-            onOverrideClass={session.overrideStructuredColumn}
-            onOverrideAction={session.overrideStructuredColumnAction}
-            onSelectPatientId={session.selectStructuredPatientId}
-            onSetDateRole={session.setStructuredColumnDateRole}
-            exportReadiness={
-              structuredPreparation === null
-                ? null
-                : {
-                    ready: structuredPreparation.status === "ready",
-                    reasons: structuredPreparation.reasons,
-                  }
-            }
-            outputOptions={structuredOutputOptions}
-          />
+          <div className="sx-structured-task">
+            <StructuredConfigureWorkspace
+              key={job.id}
+              configuration={structuredConfiguration}
+              errorMessage={structuredError}
+              sheetNames={structuredSheet?.jobId === job.id ? structuredSheet.sheetNames : null}
+              headerRow={structuredHeader?.jobId === job.id ? structuredHeader : null}
+              onSelectSheet={handleSelectStructuredSheet}
+              onSelectHeaderRow={handleSelectStructuredHeaderRow}
+              onOverrideClass={session.overrideStructuredColumn}
+              onOverrideAction={session.overrideStructuredColumnAction}
+              onSelectPatientId={session.selectStructuredPatientId}
+              onSetDateRole={session.setStructuredColumnDateRole}
+              exportReadiness={
+                structuredPreparation === null
+                  ? null
+                  : {
+                      ready: structuredPreparation.status === "ready",
+                      reasons: structuredPreparation.reasons,
+                    }
+              }
+              outputOptions={structuredOutputOptions}
+            />
+          </div>
         ) : currentStep === "review" && isBatch && job ? (
           <div className="sx-batch-task">
             <BatchReviewView
