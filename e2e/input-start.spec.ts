@@ -415,6 +415,7 @@ test("CORA-91-F1 session help follows policy in keyboard focus order", async ({ 
     await page.goto("/");
     await page.getByRole("textbox", { name: "Pegar texto" }).fill(EJEMPLO_URGENCIAS);
     await page.getByRole("button", { name: "Crear trabajo" }).click();
+    await expect(page.getByRole("region", { name: "Espacio de revisión" })).toBeVisible();
 
     const banner = page.getByRole("banner");
     const policy = banner.getByRole("combobox", { name: /Política de privacidad/ });
