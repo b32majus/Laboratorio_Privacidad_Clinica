@@ -947,7 +947,8 @@ export function App() {
             currentStep === "input" ||
             (currentStep === "review" && (isBatch || review !== null)) ||
             (currentStep === "configure" && job?.kind === "structured") ||
-            (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns)
+            (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns) ||
+            currentStep === "privacy-gate"
               ? "max-w-[1350px]"
               : "max-w-5xl"
           }`}
@@ -1062,7 +1063,8 @@ export function App() {
           currentStep === "input" ||
           (currentStep === "review" && (isBatch || review !== null)) ||
           (currentStep === "configure" && job?.kind === "structured") ||
-          (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns)
+          (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns) ||
+          currentStep === "privacy-gate"
             ? "max-w-[1350px]"
             : "max-w-5xl"
         }`}
@@ -1176,12 +1178,14 @@ export function App() {
         ) : currentStep === "privacy-gate" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
-          <PrivacyGate
-            job={job}
-            review={activeReview}
-            batchSessions={batchSessions}
-            structured={structuredGateInput}
-          />
+          <div className="sx-gate-task">
+            <PrivacyGate
+              job={job}
+              review={activeReview}
+              batchSessions={batchSessions}
+              structured={structuredGateInput}
+            />
+          </div>
         ) : currentStep === "export" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (

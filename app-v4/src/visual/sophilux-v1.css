@@ -789,3 +789,43 @@
     grid-template-areas: "inspector" "document" "findings";
   }
 }
+/* #91 U6: optional factual checkpoint. */
+.sophilux-shell .sx-gate-task .sx-gate-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+.sophilux-shell .sx-gate-task .sx-gate-workspace > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.sophilux-shell .sx-gate-task .sx-gate-workspace > header {
+  grid-column: 1;
+  padding: 22px;
+  border: 1px solid var(--sx-line);
+  border-radius: 14px;
+  background: var(--sx-paper-muted);
+}
+.sophilux-shell .sx-gate-task .sx-gate-workspace > header h2 {
+  font-family: var(--sx-serif);
+  font-size: clamp(34px, 3.2vw, 45px);
+  line-height: 1.06;
+  color: var(--sx-ink);
+}
+.sophilux-shell .sx-gate-task .sx-gate-checkpoint {
+  grid-column: 2;
+  margin-top: 0;
+  border-radius: 14px;
+  background: var(--sx-paper);
+  box-shadow: var(--sx-shadow);
+}
+@media (max-width: 1023px) {
+  .sophilux-shell .sx-gate-task .sx-gate-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sophilux-shell .sx-gate-task .sx-gate-workspace > header,
+  .sophilux-shell .sx-gate-task .sx-gate-checkpoint {
+    grid-column: 1;
+  }
+}

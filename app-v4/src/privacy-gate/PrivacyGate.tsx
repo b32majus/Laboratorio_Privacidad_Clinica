@@ -142,7 +142,7 @@ export function PrivacyGate(props: PrivacyGateProps): ReactElement {
   const hasAttentionFacts = hasJobErrors || view.warnings.length > 0;
 
   return (
-    <section aria-labelledby="privacy-gate-step-heading">
+    <section className="sx-gate-workspace" aria-labelledby="privacy-gate-step-heading">
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
           Comprobación de privacidad
@@ -294,7 +294,7 @@ function GateCheckpoint({
   return (
     <section
       aria-labelledby="gate-checkpoint-heading"
-      className={`mt-5 rounded-xl border-2 p-4 ${
+      className={`sx-gate-checkpoint mt-5 rounded-xl border-2 p-4 ${
         actionRequired ? "border-primary-dark bg-surface-light" : "border-primary/40 bg-white"
       }`}
     >
