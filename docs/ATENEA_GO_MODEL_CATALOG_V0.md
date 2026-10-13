@@ -1,8 +1,8 @@
 # Atenea Go model catalog v0
 
-Status: **QUALIFICATION-CANDIDATE REPLACEABLE SNAPSHOT**
-Snapshot: 2026-10-04
-Runtime observed: OpenCode V2 `2.0.22`
+Status: **C-087 GO ROUTING CANDIDATE — FIELD CANARY PENDING**
+Snapshot: 2026-10-12
+Runtime observed for candidate: OpenCode V2 `2.0.26`
 
 This file is deliberately replaceable. Go availability and promotion rotate; changing the catalog at a clean boundary is expected and does not change the stable `go` policy.
 
@@ -10,14 +10,14 @@ This file is deliberately replaceable. Go availability and promotion rotate; cha
 
 | Role | Current Go binding | Notes |
 | --- | --- | --- |
-| coordinator | `opencode-go/mimo-v2.6-flash` | same coordinator family as standard C-084; orchestration-only |
-| explorer | `nan/qwen3.6` | NaN no-counter route; known bounded scout behavior |
+| coordinator | `opencode-go/deepseek-v4.1-flash` | orchestration-only; two-phase coordination probe PASS; real Train pending |
+| explorer | `nan/mimo-v2.6-flash` | NaN quota route; inference compared against Qwen 3.6 |
 | implementer | `opencode-go/muse-spark-1.3-contributor` | primary Go coding writer |
 | merger | `opencode-go/mimo-v2.6-flash` | semantic integration under accepted intent |
-| Standards review | `nan/qwen3.6` | fresh read-only reviewer, different from the Muse writer/provider |
+| Standards review | `nan/mimo-v2.6-flash` | independent reviewer role; inference compared against Qwen 3.6 |
 | Spec review | `openai/gpt-6-luna#high` | fresh read-only Spec assurance |
-| volume correction | `opencode-go/muse-spark-1.3-contributor` | fresh finding-scoped correction session; may be invoked twice maximum |
-| complex correction | `opencode-go/deepseek-v4.1-flash` | fresh finding-scoped session using a model different from the writer; may be invoked twice maximum |
+| volume correction | `opencode-go/deepseek-v4.1-flash` | fresh finding-scoped session, max two attempts |
+| complex correction | `opencode-go/deepseek-v4.1-flash` | same corrector model for both risk classes; fresh session |
 | integrated audit | Cora | required for material Go-complex composed work |
 
 ## Runtime Go inventory observed on 2026-10-04
@@ -28,7 +28,7 @@ OpenCode V2 exposed these bound routes for this account:
 opencode-go/mimo-v2.6-flash
 opencode-go/muse-spark-1.3-contributor
 opencode-go/deepseek-v4.1-flash
-nan/qwen3.6
+nan/mimo-v2.6-flash
 openai/gpt-6-luna
 ```
 

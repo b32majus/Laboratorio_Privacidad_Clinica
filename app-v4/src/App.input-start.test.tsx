@@ -45,6 +45,15 @@ function pegarButton(): HTMLElement {
   return screen.getByRole("button", { name: "Pegar desde el portapapeles" });
 }
 
+/** CORA-91-U1-V01: the examples/clipboard help is a secondary closed-by-default disclosure. */
+function expandExampleHelp(): void {
+  fireEvent.click(
+    screen.getByText("Ejemplos sintéticos y ayuda para pegar", {
+      selector: "summary",
+    })
+  );
+}
+
 /** A promise whose settlement is controlled by the test (pending-async witness). */
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -62,6 +71,7 @@ function deferred<T>() {
 describe("Input start examples (REC-08 #80)", () => {
   it("shows three Spanish keyboard-operable example actions", () => {
     render(<App />);
+    expandExampleHelp();
     expect(SYNTHETIC_EXAMPLES).toHaveLength(3);
     for (const example of SYNTHETIC_EXAMPLES) {
       const button = screen.getByRole("button", { name: example.label });
@@ -75,6 +85,7 @@ describe("Input start examples (REC-08 #80)", () => {
   it("each example loads the expected heritage texto and creates no job", () => {
     for (let index = 0; index < SYNTHETIC_EXAMPLES.length; index += 1) {
       render(<App />);
+      expandExampleHelp();
       fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[index].label }));
       // The maintained JSON payload is the content source (not v3 strings).
       expect(draftTextarea()).toHaveValue(EXPECTED_TEXTS[index]);
@@ -92,6 +103,7 @@ describe("Input start examples (REC-08 #80)", () => {
 
   it("creation after an example uses the ordinary pasted-text authority", async () => {
     render(<App />);
+    expandExampleHelp();
     fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[0].label }));
     fireEvent.click(createButton());
     expect(screen.getByText("Pasted text")).toBeInTheDocument();
@@ -215,6 +227,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     stubClipboardRead(() => read.promise);
 
     render(<App />);
+    expandExampleHelp();
     fireEvent.click(pegarButton());
     const example = SYNTHETIC_EXAMPLES[0];
     fireEvent.click(screen.getByRole("button", { name: example.label }));

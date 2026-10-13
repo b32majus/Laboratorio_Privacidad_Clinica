@@ -1,7 +1,7 @@
 ---
 description: Read-only Go-profile exploration scout for bounded codebase reconnaissance.
 mode: subagent
-model: nan/qwen3.6
+model: nan/mimo-v2.6-flash
 permissions:
   - action: edit
     resource: "*"

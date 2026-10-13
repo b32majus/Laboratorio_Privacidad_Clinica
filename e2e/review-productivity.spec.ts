@@ -2,6 +2,55 @@
 import { expect, test } from "./harness/fixtures";
 import { buildHighVolumeText, keepOriginalThroughUi } from "./harness/flows";
 
+import type { Locator, Page } from "@playwright/test";
+
+/** Direct-child pane zone order of a live Review grid, read from the DOM. */
+function gridZoneOrder(scope: Locator): Promise<string[]> {
+  return scope.evaluate((grid) =>
+    Array.from(grid.children).map((child): string => {
+      if (child.classList.contains("sx-review-document")) return "document";
+      if (child.classList.contains("sx-review-findings")) return "findings";
+      if (child.classList.contains("sx-review-inspector")) return "inspector";
+      return "unknown";
+    })
+  );
+}
+
+/**
+ * First sequential-Tab entrance into each of the three live Review zones, from
+ * a deterministic blurred origin. Detects the closest zone ancestor of the real
+ * `document.activeElement`; never programmatically focuses a pane.
+ */
+async function tabZoneEntranceOrder(page: Page): Promise<string[]> {
+  await page.evaluate(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+  });
+  const seen: string[] = [];
+  for (let i = 0; i < 250 && seen.length < 3; i += 1) {
+    await page.keyboard.press("Tab");
+    const zone = await page.evaluate((): string | null => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return null;
+      const zone = active.closest(".sx-review-document, .sx-review-findings, .sx-review-inspector");
+      if (!zone) return null;
+      if (zone.classList.contains("sx-review-document")) return "document";
+      if (zone.classList.contains("sx-review-findings")) return "findings";
+      return "inspector";
+    });
+    if (zone && !seen.includes(zone)) seen.push(zone);
+  }
+  return seen;
+}
+
+function activeDescriptor(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return "none";
+    return active.id ? `#${active.id}` : active.tagName.toLowerCase();
+  });
+}
+
 for (const width of [375, 1280]) {
   test(`current Review task and explicit navigation remain usable (${width}×800)`, async ({
     page,
@@ -125,3 +174,114 @@ for (const width of [375, 1280]) {
     await capture("low-confidence-explicit-decision");
   });
 }
+
+/**
+ * CORA-91-F1 S1 (cross-browser): the real DOM/source order, spatial order and
+ * sequential Tab order are ONE coherent authority across the accepted single
+ * Review breakpoints, without browser-specific CSS reading-flow.
+ *
+ * Desktop (1440): document → findings → inspector. Stacked (375): inspector →
+ * document → findings. The 24-finding synthetic fixture and the real
+ * `Pegar texto` → `Crear trabajo` route are reused; this only adds the focused
+ * ordering witness.
+ */
+test("CORA-91-F1 DOM and Tab order tracks visual Review panes", async ({ page }) => {
+  const grid = () => page.getByRole("region", { name: "Espacio de revisión" });
+  const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
+  const currentOriginal = inspector.locator('dt:text-is("Original") + dd');
+  const currentDecision = inspector.locator('dt:text-is("Decisión actual") + dd');
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "Pegar texto" }).fill(buildHighVolumeText());
+  await page.getByRole("button", { name: "Crear trabajo" }).click();
+  await expect(page.getByRole("list", { name: "Hallazgos" }).getByRole("button")).toHaveCount(24);
+
+  // Exactly one instance of each pane; never a hidden duplicate.
+  await expect(grid()).toHaveCount(1);
+  await expect(page.locator(".sx-review-document")).toHaveCount(1);
+  await expect(page.locator(".sx-review-findings")).toHaveCount(1);
+  await expect(page.locator(".sx-review-inspector")).toHaveCount(1);
+
+  const desktopDom = await gridZoneOrder(grid());
+  const desktopTab = await tabZoneEntranceOrder(page);
+  console.log(`CORA-91-F1 single 1440 DOM=${desktopDom.join(",")} TAB=${desktopTab.join(",")}`);
+  expect(desktopDom).toEqual(["document", "findings", "inspector"]);
+  expect(desktopTab).toEqual(["document", "findings", "inspector"]);
+
+  // Selected finding, real decision and visible focus survive the Tab walk.
+  await expect(currentOriginal).toHaveText("12345670A");
+  await expect(currentDecision).toHaveText("Pendiente");
+  expect(
+    await page.evaluate(() => {
+      const active = document.activeElement;
+      return active instanceof HTMLElement && active.closest(".sx-review-grid") !== null;
+    })
+  ).toBe(true);
+
+  // Populated UNSAVED replacement draft, replacement field focused, then a live
+  // crossing of the single-Review breakpoint (1440 → 375).
+  const replacement = page.getByLabel("Sustitución");
+  await replacement.fill("BORRADOR SIN GUARDAR");
+  await replacement.focus();
+  const focusBefore = await activeDescriptor(page);
+  await page.setViewportSize({ width: 375, height: 800 });
+  // WebKit publishes the matchMedia change asynchronously after a real viewport
+  // resize: wait for the same converged zone order asserted below instead of
+  // reading the DOM before React finishes the pane reorder.
+  await expect
+    .poll(async () => (await gridZoneOrder(grid())).join(","), { timeout: 10_000 })
+    .toBe("inspector,document,findings");
+  const focusAfter = await activeDescriptor(page);
+  const draftAfter = await replacement.inputValue();
+  console.log(
+    `CORA-91-F1 resize 1440->375 focusBefore=${focusBefore} focusAfter=${focusAfter} draft="${draftAfter}"`
+  );
+
+  const stackedDom = await gridZoneOrder(grid());
+  const stackedTab = await tabZoneEntranceOrder(page);
+  console.log(`CORA-91-F1 single 375 DOM=${stackedDom.join(",")} TAB=${stackedTab.join(",")}`);
+  expect(stackedDom).toEqual(["inspector", "document", "findings"]);
+  expect(stackedTab).toEqual(["inspector", "document", "findings"]);
+
+  // Draft, selection and decision all stay authoritative after the reorder.
+  expect(draftAfter).toBe("BORRADOR SIN GUARDAR");
+  expect(focusAfter).toBe(focusBefore);
+  await expect(currentOriginal).toHaveText("12345670A");
+  await expect(currentDecision).toHaveText("Pendiente");
+  await expect(page.locator(".sx-review-document")).toHaveCount(1);
+  await expect(page.locator(".sx-review-findings")).toHaveCount(1);
+  await expect(page.locator(".sx-review-inspector")).toHaveCount(1);
+
+  // REVERSE live crossing 375 → 1440: React's DOM-node moves are not symmetric
+  // between the two directions, so this direction gets its own real crossing
+  // with the SAME populated UNSAVED draft and the replacement field focused.
+  await replacement.focus();
+  const reverseDraftBefore = await replacement.inputValue();
+  const reverseFocusBefore = await activeDescriptor(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // WebKit publishes the matchMedia change asynchronously after a real viewport
+  // resize: wait for the same converged zone order asserted below instead of
+  // reading the DOM before React finishes the pane reorder.
+  await expect
+    .poll(async () => (await gridZoneOrder(grid())).join(","), { timeout: 10_000 })
+    .toBe("document,findings,inspector");
+  const reverseFocusAfter = await activeDescriptor(page);
+  const reverseDraftAfter = await replacement.inputValue();
+  console.log(
+    `CORA-91-F1 resize 375->1440 focusBefore=${reverseFocusBefore} focusAfter=${reverseFocusAfter} draft="${reverseDraftAfter}"`
+  );
+
+  const reverseDom = await gridZoneOrder(grid());
+  console.log(`CORA-91-F1 single 1440 (reverse) DOM=${reverseDom.join(",")}`);
+  expect(reverseDom).toEqual(["document", "findings", "inspector"]);
+
+  expect(reverseDraftBefore).toBe("BORRADOR SIN GUARDAR");
+  expect(reverseDraftAfter).toBe("BORRADOR SIN GUARDAR");
+  expect(reverseFocusAfter).toBe(reverseFocusBefore);
+  await expect(currentOriginal).toHaveText("12345670A");
+  await expect(currentDecision).toHaveText("Pendiente");
+  await expect(page.locator(".sx-review-document")).toHaveCount(1);
+  await expect(page.locator(".sx-review-findings")).toHaveCount(1);
+  await expect(page.locator(".sx-review-inspector")).toHaveCount(1);
+});

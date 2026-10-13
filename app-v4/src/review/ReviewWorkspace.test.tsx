@@ -1271,7 +1271,7 @@ describe("ReviewWorkspace — keyboard operability and responsive surfaces", () 
     render(<Harness initial={buildSession()} />);
     // Same DOM for desktop and mobile: a responsive grid, stacked on small screens.
     const container = screen.getByRole("region", { name: /espacio de revisión/i });
-    expect(container).toHaveClass("lg:grid-cols-3");
+    expect(container).toHaveClass("sx-review-grid");
     expect(screen.getByRole("status", { name: /progreso de la revisión/i })).toBeInTheDocument();
     expect(
       screen.getByRole("group", { name: /texto del documento con hallazgos/i })

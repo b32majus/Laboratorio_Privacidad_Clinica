@@ -23,7 +23,7 @@ import { keepOriginalThroughUi } from "./harness/flows";
 
 import fs from "node:fs";
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 const CSV = path.resolve(__dirname, "fixtures/structured-composed.csv");
 
@@ -62,6 +62,45 @@ async function configureComposedJob(page: Page): Promise<void> {
   await page.getByLabel("Acción del revisor para Notas").selectOption("process-as-text");
   const summary = page.getByRole("status", { name: "Datos de la configuración estructurada" });
   await expect(summary).toContainText("Columnas que requieren revisión: 0");
+}
+
+/** Direct-child pane zone order of a live Review grid, read from the DOM. */
+function gridZoneOrder(scope: Locator): Promise<string[]> {
+  return scope.evaluate((grid) =>
+    Array.from(grid.children).map((child): string => {
+      if (child.classList.contains("sx-review-document")) return "document";
+      if (child.classList.contains("sx-review-findings")) return "findings";
+      if (child.classList.contains("sx-review-inspector")) return "inspector";
+      return "unknown";
+    })
+  );
+}
+
+/**
+ * First sequential-Tab entrance into each of the three live Review zones, from
+ * a deterministic blurred origin. Detects the closest zone ancestor of the real
+ * `document.activeElement`; never programmatically focuses a pane.
+ */
+async function tabZoneEntranceOrder(page: Page): Promise<string[]> {
+  await page.evaluate(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+  });
+  const seen: string[] = [];
+  for (let i = 0; i < 250 && seen.length < 3; i += 1) {
+    await page.keyboard.press("Tab");
+    const zone = await page.evaluate((): string | null => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return null;
+      const zone = active.closest(".sx-review-document, .sx-review-findings, .sx-review-inspector");
+      if (!zone) return null;
+      if (zone.classList.contains("sx-review-document")) return "document";
+      if (zone.classList.contains("sx-review-findings")) return "findings";
+      return "inspector";
+    });
+    if (zone && !seen.includes(zone)) seen.push(zone);
+  }
+  return seen;
 }
 
 /** Decide every pending detection of the active free-text cell workspace. */
@@ -231,4 +270,49 @@ test("switching policy drops the free-text review and closes the gate (no stale 
   ).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ir al resultado" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
+});
+
+/**
+ * CORA-91-F1 S1 (cross-browser): a real processed free-text cell Review keeps
+ * its DOM/source order, spatial order and sequential Tab order coherent at the
+ * accepted cells breakpoints (desktop > 1100: document → inspector → findings;
+ * ≤ 1100: inspector → document → findings). Reuses the composed cell flow.
+ */
+test("CORA-91-F1 Cells Tab order matches visual panes", async ({ page }) => {
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 800 });
+    await createComposedJob(page);
+    await configureComposedJob(page);
+    await page.getByRole("button", { name: "Continuar a la revisión" }).click();
+    await page.getByRole("button", { name: "Procesar celdas de texto libre" }).click();
+    await expect(
+      page.getByRole("status", { name: "Progreso de la revisión de texto libre" })
+    ).toContainText("Celdas: 2");
+    await page.getByRole("button", { name: /Notas, fila 1/ }).click();
+
+    const grid = page.getByRole("region", { name: "Espacio de revisión" });
+    const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
+    const selectedOriginal = () =>
+      inspector
+        .locator('dt:text-is("Original") + dd')
+        .evaluate((el) => el.textContent?.trim() ?? "");
+    const originalBefore = await selectedOriginal();
+    await expect(grid).toHaveCount(1);
+    await expect(page.locator(".sx-review-document")).toHaveCount(1);
+    await expect(page.locator(".sx-review-findings")).toHaveCount(1);
+    await expect(page.locator(".sx-review-inspector")).toHaveCount(1);
+
+    const expected =
+      width > 1100 ? ["document", "inspector", "findings"] : ["inspector", "document", "findings"];
+    const dom = await gridZoneOrder(grid);
+    const tab = await tabZoneEntranceOrder(page);
+    console.log(`CORA-91-F1 cells ${width} DOM=${dom.join(",")} TAB=${tab.join(",")}`);
+    expect(dom).toEqual(expected);
+    expect(tab).toEqual(expected);
+
+    // The active cell and its selected detection/decision are preserved.
+    await expect(page.getByRole("heading", { name: /Revisando Notas, fila 1/ })).toBeVisible();
+    expect(await selectedOriginal()).toBe(originalBefore);
+    await expect(inspector.locator('dt:text-is("Decisión actual") + dd')).toHaveText("Pendiente");
+  }
 });

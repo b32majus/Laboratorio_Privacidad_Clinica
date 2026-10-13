@@ -1,7 +1,7 @@
 ---
 description: Atenea free-only coordinator. Orchestrates bounded work using only the current zero-cost bindings; never authors repository changes directly.
 mode: primary
-model: opencode/mimo-v2.6-flash-free
+model: opencode/muse-spark-1.3-contributor-free
 permissions:
   - action: edit
     resource: "*"

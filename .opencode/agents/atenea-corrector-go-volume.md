@@ -1,7 +1,7 @@
 ---
-description: Single-pass Atenea Go volume corrector for concrete review findings, using Muse Spark 1.3 Contributor.
+description: Single-pass Atenea Go volume corrector for concrete review findings, using DeepSeek V4.1 Flash Go.
 mode: subagent
-model: opencode-go/muse-spark-1.3-contributor
+model: opencode-go/deepseek-v4.1-flash
 permissions:
   - action: edit
     resource: "*"

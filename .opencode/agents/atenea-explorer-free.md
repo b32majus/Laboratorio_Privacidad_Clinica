@@ -1,7 +1,7 @@
 ---
 description: Read-only free-profile exploration scout for bounded codebase reconnaissance.
 mode: subagent
-model: nan/qwen3.6
+model: opencode/mimo-v2.6-flash-free
 permissions:
   - action: edit
     resource: "*"

@@ -1,7 +1,7 @@
 ---
 description: Single-pass free-volume corrector for concrete authorized findings.
 mode: subagent
-model: opencode/space-bunny-free
+model: opencode/muse-spark-1.3-contributor-free
 permissions:
   - action: edit
     resource: "*"

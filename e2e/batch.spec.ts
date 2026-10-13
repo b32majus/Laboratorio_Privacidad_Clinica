@@ -14,7 +14,7 @@
  *    download actions stay disabled with the typed spec reason.
  */
 import { expect, test } from "./harness/fixtures";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -36,6 +36,45 @@ async function showAllDocuments(page: Page): Promise<void> {
     .getByRole("group", { name: "Filtrar documentos del lote" })
     .getByRole("button", { name: /^Todos \(/ })
     .click();
+}
+
+/** Direct-child pane zone order of a live Review grid, read from the DOM. */
+function gridZoneOrder(scope: Locator): Promise<string[]> {
+  return scope.evaluate((grid) =>
+    Array.from(grid.children).map((child): string => {
+      if (child.classList.contains("sx-review-document")) return "document";
+      if (child.classList.contains("sx-review-findings")) return "findings";
+      if (child.classList.contains("sx-review-inspector")) return "inspector";
+      return "unknown";
+    })
+  );
+}
+
+/**
+ * First sequential-Tab entrance into each of the three live Review zones, from
+ * a deterministic blurred origin. Detects the closest zone ancestor of the real
+ * `document.activeElement`; never programmatically focuses a pane.
+ */
+async function tabZoneEntranceOrder(page: Page): Promise<string[]> {
+  await page.evaluate(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+  });
+  const seen: string[] = [];
+  for (let i = 0; i < 250 && seen.length < 3; i += 1) {
+    await page.keyboard.press("Tab");
+    const zone = await page.evaluate((): string | null => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return null;
+      const zone = active.closest(".sx-review-document, .sx-review-findings, .sx-review-inspector");
+      if (!zone) return null;
+      if (zone.classList.contains("sx-review-document")) return "document";
+      if (zone.classList.contains("sx-review-findings")) return "findings";
+      return "inspector";
+    });
+    if (zone && !seen.includes(zone)) seen.push(zone);
+  }
+  return seen;
 }
 
 test("a failed batch item stays visible and never blocks the rest of the batch silently", async ({
@@ -435,4 +474,44 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
   await expect(docList.getByRole("listitem")).toHaveCount(9);
   await expect(docList).not.toContainText("Completado");
   await expect(docList).not.toContainText("Retirado del lote");
+});
+
+/**
+ * CORA-91-F1 S1 (cross-browser): the real current-session batch Review keeps
+ * its DOM/source order, spatial order and sequential Tab order coherent at the
+ * accepted batch breakpoints (desktop > 720: document → inspector → findings;
+ * ≤ 720: inspector → document → findings). Reuses the synthetic batch flow.
+ */
+test("CORA-91-F1 Batch Tab order matches visual panes", async ({ page }) => {
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    await page
+      .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+      .setInputFiles([DOC_1, DOC_2]);
+    await page.getByRole("button", { name: "Crear trabajo" }).click();
+    await showAllDocuments(page);
+
+    const grid = page.getByRole("region", { name: "Espacio de revisión" });
+    const inspector = page.getByRole("complementary", { name: "Inspector del hallazgo" });
+    await expect(grid).toHaveCount(1);
+    await expect(page.locator(".sx-review-document")).toHaveCount(1);
+    await expect(page.locator(".sx-review-findings")).toHaveCount(1);
+    await expect(page.locator(".sx-review-inspector")).toHaveCount(1);
+
+    const expected =
+      width > 720 ? ["document", "inspector", "findings"] : ["inspector", "document", "findings"];
+    const dom = await gridZoneOrder(grid);
+    const tab = await tabZoneEntranceOrder(page);
+    console.log(`CORA-91-F1 batch ${width} DOM=${dom.join(",")} TAB=${tab.join(",")}`);
+    expect(dom).toEqual(expected);
+    expect(tab).toEqual(expected);
+
+    // Current session selection and real decision are preserved.
+    await expect(inspector.locator('dt:text-is("Original") + dd')).toHaveText("12345678A");
+    await expect(inspector.locator('dt:text-is("Decisión actual") + dd')).toHaveText("Pendiente");
+    await expect(page.getByRole("status", { name: "Progreso de la revisión" })).toContainText(
+      "Pendientes: 1"
+    );
+  }
 });

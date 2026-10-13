@@ -219,7 +219,7 @@ export function StructuredConfigureWorkspace(
   } = props;
 
   return (
-    <section aria-labelledby="configure-step-heading">
+    <section className="sx-structured-workspace" aria-labelledby="configure-step-heading">
       <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
         Preparar datos estructurados
       </h2>
@@ -451,7 +451,7 @@ function ConfigurationView(props: {
   const handleInspectorDateRole = withSelection(onSetDateRole);
 
   return (
-    <div className="mt-3 space-y-3">
+    <div className="sx-structured-configuration mt-3 space-y-3">
       {/*
         Issue #85 composed-hierarchy correction (review finding 2): ONE short
         header band directly under the task heading/intro — compact readiness
@@ -460,11 +460,11 @@ function ConfigurationView(props: {
         inside the initial 1280×800 fold. Pure layout/compaction: every fact,
         control id, callback and fail-closed alert below is unchanged.
       */}
-      <div className="grid items-start gap-x-4 gap-y-2 rounded border border-primary bg-surface-light px-3 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(300px,1.1fr)]">
+      <div className="sx-structured-status-band grid items-start gap-x-4 gap-y-2 rounded border border-primary bg-surface-light px-3 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(300px,1.1fr)]">
         <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
         <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
       </div>
-      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
+      <div className="sx-structured-grid grid items-start gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
         <ColumnComparisonTable
           configuration={configuration}
           patientIdIndex={
@@ -764,7 +764,7 @@ function ColumnComparisonTable(props: {
 }): ReactElement {
   const { configuration, patientIdIndex, selectedColumnIndex, onSelectColumn } = props;
   return (
-    <section className="min-w-0 rounded border border-primary bg-surface-light px-3 py-2">
+    <section className="sx-structured-table min-w-0 rounded border border-primary bg-surface-light px-3 py-2">
       <h3 className="font-display text-base font-bold text-primary-dark">
         Comparativa de columnas
       </h3>
@@ -938,7 +938,7 @@ function ColumnInspector(props: {
   return (
     <aside
       aria-label="Inspector de columna"
-      className="rounded border border-primary bg-surface-light p-3 lg:sticky lg:top-4"
+      className="sx-structured-inspector rounded border border-primary bg-surface-light p-3 lg:sticky lg:top-4"
     >
       <h3 className="font-display text-base font-bold text-primary-dark">{columnName}</h3>
       {isPatientId && (

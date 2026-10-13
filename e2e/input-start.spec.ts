@@ -28,8 +28,20 @@ function ejemploTexto(file: string): string {
 
 const EJEMPLO_URGENCIAS = ejemploTexto("01-consulta-urgencias.json");
 
+/**
+ * CORA-91-U1-V01: the synthetic-examples/clipboard help is a secondary
+ * closed-by-default disclosure. Expand it before touching the example pills.
+ */
+async function expandExampleHelp(page: Page): Promise<void> {
+  const summary = page.getByText("Ejemplos sintéticos y ayuda para pegar", { exact: true });
+  await expect(summary).toBeVisible();
+  await summary.click();
+  await expect(page.locator("details.sx-intake-extras")).toHaveAttribute("open", "");
+}
+
 test("examples fill the pasted-text draft without creating a job", async ({ page }) => {
   await page.goto("/");
+  await expandExampleHelp(page);
 
   const example = page.getByRole("button", { name: "Ejemplo: consulta de urgencias" });
   await expect(example).toBeVisible();
@@ -47,6 +59,7 @@ test("examples fill the pasted-text draft without creating a job", async ({ page
 
 test("examples are keyboard-operable", async ({ page }) => {
   await page.goto("/");
+  await expandExampleHelp(page);
 
   const example = page.getByRole("button", { name: "Ejemplo: informe quirúrgico" });
   await example.focus();
@@ -269,6 +282,9 @@ for (const width of [375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await assertNoHorizontalOverflow(page, `no-job input start @${width}px`);
+    // The secondary help starts closed; expanding it never changes the surface.
+    await expect(page.locator("details.sx-intake-extras")).not.toHaveAttribute("open", "");
+    await expandExampleHelp(page);
 
     // With an example loaded and files staged the surface must still fit.
     await page.getByRole("button", { name: "Ejemplo: historia clínica" }).click();
@@ -299,6 +315,7 @@ for (const width of [375, 1280]) {
       page.getByRole("button", { name: "Ejemplo: informe quirúrgico" }),
       page.getByRole("button", { name: "Ejemplo: historia clínica" }),
     ];
+    await expandExampleHelp(page);
 
     // Visibility + operability of every primary add-information control.
     for (const control of [textarea, pegar, fileSelect, create, ...examples]) {
@@ -335,3 +352,99 @@ for (const width of [375, 1280]) {
     expect(createBox!.y).toBeLessThan(privacyPolicyBox!.y);
   });
 }
+
+/**
+ * CORA-91-U1-V01 focused witness: the synthetic-examples/clipboard help is a
+ * secondary native disclosure that is closed by default, never hides the
+ * primary task controls, opens/closes with the keyboard and never touches the
+ * draft or creates a Job.
+ */
+test("secondary examples help is closed by default and never affects the draft or the job", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  const summary = page.getByText("Ejemplos sintéticos y ayuda para pegar", { exact: true });
+  const extras = page.locator("details.sx-intake-extras");
+  const textarea = page.getByRole("textbox", { name: "Pegar texto" });
+  const pegar = page.getByRole("button", { name: "Pegar desde el portapapeles" });
+  const fileSelect = page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
+  const create = page.getByRole("button", { name: "Crear trabajo" });
+
+  // Closed initially, while every primary add-information control stays
+  // visible and enabled.
+  await expect(extras).not.toHaveAttribute("open", "");
+  for (const control of [textarea, pegar, fileSelect, create]) {
+    await expect(control).toBeVisible();
+    await expect(control).toBeEnabled();
+  }
+
+  // The summary opens with the keyboard (Enter), revealing the examples.
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(extras).toHaveAttribute("open", "");
+  const example = page.getByRole("button", { name: "Ejemplo: consulta de urgencias" });
+  await expect(example).toBeVisible();
+  await expect(example).toBeEnabled();
+  await example.click();
+  await expect(textarea).toHaveValue(EJEMPLO_URGENCIAS);
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
+
+  // Closing the disclosure never erases the draft, and open/close creates no
+  // Job and offers no task navigation while no job exists.
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(extras).not.toHaveAttribute("open", "");
+  await expect(textarea).toHaveValue(EJEMPLO_URGENCIAS);
+  await expect(textarea).toBeVisible();
+  await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
+  await expect(page.getByRole("button", { name: "Iniciar revisión" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
+});
+
+/**
+ * CORA-91-F1 S2 focused witness: the sitebar session-help disclosure follows the
+ * live "Política de privacidad" control in real sequential keyboard order at both
+ * accepted widths, stays visually below it, remains natively operable and never
+ * mutates the session. A real Job is created through the real
+ * `Pegar texto` → `Crear trabajo` route so the policy combobox is enabled.
+ */
+test("CORA-91-F1 session help follows policy in keyboard focus order", async ({ page }) => {
+  for (const width of [375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await page.getByRole("textbox", { name: "Pegar texto" }).fill(EJEMPLO_URGENCIAS);
+    await page.getByRole("button", { name: "Crear trabajo" }).click();
+
+    const banner = page.getByRole("banner");
+    const policy = banner.getByRole("combobox", { name: /Política de privacidad/ });
+    const help = page.locator("details.sx-session-help");
+    const summary = help.locator("summary");
+
+    // A real Job exists, so the live policy control is enabled.
+    await expect(policy).toBeEnabled();
+    await expect(summary).toHaveText("Ayuda sobre las acciones de sesión");
+
+    // Real sequential Tab from the policy control reaches the native summary
+    // (no programmatic focus of the summary, no custom tabIndex).
+    await policy.focus();
+    await page.keyboard.press("Tab");
+    await expect(summary).toBeFocused();
+    await expect(summary).toBeVisible();
+
+    // The summary sits visually BELOW the policy control at both widths.
+    const policyBox = await policy.boundingBox();
+    const summaryBox = await summary.boundingBox();
+    expect(policyBox).not.toBeNull();
+    expect(summaryBox).not.toBeNull();
+    expect(summaryBox!.y).toBeGreaterThan(policyBox!.y);
+
+    // Native open/close keeps working and never mutates the session.
+    const sessionFactBefore = await banner.innerText();
+    await summary.press("Enter");
+    await expect(help).toHaveAttribute("open", "");
+    await summary.press("Enter");
+    await expect(help).not.toHaveAttribute("open", "");
+    expect(await banner.innerText()).toBe(sessionFactBefore);
+  }
+});
