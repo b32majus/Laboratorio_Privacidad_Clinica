@@ -27,11 +27,19 @@ import {
   type Job,
 } from "../domain/job";
 
+// Minimal control: when set, the mocked serializer throws a plain unexpected
+// Error (adversarial name/message) instead of the typed BatchSummaryError.
+// Only the new unexpected-refusal witness sets it; afterEach resets it.
+const summaryRefusal = vi.hoisted(() => ({
+  unexpected: null as null | (() => Error),
+}));
+
 vi.mock("./batchResultModel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./batchResultModel")>();
   return {
     ...actual,
     serializeBatchSummaryCsv: (): string => {
+      if (summaryRefusal.unexpected !== null) throw summaryRefusal.unexpected();
       throw new actual.BatchSummaryError(
         'refuses batch item 1 ("DNI-99999111-SENTINEL-informe.txt"): not authorized'
       );
@@ -40,6 +48,7 @@ vi.mock("./batchResultModel", async (importOriginal) => {
 });
 
 afterEach(() => {
+  summaryRefusal.unexpected = null;
   cleanup();
   vi.restoreAllMocks();
 });
@@ -93,6 +102,40 @@ describe("batch Safe summary fail-closed download (REC-07 #87)", () => {
         "BATCH_SUMMARY_NOT_AUTHORIZED"
       );
       expect(document.body.textContent).not.toContain("DNI-99999111-SENTINEL");
+    } finally {
+      URL.createObjectURL = originalCreate;
+    }
+  });
+
+  it("collapses an unexpected serialization error to the fixed code, never Error.name or message", () => {
+    // Adversarial witness (DISC-02): `Error.name` is writable and
+    // unconstrained, so a synthetic name/message must never reach the DOM —
+    // including ATTRIBUTES, not just textContent.
+    const originalCreate = URL.createObjectURL;
+    const createObjectUrl = vi.fn();
+    URL.createObjectURL = createObjectUrl as typeof URL.createObjectURL;
+    summaryRefusal.unexpected = () =>
+      Object.assign(new Error("DNI_SENTINEL_CSV"), { name: "NOMBRE_SINTETICO_CSV_SENTINEL" });
+    try {
+      render(<ExportStep job={readyBatchJob()} review={null} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Descargar resumen seguro (.csv)" }));
+
+      // Fail-closed: no Blob/object URL is ever created, so zero bytes download.
+      expect(createObjectUrl).not.toHaveBeenCalled();
+
+      const feedback = document.getElementById("batch-result-action-feedback");
+      expect(feedback).not.toBeNull();
+      // Truthful Spanish failure message is preserved.
+      expect(feedback).toHaveTextContent(
+        "El resumen seguro todavía no está disponible para este lote."
+      );
+      // The unexpected error collapses to the fixed content-free code.
+      expect(feedback).toHaveAttribute("data-batch-summary-diagnostic", "unexpected-error");
+      // Neither sentinel may appear anywhere in the document (attributes included).
+      const html = document.documentElement.outerHTML;
+      expect(html).not.toContain("NOMBRE_SINTETICO_CSV_SENTINEL");
+      expect(html).not.toContain("DNI_SENTINEL_CSV");
     } finally {
       URL.createObjectURL = originalCreate;
     }
