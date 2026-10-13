@@ -25,11 +25,13 @@
  * No floating action bar (SPEC §5). No export surface (T08 owns it).
  */
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type KeyboardEvent,
   type ReactElement,
@@ -109,10 +111,49 @@ export type ReviewWorkspaceProps = {
   ) => void;
   /** Add a manual detection anchored to source offsets. */
   readonly onAddManual: (detection: ManualDetectionInput) => void;
+  /**
+   * Which already-accepted Review composition this workspace renders. The
+   * three semantic panes are identical; only their source/visual/focus order
+   * and responsive threshold differ. Presentation only — never review
+   * authority. Defaults to the direct single Review.
+   */
+  readonly layout?: "single" | "batch" | "cells";
 };
+
+type ReviewLayout = "single" | "batch" | "cells";
+type ReviewPane = "document" | "findings" | "inspector";
+const REVIEW_STACK_QUERY: Record<ReviewLayout, string> = {
+  single: "(max-width: 1023px)",
+  batch: "(max-width: 720px)",
+  cells: "(max-width: 1100px)",
+};
+
+function useReviewStacked(layout: ReviewLayout): boolean {
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+        return () => {};
+      }
+      const media = window.matchMedia(REVIEW_STACK_QUERY[layout]);
+      media.addEventListener("change", notify);
+      return () => media.removeEventListener("change", notify);
+    },
+    [layout]
+  );
+  const getSnapshot = useCallback(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia(REVIEW_STACK_QUERY[layout]).matches,
+    [layout]
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
 
 export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
   const { session, onDecide, onAddManual } = props;
+  const layout = props.layout ?? "single";
+  const stacked = useReviewStacked(layout);
 
   const ordered = useMemo(
     () => [...session.detections].sort((a, b) => a.start - b.start || a.end - b.end),
@@ -463,6 +504,137 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
     }
   };
 
+  // Single authority for source/DOM order, spatial order, sequential Tab and
+  // screen-reader order across the three accepted Review layouts. The three
+  // semantic panes render exactly once; only their sequence changes. The panes
+  // keep their full prop values, callbacks, refs and focus semantics.
+  const paneOrder: readonly ReviewPane[] = stacked
+    ? ["inspector", "document", "findings"]
+    : layout === "single"
+      ? ["document", "findings", "inspector"]
+      : ["document", "inspector", "findings"];
+
+  const paneElements: Record<ReviewPane, ReactElement> = {
+    document: (
+      <DocumentPane
+        key="document"
+        sourceRef={sourceRef}
+        markRef={markRef}
+        manualError={currentManual ? null : manualError}
+        session={session}
+        segments={segments}
+        selectedId={selectedId}
+        onSelect={selectDetection}
+        onUseSelection={captureSelection}
+      />
+    ),
+    findings: (
+      <FilterProgressPane
+        key="findings"
+        detectionListRef={detectionListRef}
+        session={session}
+        filters={filters}
+        detections={detections}
+        selectedId={selectedId}
+        onFilterStatus={(status) => setFilters((current) => ({ ...current, status }))}
+        onFilterType={(type) => setFilters((current) => ({ ...current, type }))}
+        onSelect={selectDetection}
+        onJumpToInspector={focusInspector}
+      />
+    ),
+    inspector: (
+      <InspectorPane
+        key="inspector"
+        error={error}
+        onViewSource={() => {
+          sourceRef.current?.focus();
+          sourceRef.current
+            ?.querySelector<HTMLElement>('[aria-current="true"]')
+            ?.scrollIntoView?.({ block: "nearest" });
+        }}
+        replacementRef={replacementRef}
+        shortcutHelpRef={shortcutHelpRef}
+        shortcutHelpOpen={shortcutHelpOpen}
+        onToggleShortcutHelp={() => setShortcutHelpOpen((open) => !open)}
+        onCloseShortcutHelp={() => {
+          setShortcutHelpOpen(false);
+          shortcutHelpRef.current?.focus();
+        }}
+        onReturnToDetections={() => detectionListRef.current?.focus()}
+        previousPending={previousPending ?? null}
+        nextPending={nextPending ?? null}
+        onNavigate={(id) => selectDetection(id)}
+        navigationError={navigationError}
+        onDiscardDraft={() => {
+          setReplacementDraft("");
+          setNoteDraft("");
+          setNavigationError(null);
+        }}
+        hiddenByFilter={selected !== null && !detections.some((d) => d.id === selected.id)}
+        onShowAll={() => {
+          setFilters({ status: "all", type: null });
+          detectionListRef.current?.focus();
+        }}
+        inspectorRef={inspectorRef}
+        session={session}
+        selected={selected}
+        replacementDraft={replacementDraft}
+        noteDraft={noteDraft}
+        manualCapture={currentManual}
+        manualPanelRef={manualPanelRef}
+        manualTypeRef={manualTypeRef}
+        manualNextRef={manualNextRef}
+        manualError={currentManual ? manualError : null}
+        manualAdded={manualAdded?.session === session ? manualAdded : null}
+        manualType={manualType}
+        onReplacementDraft={setReplacementDraft}
+        onNoteDraft={setNoteDraft}
+        onDecide={decide}
+        keepOriginalRef={keepOriginalRef}
+        keepOriginalPending={keepOriginalPending}
+        onKeepOriginal={keepOriginal}
+        onCancelKeepOriginal={() => {
+          clearKeepOriginal();
+          keepOriginalRef.current?.focus();
+        }}
+        onConfirmKeepOriginal={() => {
+          const requested = keepOriginalIntent;
+          const current = currentContextRef.current;
+          if (
+            disposedRef.current ||
+            requested === null ||
+            intentRef.current !== requested ||
+            current.session !== requested.session ||
+            current.selected?.id !== requested.id ||
+            current.selected.type !== requested.type
+          )
+            return;
+          // Consume synchronously before the sole mutation bridge, including
+          // repeated activation before React has committed the next render.
+          clearKeepOriginal();
+          decide(requested.id, "restored");
+          keepOriginalRef.current?.focus();
+        }}
+        onCancelManual={() => {
+          manualAuthorityRef.current = null;
+          setManualCapture(null);
+          setManualType("");
+          setManualError(null);
+          markRef.current?.scrollIntoView?.({ block: "nearest" });
+          markRef.current?.focus();
+        }}
+        onReviewManual={() => {
+          if (manualAdded?.session !== currentContextRef.current.session) return;
+          if (!selectDetection(manualAdded.id)) return;
+          inspectorRef.current?.scrollIntoView?.({ block: "start" });
+          focusInspector();
+        }}
+        onManualType={setManualType}
+        onSubmitManual={submitManual}
+      />
+    ),
+  };
+
   return (
     <section
       className="sx-review-workspace"
@@ -482,115 +654,7 @@ export function ReviewWorkspace(props: ReviewWorkspaceProps): ReactElement {
           : `Pendientes de revisar: ${pending.length}.`}
       </p>
       <div role="region" aria-label="Espacio de revisión" className="sx-review-grid mt-4">
-        <InspectorPane
-          error={error}
-          onViewSource={() => {
-            sourceRef.current?.focus();
-            sourceRef.current
-              ?.querySelector<HTMLElement>('[aria-current="true"]')
-              ?.scrollIntoView?.({ block: "nearest" });
-          }}
-          replacementRef={replacementRef}
-          shortcutHelpRef={shortcutHelpRef}
-          shortcutHelpOpen={shortcutHelpOpen}
-          onToggleShortcutHelp={() => setShortcutHelpOpen((open) => !open)}
-          onCloseShortcutHelp={() => {
-            setShortcutHelpOpen(false);
-            shortcutHelpRef.current?.focus();
-          }}
-          onReturnToDetections={() => detectionListRef.current?.focus()}
-          previousPending={previousPending ?? null}
-          nextPending={nextPending ?? null}
-          onNavigate={(id) => selectDetection(id)}
-          navigationError={navigationError}
-          onDiscardDraft={() => {
-            setReplacementDraft("");
-            setNoteDraft("");
-            setNavigationError(null);
-          }}
-          hiddenByFilter={selected !== null && !detections.some((d) => d.id === selected.id)}
-          onShowAll={() => {
-            setFilters({ status: "all", type: null });
-            detectionListRef.current?.focus();
-          }}
-          inspectorRef={inspectorRef}
-          session={session}
-          selected={selected}
-          replacementDraft={replacementDraft}
-          noteDraft={noteDraft}
-          manualCapture={currentManual}
-          manualPanelRef={manualPanelRef}
-          manualTypeRef={manualTypeRef}
-          manualNextRef={manualNextRef}
-          manualError={currentManual ? manualError : null}
-          manualAdded={manualAdded?.session === session ? manualAdded : null}
-          manualType={manualType}
-          onReplacementDraft={setReplacementDraft}
-          onNoteDraft={setNoteDraft}
-          onDecide={decide}
-          keepOriginalRef={keepOriginalRef}
-          keepOriginalPending={keepOriginalPending}
-          onKeepOriginal={keepOriginal}
-          onCancelKeepOriginal={() => {
-            clearKeepOriginal();
-            keepOriginalRef.current?.focus();
-          }}
-          onConfirmKeepOriginal={() => {
-            const requested = keepOriginalIntent;
-            const current = currentContextRef.current;
-            if (
-              disposedRef.current ||
-              requested === null ||
-              intentRef.current !== requested ||
-              current.session !== requested.session ||
-              current.selected?.id !== requested.id ||
-              current.selected.type !== requested.type
-            )
-              return;
-            // Consume synchronously before the sole mutation bridge, including
-            // repeated activation before React has committed the next render.
-            clearKeepOriginal();
-            decide(requested.id, "restored");
-            keepOriginalRef.current?.focus();
-          }}
-          onCancelManual={() => {
-            manualAuthorityRef.current = null;
-            setManualCapture(null);
-            setManualType("");
-            setManualError(null);
-            markRef.current?.scrollIntoView?.({ block: "nearest" });
-            markRef.current?.focus();
-          }}
-          onReviewManual={() => {
-            if (manualAdded?.session !== currentContextRef.current.session) return;
-            if (!selectDetection(manualAdded.id)) return;
-            inspectorRef.current?.scrollIntoView?.({ block: "start" });
-            focusInspector();
-          }}
-          onManualType={setManualType}
-          onSubmitManual={submitManual}
-        />
-        <DocumentPane
-          sourceRef={sourceRef}
-          markRef={markRef}
-          manualError={currentManual ? null : manualError}
-          session={session}
-          segments={segments}
-          selectedId={selectedId}
-          onSelect={selectDetection}
-          onUseSelection={captureSelection}
-        />
-        <FilterProgressPane
-          detectionListRef={detectionListRef}
-          session={session}
-          filters={filters}
-          detections={detections}
-          selectedId={selectedId}
-          onFilterStatus={(status) => setFilters((current) => ({ ...current, status }))}
-          onFilterType={(type) => setFilters((current) => ({ ...current, type }))}
-          onSelect={selectDetection}
-          onJumpToInspector={focusInspector}
-        />
+        {paneOrder.map((pane) => paneElements[pane])}
       </div>
     </section>
   );

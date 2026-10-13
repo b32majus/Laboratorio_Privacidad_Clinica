@@ -626,6 +626,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
 
           {activeSession !== undefined ? (
             <ReviewWorkspace
+              layout="batch"
               session={activeSession}
               onDecide={props.onDecide}
               onAddManual={props.onAddManual}

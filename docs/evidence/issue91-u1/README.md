@@ -10,6 +10,27 @@ disclosures (`<details>`), Entrada uses `max-w-[1350px]`, and the previous four
 single captures were renamed/replaced by the eight clearly-annotated captures
 below (viewport vs full page, empty vs populated).
 
+## Files changed in U1
+
+Grounded in Git. U1 historical commits:
+`08a060c96d94502a960f6dc499fc3cea6b4a0b22`,
+`b2c945c6b611fda38e252a551614ad86c936b18d`,
+`fd71a5b215ff04e6a9d2312c045e84336aa88cca`.
+
+- `app-v4/src/App.tsx` — shell/input composition plus the later approved U1
+  visual correction.
+- `app-v4/src/main.tsx` — same-origin Cormorant font imports and the local
+  Sophilux CSS import; present from the initial U1 writer.
+- `app-v4/src/visual/sophilux-v1.css` — scoped U1 style, then cumulative
+  separate U2–U7 sections.
+- `app-v4/src/App.input-start.test.tsx` — U1 V01 focused test.
+- `e2e/input-start.spec.ts` — U1 V01/V02 focused E2E changes, later the F1 S2
+  new witness.
+- `docs/evidence/issue91-u1/README.md` and the existing viewport/fullPage
+  captures already enumerated below.
+
+`package.json` and `package-lock.json` have **no diff** in #91.
+
 ## Screenshots (variant / viewport / frame annotated)
 
 Every capture shows BOTH disclosures closed (`Ayuda sobre las acciones de

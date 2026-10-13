@@ -1,13 +1,18 @@
 /**
- * Sophilux B V1 — U1 (issue #91): operational shell + Entry composition.
+ * Sophilux B V1 — issue #91 visual system.
  *
- * Presentational-only stylesheet. Token values are copied EXACTLY from the
+ * Introduced for U1 (operational shell + Entry composition) and now carrying
+ * bounded scoped styles for U2a Review, U3a Batch, U4 Structured, U5 Cells,
+ * U6 Privacy Gate and U7 Result. Token values are copied EXACTLY from the
  * approved visual authority docs/design/sophilux-b-v1/styles.css (human
- * accepted 2026-10-12). Every selector is scoped under the `.sophilux-shell`
- * root or the `.sx-*` entry/shell classes so no global component, theme
- * architecture or other workspace (Review, Batch, Structured, Gate, Result)
- * is recoded in Unit 1. Real V4 controls keep their accessible names, IDs,
- * actions and order; only their presentation is composed.
+ * accepted 2026-10-12).
+ *
+ * Presentational-only stylesheet, scoped under the `.sophilux-shell` root or
+ * the named `.sx-*` task wrappers, so no global component, theme architecture
+ * or other workspace is recoded. The approved design source is a REFERENCE for
+ * composition, not a license to invent mock states. Real V4 controls keep
+ * their accessible names, IDs, actions and order; only their presentation is
+ * composed.
  */
 
 .sophilux-shell {

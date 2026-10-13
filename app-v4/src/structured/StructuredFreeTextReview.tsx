@@ -207,6 +207,7 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
                   </h3>
                   <div className="mt-2">
                     <ReviewWorkspace
+                      layout="cells"
                       session={active.session}
                       onDecide={props.onDecide}
                       onAddManual={props.onAddManual}

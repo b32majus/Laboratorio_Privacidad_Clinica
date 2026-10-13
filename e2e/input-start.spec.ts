@@ -401,3 +401,50 @@ test("secondary examples help is closed by default and never affects the draft o
   await expect(page.getByRole("button", { name: "Iniciar revisión" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
 });
+
+/**
+ * CORA-91-F1 S2 focused witness: the sitebar session-help disclosure follows the
+ * live "Política de privacidad" control in real sequential keyboard order at both
+ * accepted widths, stays visually below it, remains natively operable and never
+ * mutates the session. A real Job is created through the real
+ * `Pegar texto` → `Crear trabajo` route so the policy combobox is enabled.
+ */
+test("CORA-91-F1 session help follows policy in keyboard focus order", async ({ page }) => {
+  for (const width of [375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await page.getByRole("textbox", { name: "Pegar texto" }).fill(EJEMPLO_URGENCIAS);
+    await page.getByRole("button", { name: "Crear trabajo" }).click();
+
+    const banner = page.getByRole("banner");
+    const policy = banner.getByRole("combobox", { name: /Política de privacidad/ });
+    const help = page.locator("details.sx-session-help");
+    const summary = help.locator("summary");
+
+    // A real Job exists, so the live policy control is enabled.
+    await expect(policy).toBeEnabled();
+    await expect(summary).toHaveText("Ayuda sobre las acciones de sesión");
+
+    // Real sequential Tab from the policy control reaches the native summary
+    // (no programmatic focus of the summary, no custom tabIndex).
+    await policy.focus();
+    await page.keyboard.press("Tab");
+    await expect(summary).toBeFocused();
+    await expect(summary).toBeVisible();
+
+    // The summary sits visually BELOW the policy control at both widths.
+    const policyBox = await policy.boundingBox();
+    const summaryBox = await summary.boundingBox();
+    expect(policyBox).not.toBeNull();
+    expect(summaryBox).not.toBeNull();
+    expect(summaryBox!.y).toBeGreaterThan(policyBox!.y);
+
+    // Native open/close keeps working and never mutates the session.
+    const sessionFactBefore = await banner.innerText();
+    await summary.press("Enter");
+    await expect(help).toHaveAttribute("open", "");
+    await summary.press("Enter");
+    await expect(help).not.toHaveAttribute("open", "");
+    expect(await banner.innerText()).toBe(sessionFactBefore);
+  }
+});

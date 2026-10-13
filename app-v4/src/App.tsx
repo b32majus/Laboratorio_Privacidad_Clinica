@@ -1005,14 +1005,6 @@ export function App() {
             </div>
           </div>
           <div className="sx-sitebar-context">
-            <details className="sx-session-help">
-              <summary>Ayuda sobre las acciones de sesión</summary>
-              <p id="session-actions-help">
-                Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta
-                de forma deliberada todos los datos del trabajo en memoria, el estado de revisión y
-                los borradores de esta sesión del navegador.
-              </p>
-            </details>
             <p>
               <span className="sx-fact-label">Trabajo:</span>{" "}
               {job ? job.name : "Aún no hay trabajo"}
@@ -1054,6 +1046,14 @@ export function App() {
               El procesamiento se ejecuta localmente en su navegador; el contenido del trabajo
               permanece en este dispositivo.
             </p>
+            <details className="sx-session-help">
+              <summary>Ayuda sobre las acciones de sesión</summary>
+              <p id="session-actions-help">
+                Nuevo trabajo inicia un trabajo nuevo y sustituye al actual. Borrar sesión descarta
+                de forma deliberada todos los datos del trabajo en memoria, el estado de revisión y
+                los borradores de esta sesión del navegador.
+              </p>
+            </details>
           </div>
         </div>
       </header>
