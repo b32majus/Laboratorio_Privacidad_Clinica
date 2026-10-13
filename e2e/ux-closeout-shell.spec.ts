@@ -244,8 +244,8 @@ test("desktop Review stays three-column and hides the mobile route", async ({ pa
   await page.getByRole("list", { name: "Hallazgos" }).getByRole("button").first().click();
 
   const workspace = page.getByRole("region", { name: "Espacio de revisión" });
-  await expect(workspace).toHaveClass(/lg:grid-cols-3/);
-  // The token is load-bearing: at 1280px the grid really renders three columns.
+  await expect(workspace).toHaveClass(/sx-review-grid/);
+  // The observable desktop contract is three computed CSS grid columns at 1280px.
   const columnCount = await workspace.evaluate(
     (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length
   );
