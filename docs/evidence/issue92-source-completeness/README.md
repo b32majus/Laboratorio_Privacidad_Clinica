@@ -28,10 +28,10 @@ Method:
 
 ### Headline result
 
-- Material obligations enumerated: **205** (S1: 97, S2: 54, S3: 42, S4: 12).
-- Traceably covered by an existing matrix row (disposition `ROW`): **198**.
-- Verified human supersessions (all carried by rows or explicit decisions): **7 groups** (§5.3).
-- **GAPs: 5** (§6) → source-completeness is **not** proven clean; per handoff §2, missing/doubtful obligations imply `SOURCE_MATRIX_GAPS / HUMAN_STOP`, not `RECOVERY_COMPLETE`.
+- Material obligations enumerated: **206** (S1: 98, S2: 54, S3: 42, S4: 12).
+- Traceably covered by an existing matrix row (disposition `ROW`): **197**.
+- Verified human supersessions (all carried by rows or explicit decisions): **6 groups** (§5.3).
+- **GAPs: 7** (§6) → source-completeness is **not** proven clean; per handoff §2, missing/doubtful obligations imply `SOURCE_MATRIX_GAPS / HUMAN_STOP`, not `RECOVERY_COMPLETE`.
 - UNVERIFIED limitations: **6** (§7).
 - Uncertain/contradictory claims: **6** (§8).
 - Matrix row-count inventory re-verified from this HEAD: §A = 88, §B = 42, §C = 12, plus §E = 2 post-review debt rows (`DISC-01`, `DISC-02`) outside the 88/42/12 count but owned by REC-12.
@@ -52,14 +52,14 @@ Task authority read and honored: GitHub issue #92 subject matter via handoff; `d
 
 ---
 
-## 2. Source 1 — `2026-09-privacy-functional-code-audit.md` (97 obligations)
+## 2. Source 1 — `2026-09-privacy-functional-code-audit.md` (98 obligations)
 
 ### 2.1 §2 "Fortalezas existentes que deben preservarse" (10)
 
 | ID | Material obligation (falsifiable behavior) | Matrix ID | Disposition | Evidence / notes |
 |---|---|---|---|---|
 | S1-2-01 | Modular engine core (detectors/managers/scoring/processor) remains separable, not monolithic | `ARCH-004`, `ARCH-003` | ROW | `ARCH-003` honestly PARTIAL (legacy singletons behind seams). |
-| S1-2-02 | Local-first processing in browser as product principle | `H-39` | ROW | V4 clinical dist static, same-origin-only, CSP/no-network guarded. |
+| S1-2-02 | Local-first processing in browser as product principle | `H-39` | ROW | Documentary only: `H-39` (NEW_IMPROVEMENT) carries the runtime topology claim ("V4 clinical dist is static, same-origin-only, CSP/no-network guarded") as a frozen matrix register verdict — a claim traced, not verified here (see §7 item 4); no runtime/deployment probe was run in this documentary unit. |
 | S1-2-03 | Clinical content is escaped/safely rendered (v3 `SafeRender` property) | `ARCH-009` | ROW | Subsumed by V4 React declarative rendering; deterministic check this HEAD: zero `dangerouslySetInnerHTML` and zero `innerHTML` in `app-v4/src/`. |
 | S1-2-04 | Sensitive data in ephemeral session storage via AppSession, not localStorage | `BATCH-002`, `D-013` (CURRENT_DECISIONS) | ROW | V4 goes further: memory-only sensitive Job state (HPD §2 protected authority). |
 | S1-2-05 | Global session-deletion control exists | `UX-016`, `PDR-07` | ROW | Row verdict DELIBERATELY_SUPERSEDED for permanent visibility; destructive-clear distinctness explicitly preserved (HPD §7). |
@@ -89,7 +89,7 @@ Task authority read and honored: GitHub issue #92 subject matter via handoff; `d
 | S1-P1-02 | ReviewSession/ReviewDecision as sole review state; DOM renders only | `ARCH-001`, `ARCH-002`, `D-004` | ROW | |
 | S1-P1-03 | Adding a manual entity never loses prior review progress | `FUNC-006` | ROW | |
 | S1-P1-04 | Offsets refer to canonical source text, never reconstructed from DOM | `FUNC-007` | ROW | |
-| S1-P1-05 | `.doc` removed from supported formats or properly parsed | `FILE-001`, `H-08` | ROW | `H-08` = deliberate correct non-parity (supersession-carried). |
+| S1-P1-05 | `.doc` removed from supported formats or properly parsed | `FILE-001`, `H-08` | ROW | Removal is the frozen audit's own sanctioned correction alternative (P1-05: remove **or** properly parse), carried by `FILE-001` (VERIFIED_RESOLVED); heritage non-parity recorded by `H-08` (CORRECTLY_REMOVED). No separate human-ratified supersession is claimed (see §5.3 correction note). |
 | S1-P1-06 | Scanned/no-text-layer PDFs detected and blocked with explicit message | `FILE-002` | ROW | |
 | S1-P1-07 | No PHI/result logging in production | `PRIV-003` | ROW | |
 | S1-P1-08 | Failed batch documents remain visible in batch state; export blocked until acknowledged/resolved | `BATCH-001`, `H-14`, `H-16` | ROW | |
@@ -101,7 +101,8 @@ Task authority read and honored: GitHub issue #92 subject matter via handoff; `d
 | S1-P1-14 | Valid multiline CSV parsing (consolidated parser) | `STRUCT-003` | ROW | Row honestly PARTIAL (custom parser retained); follow-up post-recovery debt recorded in row. |
 | S1-P1-15 | Column inference profiles distributed non-empty samples, not row 1 only | `STRUCT-004` | ROW | |
 | S1-P1-16 | VISIT_DATE not exact KEEP by default for external profiles; policy-driven | `STRUCT-005` | ROW | |
-| S1-P1-17 | Age computed at visit/event date, not current date | `STRUCT-006` | ROW | Heritage confirmed: `file-processor.js:36` `dateReferenceForAge = new Date()`. |
+| S1-P1-17 | Age computed at visit/event date when a visit date exists, not current date (audit P1-17 clause 1) | `STRUCT-006` | ROW | Heritage confirmed: `file-processor.js:36` `dateReferenceForAge = new Date()`. The audit obligation has a second clause (generalize age on export outside the controlled environment) — enumerated separately as S1-P1-17b. |
+| S1-P1-17b | When structured data is exported outside the controlled environment, age is additionally generalized (audit P1-17 clause 2, `2026-09-privacy-functional-code-audit.md` lines 225–226) | — (no row) | **GAP** | `STRUCT-006` carries only the visit-date calculation; `STRUCT-005` covers the external-profile VISIT_DATE policy (the date, not the age); D-020's "ages banded" mapping is explicitly job-family-specific to text/document/batch, and D-021 gives structured non-date quasi-identifiers no universal automatic generalization. No matrix row or decision states export-age generalization. See §6 GAP-6. |
 | S1-P1-18 | Excel sheet selection (not first sheet only) | `STRUCT-007`, `H-22` | ROW | Heritage confirmed: `file-reader.js:58` uses `SheetNames[0]` only. |
 | S1-P1-19 | Excel date serials normalized explicitly (SheetJS), not `new Date(value)` | `STRUCT-008` | ROW | |
 | S1-P1-20 | Blank/null values preserved as absence, never codified as category | `STRUCT-009` | ROW | |
@@ -131,7 +132,7 @@ Task authority read and honored: GitHub issue #92 subject matter via handoff; `d
 | S1-Q-02 (P1Q-02) | Link/external-resource check protects local-first (no HTTP(S) exemptions defeating it) | `CI-002` | ROW | |
 | S1-Q-03 (P1Q-03) | Versioned ground-truth corpus with MUST_REMOVE/KEEP/FLAG_FOR_REVIEW + per-type precision/recall/F1/FNR | `QA-001`, `H-40` | ROW | REC-01 delivered 35 core + 4 adversarial cases with machine-visible slices; row keeps the honest "not a universal quality grade" boundary. |
 | S1-Q-04 (P1Q-04) | Playwright E2E for the 13 critical contracts (paste→review→copy, modifications in output, blocked safe export, scanned PDF warning, batch failure retention, UNKNOWN review, no external requests, marked confidential export, etc.) | `QA-002` | ROW | Row honestly PARTIAL with blocker Yes / REC-12; see §8 claim 5 on its stale rationale. |
-| S1-Q-05 (P1Q-05) | Static-quality toolchain: ESLint; Prettier; TS/JSDoc+@ts-check; CodeQL; Dependabot/Renovate; **coverage** | `CODE-001`, `CODE-002` | **GAP (coverage sub-item)** | Deterministic probe this HEAD: CodeQL present (`.github/workflows/codeql.yml`), Dependabot present (`.github/dependabot.yml`), ESLint/Prettier/TS covered by `CODE-001`/`CODE-002` (PARTIAL, honest). **No coverage tooling found** in `app-v4/package.json`, vitest/vite config, or `ci.yml`, and no matrix row names it. See §6 GAP-3. |
+| S1-Q-05 (P1Q-05) | Static-quality toolchain: ESLint; Prettier; TS/JSDoc+@ts-check; CodeQL; Dependabot/Renovate; **coverage** | `CODE-001`, `CODE-002` | **GAP (CodeQL; Dependabot/Renovate; coverage sub-items)** | `CODE-001` carries ESLint + Prettier only and `CODE-002` TypeScript/JSDoc only — no matrix row names CodeQL, Dependabot/Renovate or coverage. Deterministic probe this HEAD: CodeQL config present (`.github/workflows/codeql.yml`) and Dependabot config present (`.github/dependabot.yml`) — implementation *presence*, not matrix coverage; **no coverage tooling found** in `app-v4/package.json`, vitest/vite config, or `ci.yml`. See §6 GAP-3. |
 
 ### 2.6 §7 performance findings (5)
 
@@ -202,7 +203,7 @@ Task authority read and honored: GitHub issue #92 subject matter via handoff; `d
 
 ---
 
-## 3. Source 2 — `2026-09-ux-ui-product-flow-audit.md` (53 obligations)
+## 3. Source 2 — `2026-09-ux-ui-product-flow-audit.md` (54 obligations)
 
 ### 3.1 Journey problems UX-01..UX-14 (14)
 
@@ -297,7 +298,7 @@ Task authority read and honored: GitHub issue #92 subject matter via handoff; `d
 | ID | Material obligation | Matrix ID | Disposition | Evidence / notes |
 |---|---|---|---|---|
 | S2-12-PERSIST | Sensitive job data memory-only by default; no PHI history by default; non-sensitive preferences may persist | `D-013`, `BATCH-002`, `H-39` | ROW | The "preferences *may* persist" clause is permissive, not a falsifiable obligation; carried as D-013 boundary. |
-| S2-12-RECOVERY | Local job recovery only as explicit opt-in design (IndexedDB, expiry/clear, never silent persistence) | `D-013` | ROW | |
+| S2-12-RECOVERY | Local job recovery only as explicit opt-in design (IndexedDB, expiry/clear, never silent persistence) | — (no row; `D-013` is an accepted decision, not a matrix row) | **GAP** | `PDR-05` carries batch local-recovery capability but states no opt-in/expiry/clear/never-silent design constraint; `D-013` records the constraint as decision authority, not row coverage. See §6 GAP-7. |
 
 ### 3.12 §13 Arquitectura de origen (2)
 
@@ -424,7 +425,7 @@ All 12 §C rows are faithful, non-narrowing translations of the accepted reconci
 - **HPD-01..HPD-15 invariants** — carried by §C rows as mapped in 5.1 (HPD-01/02→PDR-01, HPD-03→PDR-07/quiet-shell, HPD-04→PDR-04/05/06, HPD-05→PDR-02, HPD-06/07→H-41/H-42/PDR-02, HPD-08→PDR-03, HPD-09→PDR-06, HPD-10→PDR-12/H-42, HPD-11→PDR-08/H-01, HPD-12→PDR-09, HPD-13→PDR-10, HPD-14→PDR-11, HPD-15→PDR-10/policy §7.1 evidence rule). HPD §7.1 (visual direction B, 2026-10-11/12 approvals) maps to `H-02`, `UX-005`, `PDR-09`; the D1–D4/VF-01..08 functional reconciliation explicitly belongs to #90/#91 with **composed validation in #92** (recorded as a Stage-B/C obligation, not a new row requirement).
 - **G-HP1..G-HP10 acceptance gates** — evidence rules per user-facing REC; they bind candidates, not matrix rows; no orphaned gate.
 
-### 5.3 Verified human supersessions (7 groups)
+### 5.3 Verified human supersessions (6 groups)
 
 | # | Superseded prescription | Ratifying authority | Carrying row(s) | Verification |
 |---|---|---|---|---|
@@ -432,25 +433,28 @@ All 12 §C rows are faithful, non-narrowing translations of the accepted reconci
 | SS-2 | Universal five-step visible topology (S2 §4 stepper; D-001 presentation clause) | **D-023** (accepted 2026-10-05 reconciliation, human-approved decision record) | `PDR-01`, `H-36` | Verified. |
 | SS-3 | `Privacy Gate` as standalone user destination (S2-UX-14, S1-C-05) | **D-023** + HPD-09 | `PRODUCT-005`, `H-35`, `PDR-06` | Verified: readiness authority explicitly preserved; only presentation superseded. |
 | SS-4 | Permanent Job/policy/fact shell visibility (S2 §4 topbar/nav) | **D-023** + HPD §7 | `UX-016`, `PDR-07` | Verified: discoverability + destructive-clear separation explicitly retained — not a silent narrowing. |
-| SS-5 | Legacy `.doc` support claim | Deliberate non-parity (accepted correction direction of S1-P1-05) | `FILE-001`, `H-08` (CORRECTLY_REMOVED) | Verified. |
 | SS-6 | Advanced capabilities as recovery scope (ARX-lite, plugins, NER, OCR, FHIR, layout PDF, HMAC) | Matrix §D ruling + START_HERE §6 (accepted authority) | `PRODUCT-007..013` FUTURE_NOT_RECOVERY | Verified as explicit, ratified later-scope — not silent omissions. |
 | SS-7 | Three-pane review / frozen spatial hypotheses (S2 §6) | PDR-final §4 + HPD-15 (human-approved reconciliation) | `PDR-02`, `PDR-03`, `PDR-11` | Verified: hypotheses superseded as *authority*, invariants retained. |
+
+> **Correction note (review attempt #1, finding F3):** SS-5 (legacy `.doc` non-parity) was downgraded out of this register. No human-ratified supersession decision for `.doc` non-parity exists in `docs/shaping/CURRENT_DECISIONS.md` or `docs/audits/2026-10-product-design-reconciliation-final.md` (D-019 mentions `.doc` only incidentally, as an unsupported format inside the pipeline-override rationale). The `.doc` removal is the frozen audit's own sanctioned correction alternative (P1-05: remove **or** properly parse), carried by `FILE-001` (VERIFIED_RESOLVED) and heritage row `H-08` (CORRECTLY_REMOVED); S1-P1-05 therefore remains `ROW` and no supersession is claimed for it.
 
 **Key check (material risk 2):** no source obligation was found marked superseded *without* a traceable human-ratified decision, and no supersession erases the underlying user need (each keeps a carrying row).
 
 ---
 
-## 6. GAP table (5)
+## 6. GAP table (7)
 
 | # | Source locator | Expected behavior (falsifiable) | Near-match row(s) | Missing delta | Proposed accountable owner | Minimum falsifying evidence |
 |---|---|---|---|---|---|---|
 | GAP-1 | S1 §7 PERF-05 (`2026-09-privacy-functional-code-audit.md`, PERF-05) | Versioned performance benchmark exists (10 KB–1 MB text; 1/10/50 documents; time/memory/responsiveness) | `PERF-001..004` (mechanisms only) | No matrix row requires performance measurement/versioning; nothing in §A/§B/§C carries it | REC-12 decision: accept as post-recovery debt with explicit row, or record human decision that it is not recovery-material | Either an explicit matrix row + benchmark artifact/thresholds, or a recorded human decision with rationale |
 | GAP-2 | S1 §8 item 14 (`DICOM como horizonte lejano`) | DICOM explicitly recorded as far-future, not silently absent | Matrix §D prose; pattern rows `PRODUCT-010..012` | Sibling far-horizon capabilities each have an explicit FUTURE row; DICOM exists only as §D prose | REC-12 / human: add explicit FUTURE_NOT_RECOVERY row or record §D prose as accepted coverage | Explicit matrix row, or recorded decision accepting prose coverage |
-| GAP-3 | S1 §6 P1Q-05 coverage sub-item | Coverage measurement present in the quality toolchain | `CODE-001` (ESLint/Prettier), `CODE-002` (TS) | CodeQL ✓ (`.github/workflows/codeql.yml`) and Dependabot ✓ (`.github/dependabot.yml`) exist; **coverage tooling not found** in `app-v4/package.json`, vitest/vite config or `ci.yml`, and no row names it | REC-12 decision: add coverage to the authoritative gate, or record it as not recovery-material | Either coverage gate config + row, or recorded decision |
+| GAP-3 | S1 §6 P1Q-05 sub-items: CodeQL; Dependabot/Renovate; coverage | The static-quality toolchain includes CodeQL analysis, Dependabot/Renovate dependency governance, and coverage measurement | `CODE-001` (ESLint/Prettier only), `CODE-002` (TS/JSDoc only) | No matrix row names CodeQL, Dependabot/Renovate or coverage. CodeQL config (`.github/workflows/codeql.yml`) and Dependabot config (`.github/dependabot.yml`) exist at this HEAD, but their mere presence is implementation presence, not matrix coverage; **coverage tooling not found** in `app-v4/package.json`, vitest/vite config or `ci.yml` | REC-12 decision: add rows (or extend `CODE-001`/`CODE-002`) carrying the CodeQL, Dependabot/Renovate and coverage sub-items, or record them as not recovery-material | Either gate/row config + evidence for each sub-item, or recorded decision |
 | GAP-4 | S2 §3 A11Y-05 | Entity highlights carry a non-color code (icon/label/underline/pattern) so entity type is identifiable without color perception | `UX-011` (contrast), `UX-012` (keyboard/touch), `PDR-09` | No row names non-color entity coding; whether current V4 highlights satisfy it is unproven here | Human product decision + REC-12 verification (does the accepted Sophilux B V1 system include non-color entity coding?) | Rendered 375/1280 witness showing entity type identifiable without color, or a recorded explicit supersession |
 | GAP-5 | S2 §13 (origin hardening list tail) | No PHI in URL/query/hash; `Referrer-Policy: no-referrer`; `frame-ancestors 'none'` | `PRIV-001`, `HOST-002` ("security headers is live"), `QA-003` (no-network E2E) | No row names these specific invariants; live header values cannot be inspected documentarily | REC-12 verification: composed SPA URL/no-PHI check + live response-header capture, or explicit supersession | Header capture + URL-invariant E2E evidence, or recorded decision |
+| GAP-6 | S1 §4 P1-17 clause 2 (`2026-09-privacy-functional-code-audit.md` lines 225–226): structured export outside the controlled environment | Age is additionally generalized (not left exact) when structured data is exported outside the controlled environment (e.g., External-AI preparation) | `STRUCT-006` (visit-date age clause only), `STRUCT-005` (external-profile VISIT_DATE policy — the date, not the age); D-020's "ages banded" is explicitly job-family-specific to text/document/batch; D-021 gives structured non-date quasi-identifiers no universal automatic generalization | No matrix row or accepted decision states export-age generalization for the structured module | REC-12 decision: add a structured row (or extend `STRUCT-006`) carrying export-age generalization, or record an explicit human decision that the clause is covered elsewhere or superseded | Structured External-AI export witness showing banded/generalized age, or a recorded decision with locator |
+| GAP-7 | S2 §12 "Recuperación de job" (`2026-09-ux-ui-product-flow-audit.md`, §12) | If local job recovery exists, it is an explicit opt-in design (IndexedDB, clear/expiry, never silent persistence) | `PDR-05` (batch local-recovery capability; no opt-in/expiry/clear constraint stated), `BATCH-002` (memory-resident batch state); supporting decision `D-013` (accepted decision, not a matrix row) | No matrix row carries the opt-in/expiry/clear/never-silent design constraint; the mapping previously cited `D-013` alone as `ROW`, which the disposition vocabulary does not permit | REC-12 decision: add a row carrying the constraint (or extend `PDR-05`/`BATCH-002`), or record where the constraint authoritatively lives | Recovery-design evidence showing opt-in + clear/expiry + no silent persistence, or a recorded decision assigning the constraint to a specific row |
 
-None of the five is auto-classified as superseded: each requires an owner decision (add row / schedule verification / explicit human supersession). Per handoff §2, their existence means Stage A's verdict is **`SOURCE_MATRIX_GAPS` pending human adjudication**, not clean coverage.
+None of the seven is auto-classified as superseded: each requires an owner decision (add row / schedule verification / explicit human supersession). Per handoff §2, their existence means Stage A's verdict is **`SOURCE_MATRIX_GAPS` pending human adjudication**, not clean coverage.
 
 ---
 
@@ -482,17 +486,17 @@ These are **recorded, not resolved**. Stage A does not rewrite matrix verdicts.
 
 | Measure | Count |
 |---|---|
-| Material obligations enumerated (S1 97 + S2 54 + S3 42 + S4 12) | **205** |
-| Traceably covered by an existing matrix row (disposition `ROW`) | **198** |
-| GAPs (disposition `GAP`, §6) | **5** |
+| Material obligations enumerated (S1 98 + S2 54 + S3 42 + S4 12) | **206** |
+| Traceably covered by an existing matrix row (disposition `ROW`) | **197** |
+| GAPs (disposition `GAP`, §6) | **7** |
 | UNVERIFIED dispositions | **0** (6 limitation entries in §7 are tied to existing rows/claims, not unmapped obligations) |
 | Standalone `SUPERSEDED` dispositions | **2** (S2-4-STEPPER, S2-6-WS — carried by D-023/PDR-01 and PDR-final §4/HPD-15 respectively) |
-| Verified human supersession groups | **7** (§5.3) |
+| Verified human supersession groups | **6** (§5.3; former SS-5 downgraded — see §5.3 correction note) |
 | Uncertain/contradictory claims | **6** (§8) |
 | Advisory/non-material items registered (not counted as obligations) | 3 groups (S1 §9 patterns; S2 §12 preference-persistence clause; S2 §14 provider comparisons) |
 | Matrix row inventory re-verified at HEAD | §A 88 + §B 42 + §C 12 (+ §D scope ruling + §E 2 debt rows `DISC-01`/`DISC-02`, REC-12-owned) |
 
-**Verdict of this Stage-A unit:** source→matrix completeness is **high but not proven complete**: 198/205 obligations trace to specific rows and 2 more are closed by standalone ratified supersessions (7 supersession groups verified in total), but **5 material source obligations (GAP-1..5) have no row and no ratified supersession**, and 6 contradictory/stale claims need adjudication. Per the handoff, this supports `SOURCE_MATRIX_GAPS / HUMAN_STOP` adjudication before recovery can be called complete. Stage A does **not** prove the application complete; it establishes whether the recovery inventory is complete enough for Stage B/C — and the answer is: *complete after the 5 gaps are adjudicated and the 6 stale claims are refreshed*.
+**Verdict of this Stage-A unit:** source→matrix completeness is **high but not proven complete**: 197/206 obligations trace to specific rows and 2 more are closed by standalone ratified supersessions (6 supersession groups verified in total), but **7 material source obligations (GAP-1..7) have no row and no ratified supersession**, and 6 contradictory/stale claims need adjudication. Per the handoff, this supports `SOURCE_MATRIX_GAPS / HUMAN_STOP` adjudication before recovery can be called complete. Stage A does **not** prove the application complete; it establishes whether the recovery inventory is complete enough for Stage B/C — and on this evidence that question is **not yet answerable as clean**: the inventory is fully enumerated and mapped enough to adjudicate, but whether it is complete can only be declared after the 7 gaps are adjudicated and the 6 stale claims are refreshed, by the human + Cora checkpoint — not by this artifact.
 
 ---
 
@@ -506,9 +510,9 @@ The owner's discoveries from trying the live application are first-class input t
 
 ## 11. Decisions needed from human + Cora to proceed
 
-1. **Adjudicate GAP-1..GAP-5** (§6): for each, choose add-row / schedule-verification / explicit human supersession, and confirm the accountable owner (REC-12 vs product decision).
+1. **Adjudicate GAP-1..GAP-7** (§6): for each, choose add-row / schedule-verification / explicit human supersession, and confirm the accountable owner (REC-12 vs product decision).
 2. **Matrix refresh decision** for the 6 stale/contradictory claims (§8): who updates `UX-013`, `H-37`, `H-01`, `H-03`, `UX-015` rationale, `QA-002` rationale (and D-016's policy reference under `DOC-001`), and at which checkpoint — noting Stage A deliberately did not rewrite verdicts.
-3. **Confirm whether PERF-05 (benchmark) and coverage tooling are recovery-material** or accepted post-recovery debt (GAP-1, GAP-3).
+3. **Confirm whether PERF-05 (benchmark) and the P1Q-05 CodeQL / Dependabot-Renovate / coverage sub-items are recovery-material** or accepted post-recovery debt (GAP-1, GAP-3), and where the structured export-age-generalization clause (GAP-6) and the recovery opt-in/expiry/clear constraint (GAP-7) are authoritatively carried.
 4. **Confirm the A11Y-05 product decision** (GAP-4): is non-color entity coding required in the accepted Sophilux B V1 system, or explicitly superseded?
 5. **Confirm the process for `Human-observed missing functionality`** (§10): owner commitment to provide live-app observations before Stage B/C closeout.
 6. **Confirm Stage-A exit**: with gaps adjudicated, authorize the later #92 layers (88+42 row re-verification, composed E2E, visual/governance closeout) under their own C-087 reviews; a Stage-A pass never substitutes for them.
@@ -521,3 +525,4 @@ The owner's discoveries from trying the live application are first-class input t
 - Changed-path check vs launch HEAD `0eb840c`: exactly one path — `docs/evidence/issue92-source-completeness/README.md` (this file). No other modification, addition or deletion.
 - Self-verification pass: every enumerated obligation in §2–§5 carries exactly one disposition (`ROW` / `SUPERSEDED` / `GAP` / `UNVERIFIED`); counts in §9 reconcile with the per-section tables; every matrix reference cites an exact §A/§B/§C ID verified to exist in the matrix at blob `42482d50…`; every source claim cites a section/line locator; no positive claim is invented beyond the probes recorded in §4 and §12 evidence notes (deterministic greps: MailerLite `index.html:97`; `processor.js:89`; `review-ui.js:156`; `batch-review-legacy.html:458-460`; `column-analyzer.js:39`; `file-processor.js:34,36,71-94,172`; `file-reader.js:58`; `longitudinal-validator.js`; `batch-exporter.js` ZIP/CSV/PDF lines; `input.html:102-138` + "Pegar"; `review.html:154,303,1246-1263`; `pdf-report.js:25,102`; zero `dangerouslySetInnerHTML`/`innerHTML` in `app-v4/src/`; `.github/workflows/codeql.yml` + `.github/dependabot.yml` present; no coverage config found).
 - No unit/E2E/build runs; no runtime claims made.
+- **Correction review (fresh finding-scoped corrector, attempt #1, 2026-10-13):** closed F1..F6 on candidate `d9ea493` — F1: S1-2-02 evidence restated as documentary (`H-39` register claim, unverified here); F2: §3 heading corrected to 54; F3: SS-5 downgraded out of the verified-supersession register (no human-ratified `.doc` decision found in `CURRENT_DECISIONS.md` / reconciliation final); supersession groups 7→6; F4: P1-17 split into S1-P1-17 (ROW, `STRUCT-006`) and S1-P1-17b (GAP-6, export-age generalization); S1 97→98, total 205→206; F5: GAP-3 extended to enumerate the CodeQL, Dependabot/Renovate and coverage sub-items; F6: S2-12-RECOVERY corrected from `ROW` (decision-only citation) to GAP-7. Updated counts: ROW 197, GAP 7, standalone SUPERSEDED 2, supersession groups 6, UNVERIFIED 0 — 197+2+7+0 = 206. All newly cited IDs (`STRUCT-005`, `STRUCT-006`, `CODE-001`, `CODE-002`, `PDR-05`, `BATCH-002`, `FILE-001`, `H-08`, `D-013`, `D-019`, `D-020`, `D-021`) re-verified to exist in the matrix/decisions at this HEAD.
