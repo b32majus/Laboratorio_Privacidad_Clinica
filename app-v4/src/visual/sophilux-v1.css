@@ -730,3 +730,62 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* #91 U5: real processed Structured free-text cells, no fabricated session. */
+.sophilux-shell .sx-cells-task .sx-cells-workspace > h2 {
+  color: var(--sx-ink);
+  font-family: var(--sx-serif);
+  font-size: clamp(32px, 3.2vw, 43px);
+  line-height: 1.08;
+}
+.sophilux-shell .sx-cells-task .sx-cells-grid {
+  display: grid;
+  grid-template-columns: minmax(245px, 0.55fr) minmax(0, 1.45fr);
+  align-items: start;
+  gap: 14px;
+}
+.sophilux-shell .sx-cells-task .sx-cells-grid > *,
+.sophilux-shell .sx-cells-task .sx-cells-current,
+.sophilux-shell .sx-cells-task .sx-review-grid > * {
+  min-width: 0;
+}
+.sophilux-shell .sx-cells-task .sx-cells-queue {
+  margin-top: 0;
+  border: 1px solid var(--sx-line);
+  border-radius: 13px;
+  background: var(--sx-paper);
+  box-shadow: var(--sx-shadow);
+  padding: 12px;
+}
+.sophilux-shell .sx-cells-task .sx-cells-queue [aria-current="true"] {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 1px;
+}
+.sophilux-shell .sx-cells-task .sx-cells-current .sx-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(285px, 0.9fr);
+  grid-template-areas: "document inspector" "findings findings";
+  gap: 12px;
+  align-items: start;
+}
+.sophilux-shell .sx-cells-task .sx-review-document {
+  grid-area: document;
+  min-width: 0;
+}
+.sophilux-shell .sx-cells-task .sx-review-inspector {
+  grid-area: inspector;
+  min-width: 0;
+}
+.sophilux-shell .sx-cells-task .sx-review-findings {
+  grid-area: findings;
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  .sophilux-shell .sx-cells-task .sx-cells-grid,
+  .sophilux-shell .sx-cells-task .sx-cells-current .sx-review-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sophilux-shell .sx-cells-task .sx-cells-current .sx-review-grid {
+    grid-template-areas: "inspector" "document" "findings";
+  }
+}

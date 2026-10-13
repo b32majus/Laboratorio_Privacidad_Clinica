@@ -946,7 +946,8 @@ export function App() {
           className={`mx-auto px-4 ${
             currentStep === "input" ||
             (currentStep === "review" && (isBatch || review !== null)) ||
-            (currentStep === "configure" && job?.kind === "structured")
+            (currentStep === "configure" && job?.kind === "structured") ||
+            (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns)
               ? "max-w-[1350px]"
               : "max-w-5xl"
           }`}
@@ -1060,7 +1061,8 @@ export function App() {
         className={`mx-auto px-4 py-8 ${
           currentStep === "input" ||
           (currentStep === "review" && (isBatch || review !== null)) ||
-          (currentStep === "configure" && job?.kind === "structured")
+          (currentStep === "configure" && job?.kind === "structured") ||
+          (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns)
             ? "max-w-[1350px]"
             : "max-w-5xl"
         }`}
@@ -1137,22 +1139,24 @@ export function App() {
           </div>
         ) : currentStep === "review" && job && job.kind === "structured" ? (
           hasFreeTextColumns && structuredConfiguration !== null ? (
-            <StructuredFreeTextReview
-              configuration={structuredConfiguration}
-              preparation={structuredPreparation}
-              freeText={structuredFreeText}
-              activeCell={structuredFreeTextActive}
-              runError={
-                freeTextRunError !== null && freeTextRunError.jobId === job.id
-                  ? freeTextRunError.message
-                  : null
-              }
-              onRun={runStructuredFreeText}
-              onSelectFreeTextCell={session.selectFreeTextCell}
-              onDecide={session.decide}
-              onAddManual={session.addManual}
-              onGoToStep={handleGoToStep}
-            />
+            <div className="sx-cells-task">
+              <StructuredFreeTextReview
+                configuration={structuredConfiguration}
+                preparation={structuredPreparation}
+                freeText={structuredFreeText}
+                activeCell={structuredFreeTextActive}
+                runError={
+                  freeTextRunError !== null && freeTextRunError.jobId === job.id
+                    ? freeTextRunError.message
+                    : null
+                }
+                onRun={runStructuredFreeText}
+                onSelectFreeTextCell={session.selectFreeTextCell}
+                onDecide={session.decide}
+                onAddManual={session.addManual}
+                onGoToStep={handleGoToStep}
+              />
+            </div>
           ) : (
             // Issue #85: the empty/no-op structured Review screen no longer
             // exists. The only rendered Review surface for structured work is

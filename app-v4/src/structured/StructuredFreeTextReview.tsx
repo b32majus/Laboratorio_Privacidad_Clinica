@@ -98,7 +98,7 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
   };
 
   return (
-    <section aria-labelledby="review-step-heading">
+    <section className="sx-cells-workspace" aria-labelledby="review-step-heading">
       <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
         Revisión
       </h2>
@@ -164,69 +164,73 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
             </p>
           )}
 
-          <nav aria-label="Celdas de texto libre" className="mt-4 max-w-3xl">
-            <h3 className="font-display text-base font-bold text-primary-dark">Celdas</h3>
-            <ul className="mt-2 space-y-1">
-              {freeText.cells.map((cell, position) => {
-                const label = cellLabel(cell.cell.header, cell.cell.rowIndex);
-                const status = !cell.ok
-                  ? `Error: ${cell.failure.message}`
-                  : (() => {
-                      const pending = getPendingDetections(cell.session).length;
-                      if (pending === 1) return "1 decisión pendiente";
-                      if (pending > 1) return `${pending} decisiones pendientes`;
-                      return canFinalize(cell.session) ? "Preparada" : "Pendiente de revisión";
-                    })();
-                return (
-                  <li key={`${cell.cell.columnIndex}:${cell.cell.rowIndex}`}>
-                    <button
-                      type="button"
-                      onClick={() => props.onSelectFreeTextCell(position)}
-                      aria-current={activeCell === position ? "true" : undefined}
-                      className={`w-full rounded border px-2 py-1 text-left text-sm ${
-                        activeCell === position
-                          ? "border-primary-dark bg-surface-dark text-white"
-                          : "border-primary bg-white text-neutral-800 hover:bg-surface-light"
-                      } ${focusRing}`}
-                    >
-                      <span className="font-semibold">{label}</span>
-                      <span className="block text-xs">{status}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+          <div className="sx-cells-grid mt-4">
+            <nav aria-label="Celdas de texto libre" className="sx-cells-queue mt-4 max-w-3xl">
+              <h3 className="font-display text-base font-bold text-primary-dark">Celdas</h3>
+              <ul className="mt-2 space-y-1">
+                {freeText.cells.map((cell, position) => {
+                  const label = cellLabel(cell.cell.header, cell.cell.rowIndex);
+                  const status = !cell.ok
+                    ? `Error: ${cell.failure.message}`
+                    : (() => {
+                        const pending = getPendingDetections(cell.session).length;
+                        if (pending === 1) return "1 decisión pendiente";
+                        if (pending > 1) return `${pending} decisiones pendientes`;
+                        return canFinalize(cell.session) ? "Preparada" : "Pendiente de revisión";
+                      })();
+                  return (
+                    <li key={`${cell.cell.columnIndex}:${cell.cell.rowIndex}`}>
+                      <button
+                        type="button"
+                        onClick={() => props.onSelectFreeTextCell(position)}
+                        aria-current={activeCell === position ? "true" : undefined}
+                        className={`w-full rounded border px-2 py-1 text-left text-sm ${
+                          activeCell === position
+                            ? "border-primary-dark bg-surface-dark text-white"
+                            : "border-primary bg-white text-neutral-800 hover:bg-surface-light"
+                        } ${focusRing}`}
+                      >
+                        <span className="font-semibold">{label}</span>
+                        <span className="block text-xs">{status}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
 
-          {active !== undefined && active !== null && active.ok && (
-            <div className="mt-4">
-              <h3 className="font-display text-base font-bold text-primary-dark">
-                Revisando {cellLabel(active.cell.header, active.cell.rowIndex)}
-              </h3>
-              <div className="mt-2">
-                <ReviewWorkspace
-                  session={active.session}
-                  onDecide={props.onDecide}
-                  onAddManual={props.onAddManual}
-                />
-              </div>
+            <div className="sx-cells-current min-w-0">
+              {active !== undefined && active !== null && active.ok && (
+                <div className="mt-4">
+                  <h3 className="font-display text-base font-bold text-primary-dark">
+                    Revisando {cellLabel(active.cell.header, active.cell.rowIndex)}
+                  </h3>
+                  <div className="mt-2">
+                    <ReviewWorkspace
+                      session={active.session}
+                      onDecide={props.onDecide}
+                      onAddManual={props.onAddManual}
+                    />
+                  </div>
+                </div>
+              )}
+              {active !== undefined && active !== null && !active.ok && (
+                <div
+                  role="alert"
+                  className="mt-4 max-w-3xl rounded border border-primary-dark bg-white px-3 py-2 text-sm text-primary-dark"
+                >
+                  <h3 className="font-display text-base font-bold">
+                    {cellLabel(active.cell.header, active.cell.rowIndex)} no se pudo procesar
+                  </h3>
+                  <p className="mt-1 font-semibold">{active.failure.message}</p>
+                  <p className="mt-1">
+                    Resuélvalo reprocesando las celdas de texto libre. La celda original nunca se
+                    conserva como respaldo.
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-          {active !== undefined && active !== null && !active.ok && (
-            <div
-              role="alert"
-              className="mt-4 max-w-3xl rounded border border-primary-dark bg-white px-3 py-2 text-sm text-primary-dark"
-            >
-              <h3 className="font-display text-base font-bold">
-                {cellLabel(active.cell.header, active.cell.rowIndex)} no se pudo procesar
-              </h3>
-              <p className="mt-1 font-semibold">{active.failure.message}</p>
-              <p className="mt-1">
-                Resuélvalo reprocesando las celdas de texto libre. La celda original nunca se
-                conserva como respaldo.
-              </p>
-            </div>
-          )}
+          </div>
         </>
       )}
 
