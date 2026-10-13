@@ -2,7 +2,7 @@
 
 Status: **CURRENT PRODUCT / RECOVERY AUTHORITY**
 
-Last reconciled: 2026-10-12
+Last reconciled: 2026-10-13
 
 ## 1. Where we are
 
@@ -57,7 +57,7 @@ Execution order and dependencies are authoritative in `docs/RECOVERY_MASTER_PLAN
 8. `REC-08 — INPUT-PRODUCTIVITY-PARITY-01` — **COMPLETED** by #80 + independently authorized #106, merged via PR #107 at `3.0-main@a5453930b87f472eb12170c2a5ff40ea3cc9f6dc`
 9. REC-09 — APP-IA-REVIEW-PRODUCTIVITY-01 — **COMPLETED**: #81 PR #111; #82 PR #109; #83 PR #113; #84 PR #114; #85 PR #116. All five issues CLOSED after 2026-10-12 issue-state reconciliation.
 10. REC-10 — SPANISH-LOCALIZATION-01 — **COMPLETED**, #90 CLOSED, PR #120 merged at 3.0-main@78db715e158d731fa0cfb12ea466551072be5fdf.
-11. REC-11 — VISUAL-SYSTEM-RECOVERY-01 — #91 OPEN, all declared dependencies CLOSED; seven-view Sophilux B V1 visual and D1–D4/VF-01..08 functional contracts approved and integrated. Preparation only; not launched or published.
+11. REC-11 — VISUAL-SYSTEM-RECOVERY-01 — **COMPLETED**, #91 integrated through PR #121 at `3.0-main@3db54e0af099d3bb10e4ecb4205f955cdb26029b` (2026-10-13). Seven approved Sophilux B V1 surfaces U1–U7 and D1–D4/VF-01..08 are canonical; F1 SP1/S1–S4 and CI-01 corrected and verified. Product/design scope stays frozen; no deployment claim. REC-12 owns the final cross-source/product recovery audit.
 12. `REC-12 — RECOVERY-CLOSEOUT-01`
 
 **HISTORICAL SNAPSHOT following PR #111 (superseded by current recovery status above):** REC-07 is now canonical and **COMPLETED**. #79 merged by PR #96 at `3.0-main@30edfc3ca3c5deb585af82cc2d45a4bf03643e0a` and closed the async-disposal prefactor; #87 merged by PR #100 at `3.0-main@ed61e319fe3d54529abe33d4d145454502e11257` restoring batch Result readiness + deterministic Safe summary CSV; #88 merged by PR #102 at `3.0-main@6f47192bd6be9892708cb01ab6c85abb479bed44` restoring the ordinal per-document Safe PDF ZIP + consolidated Safe PDF; and #89 merged by PR #104 at `3.0-main@86dbd34d303e2c967063400bacd452e4780bae66` restoring the separate batch Confidential Audit with deliberate confirmation and shared fail-closed session authority. Issues **#78, #79, #86, #87, #88 and #89 are CLOSED**. The REC-08 work is now **COMPLETED**: #80 restored the Spanish synthetic clinical examples, browser-local Pegar with Ctrl+V fallback, drag/drop plus file selection, quiet deterministic routing and intended-use wording; separately authorized #106 closes the later discovered stale Clipboard-vs-files interleaving. Both issues are CLOSED and the combined product landed by PR #107 at `3.0-main@a5453930b87f472eb12170c2a5ff40ea3cc9f6dc`. REC-09 #83–#85 remain technically executable and independently unblocked, while REC-10 #90, REC-11 #91 and REC-12 #92–#93 retain their published prerequisites. **No next executable frontier is selected by this closeout**; scheduling returns to attended Cora + human choice, not a fake dependency edge.

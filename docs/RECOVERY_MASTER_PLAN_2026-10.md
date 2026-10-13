@@ -277,7 +277,7 @@ The REC-05 handoff prepared before this reconciliation is retired as execution a
 
 ---
 
-**CURRENT 2026-10-12 status (supersedes the historical 2026-10-11 frontier paragraphs below):** REC-09 is COMPLETE: #81/#82/#83/#84/#85 CLOSED; implementation PRs #111/#109/#113/#114/#116 merged and included in canonical 3.0-main@78db715e158d731fa0cfb12ea466551072be5fdf. REC-10 is COMPLETE: #90 CLOSED, PR #120 merged. REC-11 #91 is the next human-selected preparation frontier, OPEN with all prerequisites CLOSED and Sophilux B V1 plus D1–D4/VF-01..08 frozen; launch remains separately human-owned. No #91 implementation, PR, deployment or release has been authorized. REC-12 #92/#93 stays downstream.
+**CURRENT 2026-10-13 status (supersedes the historical 2026-10-12 and earlier frontier paragraphs below):** REC-09 is COMPLETE: #81/#82/#83/#84/#85 CLOSED; implementation PRs #111/#109/#113/#114/#116 merged. REC-10 is COMPLETE: #90 CLOSED, PR #120 merged. REC-11 is **COMPLETED**: #91's human-approved seven-view Sophilux B V1 U1–U7 and D1–D4/VF-01..08 integrated by PR #121 at canonical `3.0-main@3db54e0af099d3bb10e4ecb4205f955cdb26029b` (2026-10-13). Canonical Standards/Spec findings SP1/S1–S4 were dispositioned and the separately authorized CI-01 stale-class E2E oracle was corrected; CI/E2E + CodeQL passed against head `25f851afed1a7297c79e6ef09cf6a833cc0d538d`. No deployment is asserted. REC-12 #92/#93 remains downstream and still owns final source-to-matrix completeness and composed product recovery closeout.
 
 ### REC-09 — APP-IA-REVIEW-PRODUCTIVITY-01
 
@@ -446,7 +446,7 @@ The approved `/to-tickets` decomposition is published in GitHub and preserved in
 | REC-08 | #80, separately human-authorized #106 | completed through PR #107; #106 closes CORA-80-03 without reviving #80 correction budget |
 | REC-09 | #81, #82, #83, #84, #85 | COMPLETE: PRs #109/#111/#113/#114/#116 merged; all issues CLOSED (2026-10-12 reconciliation) |
 | REC-10 | #90 | COMPLETE: PR #120 merged; issue CLOSED |
-| REC-11 | #91 | OPEN: all prerequisites CLOSED; Sophilux B V1 and D1–D4/VF-01..08 approved; first material UI checkpoint required |
+| REC-11 | #91 | COMPLETE: seven human-approved Sophilux B V1 surfaces U1–U7 integrated by PR #121 at `3.0-main@3db54e0af099d3bb10e4ecb4205f955cdb26029b` (2026-10-13); final F1/CI-01 evidence verified; no deployment claim |
 | REC-12 | #92, #93 | #92 ← #80–#91; #93 ← #92 |
 
 **HISTORICAL state after PR #111 (superseded by current 2026-10-12 status above):** Current state after PR #111: **#78, #79, #80, #81, #82, #86, #87, #88, #89 and #106 are completed**. REC-06, REC-07 and REC-08 remain complete. REC-09 has completed #81/#82; #83–#85 are open and technically executable. #90/#91 still await the stable remaining product-surface set, and REC-12 remains downstream. **No new next frontier is selected.** Serial scheduling preference is not a semantic blocker, and experimental OpenAI Frontier does not replace the `standard` default.
