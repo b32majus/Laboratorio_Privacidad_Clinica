@@ -7,7 +7,7 @@ Human authorization: combine browser-compatibility correction and remaining cano
 
 - Product: b32majus/Laboratorio_Privacidad_Clinica, worktree `/srv/kairos-lab/qualification/laboratorio-issue91-sophilux-c087-atenea148-20261012`, branch `work/issue91-visual-system-c087-atenea148-20261012`.
 - Already reviewed candidate: `4960aa2d0d262561185f2f2501bbb027e251263e`; product base `78db715e158d731fa0cfb12ea466551072be5fdf`.
-- Previous F1 docs-only preparation: `d31aadfc8f84f31c84dfba7a358f5b3786344662`. The human-launch pin is the NEW docs-only commit carrying this contract, whose parent MUST be d31aadfc.
+- Preparation provenance: first F1 docs-only commit `d31aadfc8f84f31c84dfba7a358f5b3786344662`; combined F1 contract at `d690119c832a00ed939de4f92971687e3b731fa9`; subsequent docs-only precision amendment(s). Human launch MUST pin the exact clean HEAD printed by the final preflight; it must have d31aadfc and d690119 as ancestors. The eventual single correction commit must have THAT exact launch HEAD as parent, not d31aadfc or d690119. No amend/rebase/reset.
 - Atenea C-087 pinned at `462d461f3048a0ddf15aace1257d793fd52f1c48`; cost_policy `go`, risk_class `complex`; coordinator `atenea-go`, exactly one fresh linked `atenea-corrector-go-complex` and no fallback/profile change.
 - Read the original prescriptive findings: `docs/handoffs/ISSUE91_CANONICAL_REVIEW_CORA_F1_ALL_FINDINGS_C087_GO_COMPLEX_20261013.md`. This document OVERRIDES its S1 recipe, its source/test allowlist and its test commands, **not** its SP1 adjudication, S2/S3/S4 recipes, safety protections or publication STOP.
 - Standards and Spec already ran once canonically against the integrated #91 candidate. Do NOT run them again for this finding-scoped correction.
