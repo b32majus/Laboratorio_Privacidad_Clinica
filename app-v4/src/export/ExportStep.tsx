@@ -514,7 +514,7 @@ function StructuredExport({
   };
 
   return (
-    <section aria-labelledby="export-step-heading">
+    <section className="sx-result-workspace" aria-labelledby="export-step-heading">
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
           Resultado
@@ -1089,7 +1089,11 @@ function BatchResult({
         : undefined;
 
   return (
-    <section aria-labelledby="export-step-heading" data-result-state={view.state}>
+    <section
+      className="sx-result-workspace"
+      aria-labelledby="export-step-heading"
+      data-result-state={view.state}
+    >
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
           Resultado
@@ -1727,7 +1731,11 @@ function SingleItemResult({
   );
 
   return (
-    <section aria-labelledby="export-step-heading" data-result-state={view.state}>
+    <section
+      className="sx-result-workspace"
+      aria-labelledby="export-step-heading"
+      data-result-state={view.state}
+    >
       <header className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
           Resultado

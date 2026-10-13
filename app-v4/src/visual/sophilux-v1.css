@@ -829,3 +829,63 @@
     grid-column: 1;
   }
 }
+/* #91 U7: editorial layout over real material-specific Result. */
+.sophilux-shell .sx-result-task .sx-result-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(330px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+}
+.sophilux-shell .sx-result-task .sx-result-workspace > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.sophilux-shell .sx-result-task .sx-result-workspace > header {
+  grid-column: 1;
+  padding: 22px;
+  border: 1px solid var(--sx-rose-line);
+  border-radius: 14px;
+  background: linear-gradient(125deg, var(--sx-paper), var(--sx-rose-soft));
+}
+.sophilux-shell .sx-result-task .sx-result-workspace > header h2 {
+  font-family: var(--sx-serif);
+  font-size: clamp(38px, 3.5vw, 50px);
+  line-height: 1.03;
+  color: var(--sx-ink);
+}
+.sophilux-shell .sx-result-task .sx-result-workspace > section:first-of-type {
+  grid-column: 2;
+  margin-top: 0;
+  border: 1px solid var(--sx-line);
+  box-shadow: var(--sx-shadow);
+}
+.sophilux-shell
+  .sx-result-task
+  .sx-result-workspace
+  > section[aria-labelledby="confidential-audit-heading"],
+.sophilux-shell
+  .sx-result-task
+  .sx-result-workspace
+  > section[aria-labelledby="structured-confidential-heading"] {
+  grid-column: 1 / -1;
+  border-color: var(--sx-rose-deep);
+}
+.sophilux-shell
+  .sx-result-task
+  .sx-result-workspace[data-result-state="blocked"]
+  > section:first-of-type,
+.sophilux-shell
+  .sx-result-task
+  .sx-result-workspace[data-result-state="needs-attention"]
+  > section:first-of-type {
+  border-color: var(--sx-rose-deep);
+}
+@media (max-width: 1023px) {
+  .sophilux-shell .sx-result-task .sx-result-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sophilux-shell .sx-result-task .sx-result-workspace > header,
+  .sophilux-shell .sx-result-task .sx-result-workspace > section:first-of-type {
+    grid-column: 1;
+  }
+}

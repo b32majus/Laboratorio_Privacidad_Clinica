@@ -948,7 +948,8 @@ export function App() {
             (currentStep === "review" && (isBatch || review !== null)) ||
             (currentStep === "configure" && job?.kind === "structured") ||
             (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns) ||
-            currentStep === "privacy-gate"
+            currentStep === "privacy-gate" ||
+            currentStep === "export"
               ? "max-w-[1350px]"
               : "max-w-5xl"
           }`}
@@ -1064,7 +1065,8 @@ export function App() {
           (currentStep === "review" && (isBatch || review !== null)) ||
           (currentStep === "configure" && job?.kind === "structured") ||
           (currentStep === "review" && job?.kind === "structured" && hasFreeTextColumns) ||
-          currentStep === "privacy-gate"
+          currentStep === "privacy-gate" ||
+          currentStep === "export"
             ? "max-w-[1350px]"
             : "max-w-5xl"
         }`}
@@ -1189,14 +1191,16 @@ export function App() {
         ) : currentStep === "export" &&
           job &&
           (activeReview !== null || isBatch || structuredGateInput !== null) ? (
-          <ExportStep
-            job={job}
-            review={activeReview}
-            batchSessions={batchSessions}
-            structured={structuredGateInput}
-            structuredFreeText={structuredFreeText}
-            onReturnToReview={() => void handleGoToStep("review")}
-          />
+          <div className="sx-result-task">
+            <ExportStep
+              job={job}
+              review={activeReview}
+              batchSessions={batchSessions}
+              structured={structuredGateInput}
+              structuredFreeText={structuredFreeText}
+              onReturnToReview={() => void handleGoToStep("review")}
+            />
+          </div>
         ) : (
           <StepUnavailableState step={currentStep} reviewError={reviewError} />
         )}
