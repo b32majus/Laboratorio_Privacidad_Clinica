@@ -241,6 +241,7 @@ for (const [width, height] of [
     await page.setViewportSize({ width, height });
 
     await createTextJob(page);
+    await expect(page.getByRole("region", { name: "Espacio de revisión" })).toBeVisible();
     const toggle = page.getByRole("button", { name: "Guía detallada de políticas" });
 
     // Collapsed: the control is visible, in viewport and horizontally clean.
