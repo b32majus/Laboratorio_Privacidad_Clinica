@@ -390,7 +390,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
   }
 
   return (
-    <section aria-labelledby="batch-review-step-heading">
+    <section className="sx-batch-review" aria-labelledby="batch-review-step-heading">
       <h2
         id="batch-review-step-heading"
         className="font-display text-xl font-bold text-primary-dark"
@@ -411,235 +411,239 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
         </p>
       )}
 
-      <section
-        aria-label="Documentos del lote"
-        className="mt-4 rounded border border-primary bg-surface-light p-3"
-      >
-        <h3 className="font-display text-base font-bold text-primary-dark">Documentos</h3>
+      <div className="sx-batch-grid">
+        <section
+          aria-label="Documentos del lote"
+          className="sx-batch-queue mt-4 rounded border border-primary bg-surface-light p-3"
+        >
+          <h3 className="font-display text-base font-bold text-primary-dark">Documentos</h3>
 
-        {/* #86 orientation: a compact filter immediately above the queue. The
+          {/* #86 orientation: a compact filter immediately above the queue. The
             counts derive from the CURRENT item state on every render; choosing
             one only changes which rows are shown, never any review fact. */}
-        <div
-          role="group"
-          aria-label="Filtrar documentos del lote"
-          className="mt-3 flex flex-wrap gap-2"
-        >
-          {BATCH_QUEUE_VIEW_ORDER.map((view) => {
-            const pressed = activeView === view;
-            return (
-              <button
-                key={view}
-                type="button"
-                aria-pressed={pressed}
-                onClick={() => setQueueSelection({ jobId: job.id, view })}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  pressed
-                    ? "border-primary-dark bg-primary-dark text-white"
-                    : "border-primary bg-white text-primary-dark hover:bg-surface-light"
-                } ${focusRing}`}
-              >
-                {BATCH_QUEUE_VIEW_LABELS[view]} ({queueCounts[view]})
-              </button>
-            );
-          })}
-        </div>
+          <div
+            role="group"
+            aria-label="Filtrar documentos del lote"
+            className="mt-3 flex flex-wrap gap-2"
+          >
+            {BATCH_QUEUE_VIEW_ORDER.map((view) => {
+              const pressed = activeView === view;
+              return (
+                <button
+                  key={view}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => setQueueSelection({ jobId: job.id, view })}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    pressed
+                      ? "border-primary-dark bg-primary-dark text-white"
+                      : "border-primary bg-white text-primary-dark hover:bg-surface-light"
+                  } ${focusRing}`}
+                >
+                  {BATCH_QUEUE_VIEW_LABELS[view]} ({queueCounts[view]})
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Recovery feedback lives HERE, outside the filtered rows: an action
+          {/* Recovery feedback lives HERE, outside the filtered rows: an action
             can move its row to another category (or out of the current
             filter), and its consequence must stay perceptible. */}
-        {retryingVisible && (
-          <p
-            role="status"
-            className={`mt-3 rounded border border-primary bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ${focusRing}`}
-          >
-            Reintentando…{retryingName === undefined ? "" : ` «${retryingName}»`}
-          </p>
-        )}
-        {shownFeedback && (
-          <p
-            role={shownFeedback.kind === "error" ? "alert" : "status"}
-            className={`mt-3 rounded border px-3 py-2 text-sm ${
-              shownFeedback.kind === "error"
-                ? "border-primary-dark bg-surface-light font-semibold text-primary-dark"
-                : "border-primary bg-white text-neutral-800"
-            } ${focusRing}`}
-          >
-            {shownFeedback.text}
-          </p>
-        )}
+          {retryingVisible && (
+            <p
+              role="status"
+              className={`mt-3 rounded border border-primary bg-white px-3 py-2 text-sm font-semibold text-neutral-800 ${focusRing}`}
+            >
+              Reintentando…{retryingName === undefined ? "" : ` «${retryingName}»`}
+            </p>
+          )}
+          {shownFeedback && (
+            <p
+              role={shownFeedback.kind === "error" ? "alert" : "status"}
+              className={`mt-3 rounded border px-3 py-2 text-sm ${
+                shownFeedback.kind === "error"
+                  ? "border-primary-dark bg-surface-light font-semibold text-primary-dark"
+                  : "border-primary bg-white text-neutral-800"
+              } ${focusRing}`}
+            >
+              {shownFeedback.text}
+            </p>
+          )}
 
-        <ul aria-label="Estado de los documentos del lote" className="mt-2 space-y-1">
-          {visibleIndices.map((index) => {
-            const file = files[index]!;
-            const status = file.itemStatus ?? "queued";
-            const selectable = sessions?.[index] !== undefined;
-            const isActive = activeIndex === index;
-            const isFailed = status === "error";
-            const removed = file.itemDisposition === "removed";
-            const acknowledged = file.itemAcknowledged === true;
-            // Retry is contextual (#78): offered only when the domain
-            // classifies the item as retryable (processing failure with
-            // retained text, not removed, not policy-unsupported) AND the
-            // bridge retains the shared cross-document context.
-            const retryOffered =
-              isFailed &&
-              !removed &&
-              retryContextAvailable &&
-              props.onRetryBatchItem !== undefined &&
-              isBatchItemRetryable(job, index);
-            const recoveryOffered = isFailed && !removed;
-            return (
-              <li key={index}>
-                {selectable ? (
-                  <button
-                    type="button"
-                    onClick={() => props.onSelectDocument(index)}
-                    aria-current={isActive ? "true" : undefined}
-                    className={`w-full rounded border px-2 py-1 text-left text-sm ${
-                      isActive
-                        ? "border-primary-dark bg-surface-dark text-white"
-                        : "border-primary bg-white text-neutral-800 hover:bg-surface-light"
-                    } ${focusRing}`}
-                  >
-                    <span className="font-semibold">{file.name}</span>
-                    {" — "}
-                    <span>{BATCH_STATUS_LABELS[status]}</span>
-                  </button>
-                ) : (
-                  <div>
-                    <p className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-800">
+          <ul aria-label="Estado de los documentos del lote" className="mt-2 space-y-1">
+            {visibleIndices.map((index) => {
+              const file = files[index]!;
+              const status = file.itemStatus ?? "queued";
+              const selectable = sessions?.[index] !== undefined;
+              const isActive = activeIndex === index;
+              const isFailed = status === "error";
+              const removed = file.itemDisposition === "removed";
+              const acknowledged = file.itemAcknowledged === true;
+              // Retry is contextual (#78): offered only when the domain
+              // classifies the item as retryable (processing failure with
+              // retained text, not removed, not policy-unsupported) AND the
+              // bridge retains the shared cross-document context.
+              const retryOffered =
+                isFailed &&
+                !removed &&
+                retryContextAvailable &&
+                props.onRetryBatchItem !== undefined &&
+                isBatchItemRetryable(job, index);
+              const recoveryOffered = isFailed && !removed;
+              return (
+                <li key={index}>
+                  {selectable ? (
+                    <button
+                      type="button"
+                      onClick={() => props.onSelectDocument(index)}
+                      aria-current={isActive ? "true" : undefined}
+                      className={`w-full rounded border px-2 py-1 text-left text-sm ${
+                        isActive
+                          ? "border-primary-dark bg-surface-dark text-white"
+                          : "border-primary bg-white text-neutral-800 hover:bg-surface-light"
+                      } ${focusRing}`}
+                    >
                       <span className="font-semibold">{file.name}</span>
                       {" — "}
                       <span>{BATCH_STATUS_LABELS[status]}</span>
-                      {file.itemError !== undefined && (
-                        <> — {localizeDomainErrorMessage(file.itemError.message)}</>
-                      )}
-                      {removed && <span className="font-semibold"> — Retirado del lote</span>}
-                      {acknowledged && <span className="font-semibold"> — Error reconocido</span>}
-                    </p>
-                    {recoveryOffered && (
-                      <div className="mt-1 flex flex-wrap items-center gap-2 px-2">
-                        {retryOffered && (
-                          <button
-                            type="button"
-                            disabled={attemptInFlight}
-                            onClick={() => void handleRetry(index)}
-                            className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
-                          >
-                            Reintentar
-                          </button>
+                    </button>
+                  ) : (
+                    <div>
+                      <p className="rounded border border-neutral-300 bg-white px-2 py-1 text-sm text-neutral-800">
+                        <span className="font-semibold">{file.name}</span>
+                        {" — "}
+                        <span>{BATCH_STATUS_LABELS[status]}</span>
+                        {file.itemError !== undefined && (
+                          <> — {localizeDomainErrorMessage(file.itemError.message)}</>
                         )}
-                        {props.onRemoveBatchItem !== undefined &&
-                          (confirmingRemove !== null &&
-                          confirmingRemove.jobId === job.id &&
-                          confirmingRemove.index === index ? (
-                            <span
-                              role="group"
-                              aria-label={`Confirmar la retirada de ${file.name}`}
-                              className="flex flex-wrap items-center gap-2"
-                            >
-                              <span className="text-xs text-neutral-800">
-                                El documento dejará de participar en el trabajo pendiente del lote y
-                                en el resultado preparado. Su nombre y su error seguirán
-                                registrados, y los demás documentos no se verán afectados.
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleConfirmRemove(index)}
-                                className={`rounded border border-primary-dark bg-primary-dark px-2 py-1 text-xs font-semibold text-white hover:bg-primary ${focusRing}`}
-                              >
-                                Confirmar retirada
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmingRemove(null)}
-                                className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
-                              >
-                                Cancelar
-                              </button>
-                            </span>
-                          ) : (
+                        {removed && <span className="font-semibold"> — Retirado del lote</span>}
+                        {acknowledged && <span className="font-semibold"> — Error reconocido</span>}
+                      </p>
+                      {recoveryOffered && (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 px-2">
+                          {retryOffered && (
                             <button
                               type="button"
-                              onClick={() =>
-                                setConfirmingRemove({
-                                  jobId: job.id,
-                                  policyId: job.policyId,
-                                  index,
-                                })
-                              }
+                              disabled={attemptInFlight}
+                              onClick={() => void handleRetry(index)}
+                              className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-wait disabled:opacity-70 ${focusRing}`}
+                            >
+                              Reintentar
+                            </button>
+                          )}
+                          {props.onRemoveBatchItem !== undefined &&
+                            (confirmingRemove !== null &&
+                            confirmingRemove.jobId === job.id &&
+                            confirmingRemove.index === index ? (
+                              <span
+                                role="group"
+                                aria-label={`Confirmar la retirada de ${file.name}`}
+                                className="flex flex-wrap items-center gap-2"
+                              >
+                                <span className="text-xs text-neutral-800">
+                                  El documento dejará de participar en el trabajo pendiente del lote
+                                  y en el resultado preparado. Su nombre y su error seguirán
+                                  registrados, y los demás documentos no se verán afectados.
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmRemove(index)}
+                                  className={`rounded border border-primary-dark bg-primary-dark px-2 py-1 text-xs font-semibold text-white hover:bg-primary ${focusRing}`}
+                                >
+                                  Confirmar retirada
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmingRemove(null)}
+                                  className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+                                >
+                                  Cancelar
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setConfirmingRemove({
+                                    jobId: job.id,
+                                    policyId: job.policyId,
+                                    index,
+                                  })
+                                }
+                                className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+                              >
+                                Retirar del lote
+                              </button>
+                            ))}
+                          {!acknowledged && props.onAcknowledgeBatchItemError !== undefined && (
+                            <button
+                              type="button"
+                              onClick={() => handleAcknowledge(index)}
                               className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
                             >
-                              Retirar del lote
+                              Reconocer error
                             </button>
-                          ))}
-                        {!acknowledged && props.onAcknowledgeBatchItemError !== undefined && (
-                          <button
-                            type="button"
-                            onClick={() => handleAcknowledge(index)}
-                            className={`rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
-                          >
-                            Reconocer error
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
 
-        {visibleIndices.length === 0 && (
-          <div className="mt-2 rounded border border-dashed border-primary bg-white px-3 py-2">
-            <p role="status" className="text-sm text-neutral-800">
-              No hay ningún documento que coincida con este filtro.
-            </p>
-            <button
-              type="button"
-              onClick={() => setQueueSelection({ jobId: job.id, view: "all" })}
-              className={`mt-2 rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+          {visibleIndices.length === 0 && (
+            <div className="mt-2 rounded border border-dashed border-primary bg-white px-3 py-2">
+              <p role="status" className="text-sm text-neutral-800">
+                No hay ningún documento que coincida con este filtro.
+              </p>
+              <button
+                type="button"
+                onClick={() => setQueueSelection({ jobId: job.id, view: "all" })}
+                className={`mt-2 rounded border border-primary-dark px-2 py-1 text-xs font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+              >
+                Mostrar todos
+              </button>
+            </div>
+          )}
+          <p className="mt-3 text-xs leading-relaxed text-neutral-600">
+            Los documentos de este lote mantienen sustituciones internas y fechas coherentes entre
+            todos los documentos del mismo trabajo.
+          </p>
+        </section>
+
+        <div className="sx-batch-current">
+          {activeOutsideFilter && activeFile !== undefined && (
+            <p
+              role="status"
+              className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800"
             >
-              Mostrar todos
-            </button>
-          </div>
-        )}
-        <p className="mt-3 text-xs leading-relaxed text-neutral-600">
-          Los documentos de este lote mantienen sustituciones internas y fechas coherentes entre
-          todos los documentos del mismo trabajo.
-        </p>
-      </section>
+              El documento abierto «{activeFile.name}» no pertenece al filtro actual y no aparece en
+              la lista, pero su revisión sigue disponible e intacta.
+            </p>
+          )}
 
-      {activeOutsideFilter && activeFile !== undefined && (
-        <p
-          role="status"
-          className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800"
-        >
-          El documento abierto «{activeFile.name}» no pertenece al filtro actual y no aparece en la
-          lista, pero su revisión sigue disponible e intacta.
-        </p>
-      )}
-
-      {activeSession !== undefined ? (
-        <ReviewWorkspace
-          session={activeSession}
-          onDecide={props.onDecide}
-          onAddManual={props.onAddManual}
-        />
-      ) : (
-        <p
-          role="status"
-          className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800"
-        >
-          {stillReading
-            ? `Leyendo documentos… ${readProgress ? `${readProgress.done} de ${readProgress.total} leídos. ` : ""}La revisión comienza automáticamente cuando todos los documentos se han leído.`
-            : failedCodes.length > 0
-              ? "No hay ningún documento disponible para revisión. Los documentos con error permanecen en la lista con su error registrado y con las acciones de recuperación que cada uno ofrece."
-              : "Todavía no hay ningún documento disponible para revisión."}
-        </p>
-      )}
+          {activeSession !== undefined ? (
+            <ReviewWorkspace
+              session={activeSession}
+              onDecide={props.onDecide}
+              onAddManual={props.onAddManual}
+            />
+          ) : (
+            <p
+              role="status"
+              className="mt-4 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800"
+            >
+              {stillReading
+                ? `Leyendo documentos… ${readProgress ? `${readProgress.done} de ${readProgress.total} leídos. ` : ""}La revisión comienza automáticamente cuando todos los documentos se han leído.`
+                : failedCodes.length > 0
+                  ? "No hay ningún documento disponible para revisión. Los documentos con error permanecen en la lista con su error registrado y con las acciones de recuperación que cada uno ofrece."
+                  : "Todavía no hay ningún documento disponible para revisión."}
+            </p>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

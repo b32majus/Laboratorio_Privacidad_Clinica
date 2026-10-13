@@ -637,3 +637,55 @@
     grid-template-areas: "inspector" "document" "findings";
   }
 }
+
+/* #91 U3a: REAL multi-document batch, queue + authorized current Review. */
+.sophilux-shell .sx-batch-task .sx-batch-grid {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.68fr) minmax(0, 1.32fr);
+  gap: 14px;
+  align-items: start;
+}
+.sophilux-shell .sx-batch-task .sx-batch-grid > * {
+  min-width: 0;
+}
+.sophilux-shell .sx-batch-task .sx-batch-queue,
+.sophilux-shell .sx-batch-task .sx-batch-current > .sx-review-workspace .sx-review-grid > *,
+.sophilux-shell .sx-batch-task .sx-batch-current > .sx-review-workspace {
+  min-width: 0;
+}
+.sophilux-shell .sx-batch-task .sx-batch-queue {
+  border: 1px solid var(--sx-line);
+  border-radius: 13px;
+  background: var(--sx-paper);
+  box-shadow: var(--sx-shadow);
+}
+.sophilux-shell .sx-batch-task .sx-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(220px, 0.88fr);
+  grid-template-areas: "document inspector" "findings findings";
+  gap: 12px;
+  align-items: start;
+}
+.sophilux-shell .sx-batch-task .sx-review-document {
+  grid-area: document;
+  min-width: 0;
+}
+.sophilux-shell .sx-batch-task .sx-review-findings {
+  grid-area: findings;
+  min-width: 0;
+}
+.sophilux-shell .sx-batch-task .sx-review-inspector {
+  grid-area: inspector;
+  min-width: 0;
+}
+@media (max-width: 1120px) {
+  .sophilux-shell .sx-batch-task .sx-batch-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .sophilux-shell .sx-batch-task .sx-review-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "inspector" "document" "findings";
+  }
+}

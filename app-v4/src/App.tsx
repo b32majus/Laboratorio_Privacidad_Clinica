@@ -944,7 +944,7 @@ export function App() {
       <header className="sx-sitebar">
         <div
           className={`mx-auto px-4 ${
-            currentStep === "input" || (currentStep === "review" && review !== null && !isBatch)
+            currentStep === "input" || (currentStep === "review" && (isBatch || review !== null))
               ? "max-w-[1350px]"
               : "max-w-5xl"
           }`}
@@ -1056,7 +1056,7 @@ export function App() {
       <main
         id="main-content"
         className={`mx-auto px-4 py-8 ${
-          currentStep === "input" || (currentStep === "review" && review !== null && !isBatch)
+          currentStep === "input" || (currentStep === "review" && (isBatch || review !== null))
             ? "max-w-[1350px]"
             : "max-w-5xl"
         }`}
@@ -1098,27 +1098,29 @@ export function App() {
             outputOptions={structuredOutputOptions}
           />
         ) : currentStep === "review" && isBatch && job ? (
-          <BatchReviewView
-            job={job}
-            sessions={batchSessions}
-            activeIndex={batchActiveIndex}
-            errorMessage={reviewError}
-            readProgress={batchRead}
-            retryContextAvailable={batchRetryContextAvailable}
-            onSelectDocument={session.selectDocument}
-            onDecide={session.decide}
-            onAddManual={session.addManual}
-            onRetryBatchItem={(index, options) =>
-              // #78 correction F3: the rendered job supplies BOTH authorities
-              // pinned at capture time — a captured action is refused when
-              // either the job or its policy authority was replaced.
-              session.retryBatchItem(job.id, job.policyId, index, options)
-            }
-            onRemoveBatchItem={(index) => session.removeBatchItem(job.id, job.policyId, index)}
-            onAcknowledgeBatchItemError={(index) =>
-              session.acknowledgeBatchItemError(job.id, job.policyId, index)
-            }
-          />
+          <div className="sx-batch-task">
+            <BatchReviewView
+              job={job}
+              sessions={batchSessions}
+              activeIndex={batchActiveIndex}
+              errorMessage={reviewError}
+              readProgress={batchRead}
+              retryContextAvailable={batchRetryContextAvailable}
+              onSelectDocument={session.selectDocument}
+              onDecide={session.decide}
+              onAddManual={session.addManual}
+              onRetryBatchItem={(index, options) =>
+                // #78 correction F3: the rendered job supplies BOTH authorities
+                // pinned at capture time — a captured action is refused when
+                // either the job or its policy authority was replaced.
+                session.retryBatchItem(job.id, job.policyId, index, options)
+              }
+              onRemoveBatchItem={(index) => session.removeBatchItem(job.id, job.policyId, index)}
+              onAcknowledgeBatchItemError={(index) =>
+                session.acknowledgeBatchItemError(job.id, job.policyId, index)
+              }
+            />
+          </div>
         ) : currentStep === "review" && review ? (
           <div className="sx-review-task">
             <ReviewWorkspace
