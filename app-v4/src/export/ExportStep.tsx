@@ -681,16 +681,18 @@ function StructuredExport({
 
 /**
  * Content-free diagnostic for a refused Safe-summary download. Only the
- * typed error CODE (or, for an unexpected error, its name) is retained: the
- * raw message can name a source file, so it is never captured into state,
- * logged or rendered (CODING_STANDARDS §4). Runtime sources carry no
- * `console.*` call at all (check:external no-PHI-console rule), so the
- * diagnostic is exposed as a stable DOM attribute instead.
+ * closed set of typed error CODES is retained: `Error.name` is writable and
+ * unconstrained, so it can itself carry Confidential content, just like the
+ * raw message (which can name a source file) — neither is ever captured
+ * into state, logged or rendered (CODING_STANDARDS §4; DISC-02). Runtime
+ * sources carry no `console.*` call at all (check:external no-PHI-console
+ * rule), so the diagnostic is exposed as a stable DOM attribute instead.
+ * Unexpected failures collapse to the fixed code `unexpected-error` (same
+ * policy as the batch Confidential route).
  */
 function batchSummaryDiagnostic(error: unknown): string {
   if (error instanceof BatchSummaryError) return error.code;
-  if (error instanceof Error) return error.name;
-  return "unknown-error";
+  return "unexpected-error";
 }
 
 /**
@@ -706,16 +708,17 @@ type BatchSafeFeedback =
   | { readonly action: BatchSafeAction; readonly status: "error"; readonly message: string };
 
 /**
- * Content-free diagnostic for a refused batch Safe download. Only the typed
- * error CODE (or, for an unexpected error, its name) is retained: raw
- * messages can name a source file, so they are never captured into state,
- * logged or rendered (CODING_STANDARDS §4).
+ * Content-free diagnostic for a refused batch Safe download. Only the closed
+ * set of typed error CODES is retained: `Error.name` is writable and
+ * unconstrained, so it can itself carry Confidential content, just like the
+ * raw messages (which can name a source file) — neither is ever captured
+ * into state, logged or rendered (CODING_STANDARDS §4; DISC-02). Unexpected
+ * failures collapse to the fixed code `unexpected-error`.
  */
 function batchSafeDiagnostic(error: unknown): string {
   if (error instanceof BatchSafeDeliverablesError) return error.code;
   if (error instanceof BatchSummaryError) return error.code;
-  if (error instanceof Error) return error.name;
-  return "unknown-error";
+  return "unexpected-error";
 }
 
 /**

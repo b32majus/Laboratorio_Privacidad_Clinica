@@ -494,6 +494,65 @@ describe("all-or-nothing refusal per action (planted PDF-unrepresentable charact
   });
 });
 
+describe("unexpected builder failure: fixed diagnostic, never Error.name or message (DISC-02)", () => {
+  const UNEXPECTED_BUILDER_ERROR = () =>
+    Object.assign(new Error("DNI_SENTINEL_SAFE"), { name: "NOMBRE_SINTETICO_SAFE" });
+
+  it("the ZIP path collapses an unexpected builder rejection to the fixed code", async () => {
+    const { job, sessions } = readyTwo();
+    const captured = captureDownloads();
+    // Existing gate control: suspend the awaited generation window with an
+    // unexpected adversarial rejection (writable Error.name + message).
+    zipGate.suspend = () => Promise.reject(UNEXPECTED_BUILDER_ERROR());
+    try {
+      render(<ExportStep job={job} review={null} batchSessions={sessions} />);
+      fireEvent.click(screen.getByRole("button", { name: "Descargar documentos seguros (.zip)" }));
+      await flushAsyncWork();
+
+      // Fail-closed: zero bytes download.
+      expect(captured.downloads).toHaveLength(0);
+      const feedback = actionFeedback();
+      expect(feedback).not.toBeNull();
+      expect(feedback).toHaveAttribute("role", "alert");
+      // Truthful Spanish failure message of the respective button is preserved.
+      expect(feedback).toHaveTextContent("No se pudieron generar los documentos seguros del lote.");
+      // The unexpected error collapses to the fixed content-free code.
+      expect(feedback).toHaveAttribute("data-batch-safe-diagnostic", "unexpected-error");
+      // Neither sentinel may appear anywhere in the document (attributes included).
+      const html = document.documentElement.outerHTML;
+      expect(html).not.toContain("NOMBRE_SINTETICO_SAFE");
+      expect(html).not.toContain("DNI_SENTINEL_SAFE");
+    } finally {
+      captured.restore();
+    }
+  });
+
+  it("the consolidated-PDF path collapses an unexpected builder rejection to the fixed code", async () => {
+    const { job, sessions } = readyTwo();
+    const captured = captureDownloads();
+    consolidatedGate.suspend = () => Promise.reject(UNEXPECTED_BUILDER_ERROR());
+    try {
+      render(<ExportStep job={job} review={null} batchSessions={sessions} />);
+      fireEvent.click(
+        screen.getByRole("button", { name: "Descargar PDF consolidado del lote (.pdf)" })
+      );
+      await flushAsyncWork();
+
+      expect(captured.downloads).toHaveLength(0);
+      const feedback = actionFeedback();
+      expect(feedback).not.toBeNull();
+      expect(feedback).toHaveAttribute("role", "alert");
+      expect(feedback).toHaveTextContent("No se pudo generar el PDF consolidado del lote.");
+      expect(feedback).toHaveAttribute("data-batch-safe-diagnostic", "unexpected-error");
+      const html = document.documentElement.outerHTML;
+      expect(html).not.toContain("NOMBRE_SINTETICO_SAFE");
+      expect(html).not.toContain("DNI_SENTINEL_SAFE");
+    } finally {
+      captured.restore();
+    }
+  });
+});
+
 describe("no-leak adversary through the downloaded artifacts", () => {
   const FILENAME_SENTINEL = "DNI-99999111-SENTINEL-informe.txt";
   const ELIMINATED_SENTINEL = "DATO-ORIGEN-SENTINEL-ELIMINADO";
