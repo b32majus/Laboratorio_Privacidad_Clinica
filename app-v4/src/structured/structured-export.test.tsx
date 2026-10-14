@@ -637,13 +637,18 @@ describe("ExportStep — structured Safe XLSX just-in-time guard (CORA-AUDIT-REC
  * the exact birth date, the birth month, nor an age banded at the current
  * date.
  *
- * Case B (D-021 material boundary): the exact per-column/per-row/per-type
- * `Edad_Num` cells are observed in the exported bytes. The retention
- * assertions below are deliberately FALSIFYING: if the external policy emits
- * the exact numeric ages 34/35/41 in that column they FAIL and the failure
- * message documents the exact observed cells. This is a material negative
- * witness to be reported, never converted into a pass and never resolved by
- * changing D-021, an operator or production code.
+ * Case B (D-021 material boundary, HUMAN-RATIFIED 2026-10-14): the exact
+ * per-column/per-row/per-type `Edad_Num` cells are asserted POSITIVELY in the
+ * exported bytes. The human decision of 2026-10-14 (CURRENT_DECISIONS.md,
+ * "D-021 clarification — explicit numeric ages in structured tables",
+ * REC-12 #92/B2) ratified the EXACT RETENTION of insensitive/keep numeric
+ * ages 34/35/41 in Safe CSV and Safe XLSX under the `external-ai` policy, so
+ * the assertions below demand those exact cells (value and XLSX numeric
+ * type) rather than falsifying them. History is preserved: commit 443f34e
+ * originally registered and reproduced these tests as a red "material
+ * witness" under the previous GAP-06 interpretation. This exact retention is
+ * NOT anonymization proof and grants NO permission to share the data outside
+ * the controlled environment.
  */
 describe("ExportStep — structured Safe exports under external-ai (REC12-GAP-06)", () => {
   /** Splits an RFC-4180-simple Safe CSV line set (no quoted delimiters here). */
@@ -747,7 +752,7 @@ describe("ExportStep — structured Safe exports under external-ai (REC12-GAP-06
     return { configuration, plan, preparation: prepareStructuredOutput(configuration, plan) };
   }
 
-  it("case B — Safe CSV Edad_Num cells under external-ai (material witness)", async () => {
+  it("case B — Safe CSV retains explicitly kept numeric ages under external-ai", async () => {
     const structured = externalAiEdadNumInput();
     expect(structured.plan.policyId).toBe("external-ai");
     expect(structured.preparation.status).toBe("ready");
@@ -763,26 +768,22 @@ describe("ExportStep — structured Safe exports under external-ai (REC12-GAP-06
       expect(rows[1][0]).toBe("PAC_001");
       expect(rows[2][0]).toBe("PAC_001");
       expect(rows[3][0]).toBe("PAC_002");
-      // MATERIAL WITNESS (REC12-GAP-06 / D-021 boundary): deliberately
-      // falsifying non-retention assertions. If the external policy emits the
-      // exact numeric ages in the Edad_Num column these FAIL and the failure
-      // message documents the exact observed cells. Do not convert this red
-      // witness into a pass; do not change D-021 or production code.
-      expect.soft(rows[1][1], "CSV Edad_Num cell row 1 (original 34) under external-ai").not.toBe(
-        "34"
-      );
-      expect.soft(rows[2][1], "CSV Edad_Num cell row 2 (original 35) under external-ai").not.toBe(
-        "35"
-      );
-      expect.soft(rows[3][1], "CSV Edad_Num cell row 3 (original 41) under external-ai").not.toBe(
-        "41"
-      );
+      // HUMAN DECISION 2026-10-14 (REC12-GAP-06 / D-021 clarification): the
+      // exact numeric ages 34/35/41 configured as insensitive/keep MUST be
+      // retained verbatim in Safe CSV under `external-ai`, so these are
+      // positive exact-cell assertions per COLUMN and ROW. This retention is
+      // not anonymization proof and does not permit sharing the data outside
+      // the controlled environment. History: commit 443f34e originally
+      // registered and reproduced this witness as a red falsifying test.
+      expect.soft(rows[1][1], "CSV Edad_Num cell row 1 (original 34) under external-ai").toBe("34");
+      expect.soft(rows[2][1], "CSV Edad_Num cell row 2 (original 35) under external-ai").toBe("35");
+      expect.soft(rows[3][1], "CSV Edad_Num cell row 3 (original 41) under external-ai").toBe("41");
     } finally {
       capture.restore();
     }
   });
 
-  it("case B — Safe XLSX Edad_Num typed cells under external-ai (material witness)", async () => {
+  it("case B — Safe XLSX retains typed numeric ages under external-ai", async () => {
     seedWindow();
     const structured = externalAiEdadNumInput();
     expect(structured.plan.policyId).toBe("external-ai");
@@ -802,37 +803,41 @@ describe("ExportStep — structured Safe exports under external-ai (REC12-GAP-06
       expect(workbook.cell("Data", "A2")?.v).toBe("PAC_001");
       expect(workbook.cell("Data", "A3")?.v).toBe("PAC_001");
       expect(workbook.cell("Data", "A4")?.v).toBe("PAC_002");
-      // MATERIAL WITNESS: falsifying non-retention per COLUMN, ROW and TYPE.
-      // If the exact typed numeric age survives under external-ai these FAIL
-      // and document the exact observed cell (type + value). Never convert
-      // this red witness into a pass or into a policy change.
+      // HUMAN DECISION 2026-10-14 (REC12-GAP-06 / D-021 clarification): the
+      // exact numeric ages 34/35/41 configured as insensitive/keep MUST be
+      // retained as true typed numbers (cell type "n") per COLUMN, ROW and
+      // TYPE in Safe XLSX under `external-ai`, so these are positive exact
+      // assertions. This retention is not anonymization proof and does not
+      // permit sharing the data outside the controlled environment. History:
+      // commit 443f34e originally registered and reproduced this witness as
+      // a red falsifying test.
       expect
         .soft(workbook.cell("Data", "B2")?.t, "XLSX Edad_Num cell type row 1 under external-ai")
-        .not.toBe("n");
+        .toBe("n");
       expect
         .soft(
           workbook.cell("Data", "B2")?.v,
           "XLSX Edad_Num cell value row 1 (original 34) under external-ai"
         )
-        .not.toBe(34);
+        .toBe(34);
       expect
         .soft(workbook.cell("Data", "B3")?.t, "XLSX Edad_Num cell type row 2 under external-ai")
-        .not.toBe("n");
+        .toBe("n");
       expect
         .soft(
           workbook.cell("Data", "B3")?.v,
           "XLSX Edad_Num cell value row 2 (original 35) under external-ai"
         )
-        .not.toBe(35);
+        .toBe(35);
       expect
         .soft(workbook.cell("Data", "B4")?.t, "XLSX Edad_Num cell type row 3 under external-ai")
-        .not.toBe("n");
+        .toBe("n");
       expect
         .soft(
           workbook.cell("Data", "B4")?.v,
           "XLSX Edad_Num cell value row 3 (original 41) under external-ai"
         )
-        .not.toBe(41);
+        .toBe(41);
     } finally {
       capture.restore();
     }
