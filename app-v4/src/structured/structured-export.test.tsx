@@ -96,11 +96,16 @@ function blockedInput() {
   };
 }
 
-function jobFor(id: string, ready: boolean, confidentialReady = ready): Job {
+function jobFor(
+  id: string,
+  ready: boolean,
+  confidentialReady = ready,
+  policyId: Job["policyId"] = "standard"
+): Job {
   return {
     kind: "structured",
     id,
-    policyId: "standard",
+    policyId,
     outputs: { safeOutputReady: ready, confidentialAuditReady: confidentialReady },
     errors: [],
   } as unknown as Job;
@@ -617,6 +622,226 @@ describe("ExportStep — structured Safe XLSX just-in-time guard (CORA-AUDIT-REC
       capture.restore();
       delete window.XLSX;
       resetXlsxLoaderForTests();
+    }
+  });
+});
+
+/**
+ * REC12-GAP-06 (issue #92 Stage B2, handoff C-087 2026-10-14): real Safe
+ * CSV/XLSX BYTES under the explicit `external-ai` policy (Job, plan and
+ * preparation all `external-ai`). Synthetic data only; no production code,
+ * operator, classification or policy surface is touched by these oracles.
+ *
+ * Case A (positive T19 control): the birth column in the exported bytes must
+ * carry the banded age AT THE EVENT (visit date reference, SPEC §10), never
+ * the exact birth date, the birth month, nor an age banded at the current
+ * date.
+ *
+ * Case B (D-021 material boundary, HUMAN-RATIFIED 2026-10-14): the exact
+ * per-column/per-row/per-type `Edad_Num` cells are asserted POSITIVELY in the
+ * exported bytes. The human decision of 2026-10-14 (CURRENT_DECISIONS.md,
+ * "D-021 clarification — explicit numeric ages in structured tables",
+ * REC-12 #92/B2) ratified the EXACT RETENTION of insensitive/keep numeric
+ * ages 34/35/41 in Safe CSV and Safe XLSX under the `external-ai` policy, so
+ * the assertions below demand those exact cells (value and XLSX numeric
+ * type) rather than falsifying them. History is preserved: commit 443f34e
+ * originally registered and reproduced these tests as a red "material
+ * witness" under the previous GAP-06 interpretation. This exact retention is
+ * NOT anonymization proof and grants NO permission to share the data outside
+ * the controlled environment.
+ */
+describe("ExportStep — structured Safe exports under external-ai (REC12-GAP-06)", () => {
+  /** Splits an RFC-4180-simple Safe CSV line set (no quoted delimiters here). */
+  function parseCsvRows(csv: string): readonly (readonly string[])[] {
+    return csv.split("\n").map((line) => line.split(","));
+  }
+
+  function externalAiAgeBandedInput() {
+    let configuration = createStructuredConfiguration(GRID, {
+      selectedPatientIdColumn: "Paciente",
+    });
+    configuration = setStructuredDateRole(configuration, 1, "visit");
+    configuration = setStructuredDateRole(configuration, 2, "birth");
+    configuration = overrideColumnClass(configuration, 4, "insensitive");
+    const plan = buildStructuredTransformPlan(configuration, {
+      policyId: "external-ai",
+      jobSeed: "gap06-external-ai-a",
+    });
+    return { configuration, plan, preparation: prepareStructuredOutput(configuration, plan) };
+  }
+
+  it("case A — Safe CSV and XLSX band the birth column at the event date under external-ai", async () => {
+    seedWindow();
+    const structured = externalAiAgeBandedInput();
+    // The whole authority chain is explicitly external-ai (Job, plan, prep).
+    expect(structured.plan.policyId).toBe("external-ai");
+    expect(structured.preparation.status).toBe("ready");
+    const job = jobFor("job-gap06-case-a", true, true, "external-ai");
+    expect(job.policyId).toBe("external-ai");
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={job} review={null} structured={structured} />);
+
+      // Safe CSV bytes.
+      fireEvent.click(screen.getByRole("button", { name: SAFE_CSV_BUTTON }));
+      const rows = parseCsvRows(await textOf(capture.downloads[0]));
+      expect(rows[0]).toEqual([
+        "ID_ESTUDIO",
+        "Fecha_Visita",
+        "Fecha_Nacimiento",
+        "Diagnostico",
+        "CampoLibre",
+      ]);
+      // Identity is substituted (ID_ESTUDIO), never carried.
+      expect(rows[1][0]).toBe("PAC_001");
+      expect(rows[2][0]).toBe("PAC_002");
+      // Exact per-column/per-row birth-cell assertions: banded age AT THE
+      // EVENT (68 / 42 completed years at the synthetic visit dates). The
+      // P-001 row also falsifies "banded at the current date": consulting
+      // today would read "70–79 años" from 2024-03-12 until 2034-03-11.
+      expect(rows[1][2]).toBe("60–69 años");
+      expect(rows[2][2]).toBe("40–49 años");
+      expect(rows[1][2]).not.toBe("70–79 años");
+      // Not the exact birth date, not the birth month (column-exact by the
+      // equalities above; belt-and-braces row-level non-retention here).
+      expect(rows[1]).not.toContain("1954-03-12");
+      expect(rows[2]).not.toContain("1980-07-04");
+      expect(rows[1][2]).not.toContain("1954-03");
+      expect(rows[2][2]).not.toContain("1980-07");
+
+      // Safe XLSX bytes (governed SheetJS, real serializer).
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      await waitFor(() => expect(capture.downloads).toHaveLength(2));
+      expect(capture.downloads[1].fileName).toBe("salida-estructurada-segura.xlsx");
+      const workbook = readWorkbook(await bytesOf(capture.downloads[1]));
+      expect(workbook.sheetNames[0]).toBe("Data");
+      expect(workbook.cell("Data", "C1")?.v).toBe("Fecha_Nacimiento");
+      expect(workbook.cell("Data", "C2")?.v).toBe("60–69 años");
+      expect(workbook.cell("Data", "C3")?.v).toBe("40–49 años");
+      expect(workbook.cell("Data", "C2")?.v).not.toBe("70–79 años");
+      expect(workbook.flat("Data")).not.toContain("1954-03-12");
+      expect(workbook.flat("Data")).not.toContain("1980-07-04");
+    } finally {
+      capture.restore();
+    }
+  });
+
+  // Same fixture shape as the accepted `output-preparation.test.ts` grid
+  // (NHC/Edad_Num/Flag/Diagnostico with numeric ages 34, 35, 41), but the
+  // plan/preparation policy is explicitly `external-ai`.
+  const GAP06_EDAD_GRID: StructuredGrid = {
+    headers: ["NHC", "Edad_Num", "Flag", "Diagnostico"],
+    rows: [
+      ["P-001", 34, true, "Gripe A"],
+      ["P-001", 35, false, "Fractura"],
+      ["P-002", 41, true, "Gripe A"],
+    ],
+  };
+
+  function externalAiEdadNumInput() {
+    let configuration = createStructuredConfiguration(GAP06_EDAD_GRID, {
+      selectedPatientIdColumn: "NHC",
+    });
+    configuration = overrideColumnClass(configuration, 1, "insensitive");
+    configuration = overrideColumnClass(configuration, 2, "insensitive");
+    configuration = overrideColumnClass(configuration, 3, "insensitive");
+    const plan = buildStructuredTransformPlan(configuration, {
+      policyId: "external-ai",
+      jobSeed: "gap06-external-ai-b",
+    });
+    return { configuration, plan, preparation: prepareStructuredOutput(configuration, plan) };
+  }
+
+  it("case B — Safe CSV retains explicitly kept numeric ages under external-ai", async () => {
+    const structured = externalAiEdadNumInput();
+    expect(structured.plan.policyId).toBe("external-ai");
+    expect(structured.preparation.status).toBe("ready");
+    const job = jobFor("job-gap06-case-b", true, true, "external-ai");
+    expect(job.policyId).toBe("external-ai");
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={job} review={null} structured={structured} />);
+      fireEvent.click(screen.getByRole("button", { name: SAFE_CSV_BUTTON }));
+      const rows = parseCsvRows(await textOf(capture.downloads[0]));
+      expect(capture.downloads).toHaveLength(1);
+      expect(capture.downloads[0].fileName).toBe("salida-estructurada-segura.csv");
+      // Column + row exactness (never a whole-file substring scan).
+      expect(rows[0]).toEqual(["ID_ESTUDIO", "Edad_Num", "Flag", "Diagnostico"]);
+      expect(rows[1][0]).toBe("PAC_001");
+      expect(rows[2][0]).toBe("PAC_001");
+      expect(rows[3][0]).toBe("PAC_002");
+      // HUMAN DECISION 2026-10-14 (REC12-GAP-06 / D-021 clarification): the
+      // exact numeric ages 34/35/41 configured as insensitive/keep MUST be
+      // retained verbatim in Safe CSV under `external-ai`, so these are
+      // positive exact-cell assertions per COLUMN and ROW. This retention is
+      // not anonymization proof and does not permit sharing the data outside
+      // the controlled environment. History: commit 443f34e originally
+      // registered and reproduced this witness as a red falsifying test.
+      expect.soft(rows[1][1], "CSV Edad_Num cell row 1 (original 34) under external-ai").toBe("34");
+      expect.soft(rows[2][1], "CSV Edad_Num cell row 2 (original 35) under external-ai").toBe("35");
+      expect.soft(rows[3][1], "CSV Edad_Num cell row 3 (original 41) under external-ai").toBe("41");
+    } finally {
+      capture.restore();
+    }
+  });
+
+  it("case B — Safe XLSX retains typed numeric ages under external-ai", async () => {
+    seedWindow();
+    const structured = externalAiEdadNumInput();
+    expect(structured.plan.policyId).toBe("external-ai");
+    expect(structured.preparation.status).toBe("ready");
+    const job = jobFor("job-gap06-case-b-xlsx", true, true, "external-ai");
+    expect(job.policyId).toBe("external-ai");
+    const capture = captureDownloads();
+    try {
+      render(<ExportStep job={job} review={null} structured={structured} />);
+      fireEvent.click(screen.getByRole("button", { name: SAFE_XLSX_BUTTON }));
+      await waitFor(() => expect(capture.downloads).toHaveLength(1));
+      const workbook = readWorkbook(await bytesOf(capture.downloads[0]));
+      expect(workbook.sheetNames[0]).toBe("Data");
+      // Column + row exactness: B is Edad_Num; rows 2..4 are PAC_001, PAC_001,
+      // PAC_002.
+      expect(workbook.cell("Data", "B1")?.v).toBe("Edad_Num");
+      expect(workbook.cell("Data", "A2")?.v).toBe("PAC_001");
+      expect(workbook.cell("Data", "A3")?.v).toBe("PAC_001");
+      expect(workbook.cell("Data", "A4")?.v).toBe("PAC_002");
+      // HUMAN DECISION 2026-10-14 (REC12-GAP-06 / D-021 clarification): the
+      // exact numeric ages 34/35/41 configured as insensitive/keep MUST be
+      // retained as true typed numbers (cell type "n") per COLUMN, ROW and
+      // TYPE in Safe XLSX under `external-ai`, so these are positive exact
+      // assertions. This retention is not anonymization proof and does not
+      // permit sharing the data outside the controlled environment. History:
+      // commit 443f34e originally registered and reproduced this witness as
+      // a red falsifying test.
+      expect
+        .soft(workbook.cell("Data", "B2")?.t, "XLSX Edad_Num cell type row 1 under external-ai")
+        .toBe("n");
+      expect
+        .soft(
+          workbook.cell("Data", "B2")?.v,
+          "XLSX Edad_Num cell value row 1 (original 34) under external-ai"
+        )
+        .toBe(34);
+      expect
+        .soft(workbook.cell("Data", "B3")?.t, "XLSX Edad_Num cell type row 2 under external-ai")
+        .toBe("n");
+      expect
+        .soft(
+          workbook.cell("Data", "B3")?.v,
+          "XLSX Edad_Num cell value row 2 (original 35) under external-ai"
+        )
+        .toBe(35);
+      expect
+        .soft(workbook.cell("Data", "B4")?.t, "XLSX Edad_Num cell type row 3 under external-ai")
+        .toBe("n");
+      expect
+        .soft(
+          workbook.cell("Data", "B4")?.v,
+          "XLSX Edad_Num cell value row 3 (original 41) under external-ai"
+        )
+        .toBe(41);
+    } finally {
+      capture.restore();
     }
   });
 });
