@@ -763,6 +763,8 @@ describe("ExportStep — structured Safe exports under external-ai (REC12-GAP-06
       render(<ExportStep job={job} review={null} structured={structured} />);
       fireEvent.click(screen.getByRole("button", { name: SAFE_CSV_BUTTON }));
       const rows = parseCsvRows(await textOf(capture.downloads[0]));
+      expect(capture.downloads).toHaveLength(1);
+      expect(capture.downloads[0].fileName).toBe("salida-estructurada-segura.csv");
       // Column + row exactness (never a whole-file substring scan).
       expect(rows[0]).toEqual(["ID_ESTUDIO", "Edad_Num", "Flag", "Diagnostico"]);
       expect(rows[1][0]).toBe("PAC_001");
