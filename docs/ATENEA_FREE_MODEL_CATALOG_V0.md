@@ -1,66 +1,52 @@
-# Atenea Free model catalog v0
+# Atenea Free model catalog v0 — Free V2 Volume/Complex bindings
 
-Status: **CURRENT REPLACEABLE SNAPSHOT**
-Snapshot: 2026-10-12
-Runtime observed for candidate: OpenCode V2 `2.0.26`
+Status: **CURRENT HUMAN-APPROVED FREE BINDINGS — promotion without additional model-quality bake-off**
+Snapshot: 2026-10-17 (human-approved Free-only Muse replacement + conditional Visual/UX addendum)
+Runtime observed: OpenCode V2 `2.0.32`; exact current binding IDs visible via `opencode models`.
 
-This file is deliberately replaceable. Free promotions rotate; changing the catalog at a clean boundary is expected and does not change the stable `free_only` policy.
+This is the **replaceable binding snapshot**, not a new lifecycle or a quality-equivalence certification. Free availability is promotional and may change. The human explicitly approved both Free risk-class routes on 2026-10-16 and the exact three-model Muse replacement on 2026-10-17, without further comparative model-quality tests. No automatic fallback or mid-unit model rotation.
 
-## Bound routing
+## Approved role matrix
 
-| Role | Current zero-cost binding | Notes |
+| Role | Free Volume (`risk_class: volume`) | Free Complex (`risk_class: complex`) |
 | --- | --- | --- |
-| coordinator | `opencode/muse-spark-1.3-contributor-free` | orchestration-only; two-phase coordinator probe PASS, field canary pending |
-| explorer | `opencode/mimo-v2.6-flash-free` | Free endpoint; NaN/Go inference evidence is not endpoint qualification |
-| implementer | `opencode/space-bunny-free` | current primary Free coding writer; responsive in local tool-use smoke |
-| merger | `opencode/mimo-v2.6-flash-free` | semantic integration under accepted intent |
-| Standards review | `opencode/mimo-v2.6-flash-free` | fresh read-only context; endpoint canary pending |
-| Spec review | `opencode/mimo-v2.6-flash-free` | fresh read-only context, different from writer |
-| volume correction | `opencode/muse-spark-1.3-contributor-free` | same model for Volume/Complex, fresh role session |
-| complex correction | `opencode/muse-spark-1.3-contributor-free` | same model for Volume/Complex, fresh role session |
-| integrated audit | Cora | required for material Free-complex composed work |
+| coordinator (visible `atenea-free`) | `opencode/mimo-v2.6-flash-free` | same |
+| explorer `atenea-explorer-free` | `opencode/mimo-v2.6-flash-free` | same |
+| implementer | `atenea-implementer-free` → `opencode/space-bunny-free` | `atenea-implementer-free-complex` → `opencode/glm-5.3-flash-free` |
+| Standards `atenea-review-standards-free` | `opencode/deepseek-v4.1-flash-free` | same |
+| Spec | `atenea-review-spec-free` → `opencode/glm-5.3-flash-free` | `atenea-review-spec-free-complex` → `opencode/space-bunny-free` |
+| finding-scoped corrector | `atenea-corrector-free-volume` → `opencode/glm-5.3-flash-free` | `atenea-corrector-free-complex` → `opencode/deepseek-v4.1-flash-free` |
+| merger `atenea-merger-free` | `opencode/mimo-v2.6-flash-free` | same |
+| integrated audit | Cora when material | Cora when material |
 
-## Selection rationale
+**Free-only conditional Visual/UX overlay (approved 2026-10-17):** `atenea-review-visual-free` → `opencode/nemotron-3.5-super-vl-free`. Dispatch only when the Cora-accepted handoff has `UI impact: quality|fidelity` and pixel evidence is available. No dispatch for `UI impact: none`. The existing risk-class implementers are both image-capable in the isolated 2026-10-17 laboratory, but Space Bunny had stronger fidelity evidence; GLM saw images yet timed out on the visual fixture. No new general-purpose writer model or automatic risk override is introduced. Details: `docs/ATENEA_FREE_VISUAL_UX_ROUTING_V1.md`.
 
-- Muse Free coordinates and corrects in distinct role sessions; it passed a two-phase synthetic coordinator probe, but the revised binding is not yet field-qualified.
-- Space Bunny Free remains implementer; correction for either risk class uses fresh Muse Free.
-- MiMo Free handles Explorer, Standards, Spec and mechanical merger as separately bound roles. Its Free endpoint has not been qualified by the NaN/Go reasoning tests. Same-family reviews are fresh but not independent model families.
-- Nemotron 3 Ultra Free remains a candidate rather than a binding: it is visible and starts under this runtime, but did not complete a trivial bounded reply within the local latency probe, so it is not placed on the V0 hot path.
 
-Synthetic probes on this VPS are only smoke evidence, not quality-equivalence claims: MiMo Free, Space Bunny Free and Qwen 3.6 completed bounded read/diagnose instructions. LongCat 2.5 Preview Free did not complete the same tool-use probe inside 40 seconds, Gemma 4 was less disciplined around tool use, and Nemotron 3 Ultra Free showed poor latency in the local invocation probe. Real project tickets remain the quality evidence that matters.
+Both logical routes use **one visible primary agent**, `atenea-free`, which dispatches the risk-specific agents from the accepted handoff. In Volume, the Space Bunny writer is independent from GLM Spec and DeepSeek Standards. In Complex, the GLM writer is independent from Space Bunny Spec and DeepSeek Standards. MiMo coordinator/explorer/merger and GLM Volume Spec/corrector and DeepSeek Complex Standards/corrector share provider IDs only; their **sessions are fresh and independent**, never a reviewer or writer context reused for correction.
 
-## Runtime Free inventory observed on 2026-10-03
+## Evidence versus approved selection
 
-OpenCode V2 exposed these Zen routes:
+- Space Bunny and the now-retired Muse Free have prior bounded implementation/coordinator evidence (historical only). The replacement MiMo Free coordinator and GLM/DeepSeek Free correctors are human-approved for use, not newly benchmark-qualified. DeepSeek V4.1 Flash Free versus MiMo Free on a synthetic Standards fixture (2026-10-15) found 2/2 known defects for both; DeepSeek finished 32.6 s versus MiMo 71.7 s. These were **exploratory**, not production-equivalence evidence.
+- The real-world T6 shadow review of DeepSeek on 2026-10-15 was **NOT_EVALUABLE** because OpenCode standalone failed before session creation, including a MiMo control. It cannot be scored as model failure or success.
+- GLM 5.3 Flash Free was directly visible in OpenCode on 2026-10-16; the user elected to approve its Complex implementation and Volume Spec assignments from experience **without a new benchmark**. Do not claim their Free endpoint is field-qualified by the paid NaN variant.
+- The originally accepted C-087 evidence budgets, one canonical Standards+Spec pair per accepted candidate, at most two fresh finding-scoped correctors and Cora/human product/merge authority are unchanged.
+- The separate blind visual A/B experiment on 2026-10-17 (`/srv/kairos-lab/qualification/atenea-vision-blind-ab-20261017/RESULTS.md`) showed Space Bunny using pixels obtained better fidelity on one fixture (MAE 3.049, timeout 420 s) than a text-only Nemotron handoff (MAE 15.621; Nemotron 78 s + Space Bunny 53 s). Evidence is **N=1**, no claim of general model ranking. Nemotron 3.5 Super VL Free also detected material layout drift and passed an identical-image control in a separate isolated fixture.
+- **Resolved Free binding availability issue (2026-10-17):** following explicit human authorization, the removed Muse Spark 1.3 Free coordinator/correctors were replaced at this NEW clean configuration boundary by MiMo coordinator, GLM Volume corrector and DeepSeek V4.1 Complex corrector. This is an approved routing selection, not a quality benchmark or permission for fallback. Model IDs were visible and core + visual preflights passed on OpenCode V2 `2.0.32`.
+
+
+## Preflight and rotation
+
+Before a fresh Free Train, run `node tools/check-free-models.mjs`: this validates **model identifiers visible to OpenCode**, not inference/quality, endpoint stability or zero-retention. For a unit with `UI impact: quality|fidelity`, use `node tools/check-free-models.mjs --visual` so Nemotron's conditional Free binding is also checked; backend-only units do not require the optional visual endpoint. All agents in the target project's `.opencode/agents` must be synchronized from this accepted Atenea revision at a clean work boundary. The accepted cost policy and risk class must be explicit and respected.
+
+Exact bound model IDs:
 
 ```text
-opencode/big-pickle
-opencode/fledge-alpha-free
-opencode/ling-3.0-flash-fin-free
-opencode/ling-3.1-flash-free
-opencode/longcat-2.5-preview-free
 opencode/mimo-v2.6-flash-free
-opencode/muse-spark-1.3-contributor-free
-opencode/nemotron-3-ultra-free
-opencode/nemotron-3.5-lightning-free
 opencode/space-bunny-free
+opencode/deepseek-v4.1-flash-free
+opencode/glm-5.3-flash-free
 ```
 
-NaN additionally exposes the no-counter routes `nan/qwen3.6` and `nan/gemma4` for this account.
+A provider removing a Free offering, changing its price, failing inference or violating a project's privacy/data constraints is **HUMAN STOP**. Cora/human may select a replacement at a *new clean work unit* and update this snapshot + native agent bindings then, never silently escalate Free to paid or switch the active unit.
 
-Unbound models are candidates, not automatic fallbacks. A model enters routing only after Cora updates this snapshot and the project-local agent binding at a clean boundary.
-
-## Rotation rule
-
-The exact bound IDs must remain visible and zero-cost before a Free train. If a provider removes a model, changes its price, or the account cannot call it:
-
-```text
-STOP
-→ refresh catalog evidence
-→ Cora selects replacement
-→ update bindings + checker
-→ validate at clean boundary
-→ next train
-```
-
-Never convert `free_only` into paid usage merely to keep a train moving.
+The Free route itself **does not guarantee zero-retention/no-training**; each target project must independently satisfy its stricter privacy/residency/confidentiality requirements.

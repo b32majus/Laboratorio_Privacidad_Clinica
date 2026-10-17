@@ -12,9 +12,9 @@ Every future Standard/Free handoff carries these fields. Cora + human fix them *
 | `Risk class` | `volume` \| `complex` | binds writer/reviewer pair |
 | `Implementation focus` | `technical` \| `visual` \| `mixed` | |
 | `UI impact` | `none` \| `quality` \| `fidelity` | |
-| `Visual authority` | design/system authority reference, or `NONE` | |
-| `Visual viewport/state` | explicit screen/state/viewport list, or `NONE` | |
-| `Visual witness` | frozen master PNG/image ref(s), or `NONE` | |
+| `Visual authority` | `NONE`, accepted design rules for `quality`, or approved master PNG `path@sha256:<64hex>` for `fidelity` | Actual visual authority; not the render command |
+| `Visual viewport/state` | `NONE` or `screen=<name>; viewport=<W>x<H>; state=<name>` | Comparable screen, exact viewport and interaction state |
+| `Visual witness` | `NONE` or `render=<bounded-command>; output=<repo-relative-PNG>` | Produces the ACTUAL candidate screenshot; not the frozen master |
 
 Validity rules:
 
@@ -67,15 +67,15 @@ Visual adds **no third corrective budget**. The existing maximum of **two fresh 
 
 ## 7. Upstream canonical documents
 
-The canonical documents `docs/ATENEA_STANDARD_VISUAL_UX_ROUTING_V1.md` and `docs/ATENEA_FREE_VISUAL_UX_ROUTING_V1.md` live in the canonical Atenea checkout at the fixed upstream SHA `13e07aaaedbeeb7d39d0c0a9d15ad03019423239`. This annex carries the **binding protocol** locally so future units do not depend on paths outside their worktree; where the upstream document is reachable it remains the fuller explanation, and this annex does not weaken it.
+The canonical documents `docs/ATENEA_STANDARD_VISUAL_UX_ROUTING_V1.md` and `docs/ATENEA_FREE_VISUAL_UX_ROUTING_V1.md` are now **present in this Laboratorio worktree**, copied byte-identically from Atenea upstream SHA `13e07aaaedbeeb7d39d0c0a9d15ad03019423239`. Agents can read them repo-locally without permission to access a different worktree. This annex binds them to the established Laboratorio visual authority; it does not weaken them or silently adopt later, unrelated Atenea changes.
 
 ## 8. Future handoff templates (snippets)
 
-`none`:
+`none` — **validated concrete example for a Standard technical-only unit** (Free requires its own explicit `Cost policy: free_only`):
 
 ```text
-Cost policy: standard|free_only
-Risk class: volume|complex
+Cost policy: standard
+Risk class: volume
 Implementation focus: technical
 UI impact: none
 Visual authority: NONE
@@ -83,14 +83,16 @@ Visual viewport/state: NONE
 Visual witness: NONE
 ```
 
-`fidelity`:
+`fidelity` — **validated concrete example for Entrada empty 1440×900 only**, not a universal placeholder to reuse for other screens:
 
 ```text
-Cost policy: standard|free_only
-Risk class: volume|complex
-Implementation focus: visual|mixed
+Cost policy: standard
+Risk class: volume
+Implementation focus: visual
 UI impact: fidelity
-Visual authority: docs/design/sophilux-b-v1/ACCEPTED_VISUAL_CONTRACT.md
-Visual viewport/state: <screen> @ <1440|375>, <interaction state>
-Visual witness: docs/design/sophilux-b-v1/previews/<view>-<viewport>.png SHA256 <real 64-hex>
+Visual authority: docs/design/sophilux-b-v1/previews/entrada-1440.png@sha256:5d8f463b82690af2396d09264965b14045056a8675b0847c56ebd80cbc205f6a
+Visual viewport/state: screen=entrada; viewport=1440x900; state=empty
+Visual witness: render=npx playwright screenshot --viewport-size="1440,900" http://127.0.0.1:4180/ .atl/visual/entrada-empty-1440.png; output=.atl/visual/entrada-empty-1440.png
 ```
+
+This syntactically validated capture recipe requires the **real product already built and served locally** at 127.0.0.1:4180 in the expected empty Entry state and an output directory prepared for the screenshot; it does not run a server, make a screenshot or authorize implementation. Before launch, the future handoff must identify an ACTUAL bounded browser journey for its own screen and state, rather than copying this example indiscriminately. The approved product contract `ACCEPTED_VISUAL_CONTRACT.md` and reconciliation D1–D4/VF-01…08 remain separate required authority. For `fidelity`, the `Visual authority` field must identify the actual approved PNG with SHA-256; the `Visual witness` field is the **browser screenshot recipe** and relative output, never the reference PNG. Validate each concrete new handoff with `node /srv/kairos-lab/Atenea/tools/check-standard-visual-handoff.mjs <handoff.md>` (or the Free equivalent) and verify real pixel transport when needed.
