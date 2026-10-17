@@ -1,7 +1,7 @@
 ---
-description: Single-pass free-complex corrector, deliberately using a model different from the Space Bunny writer.
+description: Single-pass Free Complex corrector on DeepSeek V4.1 Free; isolated from GLM writer and Standards reviewer.
 mode: subagent
-model: opencode/muse-spark-1.3-contributor-free
+model: opencode/deepseek-v4.1-flash-free
 permissions:
   - action: edit
     resource: "*"

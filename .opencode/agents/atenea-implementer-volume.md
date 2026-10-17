@@ -43,3 +43,7 @@ Do not reopen accepted product/architecture decisions. If implementation exposes
 Apply only conditional safeguards explicitly named in the handoff. Do not start a repository-wide sibling/consumer audit. If ordinary implementation work incidentally reveals a material affected surface outside the envelope, report it and STOP rather than widening scope.
 
 Commit/return the fixed candidate when requested with the focused evidence required by the handoff. Your write phase ends when you return the candidate or review starts. Never apply review-driven edits yourself. Do not push or merge.
+
+For `Cost policy: standard` with `UI impact: quality|fidelity`, actually consume the accepted design/system authority. If a frozen mockup is supplied, READ ITS IMAGE PIXELS, not just JSX/CSS or the file path, and produce a **real browser screenshot** at the required screen/state/viewport; provide repo-local screenshot evidence for the later Visual/UX subagent. If receiving images is blocked by tools/provider/privacy, return `INCOMPLETE_VISUAL_EVIDENCE` and STOP without claiming visual completion.
+
+Prioritize the structural UI implementation (composition, spacing, hierarchy, component states) with an EARLY first edit; allow **at most one focused rendered-image comparison** before returning the candidate. Do not spend the entire budget sampling RGB/pixel regions. Preserve approved copy/components: no invented features or redesigns, even if a model suggests them.
