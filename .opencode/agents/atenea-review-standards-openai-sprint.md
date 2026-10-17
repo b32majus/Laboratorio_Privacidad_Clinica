@@ -1,5 +1,5 @@
 ---
-description: Experimental OpenAI Sprint Standards reviewer on NaN DeepSeek V4 Flash, read-only.
+description: Human-activated OpenAI Sprint Standards reviewer on NaN DeepSeek V4 Flash, read-only.
 mode: subagent
 model: nan/deepseek-v4-flash
 permissions:

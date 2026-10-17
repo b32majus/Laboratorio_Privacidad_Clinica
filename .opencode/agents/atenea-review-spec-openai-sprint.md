@@ -1,5 +1,5 @@
 ---
-description: Experimental OpenAI Sprint Spec reviewer on GPT-6.1 Sol High, read-only.
+description: Human-activated OpenAI Sprint Spec reviewer on GPT-6.1 Sol High, read-only.
 mode: subagent
 model: openai/gpt-6.1-sol#high
 permissions:

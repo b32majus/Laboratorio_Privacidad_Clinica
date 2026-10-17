@@ -1,5 +1,5 @@
 ---
-description: Experimental OpenAI Sprint/Frontier fresh finding-scoped corrector, GPT-6.1 Sol High.
+description: Human-activated OpenAI Sprint/Frontier fresh finding-scoped corrector, GPT-6.1 Sol High.
 mode: subagent
 model: openai/gpt-6.1-sol#high
 permissions:

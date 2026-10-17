@@ -25,7 +25,7 @@ The NaN provider ID `nan/deepseek-v4-flash` is intentionally retained even when 
 ## Routing dimensions
 
 ```text
-cost_policy = standard | free_only | go | openai_experimental (explicit, unqualified opt-in)
+cost_policy = standard | free_only | go | openai_experimental (legacy technical ID; operative by human-only activation)
 risk_class  = volume | complex
 ```
 
@@ -56,20 +56,26 @@ Both use MiMo 2.6 Flash Free coordination, exploration and merger (separate sess
 
 Go bindings: `docs/ATENEA_GO_PROFILE_V0.md` + `docs/ATENEA_GO_MODEL_CATALOG_V0.md`. Go was **operationally qualified only with its prior bindings**. The revised Go matrix still needs separate field evidence; Free V2 is human-approved for use without additional bake-offs but must not inherit paid/NaN endpoint qualification. See `docs/ATENEA_GO_OPERATIONAL_QUALIFICATION_C087_20261010.md`. Neither profile has silent fallback.
 
-### Experimental OpenAI opt-in (post-C-087 field trial; not qualified)
+### OpenAI Sprint / Frontier — operative human activation (legacy cost-policy ID)
 
-The human may select `cost_policy: openai_experimental` at a **clean** work-unit boundary. This is additive; the C-087 accepted Standard / Free / Go assignments and default remain unchanged.
+The human may select `cost_policy: openai_experimental` at a **clean** work-unit boundary, typically near OpenAI quota resets. **Human-confirmed repeated project use prompted operational adoption 2026-10-17**; the machine identifier is retained for backward compatibility and does NOT permit automatic selection. Cora may recommend; the human explicitly approves each activation. This is additive; Standard / Free / Go and the default remain unchanged.
 
 | Risk class | Experimental primary agent | Strategy |
 | --- | --- | --- |
 | `volume` | `atenea-openai-sprint` | GPT-6 Luna High implementation; GPT-6.1 Sol High Spec and fresh correction when needed |
 | `complex` | `atenea-openai-frontier` | GPT-6.1 Sol High implementation / fresh correction; GPT-6 Luna High Spec |
 
-Both reuse NaN MiMo coordinator, NaN Qwen 3.8 explorer and MiMo merger. Standards is NaN DeepSeek V4 Flash in Sprint and NaN GLM 5.3 Flash High in Frontier. See `docs/ATENEA_OPENAI_EXPERIMENTAL_PROFILE_V0.md` for the exact seven-role map, preflight, limitations and field-evidence requirements. No silent fallback or mid-run profile switch.
+Both reuse NaN MiMo coordinator, NaN Qwen 3.8 explorer and MiMo merger. Standards is NaN DeepSeek V4 Flash in Sprint and NaN GLM 5.3 Flash High in Frontier. See `docs/ATENEA_OPENAI_EXPERIMENTAL_PROFILE_V0.md` (historical filename) for exact role bindings, activation/preflight and limitations. No silent fallback or mid-run profile switch.
+
+**OpenAI human-activated Visual/UX conditional amendment (2026-10-17):** in NEW explicitly human-approved `openai_experimental` units with `UI impact: quality|fidelity`, dispatch once on the same fixed candidate:
+- Sprint/Volume → `atenea-review-visual-openai-sprint`, Sol High.
+- Frontier/Complex → `atenea-review-visual-openai-frontier`, Luna High.
+`none` skips. Matt Standards+Spec and shared max-two fresh correction budget remain intact; human activation remains mandatory. See `docs/ATENEA_OPENAI_VISUAL_UX_ROUTING_V1.md`.
+
 
 ## Go candidate / Free V2 human-approved boundary (2026-10-16)
 
-Standard Volume/Complex and experimental OpenAI model bindings are unchanged. Go remains a pending candidate; Free V2 Volume and Complex are explicitly human-approved. Exact routing is in each replaceable catalog and native agents. No active Train may change models mid-unit. The project-local `.opencode/agents` must be reconciled with the approved Atenea version before launch: updating Atenea alone does not update another project's copied agents.
+Standard Volume/Complex and human-activated OpenAI model bindings are unchanged. Go remains a pending candidate; Free V2 Volume and Complex are explicitly human-approved. Exact routing is in each replaceable catalog and native agents. No active Train may change models mid-unit. The project-local `.opencode/agents` must be reconciled with the approved Atenea version before launch: updating Atenea alone does not update another project's copied agents.
 
 A merger handles mechanical/fast-forward integration only; a material semantic conflict requires HUMAN STOP and Cora/human adjudication even if Git reports a clean merge. An exceptional GLM intervention requires explicit human authorization, never automatic fallback, and Free must not use paid routes absent separately approved cost-policy change. Up to two fresh finding-scoped correction attempts; coordinator and corrector sharing one model family is allowed only as distinct role sessions.
 

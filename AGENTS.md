@@ -129,7 +129,9 @@ Correctors close supplied findings; they do not search for new sibling defects b
 
 Herdr is the already-running persistent operator surface. Do not launch/restart/replace it per ticket/train.
 
-For real work, Cora prepares through `READY_TO_LAUNCH`; the human performs the final visible launch unless that specific launch is explicitly delegated. The preferred first prompt is short:
+For real work, Cora prepares through `READY_TO_LAUNCH`; the human performs the final visible launch unless that specific launch is explicitly delegated.
+
+For any **new** ticket/Train preparation, Cora uses `docs/CORA_TICKET_TRAIN_PREPARATION_PROMPT_C087.md` (canonical C-087 reusable prompt, profile-conditional Visual/UX and explicit human activation for OpenAI Sprint/Frontier) **under** this repository's accepted product authority. Do not redo already valid work or dispatch OpenCode: the human starts the prepared train in Herdr. Existing `cost_policy: openai_experimental` remains the legacy technical spelling for human-activated OpenAI. The preferred first prompt is short:
 
 `Read @docs/handoffs/TRAIN_X.md and execute it under current repository/Atenea authority.`
 

@@ -1,14 +1,14 @@
 # Atenea Visual/UX Receptor v1 — Laboratorio binding annex
 
-Status: **CURRENT AUTHORITY for future Laboratorio Standard/Free units.** Created by the C-087 #152/#153 sync (2026-10-17) under `docs/handoffs/ATENEA_C087_153_FREE_STANDARD_VISUAL_SYNC_20261017.md` §3 as a **bounded integration annex**. It binds the upstream Visual/UX rules locally so future units don't depend on paths outside their worktree. It changes no product, privacy, clinical, domain or acceptance decision, and does not authorize any Train, ticket or UI implementation by itself.
+Status: **CURRENT AUTHORITY for future Laboratorio Free, Standard and human-activated OpenAI units.** Created for C-087 #152/#153 synchronization and extended at the #155 clean configuration boundary. It remains a **bounded product-local integration annex**, subordinate to the canonical profile documents. It binds the upstream Visual/UX rules locally so future units don't depend on paths outside their worktree. It changes no product, privacy, clinical, domain or acceptance decision, and does not authorize any Train, ticket or UI implementation by itself.
 
 ## 1. Mandatory seven handoff fields
 
-Every future Standard/Free handoff carries these fields. Cora + human fix them **before** launch.
+Every future Free, Standard or **explicitly human-activated OpenAI Sprint/Frontier** handoff carries these fields. Cora + human fix them **before** launch. This requirement does **not** apply to Go, whose existing contract remains unchanged.
 
 | Field | Allowed values | Notes |
 | --- | --- | --- |
-| `Cost policy` | `standard` \| `free_only` \| `go` (or separately authorized experimental policy) | unmodified |
+| `Cost policy` | `standard` \| `free_only` \| `openai_experimental` | OpenAI is an **operative human-activated profile**; legacy technical identifier retained, not an automatic selector |
 | `Risk class` | `volume` \| `complex` | binds writer/reviewer pair |
 | `Implementation focus` | `technical` \| `visual` \| `mixed` | |
 | `UI impact` | `none` \| `quality` \| `fidelity` | |
@@ -43,6 +43,8 @@ Reviewer bindings:
 
 - Standard: `atenea-review-visual-standard` — GPT-6 Luna High (`openai/gpt-6-luna#high`).
 - Free: `atenea-review-visual-free` — Nemotron 3.5 Super VL Free (`opencode/nemotron-3.5-super-vl-free`).
+- OpenAI Sprint / Volume (human-activated): `atenea-review-visual-openai-sprint` — GPT-6.1 Sol High (`openai/gpt-6.1-sol#high`).
+- OpenAI Frontier / Complex (human-activated): `atenea-review-visual-openai-frontier` — GPT-6 Luna High (`openai/gpt-6-luna#high`).
 
 ## 4. Correction budget
 
@@ -96,3 +98,10 @@ Visual witness: render=npx playwright screenshot --viewport-size="1440,900" http
 ```
 
 This syntactically validated capture recipe requires the **real product already built and served locally** at 127.0.0.1:4180 in the expected empty Entry state and an output directory prepared for the screenshot; it does not run a server, make a screenshot or authorize implementation. Before launch, the future handoff must identify an ACTUAL bounded browser journey for its own screen and state, rather than copying this example indiscriminately. The approved product contract `ACCEPTED_VISUAL_CONTRACT.md` and reconciliation D1–D4/VF-01…08 remain separate required authority. For `fidelity`, the `Visual authority` field must identify the actual approved PNG with SHA-256; the `Visual witness` field is the **browser screenshot recipe** and relative output, never the reference PNG. Validate each concrete new handoff with `node /srv/kairos-lab/Atenea/tools/check-standard-visual-handoff.mjs <handoff.md>` (or the Free equivalent) and verify real pixel transport when needed.
+
+## 9. #155: human-activated OpenAI and future Cora preparation
+
+- The local authoritative OpenAI contracts are `docs/ATENEA_OPENAI_EXPERIMENTAL_PROFILE_V0.md` and `docs/ATENEA_OPENAI_VISUAL_UX_ROUTING_V1.md` (copied byte-exactly from Atenea `main@0874db41b197dbd1f4874a99b529d24e71159fba`). `experimental` is retained **only as the legacy machine cost-policy identifier**, not as an unqualified operational status.
+- **Sprint = Volume**, **Frontier = Complex**; only the human explicitly opts into these operative profiles for a **new clean-boundary unit**, never from reset time, remaining tokens, a fallback or a model router. No retroactive rebinding of running work. Their unchanged implementer/Standards/Spec/corrector models and their conditional Visual roles follow the pinned upstream contracts. Go has no Visual/UX overlay.
+- For new authorized tickets and Trains, Cora uses the **repo-local canonical reusable preparation prompt** `docs/CORA_TICKET_TRAIN_PREPARATION_PROMPT_C087.md` as a subordinate preparation guide, together with current Laboratorio product authority and C-087. Do **not** restart shaping of an already accepted ticket, rework valid handoffs, create new lifecycle phases or launch OpenCode for preparation.
+- Before a future OpenAI unit is allowed to launch, pin all seven **concrete** fields, document the specific human opt-in and validate that handoff using `node /srv/kairos-lab/Atenea/tools/check-experimental-openai-visual-handoff.mjs <repo-local-handoff.md>` from the target worktree. The validator proves structural classification and pinned local evidence references, **not human activation or actual browser/image receipt**. The operator retains manual launch and publication authority.
