@@ -1,7 +1,7 @@
 # Atenea Free — conditional visual implementation and Visual/UX review v1
 
 Status: **HUMAN-APPROVED FREE-ONLY CAPABILITY CONTRACT — 2026-10-17**
-Scope: Free C-087; **NO** Jev/d1-ultra/automated confidence router, **NO** Standard/Go/OpenAI model changes, **NO** new Matt lifecycle. This is a conditional evidence axis and Cora-handoff classification, not a parallel review engine.
+Scope: Free C-087; **NO** Jev/d1-ultra/automated confidence router, **NO** Standard/Go/OpenAI model changes, **NO** new Matt lifecycle. This is a conditional evidence axis and Cora-handoff classification, **not a new review engine**. Independent reviewers may be dispatched concurrently using native capabilities.
 
 ## Decision authority / orthogonal dimensions
 
@@ -40,7 +40,7 @@ For visual/mixed work with an accepted visual master, a text description alone d
 
 ## Conditional third reviewer: atenea-review-visual-free
 
-**Matt retains exactly one canonical Standards + Spec review per accepted fixed candidate.** Atenea Free adds a **read-only conditional Visual/UX axis** against **that exact same candidate**, not an extra Matt `/code-review`, not a second review iteration and not a new correction budget.
+**Matt retains exactly one canonical Standards + Spec review per accepted fixed candidate.** Atenea Free adds a **read-only conditional Visual/UX axis** against **that exact same candidate**, not an extra Matt `/code-review`, not a second review iteration and not a new correction budget. **Prefer all three independent axes in the SAME review window, concurrent where Matt/OpenCode supports it**; otherwise complete the serialized axis once without repeating existing reviews. All applicable findings must arrive BEFORE correction. Follow `docs/C087_THIN_WRITER_REVIEW_AND_EVIDENCE_RECOVERY_20261017.md` for empty child results and screenshot reuse.
 
 | UI impact | Visual reviewer | Input authority | Output |
 | --- | --- | --- | --- |

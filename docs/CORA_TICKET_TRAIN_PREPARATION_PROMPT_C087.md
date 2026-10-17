@@ -69,7 +69,7 @@ La preparación define la obligación y el mecanismo, **no captura anticipadamen
 4. El reviewer Visual/UX deberá recibir imagen real en su propia sesión, comparar con la autoridad aceptada y formular hallazgos observables y prescriptivos.
 5. Sin recepción efectiva de imágenes, pantalla/estado comparable, autoridad aceptada o permiso de privacidad del proveedor: INCOMPLETE_VISUAL_EVIDENCE y HUMAN STOP, nunca PASS.
 
-Reutilizar la infraestructura de capturas disponible. No inventar comandos, herramientas, diseño ni nuevas suites.
+Reutilizar la infraestructura de capturas disponible. No inventar comandos, herramientas, diseño ni nuevas suites. Ante un fallo de fixture/captura, solo una reparación diagnosticada y acotada dentro del alcance autorizado; si persiste el bloqueo, `INCOMPLETE_VISUAL_EVIDENCE`/HUMAN STOP, nunca reintentos abiertos.
 
 ### Precisión de la evidencia
 
@@ -133,6 +133,10 @@ Preserva los requisitos y criterios de aceptación aprobados al delegar: no los 
 **Preserva íntegramente el protocolo canónico de Atenea C-087.** La autoridad canónica prevalece sobre eficiencia o handoff genérico. El handoff concreta, no sustituye, las garantías; contradicción material implica HUMAN STOP.
 
 Mantén Standards y Spec **obligatorios**. Añade **Visual/UX condicional** solo en Free, Standard y OpenAI de activación humana con UI impact quality/fidelity. Preserva checkpoints Cora + humana aplicables.
+
+**Ejecución ligera C-087:** una única sesión de implementación coherente por unidad, sin "Writer Phase 1/2" artificiales. Ante un retorno de child sin informe, el coordinador declara `INCOMPLETE_WRITER_RESULT`, observa el estado con herramientas read-only, permite como máximo un pedido de estado en la MISMA sesión identificada y, si sigue ambiguo, HUMAN STOP. No despachar otro writer/probe ni inferir automáticamente un prompt excesivo. El grafo genuino multiunidad Matt `/implement-spec` permanece.
+
+Una vez fijado el candidato, preferir UNA ventana con Standards, Spec y Visual/UX condicional despachados concurrentemente cuando Matt/OpenCode lo permitan, o secuenciados solo si la herramienta obliga, sin nuevas rondas. Esperar TODOS los resultados aplicables y después una corrección consolidada bajo el límite existente. Reutilizar pruebas/capturas del writer; no ejecutar suites completas ni recapturar por rutina. Ver `docs/C087_THIN_WRITER_REVIEW_AND_EVIDENCE_RECOVERY_20261017.md`.
 
 **La optimización elimina únicamente trabajo adicional innecesario; nunca garantías obligatorias.**
 

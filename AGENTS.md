@@ -110,6 +110,8 @@ When delegating, coordinators use child-readable authority transport: a repo-loc
 
 Review start closes the originating implementer's write phase. Every review-driven mutation goes through a fresh bound corrector.
 
+New-unit runtime/recovery authority (Atenea C-087 PR #156): `docs/C087_THIN_WRITER_REVIEW_AND_EVIDENCE_RECOVERY_20261017.md`. Apply it at the next clean unit boundary, preserving Matt's ownership and existing review/correction guarantees. This is a pointer to the canonical child-readable contract, **not** a new phase, model profile, automatic launch or retroactive change to any active Train.
+
 Allow at most two fresh finding-scoped correction attempts:
 
 ```text
