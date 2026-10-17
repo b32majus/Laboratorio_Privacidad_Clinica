@@ -1,7 +1,7 @@
 ---
-description: Read-only free-profile Standards reviewer, independent from the Space Bunny writer.
+description: Read-only Free Volume/Complex Standards reviewer on DeepSeek V4.1 Flash Free, independent from the writer.
 mode: subagent
-model: opencode/mimo-v2.6-flash-free
+model: opencode/deepseek-v4.1-flash-free
 permissions:
   - action: edit
     resource: "*"

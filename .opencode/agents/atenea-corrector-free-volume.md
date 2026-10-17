@@ -1,7 +1,7 @@
 ---
-description: Single-pass free-volume corrector for concrete authorized findings.
+description: Single-pass Free Volume corrector on GLM 5.3 Flash Free, fresh context even when sharing a model with Spec.
 mode: subagent
-model: opencode/muse-spark-1.3-contributor-free
+model: opencode/glm-5.3-flash-free
 permissions:
   - action: edit
     resource: "*"

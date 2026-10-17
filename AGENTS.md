@@ -110,6 +110,8 @@ When delegating, coordinators use child-readable authority transport: a repo-loc
 
 Review start closes the originating implementer's write phase. Every review-driven mutation goes through a fresh bound corrector.
 
+New-unit runtime/recovery authority (Atenea C-087 PR #156): `docs/C087_THIN_WRITER_REVIEW_AND_EVIDENCE_RECOVERY_20261017.md`. Apply it at the next clean unit boundary, preserving Matt's ownership and existing review/correction guarantees. This is a pointer to the canonical child-readable contract, **not** a new phase, model profile, automatic launch or retroactive change to any active Train.
+
 Allow at most two fresh finding-scoped correction attempts:
 
 ```text
@@ -129,7 +131,9 @@ Correctors close supplied findings; they do not search for new sibling defects b
 
 Herdr is the already-running persistent operator surface. Do not launch/restart/replace it per ticket/train.
 
-For real work, Cora prepares through `READY_TO_LAUNCH`; the human performs the final visible launch unless that specific launch is explicitly delegated. The preferred first prompt is short:
+For real work, Cora prepares through `READY_TO_LAUNCH`; the human performs the final visible launch unless that specific launch is explicitly delegated.
+
+For any **new** ticket/Train preparation, Cora uses `docs/CORA_TICKET_TRAIN_PREPARATION_PROMPT_C087.md` (canonical C-087 reusable prompt, profile-conditional Visual/UX and explicit human activation for OpenAI Sprint/Frontier) **under** this repository's accepted product authority. Do not redo already valid work or dispatch OpenCode: the human starts the prepared train in Herdr. Existing `cost_policy: openai_experimental` remains the legacy technical spelling for human-activated OpenAI. The preferred first prompt is short:
 
 `Read @docs/handoffs/TRAIN_X.md and execute it under current repository/Atenea authority.`
 

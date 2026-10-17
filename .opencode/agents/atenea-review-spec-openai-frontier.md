@@ -1,5 +1,5 @@
 ---
-description: Experimental OpenAI Frontier Spec reviewer on GPT-6 Luna High, read-only.
+description: Human-activated OpenAI Frontier Spec reviewer on GPT-6 Luna High, read-only.
 mode: subagent
 model: openai/gpt-6-luna#high
 permissions:

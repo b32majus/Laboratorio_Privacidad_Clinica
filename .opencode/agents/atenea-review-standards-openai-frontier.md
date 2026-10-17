@@ -1,5 +1,5 @@
 ---
-description: Experimental OpenAI Frontier Standards reviewer on NaN GLM 5.3 Flash High, read-only.
+description: Human-activated OpenAI Frontier Standards reviewer on NaN GLM 5.3 Flash High, read-only.
 mode: subagent
 model: nan/glm5.3-flash#high
 permissions:
