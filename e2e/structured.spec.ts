@@ -12,6 +12,7 @@
  *    classification authority and asserts the gate fact after the override.
  */
 import { expect, test } from "./harness/fixtures";
+import { selectFiles } from "./harness/flows";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -22,7 +23,7 @@ test("a structured Unknown column keeps the export gate closed until explicitly 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
+  await selectFiles(page, CSV);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   // Issue #84 removed the permanent internal job-kind chrome: the persistent

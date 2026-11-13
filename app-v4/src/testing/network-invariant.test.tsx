@@ -87,7 +87,7 @@ describe("network invariant monitor", () => {
       // genuine Review work (issue #84): no Configure stop, engine start via
       // the local lazy engine seam.
       createTextJob();
-      expect(screen.getByText("Pasted text")).toBeInTheDocument();
+      expect(screen.getByText("Texto pegado")).toBeInTheDocument();
       await waitForReviewWorkspace();
       expect(monitor.attempts()).toHaveLength(0);
 
@@ -161,6 +161,7 @@ describe("network invariant monitor", () => {
       render(<App />);
       expect(monitor.attempts()).toHaveLength(0);
 
+      fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
       fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
         target: { files: [fixture] },
       });

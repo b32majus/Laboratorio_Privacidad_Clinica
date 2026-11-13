@@ -19,7 +19,7 @@
  * All content is synthetic; no real PHI anywhere.
  */
 import { expect, test } from "./harness/fixtures";
-import { keepOriginalThroughUi } from "./harness/flows";
+import { keepOriginalThroughUi, selectFiles } from "./harness/flows";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -29,7 +29,7 @@ const CSV = path.resolve(__dirname, "fixtures/structured-composed.csv");
 
 async function createComposedJob(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)").setInputFiles(CSV);
+  await selectFiles(page, CSV);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   // Quiet shell (#84): the structured job lands in its real Configure
   // workspace. Issue #84 correction: the internal kind is not header chrome,

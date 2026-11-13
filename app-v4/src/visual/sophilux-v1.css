@@ -330,17 +330,139 @@
 
 .sx-intake-sections {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-top: 16px;
 }
 
-.sx-intake {
+.sx-intake-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 16px;
+  padding: 5px;
+  border-radius: 10px;
+  background: #f7f2ee;
+}
+
+.sx-intake-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #756c68;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sx-intake-switch button[aria-pressed="true"] {
+  color: var(--sx-rose-deep);
   background: #fff;
+  border-color: var(--sx-line);
+  box-shadow: 0 2px 7px rgb(37 43 48 / 8%);
+}
+
+.sx-intake-switch button:focus-visible {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 2px;
+}
+
+.sx-intake {
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  padding: 0;
+  min-width: 0;
+}
+
+/* CORA-F2: Archivos is a real Sophilux dropzone. The native file control stays
+   in the DOM (Tab-reachable, label-driven, Playwright-selectable) but paints
+   nothing, so no browser-locale string ("Choose Files" / "No file chosen") can
+   reach the screen; the visible label is the only picker affordance. */
+.sophilux-shell[data-step="input"] .sx-file-intake.sx-file-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 210px;
+  padding: 26px 22px;
+  border: 1px dashed #d9c0b9;
+  border-radius: 12px;
+  background: #fffdfa;
+  text-align: center;
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake.sx-file-dropzone.sx-intake--dragging {
+  border-color: var(--sx-rose-deep);
+  box-shadow: inset 0 0 0 1px var(--sx-rose-deep);
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake .sx-file-drop-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  color: var(--sx-rose-deep);
+  background: var(--sx-rose-soft);
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake .sx-file-picker-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake .sx-native-file-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  border: 0;
+  opacity: 0;
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake .sx-file-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 18px;
   border: 1px solid var(--sx-line-strong);
   border-radius: 9px;
-  padding: 16px;
-  min-width: 0;
+  background: #fff;
+  color: var(--sx-rose-deep);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake .sx-file-picker:hover {
+  border-color: var(--sx-rose);
+  background: var(--sx-rose-soft);
+}
+
+.sophilux-shell[data-step="input"]
+  .sx-file-intake
+  .sx-file-picker-control:focus-within
+  .sx-file-picker {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 3px;
+}
+
+.sophilux-shell[data-step="input"] .sx-file-intake .sx-file-empty {
+  margin: 0;
+  color: var(--sx-ink-faint);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .sx-intake--dragging {
@@ -595,6 +717,227 @@
 
   .sx-display-title {
     font-size: clamp(38px, 11vw, 49px);
+  }
+}
+
+@media (max-width: 600px) {
+  .sophilux-shell[data-step="input"] .sx-entry-grid {
+    gap: 12px;
+  }
+  .sophilux-shell[data-step="input"] .sx-entry-grid > .sx-card {
+    order: -1;
+  }
+  .sophilux-shell[data-step="input"] .sx-entry-grid > .sx-story {
+    order: 1;
+  }
+  .sophilux-shell[data-step="input"] main {
+    padding-top: 12px;
+  }
+  .sophilux-shell[data-step="input"] .sx-sitebar-row {
+    padding-top: 8px;
+    gap: 8px;
+  }
+  .sophilux-shell[data-step="input"] .sx-brand-mark {
+    width: 24px;
+    height: 29px;
+  }
+  .sophilux-shell[data-step="input"] .sx-brand-name {
+    font-size: 20px;
+  }
+  .sophilux-shell[data-step="input"] .sx-sitebar-actions {
+    gap: 5px;
+  }
+  .sophilux-shell[data-step="input"] .sx-header-pill {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .sophilux-shell[data-step="input"] .sx-sitebar-context {
+    gap: 3px 10px;
+    padding: 5px 0 7px;
+    font-size: 11px;
+  }
+  .sophilux-shell[data-step="input"] .sx-sitebar-context p:last-of-type {
+    flex: 1 1 100%;
+    line-height: 1.3;
+  }
+  .sophilux-shell[data-step="input"] .sx-card-head {
+    padding-top: 15px;
+    padding-bottom: 13px;
+  }
+  .sophilux-shell[data-step="input"] .sx-card-body {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+  .sophilux-shell[data-step="input"] .sx-card-lede {
+    display: none;
+  }
+  .sophilux-shell[data-step="input"] .sx-card-note {
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 4px;
+  }
+  .sophilux-shell[data-step="input"] .sx-intake {
+    padding: 12px;
+  }
+  .sophilux-shell[data-step="input"] .sx-file-intake.sx-file-dropzone {
+    min-height: 0;
+    /* DIA A-E: keep the complete Archivos CTA in the first 375x800 viewport
+       without collapsing the real file picker or changing desktop layout. */
+    padding: 12px 14px;
+  }
+  .sophilux-shell[data-step="input"] .sx-intake-switch {
+    margin-top: 10px;
+  }
+  .sophilux-shell[data-step="input"] .sx-text-intake > p.sx-muted {
+    display: none;
+  }
+  .sophilux-shell[data-step="input"] .sx-intake-extras {
+    margin-top: 7px;
+    padding-top: 6px;
+  }
+  .sophilux-shell[data-step="input"] .sx-textarea {
+    height: 104px;
+    min-height: 104px;
+  }
+  .sophilux-shell[data-step="input"] .sx-card-foot {
+    margin-top: 10px;
+    gap: 8px;
+  }
+}
+
+/* Entrada A-E: approved V1 composition, scoped so other steps are untouched. */
+.sophilux-shell[data-step="input"] .sx-card-body {
+  padding: 18px 22px 16px;
+}
+
+.sophilux-shell[data-step="input"] .sx-intake-switch {
+  margin-top: 0;
+}
+
+.sophilux-shell[data-step="input"] .sx-intake-sections {
+  margin-top: 16px;
+}
+
+.sophilux-shell[data-step="input"] .sx-text-intake-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sophilux-shell[data-step="input"] .sx-text-entry-label {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sophilux-shell[data-step="input"] .sx-textarea {
+  margin-top: 8px;
+  min-height: 190px;
+}
+
+.sophilux-shell[data-step="input"] .sx-intake-extras {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 12px;
+}
+
+.sophilux-shell[data-step="input"] .sx-intended-use {
+  margin-top: 14px;
+}
+
+.sophilux-shell[data-step="input"] .sx-intended-use-disclosure > summary {
+  cursor: pointer;
+  color: var(--sx-rose-deep);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.sophilux-shell[data-step="input"] .sx-intended-use-disclosure > summary:focus-visible {
+  outline: 2px solid var(--sx-rose-deep);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.sophilux-shell[data-step="input"] .sx-intended-use-content {
+  padding-top: 12px;
+}
+
+.sophilux-shell[data-step="input"] .sx-card-foot {
+  margin-top: 0;
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--sx-line);
+  border-radius: 0 0 15px 15px;
+  background: #fbf7f3;
+}
+
+.sophilux-shell[data-step="input"] .sx-card-foot-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sophilux-shell[data-step="input"] .sx-card-foot-feedback:empty {
+  display: none;
+}
+
+.sophilux-shell[data-step="input"] .sx-card-foot-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.sophilux-shell[data-step="input"] .sx-card-foot-note {
+  margin: 0;
+  max-width: 340px;
+  color: var(--sx-ink-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.sophilux-shell[data-step="input"] .sx-card-foot-actions > .sx-btn-primary {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+@media (max-width: 600px) {
+  .sophilux-shell[data-step="input"] .sx-card-body {
+    padding: 14px 14px 12px;
+  }
+
+  .sophilux-shell[data-step="input"] .sx-text-intake-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .sophilux-shell[data-step="input"] .sx-text-intake-top > .sx-btn-outline {
+    align-self: flex-start;
+  }
+
+  .sophilux-shell[data-step="input"] .sx-textarea {
+    height: 124px;
+    min-height: 124px;
+  }
+
+  .sophilux-shell[data-step="input"] .sx-card-foot {
+    padding: 13px 14px;
+  }
+
+  .sophilux-shell[data-step="input"] .sx-card-foot-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .sophilux-shell[data-step="input"] .sx-card-foot-actions > .sx-btn-primary {
+    align-self: stretch;
   }
 }
 

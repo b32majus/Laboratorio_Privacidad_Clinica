@@ -41,6 +41,7 @@ import JSZip from "jszip";
 import { PDFDocument } from "pdf-lib";
 
 import { expect, test } from "./harness/fixtures";
+import { selectFiles } from "./harness/flows";
 
 const CORRUPT_PDF = path.resolve(__dirname, "../app-v4/src/input/fixtures/corrupt.pdf");
 const SCANNED_PDF = path.resolve(__dirname, "../app-v4/src/input/fixtures/sample-scanned.pdf");
@@ -80,9 +81,7 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles([...syntheticDocuments(), ...failureInputs()]);
+  await selectFiles(page, [...syntheticDocuments(), ...failureInputs()]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });

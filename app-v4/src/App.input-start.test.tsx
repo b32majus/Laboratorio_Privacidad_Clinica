@@ -29,6 +29,10 @@ function createButton(): HTMLElement {
   return screen.getByRole("button", { name: "Crear trabajo" });
 }
 
+function chooseFilesMode(): void {
+  fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
+}
+
 /** Stub the platform clipboard read seam for one test; restored in afterEach. */
 function stubClipboardRead(implementation: () => Promise<string> | never): void {
   Object.defineProperty(navigator, "clipboard", {
@@ -69,6 +73,91 @@ function deferred<T>() {
 // REC-08 evidence 1: synthetic examples load the draft, never a Job.
 // ---------------------------------------------------------------------------
 describe("Input start examples (REC-08 #80)", () => {
+  it("starts empty in text mode; switching is accessible, preserves the draft, and creates no job", () => {
+    render(<App />);
+    const textMode = screen.getByRole("button", { name: "Texto clínico" });
+    const filesMode = screen.getByRole("button", { name: "Archivos y tablas" });
+    expect(textMode).toHaveAttribute("aria-pressed", "true");
+    expect(draftTextarea()).toHaveValue("");
+    expect(screen.getAllByRole("button", { name: "Crear trabajo" })).toHaveLength(1);
+    fireEvent.change(draftTextarea(), { target: { value: "Nota sintética en borrador" } });
+    filesMode.focus();
+    expect(filesMode).toHaveFocus();
+    fireEvent.click(filesMode);
+    expect(filesMode).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByLabelText("Pegar texto")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Elegir archivos" })).toBeVisible();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+    fireEvent.click(textMode);
+    expect(draftTextarea()).toHaveValue("Nota sintética en borrador");
+  });
+
+  it("preserves staged files across mode changes and keeps mixed input refused at Create", async () => {
+    render(<App />);
+    fireEvent.change(draftTextarea(), { target: { value: "Texto clínico sintético" } });
+    chooseFilesMode();
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [new File(["Documento sintético"], "nota.txt")] },
+    });
+    expect(screen.getByText("1 archivo seleccionado")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
+    expect(draftTextarea()).toHaveValue("Texto clínico sintético");
+    expect(screen.queryByLabelText(/seleccionar archivos/i)).toBeNull();
+    fireEvent.click(createButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent(/una sola entrada por trabajo/i);
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
+    expect(screen.getByText("1 archivo seleccionado")).toBeVisible();
+  });
+
+  it("refuses a hidden file draft in text mode and creates it only after switching back", async () => {
+    render(<App />);
+    chooseFilesMode();
+    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
+      target: { files: [new File(["Nota clínica sintética."], "nota.txt")] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
+    expect(draftTextarea()).toHaveValue("");
+    fireEvent.click(createButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Hay archivos seleccionados en el borrador. Abra «Archivos y tablas» para revisarlos y crear el trabajo."
+    );
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+    expect(draftTextarea()).toHaveValue("");
+    chooseFilesMode();
+    expect(screen.getByRole("list", { name: "Archivos seleccionados" })).toHaveTextContent(
+      "nota.txt"
+    );
+    expect(screen.getByText("1 archivo seleccionado")).toBeVisible();
+    fireEvent.click(createButton());
+    await waitFor(
+      () =>
+        expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument(),
+      { timeout: 10_000 }
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("refuses a hidden text draft in files mode and creates it only after switching back", async () => {
+    render(<App />);
+    const text = "Nota clínica sintética conservada.";
+    fireEvent.change(draftTextarea(), { target: { value: text } });
+    chooseFilesMode();
+    expect(screen.queryByRole("list", { name: "Archivos seleccionados" })).toBeNull();
+    fireEvent.click(createButton());
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Hay texto pegado en el borrador. Abra «Texto clínico» para revisarlo y crear el trabajo."
+    );
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Archivos seleccionados" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
+    expect(draftTextarea()).toHaveValue(text);
+    fireEvent.click(createButton());
+    expect(screen.getByText("Texto pegado")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("shows three Spanish keyboard-operable example actions", () => {
     render(<App />);
     expandExampleHelp();
@@ -106,7 +195,7 @@ describe("Input start examples (REC-08 #80)", () => {
     expandExampleHelp();
     fireEvent.click(screen.getByRole("button", { name: SYNTHETIC_EXAMPLES[0].label }));
     fireEvent.click(createButton());
-    expect(screen.getByText("Pasted text")).toBeInTheDocument();
+    expect(screen.getByText("Texto pegado")).toBeInTheDocument();
     // Quiet shell (#84): creation lands directly on Review, so the draft
     // surface is unmounted. The fresh-Input end state (no stale example text)
     // is witnessed by returning to Input via the reset authority.
@@ -192,9 +281,11 @@ describe("Input start Pegar (REC-08 #80)", () => {
     // An ordinary Document draft is already staged BEFORE the paste starts, so
     // its array identity never changes: the revision counter is the only
     // authority the stale response needs to be rejected by.
+    chooseFilesMode();
     fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [new File(["nota sintética"], "sintetico.txt")] },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
     fireEvent.click(pegarButton());
     // The user types a newer draft, then undoes it: the text ends identical to
     // the value the pending read snapshotted, but the revision counter advanced.
@@ -210,6 +301,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
     expect(draftTextarea()).toHaveValue("");
     expect(screen.queryByRole("alert")).toBeNull();
     // The undo-restored ordinary draft still creates a normal Document job.
+    fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
     fireEvent.click(createButton());
     await waitFor(
       () => {
@@ -244,20 +336,24 @@ describe("Input start Pegar (REC-08 #80)", () => {
 
     render(<App />);
     fireEvent.click(pegarButton());
+    chooseFilesMode();
     fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [new File(["nota sintética"], "sintetico.txt")] },
     });
     // The newer file selection is staged BEFORE the old read resolves.
     expect(screen.getByText("1 archivo seleccionado")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
     expect(draftTextarea()).toHaveValue("");
     read.resolve("RESPUESTA ANTIGUA DEL PORTAPAPELES");
     await waitFor(() => expect(pegarButton()).toBeEnabled());
     expect(draftTextarea()).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
     const list = screen.getByRole("list", { name: "Archivos seleccionados" });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(1);
     expect(items[0]).toHaveTextContent("sintetico.txt");
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
     fireEvent.click(createButton());
     await waitFor(
       () => {
@@ -278,15 +374,18 @@ describe("Input start Pegar (REC-08 #80)", () => {
 
     render(<App />);
     fireEvent.click(pegarButton());
+    chooseFilesMode();
     const heading = screen.getByRole("heading", { level: 3, name: "Elegir archivos" });
     const section = heading.closest("section");
     if (!section) throw new Error("expected the files card section");
     fireEvent.drop(section, {
       dataTransfer: { files: [new File(["b"], "doc-b.txt"), new File(["a"], "doc-a.txt")] },
     });
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
     read.resolve("RESPUESTA ANTIGUA DEL PORTAPAPELES");
     await waitFor(() => expect(pegarButton()).toBeEnabled());
     expect(draftTextarea()).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Archivos y tablas" }));
     const list = screen.getByRole("list", { name: "Archivos seleccionados" });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(2);
@@ -302,6 +401,7 @@ describe("Input start Pegar (REC-08 #80)", () => {
 // ---------------------------------------------------------------------------
 describe("Input start drag/drop convergence (REC-08 #80)", () => {
   function filesSection(): HTMLElement {
+    chooseFilesMode();
     const heading = screen.getByRole("heading", { level: 3, name: "Elegir archivos" });
     const section = heading.closest("section");
     if (!section) throw new Error("expected the files card section");
@@ -352,6 +452,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
 
   it("a dropped legacy .doc is refused and .doc is never advertised", async () => {
     render(<App />);
+    chooseFilesMode();
     expect(screen.getByLabelText(/seleccionar archivos/i)).toHaveAttribute(
       "accept",
       ".txt,.pdf,.docx,.csv,.xls,.xlsx"
@@ -369,6 +470,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
   // CORA-80-02: a drop that carries zero files must not touch the staged list.
   it("a zero-file drop preserves the existing staged selection and creates no job", () => {
     render(<App />);
+    chooseFilesMode();
     fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [new File(["sintético"], "sintetico.txt")] },
     });
@@ -389,6 +491,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
 
   it("a real non-empty drop replaces the draft with the exact dropped files in order", () => {
     render(<App />);
+    chooseFilesMode();
     fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
       target: { files: [new File(["previo"], "previo.txt")] },
     });
@@ -414,6 +517,7 @@ describe("Input start drag/drop convergence (REC-08 #80)", () => {
 // ---------------------------------------------------------------------------
 describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
   function refuseWith(files: File[]): Promise<HTMLElement> {
+    chooseFilesMode();
     const heading = screen.getByRole("heading", { level: 3, name: "Elegir archivos" });
     const section = heading.closest("section");
     if (!section) throw new Error("expected the files card section");
@@ -485,9 +589,10 @@ describe("Input start quiet routing (REC-08 #80)", () => {
     expect(screen.queryByText("Structured job")).toBeNull();
     // Adding information stays visually primary with concise format help.
     expect(
-      screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
+      screen.getByRole("heading", { level: 2, name: "¿Qué vamos a revisar?" })
     ).toBeInTheDocument();
-    expect(screen.getByText(/documentos \(txt, pdf, docx\)/i)).toBeInTheDocument();
+    chooseFilesMode();
+    expect(screen.getByText("TXT, PDF, DOCX, CSV, XLS, XLSX")).toBeInTheDocument();
   });
 });
 
@@ -521,6 +626,9 @@ describe("Input start intended-use wording (REC-08 #80)", () => {
     render(<App />);
     const section = screen.getByRole("region", { name: "Uso previsto" });
     expect(section).toBeInTheDocument();
+    const disclosure = screen.getByText("Uso previsto y política de privacidad");
+    expect(disclosure.closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(disclosure);
     const items = within(section).getAllByRole("listitem");
     // Same identity/order authority as the Policy workspace (POLICY_IDS).
     expect(items).toHaveLength(POLICY_IDS.length);
@@ -556,5 +664,45 @@ describe("Input start intended-use wording (REC-08 #80)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Guía detallada de políticas" }));
     const list = within(guidance).getByRole("list", { name: "Guía de políticas de privacidad" });
     expect(within(list).getAllByText("Disponible")).toHaveLength(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CORA-F2: Archivos is a Spanish Sophilux dropzone. ONE real native file input
+// stays in the DOM (accessible name + label + setInputFiles contract) but the
+// browser's own "Choose Files / No file chosen" chrome is never part of the
+// surface; the visible affordances and empty state come from JSX.
+// ---------------------------------------------------------------------------
+describe("Archivos Sophilux dropzone (CORA-F2)", () => {
+  it("renders one real file input behind Spanish JSX affordances and clears the empty state on selection", () => {
+    render(<App />);
+    chooseFilesMode();
+
+    const inputs = document.querySelectorAll('input[type="file"]');
+    expect(inputs).toHaveLength(1);
+    const fileInput = inputs[0] as HTMLInputElement;
+    expect(fileInput).toBeInstanceOf(HTMLInputElement);
+    expect(fileInput).toHaveAttribute("id", "select-files");
+    expect(fileInput).toHaveAttribute("multiple");
+    expect(fileInput).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
+    expect(fileInput).toHaveAccessibleName("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
+
+    const visibleLabel = screen.getByText("Seleccionar archivos", { selector: "label" });
+    expect(visibleLabel).toHaveAttribute("for", "select-files");
+    expect(screen.getByText("Ningún archivo seleccionado")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Arrastra un documento o una tabla" })
+    ).toBeVisible();
+
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(["nota"], "nota.txt"), new File(["a,b"], "tabla.csv")],
+      },
+    });
+
+    expect(screen.queryByText("Ningún archivo seleccionado")).toBeNull();
+    expect(screen.getByText("2 archivos seleccionados")).toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Archivos seleccionados" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
   });
 });

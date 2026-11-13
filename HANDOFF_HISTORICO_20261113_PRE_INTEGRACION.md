@@ -1,0 +1,20 @@
+# Laboratorio de Privacidad Clínica · handoff KairOS
+
+## EMPEZAR AQUÍ
+1. ESTADO 13/11/2026: `READY_FOR_HUMAN_VISUAL_RECHECK_AFTER_DIA_REHACER_FIX`; NO publicación. Única auditoría DIA cerrada **REHACER** sobre candidato original; defecto confirmado corregido en commit posterior con prueba RED→GREEN.
+2. Repo `b32majus/Laboratorio_Privacidad_Clinica`, canónica remota `origin/3.0-main@5787671c43739e47e929154d20e988d5ddddc641` (consultar GitHub antes de actuar). Rama `main` del checkout de Sil es distinta y no se toca.
+3. Worktree ACTIVO de corrección `/srv/kairos-lab/qualification/laboratorio-entrada-ae-cora-cta-fix-20261113`, rama `fix/lab-entrada-ae-cta-375-20261113`.
+4. SHA del FIX de producto `b29874608682576d77e1675eb9b1126f2c66ceea`, parent `dc3222b` (docs KairOS). El candidato originalmente auditado `a6bdb694fac92ee86a646c963c742883611c7fee`, parent `c98db57`, sigue limpio e intacto en su propio worktree.
+5. Autoridad visual aprobada por Sil 18/10: `docs/design/sophilux-b-v1/ENTRADA_V1_AE_VISUAL_APPROVAL_20261018.md` y cuatro PNG originales; Sil autorizó implementación visual directa el 13/11, no la publicación ni el recheck V4 real.
+6. Implementación A–E: h2 «¿Qué vamos a revisar?»; menos texto; textarea protagonista+portapapeles+ayuda secundaria; pie marfil CTA único; guía contextual de 4 políticas con disclosure. Global PolicyGuidance factual permanece.
+7. AUDITORÍA DIA M única: auditor agente OpenAI GPT-6.1 Sol, segundo ciego agente GLM5.3 Flash; ambos NO humanos; Claude Sonnet anunciado pero rechazó ejecución, NO revisó. Dictamen final **REHACER** del SHA a6bdb69 por CTA Archivos 375×800 incompleta (bottom 812,75, 12,75px fuera).
+8. Dos observaciones GLM NO BLOQUEANTES: nombre accesible textarea es concatenación «Pegar texto Pega el contenido que quieras preparar» (no exacto anterior); Vitest completo 1555/1555 se hizo antes de último ajuste de labels, declarado así. Principal adjudicó ambas; el comentario sobre labels queda como deuda menor no modificada en fix.
+9. FIX puntual `b298746`: CSS solo en Archivos @media max600 padding vertical 22→12; test Playwright falsador exige button bottom<=800 en modo Archivos con scrollY=0; nuevo PNG real Archivos 375 hash `c1a355dc1090a77acf3d5152d6e16513a877a81bc8c6f4285447355695bc1727`.
+10. Evidencia TDD de fix: RED original Expected<=800 Received812.75 `/tmp/lab-entrada-ae-cta-red-20261113.log`; GREEN `/tmp/lab-entrada-ae-cta-green-20261113.log`; 17/17 E2E de Entrada sobre build corregido `/tmp/lab-entrada-ae-cta-e2e-full-20261113.log`; typecheck/lint/formato/build PASS.
+11. 3 PNG reales restantes (Texto 1440, Texto 375, Archivos 1440) permanecen byte-idénticos. Evidencia de cuatro capturas/SHAs y limitaciones en `docs/evidence/entrada-ae-20261113/RESULTADOS.md`. Mock aprobado no fue modificado.
+12. Auditoría logs externos (sin añadir dictámenes al repo): `/tmp/lab-entrada-ae-dia-veredicto-final-20261113.log` (REHACER) y `/tmp/lab-entrada-ae-dia-second-glm-20261113.log`. No repetir auditoría completa: DIA/ARRANQUE mandan comprobar solo el hallazgo corregido.
+13. Base de A–E `c98db57` ya contiene únicamente helper E2E #129 aprobado técnicamente sin overlays experimentales C-088. #129 abierto, no publicar ni cerrar aún.
+14. #92 REC-12 F1 estados asíncronos (`invalid-processing-transition`) y F2/F3 aún pendientes de reconciliación propia; #93 abierto y bloqueado. No mezclarlos con Entrada ni concluir resueltos por los tests verdes.
+15. SIGUIENTE: Sil revisa visualmente las cuatro capturas REALES A–E (especialmente Archivos 375 con CTA íntegra) y da o no GO de producto. Después formular propuesta precisa de push/PR/merge KairOS; deploy requiere GO separado; #92/#93 se retoman luego.
+16. Prohibido push/PR/merge/deploy/tags/borrado/force-push o tocar otros worktrees/Herdr sin nuevo GO. No datos clínicos reales, cambios de dominio, política, engine ni proveedores.
+17. Al continuar: leer KairOS ARRANQUE/PROTOCOLOS y DIA README, contrastar `gh pr list`, `gh issue list`, `git worktree list`, `git log` y status; lo que diga GitHub prevalece. Handoff anterior preservado en `HANDOFF_HISTORICO_20261113.md`.
