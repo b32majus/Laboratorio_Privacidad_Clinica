@@ -16,7 +16,7 @@ import * as path from "node:path";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./harness/fixtures";
-import { selectFiles } from "./harness/flows";
+import { selectFiles as selectFilesThroughPicker } from "./harness/flows";
 import { assertNoHorizontalOverflow } from "./harness/viewport";
 
 function ejemploTexto(file: string): string {
@@ -27,6 +27,13 @@ function ejemploTexto(file: string): string {
 }
 
 const EJEMPLO_URGENCIAS = ejemploTexto("01-consulta-urgencias.json");
+// Accepted captures are replaced only when explicitly requested by the operator.
+const EVIDENCE_DIR = process.env.SX_EVIDENCE_DIR ?? "test-results/evidence";
+
+async function selectFiles(page: Page, files: Parameters<typeof selectFilesThroughPicker>[1]) {
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
+  await selectFilesThroughPicker(page, files);
+}
 
 /**
  * CORA-91-U1-V01: the synthetic-examples/clipboard help is a secondary
@@ -154,8 +161,10 @@ test("a stale clipboard read cannot overwrite a newer picker file selection (COR
     mimeType: "text/plain",
     buffer: Buffer.from("NOTA SINTÉTICA"),
   });
-  const textarea = page.getByRole("textbox", { name: "Pegar texto" });
   await expect(page.getByText("1 archivo seleccionado")).toBeVisible();
+  await page.getByRole("button", { name: "Texto clínico", exact: true }).click();
+  const textarea = page.getByRole("textbox", { name: "Pegar texto" });
+  await expect(textarea).toBeVisible();
   await expect(textarea).toHaveValue("");
 
   await page.evaluate(() => {
@@ -167,6 +176,7 @@ test("a stale clipboard read cannot overwrite a newer picker file selection (COR
   // Wait until the pending read has settled before asserting the outcome.
   await expect(pegar).toHaveAttribute("aria-busy", "false");
   await expect(textarea).toHaveValue("");
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
   const items = page.getByRole("list", { name: "Archivos seleccionados" }).getByRole("listitem");
   await expect(items).toHaveCount(1);
   await expect(items.first()).toContainText("sintetico.txt");
@@ -185,11 +195,53 @@ test("a stale clipboard read cannot overwrite a newer picker file selection (COR
 
 test("file entry offers selection and drag/drop into the same process", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
 
+  const fileInput = page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
+  const picker = page.locator("label.sx-file-picker");
+  const emptyState = page.getByText("Ningún archivo seleccionado", { exact: true });
+
+  // Exactly ONE real native file control: it stays in the DOM (Tab-reachable,
+  // label-driven, Playwright-selectable) but never paints the browser's own
+  // "Choose Files / No file chosen" chrome.
+  await expect(fileInput).toHaveCount(1);
+  await expect(fileInput).not.toBeVisible();
+  await expect(picker).toBeVisible();
+  await expect(picker).toBeEnabled();
+  await expect(emptyState).toBeVisible();
   await expect(
-    page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+    page.getByText(/arrastra y suelta archivos aquí o selecciónalos desde tu equipo/i)
   ).toBeVisible();
-  await expect(page.getByText(/arrastre y suelte archivos/i)).toBeVisible();
+  await expect(page.getByText("Choose Files")).toHaveCount(0);
+  await expect(page.getByText("No file chosen")).toHaveCount(0);
+
+  // The visible label is the real picker affordance: clicking it opens the
+  // browser's file dialog for the SAME native input.
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), picker.click()]);
+  expect(await (await chooser.element()).getAttribute("id")).toBe("select-files");
+
+  // Native Tab reaches the hidden input and the focus is reflected visually on
+  // the label (2px outline, 3px offset), never on invisible chrome.
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).focus();
+  await expect(picker).toHaveCSS("outline-style", "none");
+  await page.keyboard.press("Tab");
+  await expect(fileInput).toBeFocused();
+  await expect(picker).toHaveCSS("outline-style", "solid");
+  await expect(picker).toHaveCSS("outline-width", "2px");
+  await expect(picker).toHaveCSS("outline-offset", "3px");
+
+  // Selecting through the canonical helper keeps the count/list as the sole
+  // visible state and removes the empty message.
+  await selectFilesThroughPicker(page, [
+    { name: "sintetico-a.txt", mimeType: "text/plain", buffer: Buffer.from("A") },
+    { name: "sintetico-b.csv", mimeType: "text/csv", buffer: Buffer.from("a,b") },
+  ]);
+  await expect(emptyState).toHaveCount(0);
+  await expect(page.getByText("2 archivos seleccionados")).toBeVisible();
+  const items = page.getByRole("list", { name: "Archivos seleccionados" }).getByRole("listitem");
+  await expect(items).toHaveCount(2);
+  await expect(items.nth(0)).toContainText("sintetico-a.txt");
+  await expect(items.nth(1)).toContainText("sintetico-b.csv");
 });
 
 /**
@@ -233,6 +285,7 @@ test("a real non-empty file drop stages the exact files in order (CORA-80-02)", 
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
   await page.evaluate(() => {
     const heading = Array.from(document.querySelectorAll("h3")).find(
       (candidate) => candidate.textContent === "Elegir archivos"
@@ -268,9 +321,12 @@ test("ordinary start is quiet about internal routing and exposes no pipeline ove
   await expect(page.locator("#main-content").getByRole("combobox")).toHaveCount(0);
   await expect(page.locator("#main-content").getByText(/pipeline/i)).toHaveCount(0);
   // Concise format help and Spanish intended-use wording remain.
-  await expect(page.getByText(/documentos \(txt, pdf, docx\)/i).first()).toBeVisible();
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
+  await expect(page.getByText("TXT, PDF, DOCX, CSV, XLS, XLSX", { exact: true })).toBeVisible();
   const uso = page.getByRole("region", { name: "Uso previsto" });
   await expect(uso).toBeVisible();
+  await expect(page.locator("details.sx-intended-use-disclosure")).not.toHaveAttribute("open", "");
+  await page.getByText("Uso previsto y política de privacidad").click();
   await expect(uso).toContainText("IA externa");
   await expect(uso).toContainText(/nada sale de este dispositivo/i);
 });
@@ -308,7 +364,6 @@ for (const width of [375, 1280]) {
 
     const textarea = page.getByRole("textbox", { name: "Pegar texto" });
     const pegar = page.getByRole("button", { name: "Pegar desde el portapapeles" });
-    const fileSelect = page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
     const create = page.getByRole("button", { name: "Crear trabajo" });
     const examples = [
       page.getByRole("button", { name: "Ejemplo: consulta de urgencias" }),
@@ -318,22 +373,21 @@ for (const width of [375, 1280]) {
     await expandExampleHelp(page);
 
     // Visibility + operability of every primary add-information control.
-    for (const control of [textarea, pegar, fileSelect, create, ...examples]) {
+    for (const control of [textarea, pegar, create, ...examples]) {
       await expect(control).toBeVisible();
       await expect(control).toBeEnabled();
     }
 
     // Reachability: each primary control can be brought into the viewport.
-    for (const control of [textarea, pegar, fileSelect, create]) {
+    for (const control of [textarea, pegar, create]) {
       await control.scrollIntoViewIfNeeded();
       await expect(control).toBeInViewport();
     }
 
     await assertNoHorizontalOverflow(page, `primary add-information task @${width}px`);
-
-    // Guidance must not visually outrank the primary task: both the inline
-    // intended-use region and the shell Privacy Policy region sit BELOW the
-    // primary input controls and the create action.
+    // Approved A-E: intended-use is a CLOSED contextual disclosure inside
+    // the card after the textarea, while the GLOBAL policy region stays below
+    // the create action. Both must remain reachable and informative.
     const intendedUse = page.getByRole("region", { name: "Uso previsto" });
     const privacyPolicy = page.getByRole("region", { name: "Política de privacidad" });
     await expect(intendedUse).toBeVisible();
@@ -348,8 +402,22 @@ for (const width of [375, 1280]) {
     expect(intendedUseBox).not.toBeNull();
     expect(privacyPolicyBox).not.toBeNull();
     expect(textareaBox!.y).toBeLessThan(intendedUseBox!.y);
-    expect(createBox!.y).toBeLessThan(intendedUseBox!.y);
+    expect(intendedUseBox!.y).toBeLessThan(createBox!.y);
     expect(createBox!.y).toBeLessThan(privacyPolicyBox!.y);
+    await expect(page.locator("details.sx-intended-use-disclosure")).not.toHaveAttribute(
+      "open",
+      ""
+    );
+    await page.getByText("Uso previsto y política de privacidad").click();
+    await expect(intendedUse).toContainText("No concede aprobación de investigación.");
+
+    await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
+    const fileSelect = page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
+    await expect(fileSelect).toHaveCount(1);
+    await expect(page.locator("label.sx-file-picker")).toBeVisible();
+    await expect(textarea).toHaveCount(0);
+    await expect(create).toHaveCount(1);
+    await assertNoHorizontalOverflow(page, `files mode @${width}px`);
   });
 }
 
@@ -368,13 +436,12 @@ test("secondary examples help is closed by default and never affects the draft o
   const extras = page.locator("details.sx-intake-extras");
   const textarea = page.getByRole("textbox", { name: "Pegar texto" });
   const pegar = page.getByRole("button", { name: "Pegar desde el portapapeles" });
-  const fileSelect = page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)");
   const create = page.getByRole("button", { name: "Crear trabajo" });
 
   // Closed initially, while every primary add-information control stays
   // visible and enabled.
   await expect(extras).not.toHaveAttribute("open", "");
-  for (const control of [textarea, pegar, fileSelect, create]) {
+  for (const control of [textarea, pegar, create]) {
     await expect(control).toBeVisible();
     await expect(control).toBeEnabled();
   }
@@ -390,8 +457,19 @@ test("secondary examples help is closed by default and never affects the draft o
   await expect(textarea).toHaveValue(EJEMPLO_URGENCIAS);
   await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
 
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
+  await expect(textarea).toHaveCount(0);
+  await expect(
+    page.getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
+  ).toHaveCount(1);
+  await expect(page.locator("label.sx-file-picker")).toBeVisible();
+  await page.getByRole("button", { name: "Texto clínico", exact: true }).click();
+
   // Closing the disclosure never erases the draft, and open/close creates no
   // Job and offers no task navigation while no job exists.
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(extras).toHaveAttribute("open", "");
   await summary.focus();
   await page.keyboard.press("Enter");
   await expect(extras).not.toHaveAttribute("open", "");
@@ -400,6 +478,82 @@ test("secondary examples help is closed by default and never affects the draft o
   await expect(page.getByRole("banner")).toContainText("Aún no hay trabajo");
   await expect(page.getByRole("button", { name: "Iniciar revisión" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ver resultado" })).toHaveCount(0);
+});
+
+test("captures the accepted file-mode and mobile input witnesses", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Arrastra un documento o una tabla" })
+  ).toBeVisible();
+  await page.screenshot({ path: path.join(EVIDENCE_DIR, "entrada-u1-files-1440.png") });
+
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.reload();
+  const textarea = page.getByRole("textbox", { name: "Pegar texto" });
+  const create = page.getByRole("button", { name: "Crear trabajo" });
+  const metric = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }));
+  const fieldBox = await textarea.boundingBox();
+  const createBox = await create.boundingBox();
+  console.log(
+    `Entrada mobile DOM width ${metric.scroll}/${metric.viewport}; CTA y=${createBox?.y}`
+  );
+  await expect(textarea).toBeVisible();
+  await expect(create).toBeVisible();
+  expect(fieldBox?.y).toBeLessThan(600);
+  expect(createBox!.y + createBox!.height).toBeLessThanOrEqual(800);
+  expect(metric.scroll).toBeLessThanOrEqual(375);
+  await page.screenshot({ path: path.join(EVIDENCE_DIR, "entrada-u1-empty-375.png") });
+});
+
+/**
+ * Entrada A-E: real rendered proof at the four accepted states. The browser
+ * visits the real built product, with the existing no-network fixture.
+ * Approved mock screenshots are references, never substituted for runtime.
+ */
+test("Entrada A-E card and disclosure preserve real responsive action hierarchy", async ({
+  page,
+}) => {
+  for (const width of [1440, 375]) {
+    await page.setViewportSize({ width, height: width === 375 ? 800 : 900 });
+    await page.goto("/");
+
+    await expect(
+      page.getByRole("heading", { level: 2, name: "¿Qué vamos a revisar?" })
+    ).toBeVisible();
+    await expect(
+      page.locator(".sx-card").getByRole("button", { name: "Crear trabajo" })
+    ).toHaveCount(1);
+    await expect(page.locator(".sx-card-foot")).toContainText("Texto o archivos, no ambos");
+    await expect(page.locator("details.sx-intended-use-disclosure")).not.toHaveAttribute(
+      "open",
+      ""
+    );
+    await expect(page.getByRole("textbox", { name: "Pegar texto" })).toBeVisible();
+    await assertNoHorizontalOverflow(page, `Entrada A-E text @${width}px`);
+    await page.screenshot({ path: path.join(EVIDENCE_DIR, `entrada-ae-texto-${width}.png`) });
+
+    await page.getByRole("button", { name: "Archivos y tablas", exact: true }).click();
+    await expect(page.locator("label.sx-file-picker")).toBeVisible();
+    await expect(page.getByText("Ningún archivo seleccionado")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Pegar texto" })).toHaveCount(0);
+    await assertNoHorizontalOverflow(page, `Entrada A-E files @${width}px`);
+    if (width === 375) {
+      // Independent DIA falsifier: no horizontal overflow is insufficient.
+      // In empty Archivos the *entire* real CTA must fit 375x800 at scrollY=0,
+      // just as it already does in Texto.
+      const initialScroll = await page.evaluate(() => window.scrollY);
+      expect(initialScroll).toBe(0);
+      const fileCta = await page.getByRole("button", { name: "Crear trabajo" }).boundingBox();
+      expect(fileCta).not.toBeNull();
+      expect(fileCta!.y + fileCta!.height).toBeLessThanOrEqual(800);
+    }
+    await page.screenshot({ path: path.join(EVIDENCE_DIR, `entrada-ae-archivos-${width}.png`) });
+  }
 });
 
 /**
@@ -416,6 +570,14 @@ test("CORA-91-F1 session help follows policy in keyboard focus order", async ({ 
     await page.getByRole("textbox", { name: "Pegar texto" }).fill(EJEMPLO_URGENCIAS);
     await page.getByRole("button", { name: "Crear trabajo" }).click();
     await expect(page.getByRole("region", { name: "Espacio de revisión" })).toBeVisible();
+    await expect(page.getByRole("banner")).toContainText("Texto pegado");
+
+    // F5: the existing real Review landing must retain the pre-Entrada shell
+    // styles, including at 375px where Entrada uses compact mobile overrides.
+    await expect(page.locator(".sophilux-shell")).toHaveAttribute("data-step", "review");
+    await expect(page.locator("#main-content")).toHaveCSS("padding-top", "32px");
+    await expect(page.locator(".sx-sitebar-row")).toHaveCSS("padding-top", "14px");
+    await expect(page.locator(".sx-brand-name")).toHaveCSS("font-size", "24px");
 
     const banner = page.getByRole("banner");
     const policy = banner.getByRole("combobox", { name: /Política de privacidad/ });

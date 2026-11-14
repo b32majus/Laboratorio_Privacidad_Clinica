@@ -14,6 +14,7 @@
  *    download actions stay disabled with the typed spec reason.
  */
 import { expect, test } from "./harness/fixtures";
+import { selectFiles } from "./harness/flows";
 import type { Locator, Page } from "@playwright/test";
 
 import fs from "node:fs";
@@ -81,9 +82,7 @@ test("a failed batch item stays visible and never blocks the rest of the batch s
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles([DOC_1, CORRUPT_PDF, DOC_2]);
+  await selectFiles(page, [DOC_1, CORRUPT_PDF, DOC_2]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   // Quiet shell (#84): the batch queue lands directly on Review and the
@@ -135,9 +134,7 @@ test("navigation never fabricates review completion and a reviewed batch has no 
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles([DOC_1, DOC_2]);
+  await selectFiles(page, [DOC_1, DOC_2]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await showAllDocuments(page);
 
@@ -195,9 +192,7 @@ test("batch failure recovery (#78): acknowledge and remove act only on the faile
   page,
 }) => {
   await page.goto("/");
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles([DOC_1, CORRUPT_PDF, DOC_2]);
+  await selectFiles(page, [DOC_1, CORRUPT_PDF, DOC_2]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await showAllDocuments(page);
 
@@ -303,9 +298,7 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
 }) => {
   await page.goto("/");
   // Both documents fail their read: an ALL-FAILED batch.
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles([CORRUPT_PDF, SCANNED_PDF]);
+  await selectFiles(page, [CORRUPT_PDF, SCANNED_PDF]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   await showAllDocuments(page);
 
@@ -401,9 +394,7 @@ test("batch work-queue orientation (#86): realistic 12-document batch is orienta
     mimeType: "application/pdf",
     buffer: fs.readFileSync(source),
   }));
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles([...synthetic, ...failures]);
+  await selectFiles(page, [...synthetic, ...failures]);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
 
   const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
@@ -486,9 +477,7 @@ test("CORA-91-F1 Batch Tab order matches visual panes", async ({ page }) => {
   for (const width of [1280, 375]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/");
-    await page
-      .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-      .setInputFiles([DOC_1, DOC_2]);
+    await selectFiles(page, [DOC_1, DOC_2]);
     await page.getByRole("button", { name: "Crear trabajo" }).click();
     await showAllDocuments(page);
 

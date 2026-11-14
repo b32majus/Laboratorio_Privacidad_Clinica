@@ -26,6 +26,8 @@ function createTextJob() {
 }
 
 function selectFiles(files: File[]) {
+  const filesMode = screen.getByRole("button", { name: "Archivos y tablas" });
+  if (filesMode.getAttribute("aria-pressed") !== "true") fireEvent.click(filesMode);
   fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), { target: { files } });
 }
 

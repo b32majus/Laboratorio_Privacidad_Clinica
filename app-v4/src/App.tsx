@@ -417,7 +417,7 @@ export function App() {
     }
   };
 
-  const handleCreateFromDraft = () => {
+  const handleCreateFromDraft = (intakeMode: "text" | "files") => {
     if (isExtracting) return;
     const hasText = draftText.trim().length > 0;
     if (hasText && draftFiles.length > 0) {
@@ -428,6 +428,22 @@ export function App() {
       setInputError({
         kind: "text",
         message: "Use una sola entrada por trabajo: texto pegado o archivos, no ambos.",
+      });
+      return;
+    }
+    if (intakeMode === "text" && draftFiles.length > 0) {
+      setInputError({
+        kind: "text",
+        message:
+          "Hay archivos seleccionados en el borrador. Abra «Archivos y tablas» para revisarlos y crear el trabajo.",
+      });
+      return;
+    }
+    if (intakeMode === "files" && hasText) {
+      setInputError({
+        kind: "text",
+        message:
+          "Hay texto pegado en el borrador. Abra «Texto clínico» para revisarlo y crear el trabajo.",
       });
       return;
     }
@@ -929,7 +945,7 @@ export function App() {
   };
 
   return (
-    <div className="sophilux-shell min-h-screen font-sans text-neutral-800">
+    <div className="sophilux-shell min-h-screen font-sans text-neutral-800" data-step={currentStep}>
       <a
         href="#main-content"
         className={`sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded focus:bg-background-dark focus:px-4 focus:py-2 focus:text-white ${focusRing}`}
@@ -1007,7 +1023,11 @@ export function App() {
           <div className="sx-sitebar-context">
             <p>
               <span className="sx-fact-label">Trabajo:</span>{" "}
-              {job ? job.name : "Aún no hay trabajo"}
+              {job === null
+                ? "Aún no hay trabajo"
+                : job.source.type === "pasted-text"
+                  ? "Texto pegado"
+                  : job.name}
             </p>
             {/* Issue #84 correction (spec F): the internal job kind is not
                 permanent chrome on any task surface. The kind stays a factual,
@@ -1781,39 +1801,38 @@ const POLICY_PURPOSE_ES: Readonly<Record<PrivacyPolicyId, { name: string; purpos
 function IntendedUseGuidance({ jobKind }: { jobKind: JobKind | null }) {
   const entries = buildPolicyGuidance(jobKind);
   return (
-    <section aria-labelledby="intended-use-heading" className="sx-afterword">
-      <h3
-        id="intended-use-heading"
-        className="text-sm font-bold uppercase tracking-wide text-neutral-800"
-      >
-        Uso previsto
-      </h3>
-      <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-        El resultado se prepara según el uso que vaya a darle. La disponibilidad exacta depende del
-        tipo de información y se confirma al crear el trabajo.
-      </p>
-      <ul
-        aria-label="Usos previstos"
-        className="mt-3 grid gap-2 text-sm text-neutral-700 sm:grid-cols-2"
-      >
-        {POLICY_IDS.map((policyId) => {
-          const entry = entries.find((candidate) => candidate.policyId === policyId);
-          const copy = POLICY_PURPOSE_ES[policyId];
-          return (
-            <li key={policyId}>
-              <span className="font-semibold text-neutral-800">{copy.name}</span>
-              {entry && entry.availability !== "unknown" && (
-                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
-                  {entry.availability === "available"
-                    ? "Disponible"
-                    : "No disponible para este tipo de trabajo"}
-                </span>
-              )}
-              <span className="block">{copy.purpose}</span>
-            </li>
-          );
-        })}
-      </ul>
+    <section aria-label="Uso previsto" className="sx-intended-use">
+      <details className="sx-intended-use-disclosure">
+        <summary>Uso previsto y política de privacidad</summary>
+        <div className="sx-intended-use-content">
+          <p className="text-sm leading-relaxed text-neutral-700">
+            El resultado se prepara según el uso que vaya a darle. La disponibilidad exacta depende
+            del tipo de información y se confirma al crear el trabajo.
+          </p>
+          <ul
+            aria-label="Usos previstos"
+            className="mt-3 grid gap-2 text-sm text-neutral-700 sm:grid-cols-2"
+          >
+            {POLICY_IDS.map((policyId) => {
+              const entry = entries.find((candidate) => candidate.policyId === policyId);
+              const copy = POLICY_PURPOSE_ES[policyId];
+              return (
+                <li key={policyId}>
+                  <span className="font-semibold text-neutral-800">{copy.name}</span>
+                  {entry && entry.availability !== "unknown" && (
+                    <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold tracking-wide text-neutral-700">
+                      {entry.availability === "available"
+                        ? "Disponible"
+                        : "No disponible para este tipo de trabajo"}
+                    </span>
+                  )}
+                  <span className="block">{copy.purpose}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </details>
     </section>
   );
 }
@@ -1828,7 +1847,7 @@ function InputStep(props: {
   onDraftTextChange: (text: string) => void;
   onFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   onFilesDropped: (files: File[]) => void;
-  onCreate: () => void;
+  onCreate: (intakeMode: "text" | "files") => void;
 }) {
   // Failed batch reads are surfaced HERE, as soon as each item outcome is
   // recorded: a failed document is never hidden (BATCH-001, D-011).
@@ -1840,6 +1859,7 @@ function InputStep(props: {
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [pasteBusy, setPasteBusy] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [intakeMode, setIntakeMode] = useState<"text" | "files">("text");
 
   /**
    * CORA-80-01 draft-authority guard. A pending clipboard read may fill the
@@ -1927,13 +1947,22 @@ function InputStep(props: {
           </p>
           <ul className="sx-assurance">
             <li>
-              <span className="sx-check">✓</span> Revisión humana
+              <span className="sx-check" aria-hidden="true">
+                ✓
+              </span>{" "}
+              Revisión humana
             </li>
             <li>
-              <span className="sx-check">✓</span> Trabajo local
+              <span className="sx-check" aria-hidden="true">
+                ✓
+              </span>{" "}
+              Trabajo local
             </li>
             <li>
-              <span className="sx-check">✓</span> Control sobre la salida
+              <span className="sx-check" aria-hidden="true">
+                ✓
+              </span>{" "}
+              Control sobre la salida
             </li>
           </ul>
           <div className="sx-intro-art" aria-hidden="true">
@@ -1946,170 +1975,218 @@ function InputStep(props: {
             <div>
               <p className="sx-smallcaps">Nuevo trabajo</p>
               <h2 id="input-step-heading" className="sx-card-title">
-                Nuevo trabajo de privacidad
+                ¿Qué vamos a revisar?
               </h2>
             </div>
           </div>
           <div className="sx-card-body">
-            <p className="sx-card-lede">
-              Añada información clínica pegando texto o seleccionando archivos. El resto del proceso
-              se organiza a partir de su entrada.
-            </p>
-            <p className="sx-card-note">
-              Use una sola entrada por trabajo: texto pegado o archivos, no ambos.
-            </p>
+            <div className="sx-intake-switch" role="group" aria-label="Tipo de entrada">
+              <button
+                type="button"
+                aria-pressed={intakeMode === "text"}
+                onClick={() => setIntakeMode("text")}
+                className={focusRing}
+              >
+                <span aria-hidden="true">✎</span> <span>Texto clínico</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={intakeMode === "files"}
+                onClick={() => setIntakeMode("files")}
+                className={focusRing}
+              >
+                <span aria-hidden="true">▤</span> <span>Archivos y tablas</span>
+              </button>
+            </div>
 
             <div className="sx-intake-sections">
-              <section aria-labelledby="paste-text-heading" className="sx-intake">
-                <h3 id="paste-text-heading" className="sx-h3">
-                  Pegar texto clínico
-                </h3>
-                <p className="mt-1 text-sm leading-relaxed sx-muted">
-                  Texto libre, como notas, informes o correspondencia.
-                </p>
-                <details className="sx-intake-extras">
-                  <summary>Ejemplos sintéticos y ayuda para pegar</summary>
-
-                  <section aria-labelledby="synthetic-examples-heading" className="mt-3">
-                    <h4
-                      id="synthetic-examples-heading"
-                      className="text-sm font-bold text-neutral-800"
+              {intakeMode === "text" && (
+                <section aria-labelledby="paste-text-heading" className="sx-intake sx-text-intake">
+                  <h3 id="paste-text-heading" className="sr-only">
+                    Pegar texto clínico
+                  </h3>
+                  <div className="sx-text-intake-top">
+                    {/* Keep the established short label for keyboard/assistive-tech
+                        consumers. The visible A-E label is also included in the
+                        native input's accessible name via the second label. */}
+                    <label htmlFor="paste-text" className="sr-only">
+                      Pegar texto
+                    </label>
+                    <label htmlFor="paste-text" className="sx-field-label sx-text-entry-label">
+                      Pega el contenido que quieras preparar
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handlePaste();
+                      }}
+                      disabled={props.isExtracting || pasteBusy}
+                      aria-busy={props.isExtracting || pasteBusy}
+                      className={`sx-btn-outline ${focusRing}`}
                     >
-                      Ejemplos sintéticos
-                    </h4>
-                    <p className="mt-1 text-sm leading-relaxed sx-muted">
-                      Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el borrador;
-                      no crea ningún trabajo.
-                    </p>
-                    <ul
-                      aria-labelledby="synthetic-examples-heading"
-                      className="mt-2 flex flex-wrap gap-2"
-                    >
-                      {SYNTHETIC_EXAMPLES.map((example) => (
-                        <li key={example.id}>
-                          <button
-                            type="button"
-                            onClick={() => handleExample(example.text)}
-                            title={example.description}
-                            className={`sx-pill ${focusRing}`}
-                          >
-                            {example.label}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-
-                  <p className="mt-2 text-sm leading-relaxed sx-muted">
-                    Lee el contenido actual del portapapeles en este navegador. También puede usar
-                    Ctrl+V directamente en el campo de texto.
-                  </p>
-                </details>
-
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handlePaste();
-                    }}
-                    disabled={props.isExtracting || pasteBusy}
-                    aria-busy={props.isExtracting || pasteBusy}
-                    className={`sx-btn-outline ${focusRing}`}
-                  >
-                    Pegar desde el portapapeles
-                  </button>
+                      Pegar desde el portapapeles
+                    </button>
+                  </div>
                   {pasteError && (
                     <p role="alert" className="sx-alert mt-2">
                       {pasteError}
                     </p>
                   )}
-                </div>
-                <label htmlFor="paste-text" className="sx-field-label">
-                  Pegar texto
-                </label>
-                <textarea
-                  id="paste-text"
-                  value={props.draftText}
-                  onChange={(event) => commitDraftText(event.target.value)}
-                  rows={7}
-                  className={`sx-textarea ${focusRing}`}
-                />
-              </section>
+                  <textarea
+                    id="paste-text"
+                    placeholder="Ejemplo: Nota de evolución clínica, informe o correspondencia…"
+                    value={props.draftText}
+                    onChange={(event) => commitDraftText(event.target.value)}
+                    rows={7}
+                    className={`sx-textarea ${focusRing}`}
+                  />
+                  <details className="sx-intake-extras">
+                    <summary>Ejemplos sintéticos y ayuda para pegar</summary>
 
-              <section
-                aria-labelledby="select-files-heading"
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setIsDragging(false);
-                  // REC-08: drag/drop converges on the same draft-files staging as
-                  // file selection — no second classifier, no silent loss/reorder.
-                  // CORA-80-02: a drop carrying ZERO files (e.g. dropped text or a
-                  // non-file payload) is not a file selection and must not replace,
-                  // clear or reorder an existing staged selection. Only real
-                  // non-empty drops reach the canonical staging path.
-                  const droppedFiles = Array.from(event.dataTransfer.files);
-                  if (droppedFiles.length === 0) return;
-                  props.onFilesDropped(droppedFiles);
-                }}
-                className={`sx-intake ${isDragging ? "sx-intake--dragging" : ""}`}
-              >
-                <h3 id="select-files-heading" className="sx-h3">
-                  Elegir archivos
-                </h3>
-                <p className="mt-1 text-sm leading-relaxed sx-muted">
-                  Documentos (TXT, PDF, DOCX) o tablas estructuradas (CSV, XLS, XLSX).
-                </p>
-                <p className="mt-1 text-sm leading-relaxed sx-muted">
-                  Arrastre y suelte archivos aquí o use el selector. Arrastrar y seleccionar siguen
-                  el mismo proceso.
-                </p>
-                <label htmlFor="select-files" className="sx-field-label">
-                  Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)
-                </label>
-                <input
-                  id="select-files"
-                  type="file"
-                  multiple
-                  accept={SUPPORTED_EXTENSIONS.join(",")}
-                  onChange={props.onFileSelection}
-                  className={`mt-1 block w-full text-sm ${focusRing}`}
-                />
-                {isDragging && (
-                  <p role="status" className="sx-status mt-2">
-                    Suelte los archivos para añadirlos al borrador.
-                  </p>
-                )}
-                {selectedCount > 0 && (
-                  <div className="sx-staged">
-                    <p className="sx-staged-count">
-                      {selectedCount === 1
-                        ? "1 archivo seleccionado"
-                        : `${selectedCount} archivos seleccionados`}
+                    <section aria-labelledby="synthetic-examples-heading" className="mt-3">
+                      <h4
+                        id="synthetic-examples-heading"
+                        className="text-sm font-bold text-neutral-800"
+                      >
+                        Ejemplos sintéticos
+                      </h4>
+                      <p className="mt-1 text-sm leading-relaxed sx-muted">
+                        Casos sintéticos sin datos reales. Elegir un ejemplo solo rellena el
+                        borrador; no crea ningún trabajo.
+                      </p>
+                      <ul
+                        aria-labelledby="synthetic-examples-heading"
+                        className="mt-2 flex flex-wrap gap-2"
+                      >
+                        {SYNTHETIC_EXAMPLES.map((example) => (
+                          <li key={example.id}>
+                            <button
+                              type="button"
+                              onClick={() => handleExample(example.text)}
+                              title={example.description}
+                              className={`sx-pill ${focusRing}`}
+                            >
+                              {example.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+
+                    <p className="mt-2 text-sm leading-relaxed sx-muted">
+                      Lee el contenido actual del portapapeles en este navegador. También puede usar
+                      Ctrl+V directamente en el campo de texto.
                     </p>
-                    <ul aria-label="Archivos seleccionados" className="mt-2 space-y-1.5">
-                      {props.draftFiles.map((file, index) => (
-                        <li
-                          key={`${file.name}-${index}`}
-                          className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                        >
-                          <span className="sx-staged-name">{file.name}</span>
-                          <span className="sx-staged-family">
-                            {selectedFileFamilyLabel(file.name)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                  </details>
+                </section>
+              )}
+
+              {intakeMode === "files" && (
+                <section
+                  aria-labelledby="select-files-heading"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setIsDragging(false);
+                    // REC-08: drag/drop converges on the same draft-files staging as
+                    // file selection — no second classifier, no silent loss/reorder.
+                    // CORA-80-02: a drop carrying ZERO files (e.g. dropped text or a
+                    // non-file payload) is not a file selection and must not replace,
+                    // clear or reorder an existing staged selection. Only real
+                    // non-empty drops reach the canonical staging path.
+                    const droppedFiles = Array.from(event.dataTransfer.files);
+                    if (droppedFiles.length === 0) return;
+                    props.onFilesDropped(droppedFiles);
+                  }}
+                  className={`sx-intake sx-file-intake sx-file-dropzone ${
+                    isDragging ? "sx-intake--dragging" : ""
+                  }`}
+                >
+                  {/* Stable section name for the existing accessible contract. */}
+                  <h3 className="sr-only">Elegir archivos</h3>
+                  <span className="sx-file-drop-icon" aria-hidden="true">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      focusable="false"
+                    >
+                      <path d="M12 16V4" />
+                      <path d="M6.75 9.25 12 4l5.25 5.25" />
+                      <path d="M5 20h14" />
+                    </svg>
+                  </span>
+                  <h3 id="select-files-heading" className="sx-h3">
+                    Arrastra un documento o una tabla
+                  </h3>
+                  <p className="text-xs leading-relaxed sx-muted">TXT, PDF, DOCX, CSV, XLS, XLSX</p>
+                  <p className="text-sm leading-relaxed sx-muted">
+                    Arrastra y suelta archivos aquí o selecciónalos desde tu equipo.
+                  </p>
+                  <div className="sx-file-picker-control">
+                    {/* Real, single native control: visually silent, still Tab-reachable,
+                        label-driven and selectable by Playwright setInputFiles. */}
+                    <input
+                      id="select-files"
+                      type="file"
+                      multiple
+                      accept={SUPPORTED_EXTENSIONS.join(",")}
+                      onChange={props.onFileSelection}
+                      className="sr-only sx-native-file-input"
+                      aria-label="Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)"
+                    />
+                    <label htmlFor="select-files" className="sx-file-picker">
+                      Seleccionar archivos
+                    </label>
                   </div>
-                )}
-              </section>
+                  {selectedCount === 0 && (
+                    <p className="sx-file-empty">Ningún archivo seleccionado</p>
+                  )}
+                  {isDragging && (
+                    <p role="status" className="sx-status mt-2">
+                      Suelta los archivos para añadirlos al borrador.
+                    </p>
+                  )}
+                  {selectedCount > 0 && (
+                    <div className="sx-staged w-full text-left">
+                      <p className="sx-staged-count">
+                        {selectedCount === 1
+                          ? "1 archivo seleccionado"
+                          : `${selectedCount} archivos seleccionados`}
+                      </p>
+                      <ul aria-label="Archivos seleccionados" className="mt-2 space-y-1.5">
+                        {props.draftFiles.map((file, index) => (
+                          <li
+                            key={`${file.name}-${index}`}
+                            className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                          >
+                            <span className="sx-staged-name">{file.name}</span>
+                            <span className="sx-staged-family">
+                              {selectedFileFamilyLabel(file.name)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </section>
+              )}
             </div>
 
-            <div className="sx-card-foot">
+            <IntendedUseGuidance jobKind={props.batchJob ? props.batchJob.kind : null} />
+          </div>
+
+          <div className="sx-card-foot">
+            <div className="sx-card-foot-feedback">
               {props.batchRead && (
                 <p role="status" className="sx-status">
                   Leyendo documentos… {props.batchRead.done} de {props.batchRead.total} leídos.
@@ -2138,9 +2215,14 @@ function InputStep(props: {
                   {props.inputError}
                 </p>
               )}
+            </div>
+            <div className="sx-card-foot-actions">
+              <p className="sx-card-foot-note">
+                Texto o archivos, no ambos. La aplicación comprobará la entrada antes de continuar.
+              </p>
               <button
                 type="button"
-                onClick={props.onCreate}
+                onClick={() => props.onCreate(intakeMode)}
                 disabled={props.isExtracting}
                 aria-busy={props.isExtracting}
                 className={`sx-btn-primary ${focusRing}`}
@@ -2151,8 +2233,6 @@ function InputStep(props: {
           </div>
         </div>
       </div>
-
-      <IntendedUseGuidance jobKind={props.batchJob ? props.batchJob.kind : null} />
     </section>
   );
 }

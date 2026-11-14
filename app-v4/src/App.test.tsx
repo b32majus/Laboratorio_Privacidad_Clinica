@@ -21,6 +21,27 @@ import {
   serializeConfidentialAudit,
 } from "./output/confidential-audit-serializer";
 import { buildSafeOutput, serializeSafeOutput } from "./output/safe-output";
+import type { Job } from "./domain/job";
+
+/**
+ * Honest passthrough observation (no behaviour is substituted): the wrapper
+ * calls the REAL `createJob` and records the exact frozen Job instance the App
+ * installed in session state. Only the observer is added; refusals, ids,
+ * freezing and every other domain effect still come from the real creator.
+ */
+const createdJobs = vi.hoisted(() => ({ observed: [] as Job[] }));
+
+vi.mock("./domain/job", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./domain/job")>();
+  return {
+    ...actual,
+    createJob: (input: Parameters<typeof actual.createJob>[0]) => {
+      const job = actual.createJob(input);
+      createdJobs.observed.push(job);
+      return job;
+    },
+  };
+});
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
 const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
@@ -70,7 +91,20 @@ function fixtureFile(name: string): File {
   return new File([new Uint8Array(readFileSync(path.join(FIXTURES_DIR, name)))], name);
 }
 
+/**
+ * Approved Sophilux intake (F2): Texto and Archivos are mutually exclusive
+ * modalities, so the single file control only exists while «Archivos y
+ * tablas» is active. Opening it changes presentation only; no job is created.
+ */
+function openFilesMode() {
+  const button = screen.getByRole("button", { name: "Archivos y tablas" });
+  if (button.getAttribute("aria-pressed") !== "true") {
+    fireEvent.click(button);
+  }
+}
+
 function selectFiles(files: File[]) {
+  openFilesMode();
   fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), { target: { files } });
 }
 
@@ -141,7 +175,10 @@ describe("App shell", () => {
   it("creates a text job, shows its name (not its internal kind) in the top bar, and lands directly on Review", async () => {
     render(<App />);
     createTextJob();
-    expect(screen.getByText("Pasted text")).toBeInTheDocument();
+    // Visible localization: the header presents the Spanish label while the
+    // internal job name/source stay untouched (domain authority).
+    expect(screen.getByText("Texto pegado")).toBeInTheDocument();
+    expect(screen.queryByText("Pasted text")).not.toBeInTheDocument();
     // Issue #84 correction (spec F): the internal job kind is not permanent
     // chrome on any task surface; kind stays contextual (intake confirmation,
     // policy guidance).
@@ -151,6 +188,29 @@ describe("App shell", () => {
     // unmounted on landing; the cleared-draft end state is witnessed by the
     // reset paths (Nuevo trabajo / Borrar sesión) in their dedicated tests.
     await waitForReviewWorkspace();
+  });
+
+  it("keeps the internal pasted-text domain name untranslated (positive domain witness)", async () => {
+    createdJobs.observed.length = 0;
+    render(<App />);
+    createTextJob();
+    await waitForReviewWorkspace();
+
+    // The Job the App actually installed — not a re-created stand-in. Required
+    // authority: the domain object keeps its internal name and pasted-text
+    // source; only the presentation is localized.
+    const job = createdJobs.observed.at(-1);
+    expect(job).toBeDefined();
+    if (job === undefined) throw new Error("expected the App to create a domain Job");
+
+    expect(job.name).toBe("Pasted text");
+    expect(job.name).not.toBe("Texto pegado");
+    expect(job.source.type).toBe("pasted-text");
+    expect(job.source).not.toHaveProperty("name");
+    expect(JSON.stringify(job.source)).not.toContain("Texto pegado");
+
+    // The visible header still presents the Spanish label for that same Job.
+    expect(screen.getByRole("banner")).toHaveTextContent("Trabajo: Texto pegado");
   });
 
   it("creates a structured job and classifies its columns in the Configure workspace (T20 #24)", async () => {
@@ -164,11 +224,13 @@ describe("App shell", () => {
       "labs.csv",
       { type: "text/csv" }
     );
-    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
-      target: { files: [csvFile] },
-    });
+    selectFiles([csvFile]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(screen.getByText("labs.csv")).toBeInTheDocument();
+    // A files job keeps its literal filename in the header; only the
+    // pasted-text source presents the Spanish label.
+    expect(screen.getByRole("banner")).toHaveTextContent("Trabajo: labs.csv");
+    expect(screen.getByRole("banner")).not.toHaveTextContent("Texto pegado");
 
     // The structured job lands directly in its real Configure workspace (the
     // parsed canonical configuration arrives asynchronously).
@@ -177,6 +239,32 @@ describe("App shell", () => {
     expect(table).toHaveTextContent("CampoLibre");
     const facts = screen.getByRole("status", { name: /datos de la configuración estructurada/i });
     expect(facts).toHaveTextContent("Exportación estructurada preparada: No");
+  });
+
+  it("keeps the literal filename as the files-job domain name (positive domain witness)", async () => {
+    createdJobs.observed.length = 0;
+    render(<App />);
+    const csvFile = new File(["NHC,Nombre,Diagnostico", "00123,Ana,Gripe A"], "labs.csv", {
+      type: "text/csv",
+    });
+    selectFiles([csvFile]);
+    fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
+    await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
+
+    // The Job the App actually installed keeps the literal filename; no
+    // translated display name leaks into the domain object or its source.
+    const job = createdJobs.observed.at(-1);
+    expect(job).toBeDefined();
+    if (job === undefined) throw new Error("expected the App to create a domain Job");
+
+    expect(job.name).toBe("labs.csv");
+    expect(job.source.type).toBe("files");
+    expect(job.source).not.toHaveProperty("name");
+    if (job.source.type !== "files") throw new Error("expected a files-job source");
+    expect(job.source.files.map((file) => file.name)).toEqual(["labs.csv"]);
+    expect(JSON.stringify(job.source)).not.toContain("Texto pegado");
+
+    expect(screen.getByRole("banner")).toHaveTextContent("Trabajo: labs.csv");
   });
 
   it("surfaces the typed domain error instead of guessing a job kind", async () => {
@@ -208,7 +296,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Nuevo trabajo" }));
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
+      screen.getByRole("heading", { level: 2, name: "¿Qué vamos a revisar?" })
     ).toBeInTheDocument();
     expectNoResultAction();
   });
@@ -320,17 +408,17 @@ describe("App shell", () => {
 });
 
 // ---------------------------------------------------------------------------
-// UX-PILOT-01 (#52): the Input surface is framed as one "Nuevo trabajo de privacidad"
+// UX-PILOT-01 (#52): the Input surface is framed as one accessible Entrada
 // workspace. These oracles only observe presentation/accessibility; every
 // intake semantic stays frozen (the domain tests remain the authority).
 // ---------------------------------------------------------------------------
 describe("App input workspace (UX-PILOT-01 #52)", () => {
-  it("frames the empty Input as a single Nuevo trabajo de privacidad task", () => {
+  it("frames the empty Input as one ¿Qué vamos a revisar? task", () => {
     render(<App />);
     expect(
-      screen.getByRole("heading", { level: 2, name: "Nuevo trabajo de privacidad" })
+      screen.getByRole("heading", { level: 2, name: "¿Qué vamos a revisar?" })
     ).toBeInTheDocument();
-    expect(screen.getByText(/el resto del proceso se organiza/i)).toBeInTheDocument();
+    expect(screen.getByText(/texto o archivos, no ambos/i)).toBeInTheDocument();
   });
 
   it("keeps the ordinary start quiet about internal job routing (REC-08 #80)", () => {
@@ -342,9 +430,14 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
     expect(screen.queryByText("Document job")).toBeNull();
     expect(screen.queryByText("Document batch")).toBeNull();
     expect(screen.queryByText("Structured job")).toBeNull();
-    // Concise format help remains.
-    expect(screen.getByText(/documentos \(txt, pdf, docx\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/tablas estructuradas \(csv, xls, xlsx\)/i)).toBeInTheDocument();
+    // The approved single-modality intake keeps concise format help on the
+    // files surface; it is positively present after activating «Archivos y
+    // tablas» rather than duplicated inside the Texto modality.
+    openFilesMode();
+    expect(screen.getByText("TXT, PDF, DOCX, CSV, XLS, XLSX")).toBeInTheDocument();
+    expect(
+      screen.getByText(/arrastra y suelta archivos aquí o selecciónalos desde tu equipo/i)
+    ).toBeInTheDocument();
   });
 
   it("summarizes selected files with their intake family", () => {
@@ -360,19 +453,37 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
 
   it("exposes labelled, keyboard-focusable paste and file entry surfaces", () => {
     render(<App />);
+    // Texto is the initial, sole visible intake modality.
     expect(
       screen.getByRole("heading", { level: 3, name: "Pegar texto clínico" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3, name: "Elegir archivos" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3, name: "Elegir archivos" })).toBeNull();
+    expect(screen.queryByLabelText(/seleccionar archivos/i)).toBeNull();
 
     const textarea = screen.getByLabelText("Pegar texto");
     textarea.focus();
     expect(textarea).toHaveFocus();
 
+    // Activating «Archivos y tablas» reveals the single labelled file surface
+    // (heading, visible title, Spanish label and exact accept). Both forms are
+    // never required at the same time.
+    openFilesMode();
+    expect(screen.getByRole("heading", { level: 3, name: "Elegir archivos" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Arrastra un documento o una tabla" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Seleccionar archivos")).toBeInTheDocument();
+    expect(document.querySelectorAll('input[type="file"]')).toHaveLength(1);
+
     const fileInput = screen.getByLabelText(/seleccionar archivos/i) as HTMLInputElement;
     fileInput.focus();
     expect(fileInput).toHaveFocus();
     expect(fileInput).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
+
+    // Returning to Texto changes presentation only and creates no job.
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
+    expect(screen.getByLabelText("Pegar texto")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
   it("keeps pasted text and files mutually exclusive with the typed message", () => {
@@ -386,10 +497,26 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 
+  it("preserves staged text and files across the intake modality switch without creating a job", () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("Pegar texto"), {
+      target: { value: "Texto clínico sintético" },
+    });
+    openFilesMode();
+    selectFiles([new File(["nota"], "historia.txt")]);
+    fireEvent.click(screen.getByRole("button", { name: "Texto clínico" }));
+    expect(screen.getByLabelText("Pegar texto")).toHaveValue("Texto clínico sintético");
+    openFilesMode();
+    const files = screen.getByRole("list", { name: "Archivos seleccionados" });
+    expect(within(files).getByText("historia.txt")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("states the one-input-per-job constraint on the surface before submission", () => {
     render(<App />);
     const helper = screen.getByText(
-      /use una sola entrada por trabajo: texto pegado o archivos, no ambos\./i
+      /texto o archivos, no ambos\. la aplicación comprobará la entrada/i
     );
     expect(helper).toBeInTheDocument();
     // The helper is always-on guidance, never the typed input error alert.
@@ -449,9 +576,7 @@ describe("App review workspace (T07)", () => {
   it("never routes a structured job without free-text cells through the no-op review and returns from the gate to Configure", async () => {
     render(<App />);
     const csvFile = new File(["col1,col2"], "labs.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
-      target: { files: [csvFile] },
-    });
+    selectFiles([csvFile]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
 
@@ -481,9 +606,7 @@ describe("App review workspace (T07)", () => {
     const csvFile = new File(["NHC,CampoLibre\nP-001,DNI 12345678A"], "labs.csv", {
       type: "text/csv",
     });
-    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
-      target: { files: [csvFile] },
-    });
+    selectFiles([csvFile]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     await screen.findByRole("table", { name: /lista de clasificación de columnas/i });
 
@@ -921,6 +1044,7 @@ describe("App document intake (T06)", () => {
 
   it("never advertises legacy .doc in the file input accept attribute", async () => {
     render(<App />);
+    openFilesMode();
     const input = screen.getByLabelText(/seleccionar archivos/i) as HTMLInputElement;
     expect(input).toHaveAttribute("accept", ".txt,.pdf,.docx,.csv,.xls,.xlsx");
   });
@@ -1625,9 +1749,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
   function createStructuredJob(csv: string) {
     render(<App />);
     const csvFile = new File([csv], "labs.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
-      target: { files: [csvFile] },
-    });
+    selectFiles([csvFile]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
   }
 
@@ -1763,9 +1885,7 @@ describe("App structured Configure workspace (T20 #24)", () => {
     render(<App />);
     const first = new File(["a,b\n1,2"], "one.csv", { type: "text/csv" });
     const second = new File(["c,d\n3,4"], "two.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText(/seleccionar archivos/i), {
-      target: { files: [first, second] },
-    });
+    selectFiles([first, second]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/una tabla cada vez/i);
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();

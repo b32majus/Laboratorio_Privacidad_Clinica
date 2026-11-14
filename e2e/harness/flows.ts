@@ -47,6 +47,15 @@ export async function selectFiles(
   page: Page,
   files: FileInput | readonly FileInput[]
 ): Promise<void> {
+  // The labelled file input only mounts once «Archivos y tablas» is active.
+  // Toggle idempotently: no redundant click when files mode is already on.
+  const filesMode = page.getByRole("button", {
+    name: "Archivos y tablas",
+    exact: true,
+  });
+  if ((await filesMode.getAttribute("aria-pressed")) !== "true") {
+    await filesMode.click();
+  }
   await page
     .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
     .setInputFiles(files as string | string[]);
@@ -59,7 +68,7 @@ export async function createTextJob(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   // Issue #84 correction (spec F): the internal job kind is not permanent
   // header chrome, so the persistent header fact asserted here is the job NAME.
-  await expect(page.getByRole("banner")).toContainText("Pasted text");
+  await expect(page.getByRole("banner")).toContainText("Texto pegado");
 }
 
 /** Create a single-document job and assert the real Review landing. */

@@ -29,7 +29,7 @@
  * ./harness/fixtures applies to every test).
  */
 import { expect, test } from "./harness/fixtures";
-import { keepOriginalThroughUi } from "./harness/flows";
+import { keepOriginalThroughUi, selectFiles } from "./harness/flows";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -154,9 +154,7 @@ async function selectColumn(page: Page, header: string): Promise<void> {
 async function createAndConfigureComposedJob(page: Page): Promise<void> {
   const xlsx = materializeWorkbook();
   await page.goto("/");
-  await page
-    .getByLabel("Seleccionar archivos (TXT, PDF, DOCX, CSV, XLS, XLSX)")
-    .setInputFiles(xlsx);
+  await selectFiles(page, xlsx);
   await page.getByRole("button", { name: "Crear trabajo" }).click();
   // Quiet shell (#84): the structured job lands in its real Configure
   // workspace. Issue #84 correction: the internal kind is not header chrome,
