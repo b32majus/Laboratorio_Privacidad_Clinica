@@ -1,7 +1,7 @@
 # Laboratorio de Privacidad Clínica · REC-12 · KairOS
 
 ## EMPEZAR AQUÍ
-1. Estado 2026-11-14: `R1_ACCEPTANCE_GO_AUTHORITY_PROPOSALS_LOCAL_LAUNCH_HOLD`. Sil dio GO a los 7 criterios de F1/R2 y a PREPARAR autoridad, no a ejecutar correctores, push/PR/merge/deploy. Solo documentación local, producto intacto.
+1. Estado 2026-11-14: `KAIROS_AUTHORITY_MERGED_LAB_DOC_PR_PUBLICATION`. Sil dio GO a los 7 criterios R1/R2 y a publicar SOLO autoridad documental. KairOS PR #161 integrado; Laboratorio autorizado a push/PR documental, sin merge en `3.0-main` por autodeploy. R1 sin launch.
 2. Repo `b32majus/Laboratorio_Privacidad_Clinica`; producto `3.0-main@b3ffdc66206feff1cde4cfbd47787b44c80b78c3`; default `main` landing y checkout de Sil intactos.
 3. Issue #129 COMPLETED y cerrado 2026-11-14 con comentario: función `selectFiles` en base actual byte-idéntica a aceptación técnica `82e8bee4f`; PR #130 MERGED, E2E postmerge verde. URL https://github.com/b32majus/Laboratorio_Privacidad_Clinica/issues/129.
 4. #92 REC-12 OPEN, reconciliado en https://github.com/b32majus/Laboratorio_Privacidad_Clinica/issues/92#issuecomment-6879224481; #93 OPEN y BLOCKED por #92, reconciliado en https://github.com/b32majus/Laboratorio_Privacidad_Clinica/issues/93#issuecomment-6879224714.
@@ -14,5 +14,5 @@
 11. #93: reglas PR/checks, protección, escaneo Gitleaks y smoke Render/Pages cubiertos de manera verificable tras #131/#130, pero DOC-001/roadmap/deuda/HOST-001 y dependencia #92 requieren conciliación. Dos potenciales hallazgos históricos Gitleaks, autenticidad desconocida, triage aparte y NUNCA copiar valores.
 12. Worktree de preparación actual `/srv/kairos-lab/qualification/laboratorio-rec12-r1-r2-reconcile-20261114`; rama `prep/lab-rec12-r1-r2-reconcile-20261114`. Solo HANDOFF/CALIDAD propios; NO push.
 13. **Criterios 1–7 YA APROBADOS por Sil** y límite de traslado: `docs/handoffs/ISSUE92_R1_PORT_AUTHORITY_AND_ACCEPTANCE_20261114.md`. GO de preparación recibido; NO GO ejecución. Las pruebas deben rechazar excepciones Uncaught incluso cuando Vitest dice PASS; preserve fail-closed/stale guards.
-14. Autoridad PROYECTADA y local: KairOS worktree `/srv/kairos-lab/qualification/kairos-lab92-r1-authority-prep-20261114` commit `742bafb`: disposición histórica NO reutilizable, puente de transferencia y pointer en atenea/AGENTS. Pendiente PUBLICACIÓN canónica de propuesta y GO posterior de lanzamiento R1 sobre SHA fijo, sin reiniciar presupuesto. R2 sigue separado.
-15. Al continuar: releer ARRANQUE, PROTOCOLOS y README del protocolo; GitHub PR/issues/worktrees/git log. Handoff anterior archivado en `HANDOFF_HISTORICO_20261114_PRE_R1_AUTHORITY_GO.md`. Fuente remota manda. No modificar sesiones Herdr, checkout main ni código clínico sin GO.
+14. Autoridad KairOS CANÓNICA: PR #161 MERGED en `main@e327136e`. `atenea/AGENTS.md` y disposición sobre excepción F3 ocupada. Laboratorio: PR DOCUMENTAL de este worktree en preparación, merge de 3.0-main pendiente por autodeploy no autorizado. Sin reiniciar presupuesto ni launch; R2 separado.
+15. Al continuar: ARRANQUE, PROTOCOLOS y README; GitHub PR/issues/worktrees/log. Historial previo `HANDOFF_HISTORICO_20261114_PRE_DOC_PUBLICATION.md`. Antes de transferir R1 se requiere autoridad Lab CANÓNICA, SHA de launch, preflight limpio y GO NUEVO. Sin sesiones Herdr, checkout main ni código clínico.
