@@ -1,0 +1,3 @@
+# Calidad — Gobernanza CI Laboratorio de Privacidad
+
+2026-11-13 · Escaneo Gitleaks y protección de 3.0-main · DIA / OpenCode directo build, M, sensible (permisos y CI) · DeepSeek V4 Flash implementador · 1 REHACER confirmado (acción v3 truncaba PR>30 commits; check fail-open insuficientemente falsado); corrección acotada CLI SHA pin y test 35 commits RED→GREEN · GLM segundo: contexto de check y cobertura insuficiente en workflow anterior, corregido CLI · PR gobernanza pendiente; no merge/deploy. Incidente separado: 2 posibles hallazgos históricos en scan local redactado, autenticidad no verificada.

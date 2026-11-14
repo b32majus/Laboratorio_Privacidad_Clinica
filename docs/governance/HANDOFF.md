@@ -1,0 +1,17 @@
+# Laboratorio de Privacidad Clínica — gobernanza CI
+
+## EMPEZAR AQUÍ
+1. Estado 2026-11-13: `GOVERNANCE_CI_PR_PREP`; Sil aprobó endurecer el escaneo explícito de secretos y proteger `3.0-main`, pero **no aprobó merge ni deploy**.
+2. Repositorio público `b32majus/Laboratorio_Privacidad_Clinica`. `main` = landing/rama por defecto; **NO tocarla**. `3.0-main` = producto; base local `5787671c43739e47e929154d20e988d5ddddc641`.
+3. Worktree legítimo de implementación: `/srv/kairos-lab/qualification/laboratorio-governance-security-retry-20261113`, rama `sec/lab-governance-gate-retry-20261113`. Worktree anterior de delegación incorrecta `laboratorio-governance-security-20261113` no debe publicarse.
+4. PR #130 Entrada A–E, `4473013346d401824cb9503cd9d85fcbb8d13550`, abierto y CI/CodeQL verde; NO merge. Conserva su worktree y root HANDOFF/CALIDAD.
+5. Protocolo DIA M sensible (permisos y seguridad). Intento inicial implementador DeepSeek coordinador delegó (NO válido); segundo perfil `build` ejecutó el cambio directamente (válido).
+6. ÚNICA auditoría por agentes OpenAI GPT-6.1 Sol (principal) + GLM5.3 Flash (segundo ciego) dictaminó REHACER por `gitleaks-action@v3` sin paginación de PR >30 commits y contrato que no rechazaba override fail-open; ninguno firmó como humano.
+7. REHACER acotado: workflow reemplazado por CLI Gitleaks `v8.30.1` descargada desde release oficial y verificada con SHA256 `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb`; descarga sin licencia ni credenciales de terceros.
+8. Workflow `.github/workflows/secret-scan.yml`: GitHub events push/PR, permisos contents:read, checkout v6 SHA pin, range PR merge-base..HEAD (sin API/paginación), push before..HEAD; rama nueva compara merge-base con `origin/3.0-main`; salida redacted, exit=1 si hay hallazgo; 0 artefactos/reportes/comentarios.
+9. Checks focales: contrato Python externo `/tmp/lab_governance_secret_scan_cli_contract_20261113.py` RED→GREEN; Gitleaks contra repo sintético 35 commits detecta token ficticio en #32 (RC1); push limpio incremental RC0; scripts bajo `/tmp/lab-gitleaks-cli-20261113/`; tests no contienen datos reales.
+10. Escaneo local separado de historial antiguo `3.0-main`: **2 alertas potenciales de generic-api-key**, sin confirmar autenticidad; datos solo en logs **locales redactados**; nunca subir valores, rutas concretas ni commits a GitHub. Requiere triage humano para rotación si procede. El nuevo gate escanea commits nuevos y no suprime alertas futuras.
+11. Protección administrativa PREPARADA pero NO aplicada hasta verificar PR/checks: `/tmp/lab_governance_branch_protection_3-main_20261113.json`. Requiere PR con 0 aprobaciones obligatorias para cuenta personal, enforce_admins, validate/e2e/Analyze javascript-typescript con strict true, no force-push ni borrado. Endurecer solo `3.0-main`, no `main`.
+12. Pendiente tras integrar el workflow (con GO de merge separado): añadir contexto requerido **`Secret Scan (gitleaks)`** a branch protection. No exigirlo anticipadamente o PR #130 se bloqueará sin ejecutar ese workflow.
+13. Verificar en GitHub SIEMPRE `gh pr list`, `gh issue list`, `git worktree list`, `git log`. GitHub prevalece sobre este documento. Sin borrados de worktrees/ramas, sin cambios de seguridad no aprobados.
+14. Siguiente puerta: push y PR de gobernanza (este GO), checks reales sobre SHA final, aplicar protección básica si API lo permite y comprobar PR #130; ambos merges y cualquier deploy permanecen HOLD.
