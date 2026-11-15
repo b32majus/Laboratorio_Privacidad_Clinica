@@ -706,3 +706,42 @@ describe("Archivos Sophilux dropzone (CORA-F2)", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
   });
 });
+
+// Rebased from the already accepted R1 witness; only existing Intake mode selection added.
+describe("Review start async bridge (issue #92)", () => {
+  it("a dropped single document whose engine resolves before the begin commit ends with the review installed and zero uncaught transitions", async () => {
+    const uncaught: string[] = [];
+    const errorSpy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      uncaught.push(args.map((entry) => String(entry)).join(" "));
+    });
+    render(<App />);
+    chooseFilesMode();
+    const heading = screen.getByRole("heading", { level: 3, name: "Elegir archivos" });
+    const section = heading.closest("section");
+    if (!section) throw new Error("expected the files card section");
+    fireEvent.drop(section, {
+      dataTransfer: { files: [new File(["Nota clínica sintética."], "nota.txt")] },
+    });
+    fireEvent.click(createButton());
+    try {
+      await waitFor(
+        () => {
+          expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
+        },
+        { timeout: 10_000 }
+      );
+
+      // Final state: the single attempt succeeded — the review session is
+      // installed and no refusal alert replaced it.
+      expect(screen.getByRole("region", { name: /espacio de revisión/i })).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      // Explicit absence (not just exit 0): no uncaught
+      // invalid-processing-transition transition error was reported.
+      const reported = uncaught.join("\n");
+      expect(reported).not.toContain("Uncaught");
+      expect(reported).not.toContain("invalid-processing-transition");
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+});

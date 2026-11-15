@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   type BatchItemProcessing,
@@ -411,10 +411,91 @@ export async function runBatchReviewAsync(
   }
 }
 
+/**
+ * CORA-F2 (issue #92 corrective R1-F2): unique per-attempt identity token.
+ * A fresh object is created per attempt; identity is by reference, so the
+ * same Job+policy pair running two SEPARATE attempts (including across an
+ * A→B→A policy change) always yields different tokens.
+ */
+type SingleAttemptToken = { readonly kind: "single-review-attempt" };
+
+/**
+ * CORA-F2 (issue #92 corrective R1-F2): the single-branch attempt guard held
+ * in one private ref. Job+policy identity does NOT identify an attempt — the
+ * `token` does. `phase` is `running` while the engine is pending and
+ * `settling` from the moment the engine concluded until its committed outcome
+ * is observed by the release effect. `released` marks the guard as freed by
+ * that effect: the acquisition lock is gone, but the record (and with it the
+ * token identity) is KEPT so the pure state updaters keep reading a stable
+ * token fact — React may re-invoke queued updaters after their commit, and a
+ * released-but-kept token makes those replays reproduce the already-committed
+ * result instead of regressing it. Only a newer attempt's registration or a
+ * Job/policy authority change (record → `null`) invalidates a token.
+ */
+type SingleAttemptGuard = {
+  readonly jobId: string;
+  readonly policyId: PrivacyPolicyId;
+  readonly token: SingleAttemptToken;
+  readonly phase: "running" | "settling";
+  readonly released: boolean;
+};
+
 export function useJobSession() {
   const [state, setState] = useState<SessionState>(EMPTY_STATE);
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  /**
+   * CORA-F2 (issue #92 corrective R1-F2), point A: the single-branch attempt
+   * guard — ONE active processing attempt per Job+policy at a time, acquired
+   * SYNCHRONOUSLY in `startReview` (never React state: the lock must not wait
+   * for a render). A new attempt replaces the guard only when the previous
+   * one no longer belongs to the current Job/policy authority (finished or
+   * authority-changed); the replacement invalidates the previous token.
+   * Released ONLY by the effect below — never when the attempt Promise
+   * resolves (the outcome may be computed and enqueued but not yet committed;
+   * releasing then would allow a second start over a stale snapshot) and
+   * never from inside a state updater.
+   */
+  const singleAttemptRef = useRef<SingleAttemptGuard | null>(null);
+
+  /**
+   * CORA-F2 (issue #92 corrective R1-F2), point C: guard release. Runs after
+   * every commit and observes the COMMITTED state. The active attempt is
+   * released only when (a) the same Job+policy shows its settled outcome —
+   * `succeeded` with the ReviewSession installed, or `failed`/`unknown` with
+   * the failure recorded — or (b) the Job was removed, replaced, or its
+   * policy authority really changed. An intermediate committed `running`
+   * render never releases it, so a pending engine keeps its guard until its
+   * outcome is observable; a retry after `failed`/`unknown` becomes possible
+   * exactly when the failure is visible in the committed state.
+   *
+   * (a) marks the guard `released`: the acquisition lock is freed while the
+   * token identity is kept, so the pure state updaters — which React may
+   * re-invoke after the commit with the pre-commit base state — keep seeing
+   * their own token and reproduce the committed result (updater purity).
+   * (b) drops the record entirely: the attempt's outcome is stale, so its
+   * installers must reject from now on.
+   */
+  useEffect(() => {
+    const guard = singleAttemptRef.current;
+    if (guard === null) return;
+    const job = state.job;
+    if (job === null || job.id !== guard.jobId || job.policyId !== guard.policyId) {
+      // The Job was removed, replaced, or its policy authority really changed:
+      // the attempt no longer belongs to the current authority.
+      singleAttemptRef.current = null;
+      return;
+    }
+    // A released token is replay-stable only while its Job/policy authority remains current.
+    if (guard.released) return;
+    if (guard.phase !== "settling") return;
+    const settled =
+      (job.processing === "succeeded" && state.review !== null) ||
+      ((job.processing === "failed" || job.processing === "unknown") && job.errors.length > 0);
+    if (settled) singleAttemptRef.current = { ...guard, released: true };
+  }, [state]);
+
   /**
    * Canonical structured configuration (T20 #24), held as DOMAIN state
    * alongside the job — never React-local UI state. It is keyed by job id so
@@ -659,10 +740,21 @@ export function useJobSession() {
    * {@link ProcessingFailure} is returned so the caller can surface its
    * message (this method never throws for a typed processing failure).
    *
-   * Ordered calls inside one handler compose correctly: the attempt is
-   * recorded through functional state updaters, while the engine is invoked
-   * OUTSIDE any state updater (React swallows updater errors, and the source
-   * text is unchanged by the transition).
+   * Ordered calls and deferred React lanes compose correctly (issue #92):
+   * every domain transition is composed OUTSIDE the state updaters (React
+   * swallows updater errors) from the REAL attempt captured at begin time;
+   * the updaters are pure, guarded installers of the attempt facts, so an
+   * engine result applied before the begin updater still concludes one
+   * legitimate outcome and the late begin is a no-op.
+   *
+   * CORA-F2 (issue #92 corrective R1-F2): the single branch holds a
+   * synchronous per-attempt guard (one ref, one unique token per attempt).
+   * A second `startReview` for the same Job+policy while an attempt is
+   * active is an exact no-op — Job+policy identity is NOT attempt identity,
+   * so a superseded attempt's late outcome can never install over another
+   * attempt's facts. The guard is released only after the settled outcome is
+   * visible in the committed state (see the release effect), never when the
+   * Promise resolves.
    *
    * A document batch takes the {@link runBatchReview} path instead: per-item
    * sessions are installed at once and the batch guard below makes a second
@@ -720,31 +812,207 @@ export function useJobSession() {
       return null;
     }
 
-    setState((state) => (state.job ? { ...state, job: beginProcessing(state.job) } : state));
-    try {
-      const review = await startReviewSessionAsync(job, DEFAULT_ENGINE_LOADER);
-      // Async gap guard: a cleared, replaced or policy-changed session drops
-      // the stale outcome instead of attaching a review to the wrong job or
-      // to a job under a different policy.
-      if (!jobStillCurrent()) return null;
-      setState((state) => {
-        if (state.job === null || !jobStillCurrent()) return state;
-        return {
-          job: completeProcessing(withDerivedReviewState(state.job, review)),
-          review,
-          batch: null,
-        };
-      });
+    // CORA-F2 (issue #92 corrective R1-F2), point A: the synchronous attempt
+    // guard. Job+policy identity is NOT attempt identity: a second
+    // `startReview` for the SAME Job and policy while an attempt is active is
+    // an exact no-op — no engine load, no second begin, no second token. A
+    // Job already committed as `running` never starts another processing
+    // either (this also covers runs started by the structured free-text
+    // loop). A new attempt registers its guard below only when the previous
+    // guard no longer belongs to the current Job/policy authority; the
+    // replacement invalidates the previous token.
+    const activeGuard = singleAttemptRef.current;
+    if (
+      activeGuard !== null &&
+      !activeGuard.released &&
+      activeGuard.jobId === job.id &&
+      activeGuard.policyId === job.policyId
+    ) {
       return null;
+    }
+    if (job.processing === "running") return null;
+    const initialProcessing = job.processing;
+    // Issue #92: every domain transition is composed OUTSIDE the state
+    // updaters (file convention above — React swallows updater errors), from
+    // the REAL attempt captured here. The updaters below are pure installers
+    // that can never throw a domain transition error, in any application
+    // order (including the observed engine-resolves-before-begin-commit
+    // interleaving where React invokes the success updater over the `idle`
+    // job). Domain exceptions (e.g. `beginProcessing` on a `succeeded` job
+    // without an intervening invalidation) propagate untouched.
+    const begun = beginProcessing(job);
+    // CORA-F2, point A: the token is created and registered BEFORE the first
+    // setState and before the engine invocation, synchronously.
+    const token: SingleAttemptToken = { kind: "single-review-attempt" };
+    singleAttemptRef.current = {
+      jobId: job.id,
+      policyId: job.policyId,
+      token,
+      phase: "running",
+      released: false,
+    };
+    // Own-token guard access: an attempt may only touch the guard while IT is
+    // the active authority — a superseded attempt never releases or retires a
+    // LATER attempt's guard (CORA-F2, point C.5).
+    const guardIsOwn = (): boolean => {
+      const guard = singleAttemptRef.current;
+      return guard !== null && guard.token === token;
+    };
+    const releaseOwnGuard = (): void => {
+      if (guardIsOwn()) singleAttemptRef.current = null;
+    };
+    // CORA-F2, point C: the engine concluded — mark the attempt `settling`
+    // BEFORE enqueueing its outcome, keeping the token held.
+    const markSettling = (): void => {
+      const guard = singleAttemptRef.current;
+      if (guard !== null && guard.token === token) {
+        singleAttemptRef.current = { ...guard, phase: "settling" };
+      }
+    };
+    // The begin fact may only install while the attempt is genuinely still
+    // `running` (engine pending); once the engine concluded (`settling`) the
+    // outcome installer owns the state, so a late/replayed begin can never
+    // regress a committed outcome to `running` — including a retry attempt
+    // whose captured initial state (`failed`) equals the committed one.
+    const beginGuardActive = (): boolean => {
+      const guard = singleAttemptRef.current;
+      return guard !== null && guard.token === token && guard.phase === "running";
+    };
+    setState((state) => {
+      // Install `running` only for the SAME job, policy, attempt-initial
+      // processing state and ACTIVE attempt token, so a deferred-lane replay
+      // can never overwrite a later `succeeded`/`failed` fact (reverse
+      // application order: the engine result already installed → the late
+      // begin is a no-op, never a regression to `running`), and a superseded
+      // attempt's begin can never install over a different attempt's facts
+      // (CORA-F2, point B).
+      if (
+        state.job === null ||
+        state.job.id !== job.id ||
+        state.job.policyId !== job.policyId ||
+        state.job.processing !== initialProcessing ||
+        !beginGuardActive()
+      ) {
+        return state;
+      }
+      // Install ONLY the attempt fact (processing → running) merged over the
+      // RECEIVED job, never the pre-await `begun` snapshot: queued navigation
+      // changes that do not touch id/policy/processing (currentStep,
+      // visitedSteps, …) are preserved, mirroring the outcome updaters.
+      return {
+        ...state,
+        job: Object.freeze({
+          ...state.job,
+          processing: begun.processing,
+        }) as Job,
+      };
+    });
+    // ONLY the engine await is covered by this catch: composing or installing
+    // the success/failure transitions stays outside, so a domain invariant
+    // violation in composition is never masked as a typed attempt failure.
+    let review: ReviewSession;
+    try {
+      review = await startReviewSessionAsync(job, DEFAULT_ENGINE_LOADER);
     } catch (error) {
-      if (!jobStillCurrent()) return null;
+      // Async gap guard: a cleared, replaced or policy-changed session drops
+      // the stale outcome instead of attaching it to the wrong job. The
+      // discard releases ONLY this attempt's own token, never a later
+      // attempt's guard (CORA-F2, point C.5).
+      if (!jobStillCurrent()) {
+        releaseOwnGuard();
+        return null;
+      }
       const failure = classifyProcessingFailure(error);
+      // Composed outside the updater from the same real begun attempt, with
+      // the same stale protection; the typed failure value is preserved for
+      // the caller and reducer errors are never swallowed.
+      const failed = failProcessing(begun, failure);
+      markSettling();
       setState((state) => {
-        if (state.job === null || !jobStillCurrent()) return state;
-        return { ...state, job: failProcessing(state.job, failure) };
+        // Received-state identity guards IN ADDITION to the ref guard: a Job
+        // substituted mid-await may reach this updater before the ref is
+        // refreshed; installing the old attempt's failure onto it is
+        // forbidden. The ACTIVE token must still be this attempt's, and the
+        // received processing state must still be compatible with THIS
+        // attempt (`running`, or the captured initial state when the
+        // legitimate outcome is applied before the begin updater) — never a
+        // terminal state produced by a different outcome, and never a state
+        // carrying a foreign ReviewSession (CORA-F2, point B).
+        if (
+          state.job === null ||
+          state.job.id !== job.id ||
+          state.job.policyId !== job.policyId ||
+          !jobStillCurrent() ||
+          !guardIsOwn() ||
+          state.review !== null ||
+          (state.job.processing !== "running" && state.job.processing !== initialProcessing)
+        ) {
+          return state;
+        }
+        // Install ONLY the attempt facts (processing outcome and errors).
+        // Unrelated changes made during the await are preserved from the
+        // received job; the begun snapshot is never re-installed.
+        return {
+          ...state,
+          job: Object.freeze({
+            ...state.job,
+            processing: failed.processing,
+            errors: failed.errors,
+          }) as Job,
+        };
       });
       return failure;
     }
+    // Async gap guard: a cleared, replaced or policy-changed session drops
+    // the stale outcome instead of attaching a review to the wrong job or
+    // to a job under a different policy. The discard releases ONLY this
+    // attempt's own token, never a later attempt's guard (CORA-F2, C.5).
+    if (!jobStillCurrent()) {
+      releaseOwnGuard();
+      return null;
+    }
+    // Composed from `begun` — the legitimately begun attempt — never from
+    // whatever state the updater receives, so `idle` is never treated as a
+    // satisfied attempt. This composition is OUTSIDE the engine catch above:
+    // a domain invariant violation here propagates instead of being
+    // classified as a typed attempt failure.
+    const completed = completeProcessing(withDerivedReviewState(begun, review));
+    markSettling();
+    setState((state) => {
+      // Received-state identity guards IN ADDITION to the ref guard (same
+      // rationale as the failure updater above), plus the ACTIVE-token and
+      // received-state compatibility guards of CORA-F2 point B: the received
+      // processing must still be `running` or the captured initial state,
+      // and a foreign ReviewSession or batch authority is never overwritten.
+      if (
+        state.job === null ||
+        state.job.id !== job.id ||
+        state.job.policyId !== job.policyId ||
+        !jobStillCurrent() ||
+        !guardIsOwn() ||
+        state.review !== null ||
+        state.batch !== null ||
+        (state.job.processing !== "running" && state.job.processing !== initialProcessing)
+      ) {
+        return state;
+      }
+      // Install ONLY the attempt facts (processing outcome, derived review
+      // gate and outputs, plus the ReviewSession below). Unrelated changes
+      // made during the await (currentStep, visitedSteps, …) are preserved
+      // from the received job; the begun snapshot is never re-installed.
+      return {
+        ...state,
+        job: Object.freeze({
+          ...state.job,
+          processing: completed.processing,
+          review: completed.review,
+          outputs: completed.outputs,
+        }) as Job,
+        review,
+        batch: null,
+      };
+    });
+    return null;
   }, []);
 
   const decide = useCallback(

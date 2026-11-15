@@ -430,6 +430,85 @@ describe("useJobSession async gap guards (T22 #26 WU-D review corrections)", () 
   });
 });
 
+describe("useJobSession single-attempt guard (CORA-F2 #92)", () => {
+  it("a second startReview for the same Job+policy while an attempt is pending is an exact no-op and can never demote the committed success", async () => {
+    // Falsifier (Cora R1): two concurrent startReview() runs over the SAME Job
+    // and policy — the second engine rejects after the first attempt concluded
+    // `succeeded`, and its updater accepted the failure because Job+policy
+    // identity matched, demoting `succeeded` to `unknown` with the previous
+    // ReviewSession still installed. Job+policy identity is NOT attempt
+    // identity: this test proves the second start never acquires a token nor
+    // loads a second engine, so the demotion is causally impossible.
+    const { result } = renderHook(() => useJobSession());
+    // (1) Synthetic Job A.
+    act(() => {
+      result.current.create({ type: "pasted-text", text: BATCH_DOC_A });
+    });
+    // (2) Hold the engine resolution.
+    engineControl.hold = true;
+
+    // (3) First startReview().
+    let firstSettled: ProcessingFailure | null | "pending" = "pending";
+    const first = result.current.startReview().then((failure) => {
+      firstSettled = failure;
+      return failure;
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // (4) The attempt is running and EXACTLY ONE engine load is pending.
+    expect(result.current.job?.processing).toBe("running");
+    expect(engineControl.pending.length).toBe(1);
+
+    // (5) Second startReview() on the SAME Job and policy.
+    let secondSettled: ProcessingFailure | null | "pending" = "pending";
+    const second = result.current.startReview().then((failure) => {
+      secondSettled = failure;
+      return failure;
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // (6) Exact no-op: no second engine load (one effective processing), no
+    // second begin, no failure recorded, nothing installed.
+    expect(secondSettled).toBeNull();
+    expect(engineControl.pending.length).toBe(1);
+    expect(result.current.job?.processing).toBe("running");
+    expect(result.current.review).toBeNull();
+    expect(result.current.job?.errors).toHaveLength(0);
+
+    // (7) Resolve the first (only) engine.
+    engineControl.hold = false;
+    releasePendingEngine();
+    await act(async () => {
+      await first;
+      await second;
+    });
+
+    // (8) The single attempt concludes correctly: `succeeded` with the
+    // ReviewSession installed and NO failure appended — never `unknown`.
+    expect(firstSettled).toBeNull();
+    expect(result.current.job?.processing).toBe("succeeded");
+    expect(result.current.review).not.toBeNull();
+    expect(result.current.job?.errors).toHaveLength(0);
+
+    // (9) A later call with the result already definitive is a no-op: no new
+    // engine load and no demotion of `succeeded`. (The complementary retry
+    // after a COMMITTED failure is accredited by the existing "retry route: a
+    // failed attempt can start again and reach a terminal success" witness,
+    // which the guard release after the committed failure keeps passing.)
+    await act(async () => {
+      const third = await result.current.startReview();
+      expect(third).toBeNull();
+    });
+    expect(engineControl.pending.length).toBe(0);
+    expect(result.current.job?.processing).toBe("succeeded");
+    expect(result.current.review).not.toBeNull();
+  });
+});
+
 describe("useJobSession async processing responsiveness (T22 #26 WU-D)", () => {
   it("yields to the UI between marking the attempt running and installing the session", async () => {
     // T22 #26 WU-D: the heavy engine path is asynchronous (lazy engine module
