@@ -305,6 +305,11 @@ test("batch failure recovery (#78): an all-failed batch with every item removed 
   const docList = page.getByRole("list", { name: "Estado de los documentos del lote" });
   await expect(docList).toContainText("corrupt.pdf");
   await expect(docList).toContainText("sample-scanned.pdf");
+  // File names are queued metadata; wait for both actual read failures to settle.
+  const corruptRow = docList.getByRole("listitem").filter({ hasText: "corrupt.pdf" });
+  const scannedRow = docList.getByRole("listitem").filter({ hasText: "sample-scanned.pdf" });
+  await expect(corruptRow).toContainText("Error");
+  await expect(scannedRow).toContainText("Error");
 
   // No session exists, so the Spanish empty state shows; it stays factual,
   // advertises only per-row recovery and never instructs job recreation
