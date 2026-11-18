@@ -22,6 +22,7 @@ function rows(a, b) {
 }
 const canonical = { A: rows(0, 1), B: rows(1, 2), C: rows(2, 3) };
 const expected = { A: 88, B: 42, C: 12 };
+const testWitnessSuffix = /\.(?:(?:test|spec)\.(?:[cm]?[jt]sx?)|mjs)$/;
 test("B3 has exactly the frozen source IDs; counts alone are not a verdict", () => {
   for (const section of Object.keys(expected)) {
     assert.equal(canonical[section].length, expected[section], section);
@@ -29,6 +30,11 @@ test("B3 has exactly the frozen source IDs; counts alone are not a verdict", () 
   }
 });
 test("B3 ledger accounts for EVERY frozen row; evidence refs exist and unsupported PASS forbidden", () => {
+  // A name containing ".spec." is not necessarily an actual spec file.
+  assert.ok(testWitnessSuffix.test("e2e/rec12-b3-witness.spec.ts"));
+  assert.ok(testWitnessSuffix.test("scripts/ci/check-storage-policy.mjs"));
+  assert.equal(testWitnessSuffix.test("docs/spoof.spec.backup"), false);
+  assert.equal(testWitnessSuffix.test("docs/spoof.test.ts.backup"), false);
   assert.ok(existsSync(ledgerPath), "B3 ledger has not been created");
   const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
   assert.equal(ledger.source_sha, "184acc6d36b4e97a86bd6ba4153c92525a0135f0");
@@ -63,7 +69,7 @@ test("B3 ledger accounts for EVERY frozen row; evidence refs exist and unsupport
     if (row.disposition === "TARGETED_WITNESS" || row.disposition === "EXISTING_WITNESS_REUSE") {
       assert.ok(row.evidence.length > 0, `claimed witness without evidence ${key}`);
       assert.ok(
-        row.evidence.some((f) => /\.test\.|\.spec\.|\.mjs$/.test(f)),
+        row.evidence.some((f) => testWitnessSuffix.test(f)),
         `claimed witness is only documentation: ${key}`
       );
     }
