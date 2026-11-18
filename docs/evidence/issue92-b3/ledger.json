@@ -1,0 +1,1366 @@
+{
+  "source_sha": "184acc6d36b4e97a86bd6ba4153c92525a0135f0",
+  "rows": [
+    {
+      "section": "A",
+      "id": "PRIV-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El runtime clínico V4 no carga terceros: check determinista de recursos externos y E2E de red cero. No cubre el origen desplegado ni headers, que quedan en GAP-05.",
+      "evidence": [
+        "scripts/ci/check-external-resources.mjs",
+        "e2e/network-invariant.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRIV-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Separación Safe/Auditoría Confidencial cubierta por el serializador confidencial y el modelo de Resultado único; la composición de lote consume los mismos consumidores.",
+      "evidence": [
+        "app-v4/src/output/confidential-audit.test.ts",
+        "app-v4/src/export/singleResultModel.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El export deriva del texto final canónico de ReviewSession (safe-output) y el E2E de revisión/export prueba que las decisiones gobiernan la salida.",
+      "evidence": [
+        "app-v4/src/output/safe-output.test.ts",
+        "e2e/review-export.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "batch.spec demuestra que navegar un lote no marca la revisión como completada; review-domain mantiene la finalización explícita.",
+      "evidence": [
+        "e2e/batch.spec.ts",
+        "app-v4/src/review/review-domain.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-003",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Reconocedor y operador de EDAD con oráculos propios; la precisión por tipo procede de REC-01 y no se reejecuta en esta fase.",
+      "evidence": [
+        "app-v4/src/engine/age-recognizer.test.ts",
+        "app-v4/src/engine/age-operator.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "COPY-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "check:positioning prohíbe afirmaciones de k-anonimato, privacidad diferencial y certificación de anonimato en el copy activo.",
+      "evidence": [
+        "scripts/ci/check-positioning-copy.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-004",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Límite de entrada tipado y fail-closed probado en input-limits; sin truncado silencioso en el runtime V4.",
+      "evidence": [
+        "app-v4/src/engine/input-limits.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-005",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Semántica de fechas por política cubierta por oráculos de dominio y E2E de guía/ejecución para external-ai y research longitudinal.",
+      "evidence": [
+        "app-v4/src/engine/date-semantics.test.ts",
+        "e2e/policy-guidance.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El contrato de ReviewSession y las pruebas de dominio verifican que la sesión es la autoridad única frente a DOM o datasets.",
+      "evidence": [
+        "scripts/ci/review-session.contract.test.mjs",
+        "app-v4/src/review/review-domain.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El contrato de revisión prohíbe estado de revisión en DOM/dataset; es la garantía determinista disponible sobre esa propiedad.",
+      "evidence": [
+        "scripts/ci/review-session.contract.test.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-006",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Añadir una detección manual a la misma sesión sin descartar decisiones previas está probado en review-domain.",
+      "evidence": [
+        "app-v4/src/review/review-domain.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FUNC-007",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Los offsets canónicos de la fuente alimentan la composición; review-domain cubre coherencia de spans sin reconstrucción desde DOM.",
+      "evidence": [
+        "app-v4/src/review/review-domain.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FILE-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "extract.test rechaza .doc con error explícito de formato no soportado; DOCX es el único formato de documento heredado admitido.",
+      "evidence": [
+        "app-v4/src/input/extract.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "FILE-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Un PDF sin capa de texto falla explícitamente en E2E y en la extracción; no se crea job.",
+      "evidence": [
+        "e2e/pdf.spec.ts",
+        "app-v4/src/input/extract.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRIV-003",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "No se localizó ruta de log de PHI por lectura, pero esta fase no ejecutó una prueba de fugas en runtime; check:storage solo inspecciona política.",
+      "evidence": [
+        "scripts/ci/check-storage-policy.mjs",
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "BATCH-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "batch.spec prueba que un documento fallido permanece visible y no bloquea en silencio al resto del lote.",
+      "evidence": [
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "BATCH-002",
+      "disposition": "TARGETED_WITNESS",
+      "reason": "El testigo B3, ejecutado localmente en Chromium en el recorrido compuesto, comprobó ausencia de localStorage, sessionStorage e IndexedDB y que no se recupera la sesión al recargar. check:storage protege las referencias productivas conocidas; alcance acotado al escenario probado.",
+      "evidence": [
+        "scripts/ci/check-storage-policy.mjs",
+        "e2e/rec12-b3-witness.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "BATCH-003",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El ProcessingContext compartido entre documentos, con seudónimo/fecha consistentes, está cubierto por las pruebas de contexto promovido.",
+      "evidence": [
+        "app-v4/src/engine/promote-shared-context.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "BATCH-004",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La ausencia de monkey patch en el camino V4 se sostiene por lectura de código; ningún test afirma esa ausencia de forma directa.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "UNKNOWN exige clasificación y mantiene el gate cerrado, probado en oráculos de clasificación y E2E estructurado.",
+      "evidence": [
+        "app-v4/src/structured/classification.test.ts",
+        "e2e/structured.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Autoridad única de ID de paciente con emisión determinista ID_ESTUDIO/PAC_001 y guardas fail-closed probadas en estructurado.",
+      "evidence": [
+        "app-v4/src/structured/patient-id.test.ts",
+        "app-v4/src/structured/study-id.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-003",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "El parser CSV propio sigue siendo deuda post-recuperación declarada; solo se prueba comportamiento, no el parser consolidado pedido por la auditoría congelada.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "app-v4/src/structured/csv.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-004",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El perfilador de columnas muestrea valores no vacíos distribuidos y no solo la primera fila.",
+      "evidence": [
+        "app-v4/src/structured/column-profile.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-005",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La política estructurada ya no mantiene VISIT_DATE exacta por defecto en perfiles externos (date-age-policy).",
+      "evidence": [
+        "app-v4/src/structured/date-age-policy.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-006",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La edad en fecha de evento/visita, y no la edad actual, está cubierta en date-age.",
+      "evidence": [
+        "app-v4/src/structured/date-age.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-007",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La selección explícita de hoja y su fallo cerrado ante ausencia están cubiertos en las pruebas de intake.",
+      "evidence": [
+        "app-v4/src/structured/intake.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-008",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La normalización de seriales de fecha Excel es explícita y probada en excel-serial.",
+      "evidence": [
+        "app-v4/src/structured/excel-serial.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "STRUCT-009",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Valores vacíos/nulos permanecen ausencia y no se codifican, probado en codify.",
+      "evidence": [
+        "app-v4/src/structured/codify.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "COPY-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El copy activo usa lenguaje preparado/seudonimizado y prohíbe anonimato; verificado por check:positioning.",
+      "evidence": [
+        "scripts/ci/check-positioning-copy.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-003",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "Singletons mutables del núcleo heredado persisten como deuda; V4 los aísla tras contextos, pero la sustitución completa no está hecha.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "app-v4/src/engine/registry-engine.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-004",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Separación de reconocedores y operadores/políticas probada en sus registros respectivos.",
+      "evidence": [
+        "app-v4/src/engine/recognizer-registry.test.ts",
+        "app-v4/src/engine/operator-registry.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-005",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "El contrato Detection de Job sigue siendo un marcador mínimo frente al contrato congelado; deuda post-recuperación declarada.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "app-v4/src/domain/job.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-006",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "ReviewDecision es tipado y autoritativo en la sesión de revisión, cubierto por pruebas de dominio.",
+      "evidence": [
+        "app-v4/src/review/review-domain.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-007",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La duplicación review.html/review-ui.js está retirada y ReviewWorkspace es canónico, pero ningún test prueba la ausencia del código legacy.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "e2e/review-productivity.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-008",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Las páginas legacy de lote están retiradas; el E2E de lote prueba el flujo V4, no la ausencia del código legacy.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "CI-001",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "GitHub Actions ejecuta check:positioning y gates mayores, pero no la cadena literal npm test completa; contar jobs no es prueba.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "CI-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "check:external impone cero recursos externos inesperados en el origen clínico.",
+      "evidence": [
+        "scripts/ci/check-external-resources.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "QA-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Corpus ground-truth V4 con métricas por tipo y contrato de cobertura ejecutado sobre createRegistryEngine.",
+      "evidence": [
+        "app-v4/src/engine/ground-truth/v4-ground-truth.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "QA-002",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Existe suite Playwright crítica y REC-05/06/07 restaurados, pero la paridad compuesta final sigue PARTIAL hasta REC-12.",
+      "evidence": [
+        "e2e/rec05-result.spec.ts",
+        "e2e/rec87-batch-result.spec.ts",
+        "e2e/structured-composed.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "QA-003",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Invariante de red en navegador con violación externa plantada adversarial, probado en E2E y en testing.",
+      "evidence": [
+        "e2e/network-invariant.spec.ts",
+        "app-v4/src/testing/network-invariant.test.tsx"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PERF-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El motor de producción corre tras un Web Worker, cubierto por worker-engine.",
+      "evidence": [
+        "app-v4/src/engine/worker/worker-engine.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PERF-002",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Parsers/exportadores pesados se cargan de forma diferida por diseño, pero no hay test específico de lazy-loading.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "app-v4/src/input/extract.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PERF-003",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "DictionaryIndex precomputado/normalizado cubierto por su test de CI.",
+      "evidence": [
+        "scripts/ci/dictionary-index.test.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PERF-004",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Resolución de conflictos por intervalos con pruebas deterministas de CI.",
+      "evidence": [
+        "scripts/ci/conflict-resolution.test.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "SUPPLY-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Manifiesto de vendor, hashes/procedencia y su check de CI; no es un build reproducible bit a bit.",
+      "evidence": [
+        "scripts/ci/check-vendor-manifest.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "CODE-001",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "ESLint+Prettier existen como gates de V4 por configuración; no se ejecutaron en esta fase documental.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "docs/evidence/issue92-b3/CONTRACT.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "CODE-002",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "TypeScript en V4 con núcleo legacy JavaScript tras adaptadores tipados; deuda post-recuperación declarada.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "CODE-003",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "alert() retirado del producto V4 por lectura de código; no hay test dedicado que garantice su ausencia.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "GOV-001",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La autoridad canónica 3.0-main está documentada, pero el HEAD remoto por defecto sigue siendo main: acción remota humana pendiente.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "GOV-002",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La matriz congelada afirma incorrectamente que 3.0-main no está protegida. GitHub API comprobada el 18/11/2026: strict=true, enforce_admins=true, required validate/e2e/Analyze (javascript-typescript)/Secret Scan (gitleaks). Estado remoto positivo; la reconciliación documental definitiva corresponde a #93, por eso no se certifica cierre aquí.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "GOV-003",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Versión 4.0 alineada en paquete/README/runtime por lectura documental, sin reejecución en esta fase.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "DOC-001",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La especificación técnica aún requiere reescritura contra el producto recuperado; trabajo documental abierto.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "docs/RECOVERY_MASTER_PLAN_2026-10.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-001",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La auditoría UX original de SPA/app-shell existe como evidencia de autoridad histórica, no como prueba actual del producto.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-002",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "El dist clínico sirve la SPA directamente y el E2E arranca en workspace sin landing; la topología de origen no se prueba aquí.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-003",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Inferencia determinista por tipo de entrada sin override de pipeline probada en E2E de arranque y flujo canónico; el override residual está superseded por D-019.",
+      "evidence": [
+        "e2e/input-start.spec.ts",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-004",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Lote como tipo de Job normal, sin framing Premium ni botón Activar, probado por el E2E de lote.",
+      "evidence": [
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-005",
+      "disposition": "PENDING_HUMAN",
+      "reason": "Siete superficies usan el sistema Sophilux B aceptado y hay capturas por vista, pero la comparación renderizada en igual estado/viewport sigue abierta (Entrada/Revisión DRIFT_OPEN) y exige decisión humana.",
+      "evidence": [
+        "docs/design/sophilux-b-v1/ACCEPTED_VISUAL_CONTRACT.md",
+        "docs/design/sophilux-b-v1/IMPLEMENTATION_FIDELITY_REGISTER_20261014.md",
+        "docs/evidence/issue91-u1/README.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-006",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El export seguro permanece cerrado hasta completar el gate; probado en E2E de revisión/export y en Resultado needs-attention.",
+      "evidence": [
+        "e2e/review-export.spec.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-007",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "El aviso contextual sustituye al disclaimer rojo permanente por lectura de composición; no hay test específico de esa jerarquía.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-008",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Las cuatro políticas se explican desde las autoridades de engine/estructurado y su guía se prueba en unitario y E2E.",
+      "evidence": [
+        "app-v4/src/policy-guidance.test.ts",
+        "e2e/policy-guidance.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-009",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "El Entity Inspector único concentra tarjeta, acciones y modal; cubierto por las pruebas de ReviewWorkspace.",
+      "evidence": [
+        "app-v4/src/review/ReviewWorkspace.test.tsx"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-010",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Layouts desktop/tablet/mobile probados a 375/768/1280 en E2E de productividad y de flujo de cierre.",
+      "evidence": [
+        "e2e/review-productivity.spec.ts",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-011",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Contraste AA de pares y foco visible medidos en gate-export-ux; el testigo B3 añade identificación por etiqueta subrayada además del color.",
+      "evidence": [
+        "e2e/gate-export-ux.spec.ts",
+        "e2e/rec12-b3-witness.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-012",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Controles operables por teclado y touch probados en E2E de entrada y revisión; no agota toda la aplicación.",
+      "evidence": [
+        "e2e/input-start.spec.ts",
+        "e2e/review-productivity.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-013",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Los atajos A/M/K/F y Alt+Flecha de navegación por pendientes aparecen en ReviewWorkspace y se ejercitan en review-productivity.spec.ts sobre 24 hallazgos, con Confirmar/Cancelar y borrador preservados. Es evidencia concreta de atajos actuales; la paridad global de Revisión permanece sujeta a #92.",
+      "evidence": [
+        "e2e/review-productivity.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-014",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Cola y filtro de baja confianza como flujo de primera clase, cubiertos por sus pruebas específicas de cola y revisión.",
+      "evidence": [
+        "app-v4/src/review/low-confidence-queue.test.tsx",
+        "app-v4/src/review/low-confidence-review.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-015",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Workspace de clasificación comparativo con semántica D-021 clase→acción probado en unitarios estructurados.",
+      "evidence": [
+        "app-v4/src/structured/StructuredConfigureWorkspace.test.tsx",
+        "app-v4/src/structured/action-authority.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "UX-016",
+      "disposition": "HUMAN_SUPERSEDED",
+      "reason": "La visibilidad permanente de job/política/sesión está deliberadamente superseded por HPD V1 y D-023; se preservan descubribilidad y borrado destructivo distinto (POLICY-01 en E2E).",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-009",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "SPA Vite+TypeScript+React es un hecho del repositorio; no existe oráculo que lo pruebe como requisito.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "ARCH-010",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Núcleo envuelto/adaptado en vez de reescritura big-bang: afirmación de arquitectura sostenida por lectura, sin test.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "HOST-001",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "El dist clínico es libre de terceros y distinto del marketing raíz; la topología de orígenes externos no se registra ni verifica en esta fase.",
+      "evidence": [
+        "scripts/deploy/header-assertions.mjs",
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "HOST-002",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Las cabeceras CSP/Referrer-Policy y el checker existen; captura HTTPS viva el 18/11/2026 devolvió 200, frame-ancestors none, Referrer-Policy no-referrer y X-Frame-Options DENY. Se mantiene pendiente de la conciliación de despliegue final #93, sin confundir configuración con todos los estados del origen.",
+      "evidence": [
+        "scripts/deploy/header-assertions.mjs"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "HOST-003",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "Riesgo operacional LaLiga/IP compartida por proveedor no cerrado; deuda operativa post-recuperación.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "HOST-004",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "El experimento Cloudflare es opcional y no requerido para paridad de recuperación; fuera de cierre.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "HOST-005",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "El fallback a IP propia es planificación de resiliencia, no paridad de recuperación; fuera de cierre.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-001",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Date shifting consistente por Job con orden e intervalos preservados, probado en unitarios y E2E longitudinal.",
+      "evidence": [
+        "app-v4/src/engine/date-shift.test.ts",
+        "app-v4/src/engine/date-longitudinal.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-002",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Seudónimos deterministas sin inferencia de género, cubiertos por sus pruebas específicas.",
+      "evidence": [
+        "app-v4/src/engine/patient-pseudonyms.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-003",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Los cuatro perfiles aceptados tienen mapeo determinista texto/documento/lote, además de estructurado, probado en policy.",
+      "evidence": [
+        "app-v4/src/engine/policy.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-004",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Bandeja de candidatos de baja confianza entregada y probada en cola y revisión.",
+      "evidence": [
+        "app-v4/src/review/low-confidence-review.test.ts",
+        "app-v4/src/review/low-confidence-queue.test.tsx"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-005",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Privacy Gate es la autoridad de readiness probada; su pantalla independiente está superseded y su representación se sigue en PDR-06.",
+      "evidence": [
+        "app-v4/src/privacy-gate/PrivacyGate.test.tsx"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-006",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Taxonomía de cinco clases y autoridad clase→acción D-021 cubiertas en pruebas estructuradas de clasificación y acción.",
+      "evidence": [
+        "app-v4/src/structured/action-authority.test.ts",
+        "app-v4/src/structured/classification.test.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-007",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "ARX-lite/equivalence classes fue capacidad futura explícita, no paridad v3; no se implementa ni se infiere.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-008",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "Plugins de reconocedores y diccionarios institucionales son extensibilidad futura, no línea base de recuperación.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-009",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "NER local opcional estaba marcado como posterior; no se implementa ni se mide en esta fase.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-010",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "OCR local fue explícitamente posterior; la detección de PDF escaneado falla cerrada y no cubre OCR.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-011",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "El adaptador FHIR JSON fue explícitamente capacidad posterior, no paridad de recuperación.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-012",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "La redacción que preserva layout es futura; REC-05 restaura PDF seguro sin reclamar esa capacidad.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "A",
+      "id": "PRODUCT-013",
+      "disposition": "POST_RECOVERY_DEBT",
+      "reason": "Study IDs cifrados/HMAC son futuros; los IDs deterministas en Job vigentes no requieren HMAC.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-01",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "La matriz congelada conserva el diagnóstico histórico de UI mayoritariamente inglesa anterior a REC-10; después del PR #120 y la Entrada A-E no puede extrapolarse al producto actual sin un barrido global. Pruebas parciales españolas existen, pero la verificación compuesta de lenguaje sigue pendiente.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "e2e/input-start.spec.ts",
+        "e2e/review-productivity.spec.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-02",
+      "disposition": "PENDING_HUMAN",
+      "reason": "Identidad Sophilux B aceptada el 12/10 y capturas por vista existen, pero la comparación renderizada en igual estado/viewport y la deriva de Entrada/Revisión requieren decisión humana.",
+      "evidence": [
+        "docs/design/sophilux-b-v1/ACCEPTED_VISUAL_CONTRACT.md",
+        "docs/design/sophilux-b-v1/IMPLEMENTATION_FIDELITY_REGISTER_20261014.md",
+        "docs/evidence/issue91-u1/README.md"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-03",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "JetBrains Mono no está instalado: el gap tipográfico de IDs/valores técnicos sigue abierto y no se corrige en esta fase.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "docs/design/sophilux-b-v1/ACCEPTED_VISUAL_CONTRACT.md"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-04",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Tres ejemplos sintéticos españoles desde ejemplos/*.json, sin crear Job, probados en componente y E2E de entrada.",
+      "evidence": [
+        "e2e/input-start.spec.ts",
+        "app-v4/src/App.input-start.test.tsx"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-05",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Pegar local con fallback español Ctrl+V y sin efecto de red, almacenamiento o Job, probado en E2E adversarial de portapapeles.",
+      "evidence": [
+        "e2e/input-start.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-06",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La entrada de texto libre se conserva como Job de texto pegado; el E2E de revisión/export parte de ella.",
+      "evidence": [
+        "e2e/review-export.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-07",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "TXT/PDF/DOCX preservados con fallos tipados y PDF sin capa de texto cubierto.",
+      "evidence": [
+        "e2e/pdf.spec.ts",
+        "app-v4/src/input/extract.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-08",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La afirmación .doc se retiró y el formato se rechaza explícitamente; no-paridad intencional sancionada por la auditoría congelada.",
+      "evidence": [
+        "app-v4/src/input/extract.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-09",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Resaltados y acciones aceptar/modificar/restaurar viven en ReviewSession/Entity Inspector con pruebas de workspace.",
+      "evidence": [
+        "app-v4/src/review/ReviewWorkspace.test.tsx"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-10",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Marcado manual por selección de fuente y categoría, sin offsets visibles, probado en dominio y E2E de productividad.",
+      "evidence": [
+        "app-v4/src/review/review-domain.test.ts",
+        "e2e/review-productivity.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-11",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Copiar texto revisado usa la Clipboard API sobre el Safe canónico, con prueba unitaria y E2E de payload.",
+      "evidence": [
+        "app-v4/src/output/clipboard.test.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-12",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "PDF individual seguro con pdf-lib, sin reclamar layout original, probado en unitario y E2E.",
+      "evidence": [
+        "app-v4/src/output/pdf-builder.test.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-13",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Safe TXT como representación secundaria del payload canónico, con bytes UTF-8 probados en E2E.",
+      "evidence": [
+        "app-v4/src/output/safe-output.test.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-14",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Lote multi-documento nativo con documentos fallidos visibles, probado en E2E de lote.",
+      "evidence": [
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-15",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Consistencia entre documentos vía ProcessingContext compartido, sin monkey patch, probada en su oráculo.",
+      "evidence": [
+        "app-v4/src/engine/promote-shared-context.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-16",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Retry/remove/acknowledge acotados, con resultados guardados y visibilidad de fallo, probados en E2E de lote.",
+      "evidence": [
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-17",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "PDF consolidado de lote con índice, ordinales deterministas y sin nombres de fuente, probado en E2E y unitarios.",
+      "evidence": [
+        "e2e/rec87-batch-result.spec.ts",
+        "app-v4/src/export/batchSafeDeliverables.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-18",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "ZIP por documento con nombres ordinales y cuerpos desde el Safe canónico, probado en E2E y unitarios.",
+      "evidence": [
+        "e2e/rec87-batch-result.spec.ts",
+        "app-v4/src/export/batchSafeDeliverables.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-19",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Resumen CSV de lote determinista, con historial error+retirado y sin nombres/contenido, probado en E2E y modelo de resultado.",
+      "evidence": [
+        "e2e/rec87-batch-result.spec.ts",
+        "app-v4/src/export/batchResultModel.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-20",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Ingesta tabular CSV/XLS/XLSX preservada con parser, fechas y hojas endurecidos y probados.",
+      "evidence": [
+        "app-v4/src/structured/intake.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-21",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Detección de cabecera en las primeras 10 filas usadas con heurística v3 y fallo tipado header-row-required, probada en resolución y fila de cabecera.",
+      "evidence": [
+        "app-v4/src/structured/header-resolution.test.ts",
+        "app-v4/src/structured/header-row.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-22",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Selección explícita de hoja y fallo cerrado ante ausencia de selección, probados en intake.",
+      "evidence": [
+        "app-v4/src/structured/intake.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-23",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "ID de paciente→ID_ESTUDIO con PAC_001 determinista y correspondencia solo confidencial, probado en study-id.",
+      "evidence": [
+        "app-v4/src/structured/study-id.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-24",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Enlace longitudinal por Study ID con semántica T19 intacta y Visita_Num posterior, probado en preparación de salida.",
+      "evidence": [
+        "app-v4/src/structured/patient-id.test.ts",
+        "app-v4/src/structured/output-preparation.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-25",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Prefijo de Study ID configurable con validación y bloqueo tipado ante valores inválidos, probado en study-id.",
+      "evidence": [
+        "app-v4/src/structured/study-id.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-26",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Visita_Num opcional por orden de fila y bloqueo ante cabecera en conflicto, probados en output-preparation.",
+      "evidence": [
+        "app-v4/src/structured/output-preparation.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-27",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Resumen factual de filas/pacientes/visitas/media en salida y hoja Summary, sin score ni cronología, probado en compuesto REC-04.",
+      "evidence": [
+        "app-v4/src/structured/structured-rec04-composed.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-28",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "XLSX Safe desde la salida canónica con hojas Data/Summary y revalidación tras await, probado en export y guarda de desmontaje.",
+      "evidence": [
+        "app-v4/src/structured/xlsx-export.test.ts",
+        "app-v4/src/export/ExportStep.unmount.test.tsx"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-29",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "La correspondencia Confidential conserva solo información autorizada y falla de forma cerrada en structured-confidential-audit.test.ts; la hoja XLSX READ_FIRST tiene testigos separados en xlsx-export.test.ts y structured-rec04-composed.test.ts. No equivale a un único E2E visual.",
+      "evidence": [
+        "app-v4/src/structured/structured-confidential-audit.test.ts",
+        "app-v4/src/structured/xlsx-export.test.ts",
+        "app-v4/src/structured/structured-rec04-composed.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-30",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Columnas de texto configuradas como process-as-text pasan por el motor productivo con contexto compartido, probado.",
+      "evidence": [
+        "app-v4/src/structured/process-as-text-action.test.ts",
+        "app-v4/src/structured/free-text-engine.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-31",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Clase y acción D-021 separadas con acciones acotadas y Unknown/quasi fail-closed, probado en autoridad de acción.",
+      "evidence": [
+        "app-v4/src/structured/action-authority.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-32",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Las cuatro políticas visibles y operativas en estructurado, con mapeo texto/documento/lote, probado en guía de políticas.",
+      "evidence": [
+        "app-v4/src/policy-guidance.test.ts",
+        "e2e/policy-guidance.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-33",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Date shifting de texto/documento/lote con un desplazamiento Job-scoped único y orden preservado, probado en unitario y navegador.",
+      "evidence": [
+        "app-v4/src/engine/date-longitudinal.test.ts",
+        "e2e/policy-guidance.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-34",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Flujo de baja confianza como mejora nueva entregada, no paridad v3, probado en cola y revisión.",
+      "evidence": [
+        "app-v4/src/review/low-confidence-queue.test.tsx"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-35",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Privacy Gate como autoridad factual de readiness, probada; la pantalla independiente está superseded y su representación se sigue en PDR-06.",
+      "evidence": [
+        "app-v4/src/privacy-gate/PrivacyGate.test.tsx"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-36",
+      "disposition": "HUMAN_SUPERSEDED",
+      "reason": "El nav Workspace/Policies/Help como destinos obligatorios está superseded por D-023; las funciones se preservan y la composición exacta queda abierta bajo HPD.",
+      "evidence": [
+        "docs/audits/2026-10-recovery-traceability-matrix.md",
+        "docs/shaping/CURRENT_DECISIONS.md",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-37",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Los atajos A/M/K/F y Alt+Flecha de navegación por pendientes aparecen en ReviewWorkspace y se ejercitan en review-productivity.spec.ts sobre 24 hallazgos, con Confirmar/Cancelar y borrador preservados. Es evidencia concreta de atajos actuales; la paridad global de Revisión permanece sujeta a #92.",
+      "evidence": [
+        "e2e/review-productivity.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-38",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Responsive 375/768/1280 probado con ausencia de overflow y jerarquía en E2E de entrada y cierre.",
+      "evidence": [
+        "e2e/input-start.spec.ts",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-39",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Runtime clínico estático, same-origin, sin red y con Worker; invariante E2E más check determinista de recursos externos.",
+      "evidence": [
+        "e2e/network-invariant.spec.ts",
+        "scripts/ci/check-external-resources.mjs"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-40",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Prueba de calidad del motor español por tipo sobre corpus sintético 35+4; es una garantía de regresión, no una nota universal de calidad.",
+      "evidence": [
+        "app-v4/src/engine/ground-truth/v4-ground-truth.test.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-41",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Confirmación contextual española antes de restaurar un identificador directo, sin mutación en Cancelar ni con contexto obsoleto, probada.",
+      "evidence": [
+        "app-v4/src/review/review-domain.test.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "B",
+      "id": "H-42",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Auditoría Confidencial separada con confirmación adicional en estructurado, individual y lote, probada en unitarios y E2E.",
+      "evidence": [
+        "e2e/rec05-result.spec.ts",
+        "app-v4/src/export/ExportStep.batchConfidential.test.tsx"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-01",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Flujo canónico por tipo de Job sin destino ceremonial probado en E2E de cierre; no agota todos los estados estructurados posibles.",
+      "evidence": [
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-02",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Revisión productiva con decisión inmediata a volumen realista (24 detecciones) y sin aceptación silenciosa, probada en E2E.",
+      "evidence": [
+        "e2e/review-productivity.spec.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-03",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Marcado manual por selección/categoría humana sin offsets de fuente, con rechazo de contexto obsoleto, probado en dominio y E2E.",
+      "evidence": [
+        "app-v4/src/review/review-domain.test.ts",
+        "e2e/review-productivity.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-04",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Workspace comparativo columna×tratamiento con docenas de columnas y bloqueos visibles, probado en unitarios y E2E estructurado.",
+      "evidence": [
+        "app-v4/src/structured/StructuredConfigureWorkspace.test.tsx",
+        "e2e/structured-composed.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-05",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Cola de lote con recuperación local y orientación a 12 documentos, probada en E2E.",
+      "evidence": [
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-06",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Resultado como cierre humano con readiness, atención pendiente y acción contextual, probado en Result individual y de lote.",
+      "evidence": [
+        "e2e/rec05-result.spec.ts",
+        "e2e/rec87-batch-result.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-07",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Shell y guía de políticas discretos y contextuales, con hechos discoverables y borrado destructivo separado, probados en E2E POLICY-01.",
+      "evidence": [
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-08",
+      "disposition": "PENDING_COMPOSED",
+      "reason": "Español profesional en Entrada, confirmación de mantener original y avisos de Resultado; otras superficies siguen parcialmente en inglés y no hay prueba exhaustiva.",
+      "evidence": [
+        "e2e/input-start.spec.ts",
+        "e2e/rec05-result.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-09",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Jerarquía tarea-primero probada en E2E de entrada y cierre; la deuda visual de Entrada/Revisión impide declarar cierre estético.",
+      "evidence": [
+        "e2e/input-start.spec.ts",
+        "e2e/ux-closeout-shell.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-10",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Densidad realista: 24 detecciones, narrativa clínica larga y lote de 12 documentos con fallo, probados en E2E.",
+      "evidence": [
+        "e2e/rec05-result.spec.ts",
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-11",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Feedback perceptible y corrección/retorno sin perder trabajo, probados en Result individual y recuperación de lote.",
+      "evidence": [
+        "e2e/rec05-result.spec.ts",
+        "e2e/batch.spec.ts"
+      ]
+    },
+    {
+      "section": "C",
+      "id": "PDR-12",
+      "disposition": "EXISTING_WITNESS_REUSE",
+      "reason": "Asimetría Safe/Confidencial con confirmación deliberada y jerarquía desigual, probada en Result individual y de lote.",
+      "evidence": [
+        "e2e/rec05-result.spec.ts",
+        "e2e/rec87-batch-result.spec.ts"
+      ]
+    }
+  ]
+}
