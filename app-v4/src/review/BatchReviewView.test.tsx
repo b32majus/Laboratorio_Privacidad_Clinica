@@ -1007,3 +1007,18 @@ describe("BatchReviewView work-queue orientation (#86, REC-06)", () => {
     await waitFor(() => expect(statusWith(/Reintento completado/i)).toBeDefined());
   });
 });
+
+/** REC-12 F7: equivalent Review/Lote instructions address the same professional. */
+describe("REC-12 F7 professional Spanish batch instruction", () => {
+  it("uses Revisa consistently without changing batch states or actions", async () => {
+    await renderView({ job: processingFailureJob() });
+    expect(screen.getByText(/^Revisa cada documento del lote por separado\./)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/^Revise cada documento del lote por separado\./)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Estado de los documentos del lote" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Filtrar documentos del lote" })).toBeInTheDocument();
+  });
+});

@@ -398,7 +398,7 @@ export function BatchReviewView(props: BatchReviewViewProps): ReactElement {
         Revisión
       </h2>
       <p className="mt-2 max-w-3xl text-base leading-relaxed">
-        Revise cada documento del lote por separado. Cada documento conserva sus propias decisiones,
+        Revisa cada documento del lote por separado. Cada documento conserva sus propias decisiones,
         y moverse entre documentos nunca cambia el estado de revisión de otro documento.
       </p>
 
