@@ -176,11 +176,11 @@ export function pendingDecisionMessage(count: number): string {
  */
 const BATCH_FAILURE_REMEDY_ES: Readonly<Record<string, string>> = Object.freeze({
   "Choose a supported Privacy Policy for the policy-blocked documents, and create a new job without the unreadable ones to continue.":
-    "Elija una política de privacidad compatible para los documentos bloqueados por la política, y cree un nuevo trabajo sin los que no se pueden leer para continuar.",
+    "Elige una política de privacidad compatible para los documentos bloqueados por la política, y crea un nuevo trabajo sin los que no se pueden leer para continuar.",
   "Choose a supported Privacy Policy and start review again.":
-    "Elija una política de privacidad compatible y comience la revisión de nuevo.",
-  "Create a new job without it to continue.": "Cree un nuevo trabajo sin él para continuar.",
-  "Create a new job without them to continue.": "Cree un nuevo trabajo sin ellos para continuar.",
+    "Elige una política de privacidad compatible y comienza la revisión de nuevo.",
+  "Create a new job without it to continue.": "Crea un nuevo trabajo sin él para continuar.",
+  "Create a new job without them to continue.": "Crea un nuevo trabajo sin ellos para continuar.",
 });
 
 /**
