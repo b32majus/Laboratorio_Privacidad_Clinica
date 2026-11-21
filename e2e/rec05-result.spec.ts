@@ -32,6 +32,7 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./harness/fixtures";
+import { extractPdfText, readableText } from "./harness/pdf-readback";
 import {
   buildHighVolumeText,
   completeReview,
@@ -357,10 +358,65 @@ test("a deliberately kept original stays a factual Result warning and is present
     page.getByRole("button", { name: "Descargar como TXT (.txt)" }).click(),
   ]);
   const txt = readFileSync(await txtDownload.path(), "utf8");
-  expect(txt).toContain(REVIEW_EMAIL);
-  expect(txt).not.toContain(REVIEW_DNI);
-  expect(txt).not.toContain(REVIEW_TELEFONO);
-  expect(txt).not.toContain(REVIEW_NHC);
+
+  // Independent fixture oracle: a common wrong payload in all four formats
+  // must NOT pass simply because the downloads agree with one another.
+  const expectedSafe = REVIEW_FIXTURE_TEXT.replace(REVIEW_DNI, "[DNI-REVISADO]")
+    .replace(REVIEW_TELEFONO, "")
+    .replace(REVIEW_NHC, "");
+  expect(txt).toBe(expectedSafe);
+
+  // The *same* ready Result must expose the identical canonical Safe content
+  // through actual clipboard access, DOCX bytes and PDF bytes.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.getByRole("button", { name: "Copiar texto preparado" }).click();
+  await expect(page.locator("#result-action-feedback")).toHaveText(
+    "Texto preparado copiado al portapapeles."
+  );
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toBe(expectedSafe);
+
+  const [docxDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar documento preparado (.docx)" }).click(),
+  ]);
+  expect(docxDownload.suggestedFilename()).toBe("texto-preparado.docx");
+  const docxBytes = new Uint8Array(readFileSync(await docxDownload.path()));
+  const arrayBuffer = docxBytes.buffer.slice(
+    docxBytes.byteOffset,
+    docxBytes.byteOffset + docxBytes.byteLength
+  ) as ArrayBuffer;
+  const { value: rawDocx } = await (
+    await import("mammoth")
+  ).extractRawText({
+    arrayBuffer,
+    buffer: Buffer.from(docxBytes),
+  });
+  expect(rawDocx.endsWith("\n\n")).toBe(true);
+  const docxText = rawDocx.slice(0, -2).split("\n\n").join("\n");
+  expect(docxText).toBe(expectedSafe);
+
+  const [pdfDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Descargar como PDF (.pdf)" }).click(),
+  ]);
+  expect(pdfDownload.suggestedFilename()).toBe("texto-preparado.pdf");
+  const pdfText = readableText(
+    await extractPdfText(new Uint8Array(readFileSync(await pdfDownload.path())))
+  );
+  // pdf.js may invent whitespace at glyph runs/wrapped lines, but nothing
+  // else may differ from the canonical Safe payload.
+  expect(pdfText).toBe(readableText(expectedSafe));
+
+  for (const content of [txt, copied, docxText, pdfText]) {
+    expect(content).toContain("[DNI-REVISADO]");
+    expect(content).toContain(REVIEW_EMAIL); // intentionally kept original
+    expect(content).not.toContain(REVIEW_DNI);
+    expect(content).not.toContain(REVIEW_TELEFONO);
+    expect(content).not.toContain(REVIEW_NHC);
+    expect(content).not.toContain("CONFIDENTIAL");
+    expect(content).not.toContain("INTERNAL AUDIT ARTIFACT");
+  }
 });
 
 // ---------------------------------------------------------------------------
