@@ -295,10 +295,10 @@ function HeaderRowSelection(props: {
       className="mt-4 max-w-3xl rounded border border-primary bg-surface-light p-3"
     >
       <h3 className="font-display text-base font-bold text-primary-dark">
-        Seleccione la fila de encabezado
+        Selecciona la fila de encabezado
       </h3>
       <p className="mt-2 text-sm text-neutral-800">
-        La hoja «{headerRow.sheetName}» no tiene una única fila de encabezado clara. Elija cuál de
+        La hoja «{headerRow.sheetName}» no tiene una única fila de encabezado clara. Elige cuál de
         las filas inspeccionadas es el encabezado; las filas anteriores se omiten como notas
         explicativas, nunca como datos. La primera fila nunca se da por supuesta.
       </p>
@@ -353,9 +353,9 @@ function SheetSelection(props: {
       aria-label="Selección de hoja del libro"
       className="mt-4 max-w-3xl rounded border border-primary bg-surface-light p-3"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">Seleccione una hoja</h3>
+      <h3 className="font-display text-base font-bold text-primary-dark">Selecciona una hoja</h3>
       <p className="mt-2 text-sm text-neutral-800">
-        Este libro tiene varias hojas. Elija la hoja que se va a clasificar; la primera hoja nunca
+        Este libro tiene varias hojas. Elige la hoja que se va a clasificar; la primera hoja nunca
         se selecciona de forma silenciosa.
       </p>
       <form
@@ -637,7 +637,7 @@ function PatientIdAuthority(props: {
         <p className="mt-1 text-xs text-neutral-800">
           {patientId.candidates.length > 0
             ? `Aún no hay columna seleccionada. Columnas detectadas como posibles identificadores de paciente: ${patientId.candidates.join(", ")}.`
-            : "Aún no hay columna seleccionada y no se detectó ninguna columna parecida a un identificador de paciente. Elija una explícitamente."}
+            : "Aún no hay columna seleccionada y no se detectó ninguna columna parecida a un identificador de paciente. Elige una explícitamente."}
         </p>
       )}
       {patientId.status === "selection-error" && (
@@ -1127,14 +1127,14 @@ function ColumnInspector(props: {
         column.effectiveClass === "unknown" &&
         (column.allowedActions.includes("process-as-text") ? (
           <p className="mt-3 text-sm text-neutral-800">
-            Las columnas con clasificación desconocida no se pueden conservar directamente. Cambie
-            la clasificación de arriba, o dirija esta columna de texto por el motor de texto con
+            Las columnas con clasificación desconocida no se pueden conservar directamente. Cambia
+            la clasificación de arriba, o dirige esta columna de texto por el motor de texto con
             «Procesar como texto».
           </p>
         ) : (
           <p className="mt-3 text-sm text-neutral-800">
             Las columnas con clasificación desconocida no pueden recibir una acción productiva
-            directamente. Cambie la clasificación de arriba para resolver esta columna.
+            directamente. Cambia la clasificación de arriba para resolver esta columna.
           </p>
         ))}
 

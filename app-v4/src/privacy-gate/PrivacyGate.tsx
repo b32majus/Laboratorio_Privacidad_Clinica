@@ -290,7 +290,7 @@ function GateCheckpoint({
       ? "No queda ningún documento del lote disponible para revisión: todos los documentos con error se retiraron deliberadamente. La revisión del lote no está completa."
       : safeOutputReady
         ? "Todas las decisiones de revisión obligatorias están registradas. La salida segura está preparada para descargar en el paso Resultado."
-        : "Todas las decisiones de revisión obligatorias están registradas. Consulte la disponibilidad de la salida (abajo) para saber qué entregables están disponibles.";
+        : "Todas las decisiones de revisión obligatorias están registradas. Consulta la disponibilidad de la salida (abajo) para saber qué entregables están disponibles.";
   return (
     <section
       aria-labelledby="gate-checkpoint-heading"

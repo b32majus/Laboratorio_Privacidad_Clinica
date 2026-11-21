@@ -18,14 +18,14 @@
 export function localizeDomainErrorMessage(message: string): string {
   // ── Pasted text (input/extract) ────────────────────────────────────────
   if (message === "Pasted text is empty; provide text before creating a job.") {
-    return "El texto pegado está vacío; escriba o pegue texto antes de crear el trabajo.";
+    return "El texto pegado está vacío; escribe o pega texto antes de crear el trabajo.";
   }
 
   // ── TXT (input/extract) ────────────────────────────────────────────────
   let match = /^The TXT file "(.*)" could not be read\.$/.exec(message);
   if (match) return `No se pudo leer el archivo TXT "${match[1]}".`;
   match = /^The TXT file "(.*)" is empty; provide a file with content\.$/.exec(message);
-  if (match) return `El archivo TXT "${match[1]}" está vacío; use un archivo con contenido.`;
+  if (match) return `El archivo TXT "${match[1]}" está vacío; usa un archivo con contenido.`;
 
   // ── DOCX (input/extract) ───────────────────────────────────────────────
   match = /^The DOCX file "(.*)" could not be read\.$/.exec(message);
@@ -61,7 +61,7 @@ export function localizeDomainErrorMessage(message: string): string {
     message ===
     'Legacy Word ".doc" files are not supported; convert the document to DOCX or TXT and try again. Supported types: TXT, PDF, DOCX.'
   ) {
-    return 'Los archivos heredados de Word ".doc" no son compatibles; convierta el documento a DOCX o TXT e inténtelo de nuevo. Formatos admitidos: TXT, PDF, DOCX.';
+    return 'Los archivos heredados de Word ".doc" no son compatibles; convierte el documento a DOCX o TXT e inténtalo de nuevo. Formatos admitidos: TXT, PDF, DOCX.';
   }
   match =
     /^The file "(.*)" has an unsupported type "(.*)"; supported types: TXT, PDF, DOCX\.$/.exec(
@@ -77,7 +77,7 @@ export function localizeDomainErrorMessage(message: string): string {
       message
     );
   if (match) {
-    return `El texto de entrada tiene ${match[1]} caracteres; esta versión admite hasta ${match[2]} caracteres por documento. Divida el texto en partes de como máximo ${match[3]} caracteres y procese cada parte como su propio trabajo.`;
+    return `El texto de entrada tiene ${match[1]} caracteres; esta versión admite hasta ${match[2]} caracteres por documento. Divide el texto en partes de como máximo ${match[3]} caracteres y procesa cada parte como su propio trabajo.`;
   }
 
   // ── Structured intake (structured/intake) ──────────────────────────────
@@ -119,7 +119,7 @@ export function localizeDomainErrorMessage(message: string): string {
       message
     );
   if (match) {
-    return `La hoja "${match[1]}" no tiene una fila de encabezado clara en las primeras ${match[2]} filas. Elija la fila de encabezado explícitamente.`;
+    return `La hoja "${match[1]}" no tiene una fila de encabezado clara en las primeras ${match[2]} filas. Elige la fila de encabezado explícitamente.`;
   }
   match =
     /^The worksheet "(.*)" has several rows that look like headers \((.*)\)\. Choose the header row explicitly; the first row is never assumed\.$/.exec(
@@ -127,7 +127,7 @@ export function localizeDomainErrorMessage(message: string): string {
     );
   if (match) {
     const rows = match[2].replace(/row (\d+)/g, "fila $1");
-    return `La hoja "${match[1]}" tiene varias filas que parecen encabezados (${rows}). Elija la fila de encabezado explícitamente; nunca se presupone la primera fila.`;
+    return `La hoja "${match[1]}" tiene varias filas que parecen encabezados (${rows}). Elige la fila de encabezado explícitamente; nunca se presupone la primera fila.`;
   }
   if (message === "No header rows are available for explicit selection in this worksheet.") {
     return "No hay filas de encabezado disponibles para selección explícita en esta hoja.";
@@ -137,7 +137,7 @@ export function localizeDomainErrorMessage(message: string): string {
       message
     );
   if (match) {
-    return `La fila de encabezado seleccionada no es válida: elija una de las filas inspeccionadas de la 1 a la ${match[1]}.`;
+    return `La fila de encabezado seleccionada no es válida: elige una de las filas inspeccionadas de la 1 a la ${match[1]}.`;
   }
 
   // ── Governed SheetJS loader (structured/xlsx-loader) ───────────────────

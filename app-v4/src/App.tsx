@@ -139,10 +139,10 @@ function presentStartSurfaceRefusal(refusal: StartSurfaceRefusal): string {
   switch (refusal.code) {
     case "empty-input":
       return quoted === null
-        ? "No hay texto que crear: escriba o pegue texto antes de crear el trabajo."
-        : `El archivo ${quoted} no contiene texto utilizable. Añada contenido al documento o use otro archivo.`;
+        ? "No hay texto que crear: escribe o pega texto antes de crear el trabajo."
+        : `El archivo ${quoted} no contiene texto utilizable. Añade contenido al documento o usa otro archivo.`;
     case "ambiguous-input":
-      return "No se pueden combinar documentos (TXT, PDF, DOCX) y tablas estructuradas (CSV, XLS, XLSX) en un mismo trabajo. Cree un trabajo aparte para cada tipo de archivo.";
+      return "No se pueden combinar documentos (TXT, PDF, DOCX) y tablas estructuradas (CSV, XLS, XLSX) en un mismo trabajo. Crea un trabajo aparte para cada tipo de archivo.";
     case "unsupported-file-type":
     case "unsupported-format": {
       const extension = file !== undefined ? extensionOf(file) : "";
@@ -152,20 +152,20 @@ function presentStartSurfaceRefusal(refusal: StartSurfaceRefusal): string {
           : quoted !== null
             ? `el formato de ${quoted}`
             : "ese formato";
-      return `No se admite ${subject}. Formatos admitidos: ${SUPPORTED_FORMATS_ES}. Convierta el archivo a un formato admitido e inténtelo de nuevo.`;
+      return `No se admite ${subject}. Formatos admitidos: ${SUPPORTED_FORMATS_ES}. Convierte el archivo a un formato admitido e inténtalo de nuevo.`;
     }
     case "pdf-no-text-layer":
       return quoted === null
-        ? "El PDF no contiene texto extraíble: probablemente sea un escaneo. Aplique OCR o use un PDF con capa de texto e inténtelo de nuevo."
-        : `El PDF ${quoted} no contiene texto extraíble: probablemente sea un escaneo. Aplique OCR o use un PDF con capa de texto e inténtelo de nuevo.`;
+        ? "El PDF no contiene texto extraíble: probablemente sea un escaneo. Aplica OCR o usa un PDF con capa de texto e inténtalo de nuevo."
+        : `El PDF ${quoted} no contiene texto extraíble: probablemente sea un escaneo. Aplica OCR o usa un PDF con capa de texto e inténtalo de nuevo.`;
     case "extraction-failed":
       return quoted === null
-        ? "No se pudo leer el documento; puede estar dañado o no ser un archivo válido. Compruebe el archivo o conviértalo e inténtelo de nuevo."
-        : `No se pudo leer el documento ${quoted}; puede estar dañado o no ser un archivo válido. Compruebe el archivo o conviértalo e inténtelo de nuevo.`;
+        ? "No se pudo leer el documento; puede estar dañado o no ser un archivo válido. Comprueba el archivo o conviértelo e inténtalo de nuevo."
+        : `No se pudo leer el documento ${quoted}; puede estar dañado o no ser un archivo válido. Comprueba el archivo o conviértelo e inténtalo de nuevo.`;
     case "input-too-large":
-      return "La entrada supera el tamaño admitido para procesarla en este dispositivo. Divídala en partes más pequeñas y cree un trabajo por cada parte.";
+      return "La entrada supera el tamaño admitido para procesarla en este dispositivo. Divídela en partes más pequeñas y crea un trabajo por cada parte.";
     default:
-      return "La entrada no se pudo usar para crear un trabajo. Revise el texto o los archivos e inténtelo de nuevo.";
+      return "La entrada no se pudo usar para crear un trabajo. Revisa el texto o los archivos e inténtalo de nuevo.";
   }
 }
 
@@ -435,7 +435,7 @@ export function App() {
       setInputError({
         kind: "text",
         message:
-          "Hay archivos seleccionados en el borrador. Abra «Archivos y tablas» para revisarlos y crear el trabajo.",
+          "Hay archivos seleccionados en el borrador. Abre «Archivos y tablas» para revisarlos y crear el trabajo.",
       });
       return;
     }
@@ -443,7 +443,7 @@ export function App() {
       setInputError({
         kind: "text",
         message:
-          "Hay texto pegado en el borrador. Abra «Texto clínico» para revisarlo y crear el trabajo.",
+          "Hay texto pegado en el borrador. Abre «Texto clínico» para revisarlo y crear el trabajo.",
       });
       return;
     }
@@ -485,7 +485,7 @@ export function App() {
         setInputError({
           kind: "text",
           message:
-            "Los trabajos estructurados clasifican una tabla cada vez; cree un trabajo por cada archivo CSV o Excel.",
+            "Los trabajos estructurados clasifican una tabla cada vez; crea un trabajo por cada archivo CSV o Excel.",
         });
         return;
       }
@@ -1048,7 +1048,7 @@ export function App() {
                   if (job === null || !isPolicySelectableForJobKind(next, job.kind)) return;
                   session.updatePolicy(next);
                 }}
-                title={job ? undefined : "Cree primero un trabajo"}
+                title={job ? undefined : "Crea primero un trabajo"}
                 className={`sx-select ${focusRing}`}
               >
                 {(Object.keys(POLICY_LABELS) as PrivacyPolicyId[]).map((policyId) => (

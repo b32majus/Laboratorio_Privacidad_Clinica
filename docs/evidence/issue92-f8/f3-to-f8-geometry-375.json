@@ -1,0 +1,106 @@
+{
+  "old_sha": "6880082271a3f18719497930f4ee29d1596b6d6c",
+  "current_sha": "c615a9d6357abba8abfb429e13a780c1834f13ae",
+  "width": 375,
+  "comparison": {
+    "entrada": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {}
+    },
+    "revision": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {
+        ".sx-review-document": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-review-findings": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-review-inspector": {
+          "dx": 0,
+          "dy": 0
+        }
+      }
+    },
+    "lote": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {
+        ".sx-review-document": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-review-findings": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-review-inspector": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-batch-queue": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-batch-current": {
+          "dx": 0,
+          "dy": 0
+        }
+      }
+    },
+    "estructurado": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {
+        ".sx-structured-table": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-structured-inspector": {
+          "dx": 0,
+          "dy": 0
+        }
+      }
+    },
+    "celdas": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {
+        ".sx-review-document": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-review-findings": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-review-inspector": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-cells-queue": {
+          "dx": 0,
+          "dy": 0
+        },
+        ".sx-cells-current": {
+          "dx": 0,
+          "dy": 0
+        }
+      }
+    },
+    "comprobacion": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {}
+    },
+    "resultado": {
+      "old_scrollWidth": 375,
+      "current_scrollWidth": 375,
+      "zone_delta_px": {}
+    }
+  }
+}
