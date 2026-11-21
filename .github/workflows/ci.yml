@@ -20,30 +20,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check HTML local links
-        run: node scripts/ci/check-links.mjs
-
-      - name: Check sensitive storage policy
-        run: node scripts/ci/check-storage-policy.mjs
-
-      - name: Positioning copy claims
-        run: npm run check:positioning
-
-      - name: Smoke anonymization
-        run: node scripts/ci/smoke-anonymization.mjs
-
-      - name: "Contract tests: ReviewSession domain"
-        run: npm run test:domain
-
-      - name: "Unit tests: privacy-eval matcher and metrics"
-        run: npm run test:privacy-eval
-
-      - name: Privacy regression harness (ground-truth corpus)
-        run: npm run check:privacy-eval
-
-      - name: "Ground-truth V4 gate (FUNC-008 + QA-001, real V4 engine + AGE)"
-        run: npm run check:privacy-eval:v4
-
       - name: Smoke check entrypoints (T25 #29: canonical V4 entry; legacy pages retired)
         run: |
           test -f index.html
@@ -53,14 +29,11 @@ jobs:
       - name: Build V4 app (legacy Tailwind + Vite)
         run: npm run build
 
-      - name: Check V4 external resources
-        run: npm run check:external
-
-      - name: Check vendor manifest integrity
-        run: npm run check:vendor
-
-      - name: Check PDF.js eval guard (CVE-2024-4367)
-        run: npm run check:pdfjs
+      # Keep the complete local npm test contract in CI. Previously CI
+      # duplicated 13 of its 18 scripts and silently omitted five.
+      # Build first: source/dist guards inspect the generated V4 bundle.
+      - name: Canonical npm test (all project checks and V4 Vitest)
+        run: npm test
 
       - name: Adversarial oracle self-tests (planted violations)
         run: |
@@ -77,9 +50,6 @@ jobs:
 
       - name: Lint V4 app
         run: npm run lint:v4
-
-      - name: Test V4 app
-        run: npm run test:v4
 
   e2e:
     runs-on: ubuntu-latest
