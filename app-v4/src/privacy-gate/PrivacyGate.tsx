@@ -275,17 +275,17 @@ function GateCheckpoint({
       ? batchFailed
         ? "La salida segura está bloqueada porque un documento del lote no se pudo procesar; los detalles del fallo y su solución se muestran a continuación."
         : hasJobErrors
-          ? "Un error registrado (abajo) necesita atención antes de que confíe en esta revisión."
+          ? "Hay un error de procesamiento que requiere atención antes de preparar la salida."
           : pendingCount === 1
-            ? "Todavía queda 1 decisión de revisión obligatoria (abajo) antes de que confíe en esta revisión."
+            ? "Queda 1 decisión de revisión obligatoria pendiente."
             : pendingCount > 1
-              ? `Todavía quedan ${pendingCount} decisiones de revisión obligatorias (abajo) antes de que confíe en esta revisión.`
+              ? `Quedan ${pendingCount} decisiones de revisión obligatorias pendientes.`
               : "La salida segura todavía no está disponible: no se cumplen las reglas de preparación de la salida aplicables (abajo)."
       : hasJobErrors
-        ? "Un error registrado (abajo) necesita atención antes de que confíe en esta revisión."
+        ? "Hay un error de procesamiento que requiere atención antes de preparar la salida."
         : pendingCount === 1
-          ? "Todavía queda 1 decisión de revisión obligatoria (abajo) antes de que confíe en esta revisión."
-          : `Todavía quedan ${pendingCount} decisiones de revisión obligatorias (abajo) antes de que confíe en esta revisión.`
+          ? "Queda 1 decisión de revisión obligatoria pendiente."
+          : `Quedan ${pendingCount} decisiones de revisión obligatorias pendientes.`
     : batchAllRemovedBoundary
       ? "No queda ningún documento del lote disponible para revisión: todos los documentos con error se retiraron deliberadamente. La revisión del lote no está completa."
       : safeOutputReady
