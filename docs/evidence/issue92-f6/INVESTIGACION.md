@@ -29,7 +29,7 @@ La ruta más barata es **un único recorrido reforzado**, el de original conserv
 
 No se ha identificado un bug funcional de producción. La falta actual es **de evidencia E2E compuesta de correspondencia entre cuatro artefactos individuales**. Una prueba RED por contenido erróneo, restaurada, demuestra que el test detecta discrepancias. El bloque de QA-002 sigue PARTIAL incluso cuando este testigo se complete: los demás criterios de REC-12 necesitan conciliación propia.
 
-**Estado:** propuesta de criterios pendiente de GO específico antes de ejecutar implementador. No afirmar paridad 13/13 ni REC-12 PASS.
+**Estado del diseño inicial (histórico):** los criterios estaban pendientes de GO cuando se escribió esta sección. Posteriormente se ratificaron y la ejecución local quedó auditada OK, según la sección de resultados inferior. No afirmar paridad 13/13 ni REC-12 PASS.
 
 ## Línea base ejecutada en F6, sin tocar producto ni E2E
 
@@ -37,4 +37,22 @@ No se ha identificado un bug funcional de producción. La falta actual es **de e
 
 **Punto exacto de mejora:** E2E de `rec05-result.spec.ts` «a deliberately kept original ...» valida hoy únicamente TXT frente a originales excluidos/conservados. No verifica DOCX/PDF reales contra ese mismo Safe en la misma sesión. La nueva prueba F6 debe ampliar ese test, no crear uno de cero.
 
-**STOP ratificación:** sin el «GO» explícito a `CRITERIOS_DIA.md` no se escribe ni ejecuta el nuevo testigo. El GO a continuar la investigación no se considera autorización para alterar comportamiento clínico o publicar.
+**STOP de diseño original (ya superado):** se exigió GO explícito a `CRITERIOS_DIA.md` antes de lanzar el testigo. Sil lo dio después de esta investigación. Ese GO **no autoriza publicar**.
+
+## Ejecución aprobada F6 · evidencia y límites (21/11/2026)
+
+Sil ratificó los siete criterios de `CRITERIOS_DIA.md` con GO explícito para **implementación local**, no publicación. Vía KairOS DIA OpenCode directo, M/sensible por criterios de privacidad sobre datos exclusivamente sintéticos.
+
+**Contrato RED bloqueado por diseñadora (Cora, commit `f533363`):** ampliación del E2E individual de original conservado `e2e/rec05-result.spec.ts` (una sesión) para:
+- calcular el Safe esperado independientemente del artefacto desde `REVIEW_FIXTURE_TEXT` con DNI sustituido, teléfono y NHC suprimidos y correo conscientemente mantenido;
+- comparar Copiar y TXT exactamente con ese Safe; descargar DOCX y leerlo realmente con Mammoth y normalización contractual de párrafos; descargar PDF real y leerlo con pdf.js permitiendo solo reflujo de whitespace;
+- detectar identidad original y correspondencia Confidential no autorizada en cualquiera de las cuatro salidas, y conservar el aviso humano.
+- Stub inicial `e2e/harness/pdf-readback.ts:extractPdfText` devolvía vacío. Con TypeScript y Prettier verdes, el test RED falló **exactamente en paridad PDF**: esperado el Safe completo vs recibido cadena vacía; Copiar/TXT/DOCX habían pasado antes de esa aserción. Evidencia `/tmp/lab-rec12-f6-red-e2e.log`; no se cambió el test desde ese commit.
+
+**Implementación (DeepSeek V4.1 Flash / OpenCode Go en panel propio Herdr, 0 delegaciones):** solo `e2e/harness/pdf-readback.ts` (stub → lector pdf.js real de bytes descargados) y `e2e/rec87-batch-result.spec.ts` (importa el lector compartido y elimina su duplicado local). El constructor y las políticas del producto no cambiaron. El ejecutor pasó typecheck/prettier y Playwright **9/9**. El panel propio fue cerrado al terminar.
+
+**Auditoría única DIA (Cora, segundo ciego GLM-5.3 Flash / otra familia, solo lectura):** confirmó alcance de los dos ficheros y detectó 3 observaciones. (1) **Hallazgo confirmado y corregido en el mismo cierre:** pdf.js puede separar un identificador entre runs (`12345678 A`), y el E2E histórico del lote usaba `not.toContain("12345678A")`; las dos aserciones de ausencia en ZIP y PDF consolidado ahora quitan whitespace **solo al buscar DNI original**, detectando también DNI fragmentado. La equivalencia exacta del nuevo E2E individual contra expectativa independiente ya impedía que ese contenido extra pasara. (2) Cache de promesa pdf.js puede conservar un rechazo de carga: limitación antigua y solo de test que produce **FAIL**, no PASS falso; no se cambió por no duplicar ni refactorizar el lector. (3) Chequeos nominales `CONFIDENTIAL` case-sensitive: la **igualdad completa con Safe esperado** del nuevo test individual detectaría una cabecera inesperada independientemente de mayúsculas; queda como límite de otras verificaciones nominales. Ninguno exige cambio productivo. Sin segunda auditoría ni otra familia después de la única revisión; **0 REHACER**. El revisor no modificó el repo.
+
+**Verificaciones:** implementador 9/9 E2E; auditor en reejecución independiente preajuste 9/9 E2E, TypeScript PASS, ESLint PASS, Prettier PASS y `npm test` **91/91 suites, 1557/1557 tests PASS**. Tras el refuerzo de ausencia DNI: prueba sintética de identificador fragmentado (cotejo sin espacios) PASS, Prettier PASS, TypeScript PASS y nueva reejecución E2E **9/9 PASS**, sin retries; `git diff --check` PASS. La advertencia opcional de PDF.js `canvas`/fuentes en Node existía previamente; no cambia la semántica Safe. Logs locales `/tmp/lab-rec12-f6-{auditor-npmtest,auditor-all-e2e,after-review-e2e,after-review-typecheck,reviewer-20261121}.log` (todos en el VPS, sin datos reales).
+
+**Límites y próxima decisión:** esto prueba una transición individual adicional pero **QA-002 sigue PARTIAL y #92 abierto** hasta reconciliar otros estados/PDR-08/G-HP. No hay push, PR, merge, deploy ni cierre de issues para F6; se precisa GO específico de publicación con CI remoto obligatorio. No confundir estos PASS locales con GitHub CI para este candidato.

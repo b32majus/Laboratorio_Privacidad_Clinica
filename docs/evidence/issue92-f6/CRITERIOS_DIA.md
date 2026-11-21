@@ -1,6 +1,6 @@
 # REC-12 F6 · Paridad Safe individual en una sola sesión
 
-**Estado:** siete criterios RATIFICADOS por GO humano (21/11/2026). Autorizada ejecución local con DIA; no publicación. KairOS DIA / OpenCode directo, M/sensible por tratar reglas de contenido clínico, pero **solo con datos sintéticos**. Fuente GitHub `3.0-main@28f9ced9e7466e27d285240bff67b2a4122b15db`, issue #92.
+**Estado:** siete criterios RATIFICADOS por GO humano (21/11/2026). Ejecución y auditoría DIA locales OK; publicación pendiente de otro GO. KairOS DIA / OpenCode directo, M/sensible por tratar reglas de contenido clínico, pero **solo con datos sintéticos**. Fuente GitHub `3.0-main@28f9ced9e7466e27d285240bff67b2a4122b15db`, issue #92.
 
 ## Siete criterios de aceptación (observables)
 

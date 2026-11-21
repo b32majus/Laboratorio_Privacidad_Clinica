@@ -48,6 +48,7 @@ import { PDFDocument } from "pdf-lib";
 
 import { expect, test } from "./harness/fixtures";
 import { selectFiles } from "./harness/flows";
+import { extractPdfText, readableText } from "./harness/pdf-readback";
 
 const CORRUPT_PDF = path.resolve(__dirname, "../app-v4/src/input/fixtures/corrupt.pdf");
 const SCANNED_PDF = path.resolve(__dirname, "../app-v4/src/input/fixtures/sample-scanned.pdf");
@@ -82,77 +83,6 @@ async function acceptOpenDetection(page: Page): Promise<void> {
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
 }
-
-// ---------------------------------------------------------------------------
-// Real pdf.js read-back seam (the same seam as the product oracles
-// app-v4/src/export/batchSafeDeliverables.test.ts and
-// app-v4/src/output/pdf-builder.test.ts). The ONLY input is the bytes
-// Playwright really downloaded: no second parser, no re-derivation from the
-// builder, and no expectation computed without reading an artifact.
-// ---------------------------------------------------------------------------
-
-interface PdfTextItem {
-  str: string;
-}
-interface PdfTextPage {
-  getTextContent(): Promise<{ items: PdfTextItem[] }>;
-}
-interface PdfTextDocument {
-  numPages: number;
-  getPage(index: number): Promise<PdfTextPage>;
-}
-interface PdfJsApi {
-  getDocument(params: { data: Uint8Array; isEvalSupported: boolean }): {
-    promise: Promise<PdfTextDocument>;
-  };
-}
-interface PdfJsModule extends PdfJsApi {
-  default?: PdfJsApi;
-}
-
-let pdfjsSeam: Promise<PdfJsApi> | null = null;
-
-/** Load the legacy build once and install its documented main-thread fake worker. */
-function loadPdfjs(): Promise<PdfJsApi> {
-  if (pdfjsSeam === null) {
-    pdfjsSeam = (async () => {
-      const [lib, worker] = await Promise.all([
-        import("pdfjs-dist/legacy/build/pdf.js"),
-        // @ts-expect-error: pdfjs-dist legacy worker ships no TypeScript declaration.
-        import("pdfjs-dist/legacy/build/pdf.worker.js"),
-      ]);
-      const libModule = lib as unknown as PdfJsModule;
-      const workerModule = worker as unknown as { default?: unknown };
-      (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = workerModule.default ?? workerModule;
-      return libModule.default ?? libModule;
-    })();
-  }
-  return pdfjsSeam;
-}
-
-/** Extract the real drawn text of every page of the downloaded PDF bytes. */
-async function extractPdfText(bytes: Uint8Array): Promise<string> {
-  const pdfjs = await loadPdfjs();
-  // A Node `Buffer` is refused by pdf.js on purpose: hand it a plain view.
-  const pdf = await pdfjs.getDocument({
-    data: new Uint8Array(bytes),
-    isEvalSupported: false,
-  }).promise;
-  const pages: string[] = [];
-  for (let index = 1; index <= pdf.numPages; index += 1) {
-    const page = await pdf.getPage(index);
-    const content = await page.getTextContent();
-    pages.push(content.items.map((item) => item.str).join(" "));
-  }
-  return pages.join("\n");
-}
-
-/**
- * The ONLY normalization this oracle allows: pdf.js synthesizes item-boundary
- * spaces and line breaks, so content is compared with whitespace runs
- * collapsed. It cannot hide dropped, truncated, duplicated or foreign text.
- */
-const readableText = (value: string): string => value.replace(/\s+/g, " ").trim();
 
 const countOccurrences = (haystack: string, needle: string): number =>
   haystack.split(needle).length - 1;
@@ -299,8 +229,9 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
     expect(text).toContain(syntheticBody(number));
     expect(text).toContain("Identificador de prueba");
     expect(text).toContain(SYNTHETIC_CLINICAL_BODY);
-    // No source identity and no retired failure ever reaches a Safe body.
-    expect(text).not.toContain(SOURCE_DNI);
+    // pdf.js can insert whitespace between text runs of the same raw DNI.
+    // No source identity and no retired failure reaches a Safe body.
+    expect(text.replace(/\s+/g, "")).not.toContain(SOURCE_DNI);
     expect(text).not.toContain("rec87-doc-");
     expect(text).not.toContain("corrupt");
     expect(text).not.toContain("sample-scanned");
@@ -336,7 +267,7 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   }
   expect(countOccurrences(consolidatedText, SYNTHETIC_CLINICAL_BODY)).toBe(10);
   expect(countOccurrences(consolidatedText, syntheticBody("99"))).toBe(0);
-  expect(consolidatedText).not.toContain(SOURCE_DNI);
+  expect(consolidatedText.replace(/\s+/g, "")).not.toContain(SOURCE_DNI);
   expect(consolidatedText).not.toContain("rec87-doc-");
   expect(consolidatedText).not.toContain("corrupt");
   expect(consolidatedText).not.toContain("sample-scanned");
