@@ -174,14 +174,14 @@ async function createAndConfigureComposedJob(page: Page): Promise<void> {
   ).toHaveCount(0);
 
   // Explicit multi-sheet selection first: never the silent first sheet.
-  await expect(page.getByRole("heading", { name: "Seleccione una hoja" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Selecciona una hoja" })).toBeVisible();
   await page.getByLabel("Hoja", { exact: true }).selectOption("Urgencias");
   await page.getByRole("button", { name: "Cargar hoja" }).click();
 
   // Ambiguous cover line + real header: explicit header-row choice, never a
   // silent first row. Row 4 (0-based index 3) is the real header.
   await expect(
-    page.getByRole("heading", { name: "Seleccione la fila de encabezado" })
+    page.getByRole("heading", { name: "Selecciona la fila de encabezado" })
   ).toBeVisible();
   // Issue #85 F1: still no resolved configuration (header row pending) — the
   // Privacy Gate action remains absent through sheet selection.
