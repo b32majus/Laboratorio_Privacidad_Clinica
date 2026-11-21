@@ -492,7 +492,7 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
     selectFiles([new File(["nota"], "historia.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Usa una sola entrada por trabajo: texto pegado o archivos, no ambos."
+      "Use una sola entrada por trabajo: texto pegado o archivos, no ambos."
     );
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
