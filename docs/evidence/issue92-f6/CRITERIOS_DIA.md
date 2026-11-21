@@ -1,6 +1,6 @@
 # REC-12 F6 · Paridad Safe individual en una sola sesión
 
-**Estado:** DISEÑO PARA APROBACIÓN DE SIL; aún no lanzar implementador ni escribir test. KairOS DIA / OpenCode directo, M/sensible por tratar reglas de contenido clínico, pero **solo con datos sintéticos**. Fuente GitHub `3.0-main@28f9ced9e7466e27d285240bff67b2a4122b15db`, issue #92.
+**Estado:** siete criterios RATIFICADOS por GO humano (21/11/2026). Autorizada ejecución local con DIA; no publicación. KairOS DIA / OpenCode directo, M/sensible por tratar reglas de contenido clínico, pero **solo con datos sintéticos**. Fuente GitHub `3.0-main@28f9ced9e7466e27d285240bff67b2a4122b15db`, issue #92.
 
 ## Siete criterios de aceptación (observables)
 
@@ -16,4 +16,4 @@
 
 **Ruta preferida:** ampliar el test E2E actual de original conservado en `e2e/rec05-result.spec.ts`, compartiendo el helper de lectura PDF con `e2e/rec87-batch-result.spec.ts` mediante `e2e/harness/`, sin otro recorrido completo. Precheck `npm run build`, `npm run typecheck:v4`, E2E vecinos; luego test RED/verde con bytes de Playwright, Prettier y revisión ciega GLM dentro de una única auditoría DIA.
 
-**STOP:** ningún dato real, secreto, cambio en React/engine/exportadores/políticas, ni descarga Confidential adicional, ni push/PR/merge/despliegue. Estas condiciones NO autorizan por sí solas publicar. Sil debe ratificar los siete criterios antes de implementar.
+**STOP:** ningún dato real, secreto, cambio en React/engine/exportadores/políticas, ni descarga Confidential adicional, ni push/PR/merge/despliegue. Sil ha ratificado los siete criterios para implementación y auditoría **solo locales**. La publicación exige otro GO.
