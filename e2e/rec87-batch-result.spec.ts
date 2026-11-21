@@ -118,6 +118,7 @@ function loadPdfjs(): Promise<PdfJsApi> {
     pdfjsSeam = (async () => {
       const [lib, worker] = await Promise.all([
         import("pdfjs-dist/legacy/build/pdf.js"),
+        // @ts-expect-error: pdfjs-dist legacy worker ships no TypeScript declaration.
         import("pdfjs-dist/legacy/build/pdf.worker.js"),
       ]);
       const libModule = lib as unknown as PdfJsModule;
@@ -288,7 +289,8 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   expect(joinedNames).not.toContain("corrupt.pdf");
   expect(joinedNames).not.toContain("sample-scanned.pdf");
   const preparedSafeTexts: { entryName: string; text: string }[] = [];
-  for (const [position, name] of entryNames.entries()) {
+  for (let position = 0; position < entryNames.length; position += 1) {
+    const name = entryNames[position];
     const number = String(position + 1).padStart(2, "0");
     const bytes = await zip.files[name].async("uint8array");
     expect(bytes.length).toBeGreaterThan(0);
@@ -328,7 +330,7 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   for (const { entryName, text } of preparedSafeTexts) {
     expect(consolidatedText, `consolidated body parity for ${entryName}`).toContain(text);
   }
-  for (const [position] of preparedSafeTexts.entries()) {
+  for (let position = 0; position < preparedSafeTexts.length; position += 1) {
     const number = String(position + 1).padStart(2, "0");
     expect(countOccurrences(consolidatedText, syntheticBody(number))).toBe(1);
   }
