@@ -30,6 +30,12 @@
  *    sessions (removed failures carry bounded disposition metadata only,
  *    never a fabricated audit body), while every Safe assertion above
  *    stays intact.
+ *  - QA-002 (REC-12 F5): the SAME downloaded ZIP and consolidated PDF are read
+ *    back through the product's legacy pdf.js seam, so the ten Safe bodies are
+ *    proven by CONTENT, not by entry/page counts: ordinal PDF NN carries its
+ *    own synthetic body and never the source DNI, a source filename or a
+ *    retired error; the consolidated repeats each of those ten Safe texts and
+ *    holds ten clinical bodies (the falsifying body 99 never appears).
  *
  * The auto no-network fixture from ./harness/fixtures applies to every test.
  */
@@ -76,6 +82,84 @@ async function acceptOpenDetection(page: Page): Promise<void> {
     .click();
   await page.getByRole("button", { name: "Aceptar detección" }).click();
 }
+
+// ---------------------------------------------------------------------------
+// Real pdf.js read-back seam (the same seam as the product oracles
+// app-v4/src/export/batchSafeDeliverables.test.ts and
+// app-v4/src/output/pdf-builder.test.ts). The ONLY input is the bytes
+// Playwright really downloaded: no second parser, no re-derivation from the
+// builder, and no expectation computed without reading an artifact.
+// ---------------------------------------------------------------------------
+
+interface PdfTextItem {
+  str: string;
+}
+interface PdfTextPage {
+  getTextContent(): Promise<{ items: PdfTextItem[] }>;
+}
+interface PdfTextDocument {
+  numPages: number;
+  getPage(index: number): Promise<PdfTextPage>;
+}
+interface PdfJsApi {
+  getDocument(params: { data: Uint8Array; isEvalSupported: boolean }): {
+    promise: Promise<PdfTextDocument>;
+  };
+}
+interface PdfJsModule extends PdfJsApi {
+  default?: PdfJsApi;
+}
+
+let pdfjsSeam: Promise<PdfJsApi> | null = null;
+
+/** Load the legacy build once and install its documented main-thread fake worker. */
+function loadPdfjs(): Promise<PdfJsApi> {
+  if (pdfjsSeam === null) {
+    pdfjsSeam = (async () => {
+      const [lib, worker] = await Promise.all([
+        import("pdfjs-dist/legacy/build/pdf.js"),
+        import("pdfjs-dist/legacy/build/pdf.worker.js"),
+      ]);
+      const libModule = lib as unknown as PdfJsModule;
+      const workerModule = worker as unknown as { default?: unknown };
+      (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = workerModule.default ?? workerModule;
+      return libModule.default ?? libModule;
+    })();
+  }
+  return pdfjsSeam;
+}
+
+/** Extract the real drawn text of every page of the downloaded PDF bytes. */
+async function extractPdfText(bytes: Uint8Array): Promise<string> {
+  const pdfjs = await loadPdfjs();
+  // A Node `Buffer` is refused by pdf.js on purpose: hand it a plain view.
+  const pdf = await pdfjs.getDocument({
+    data: new Uint8Array(bytes),
+    isEvalSupported: false,
+  }).promise;
+  const pages: string[] = [];
+  for (let index = 1; index <= pdf.numPages; index += 1) {
+    const page = await pdf.getPage(index);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => item.str).join(" "));
+  }
+  return pages.join("\n");
+}
+
+/**
+ * The ONLY normalization this oracle allows: pdf.js synthesizes item-boundary
+ * spaces and line breaks, so content is compared with whitespace runs
+ * collapsed. It cannot hide dropped, truncated, duplicated or foreign text.
+ */
+const readableText = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const countOccurrences = (haystack: string, needle: string): number =>
+  haystack.split(needle).length - 1;
+
+/** Unique synthetic body marker of one prepared document (falsifiable by ordinal). */
+const syntheticBody = (number: string): string => `Documento sintético batch ${number}`;
+const SYNTHETIC_CLINICAL_BODY = "Contenido clínico simulado para E2E";
+const SOURCE_DNI = "12345678A";
 
 test("12-document batch: blocked Result downloads nothing, recovery + review reach one Safe manifest", async ({
   page,
@@ -190,7 +274,8 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
     page.getByRole("button", { name: "Descargar documentos seguros (.zip)" }).click(),
   ]);
   expect(zipDownload.suggestedFilename()).toBe("lote-documentos-seguros.zip");
-  const zip = await JSZip.loadAsync(fs.readFileSync(await zipDownload.path()));
+  const zipBytes = fs.readFileSync(await zipDownload.path());
+  const zip = await JSZip.loadAsync(zipBytes);
   const entryNames = Object.keys(zip.files).sort();
   // Ten prepared bodies addressed by stable original index (the two removed
   // failures contribute no body); ordinal names only, never source filenames.
@@ -202,19 +287,58 @@ test("12-document batch: blocked Result downloads nothing, recovery + review rea
   expect(joinedNames).not.toContain("rec87-doc-");
   expect(joinedNames).not.toContain("corrupt.pdf");
   expect(joinedNames).not.toContain("sample-scanned.pdf");
-  for (const name of entryNames) {
-    expect((await zip.files[name].async("uint8array")).length).toBeGreaterThan(0);
+  const preparedSafeTexts: { entryName: string; text: string }[] = [];
+  for (const [position, name] of entryNames.entries()) {
+    const number = String(position + 1).padStart(2, "0");
+    const bytes = await zip.files[name].async("uint8array");
+    expect(bytes.length).toBeGreaterThan(0);
+    // Content truth, not size or page count: the REAL downloaded PDF speaks.
+    const text = readableText(await extractPdfText(bytes));
+    expect(text).toContain(syntheticBody(number));
+    expect(text).toContain("Identificador de prueba");
+    expect(text).toContain(SYNTHETIC_CLINICAL_BODY);
+    // No source identity and no retired failure ever reaches a Safe body.
+    expect(text).not.toContain(SOURCE_DNI);
+    expect(text).not.toContain("rec87-doc-");
+    expect(text).not.toContain("corrupt");
+    expect(text).not.toContain("sample-scanned");
+    expect(text).not.toContain("texto extraíble");
+    // Negative witness: an ordinal that never existed cannot be read back.
+    expect(text).not.toContain(syntheticBody("99"));
+    preparedSafeTexts.push({ entryName: name, text });
   }
+  expect(preparedSafeTexts).toHaveLength(10);
 
   const [consolidatedDownload] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Descargar PDF consolidado del lote (.pdf)" }).click(),
   ]);
   expect(consolidatedDownload.suggestedFilename()).toBe("lote-seguro-consolidado.pdf");
-  const consolidated = await PDFDocument.load(fs.readFileSync(await consolidatedDownload.path()));
+  const consolidatedBytes = fs.readFileSync(await consolidatedDownload.path());
+  const consolidated = await PDFDocument.load(consolidatedBytes);
   // Index + covers + one section per prepared document: strictly more pages
   // than bare documents.
   expect(consolidated.getPageCount()).toBeGreaterThan(10);
+
+  // Same real reader over the SAME downloaded consolidated bytes.
+  const consolidatedText = readableText(await extractPdfText(consolidatedBytes));
+  // Cross-format parity: each Safe text read from the ZIP appears verbatim in
+  // the consolidated (PDF whitespace extraction aside), so the consolidated
+  // carries the ten real bodies and not ten empty section covers.
+  for (const { entryName, text } of preparedSafeTexts) {
+    expect(consolidatedText, `consolidated body parity for ${entryName}`).toContain(text);
+  }
+  for (const [position] of preparedSafeTexts.entries()) {
+    const number = String(position + 1).padStart(2, "0");
+    expect(countOccurrences(consolidatedText, syntheticBody(number))).toBe(1);
+  }
+  expect(countOccurrences(consolidatedText, SYNTHETIC_CLINICAL_BODY)).toBe(10);
+  expect(countOccurrences(consolidatedText, syntheticBody("99"))).toBe(0);
+  expect(consolidatedText).not.toContain(SOURCE_DNI);
+  expect(consolidatedText).not.toContain("rec87-doc-");
+  expect(consolidatedText).not.toContain("corrupt");
+  expect(consolidatedText).not.toContain("sample-scanned");
+  expect(consolidatedText).not.toContain("texto extraíble");
   await page.waitForTimeout(300);
   expect(downloads).toBe(3);
 

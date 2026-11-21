@@ -1,6 +1,6 @@
 # REC-12 F5 · Criterios DIA (21/11/2026)
 
-**Estado:** propuesta para validación humana; NO autorizada aún para implementar. Base 3.0-main@739e296; issue #92. QA-002: DIA / OpenCode directo, M/sensible. PERF-002: comprobación de solo lectura primero. No tocar motor, políticas, permisos, exportadores ni datos reales.
+**Estado:** RATIFICADOS por GO humano el 21/11/2026; ejecución focal QA-002 completada localmente con OK DIA; SIN GO de publicación. Base 3.0-main@739e296; issue #92. QA-002: DIA / OpenCode directo, M/sensible. PERF-002: comprobación de solo lectura primero. No tocar motor, políticas, permisos, exportadores ni datos reales.
 
 ## Ocho criterios visibles y verificables
 
