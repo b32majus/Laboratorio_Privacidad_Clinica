@@ -1,6 +1,6 @@
 # REC-12 F9 · Criterios de cierre H-01/PDR-08 para ratificación humana
 
-**Estado: PROPUESTA, AÚN NO AUTORIZADA PARA IMPLEMENTAR.** DIA M/sensible vía OpenCode directo: afecta estados de error, información clínica de ejemplo y mensajes de salidas Safe/Confidential. No se modificará el motor; todos los datos serán sintéticos. Base verificada en F8: `3.0-main@c615a9d` y evidencia `H01_PDR08_STATE_LEDGER.md`.
+**Estado: OCHO CRITERIOS RATIFICADOS POR GO HUMANO EL 21/11/2026 para implementar y auditar LOCALMENTE.** DIA M/sensible vía OpenCode directo: afecta estados de error, información clínica de ejemplo y mensajes de salidas Safe/Confidential. No se modificará el motor; todos los datos serán sintéticos. Base verificada en F8: `3.0-main@c615a9d` y evidencia `H01_PDR08_STATE_LEDGER.md`.
 
 ## Ocho criterios visibles y comprobables
 
@@ -13,4 +13,4 @@
 7. **Prueba nueva que pueda fallar.** Reutilizar E2E y fixtures existentes. Añadir como máximo el testigo necesario para los **estados abiertos** del inventario F8: al menos error de entrada, fallo de lote, bloqueo estructurado y fallo/confirmación de salida. Comprobar texto visible y nombre accesible, y demostrar que alterar una expectativa produce RED antes de restaurar; no repetir 1.561 unitarios para declararlos «testigos nuevos».
 8. **Conciliación honesta y segura.** Solo tras comprobar los estados abiertos se propone actualizar `H-01` y `PDR-08` en la matriz con fecha, evidencia exacta y veredicto justificado. Si queda una variante sin demostrar, conservar `PARTIAL/VERIFICATION_PENDING` (no declarar `VERIFIED_RESOLVED`). No tocar motor clínico, políticas, sesiones, exportadores, permisos, secretos ni material real. No adelantar las correcciones visuales F3: el orden sigue **#92 → #93 → UX**.
 
-**GO humano requerido:** ratificar los ocho criterios antes de escribir o lanzar el test y el cambio de copy/matriz. Implementar y auditar localmente mediante KairOS DIA M/sensible con revisor ciego de otra familia. Un GO a estos criterios **no** autoriza push, PR, merge ni despliegue; cada publicación posterior necesita GO específico.
+**GO humano recibido:** ocho criterios ratificados para escribir el test y aplicar copy/matriz localmente. Implementar y auditar localmente mediante KairOS DIA M/sensible con revisor ciego de otra familia. Un GO a estos criterios **no** autoriza push, PR, merge ni despliegue; cada publicación posterior necesita GO específico.

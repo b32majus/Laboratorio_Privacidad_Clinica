@@ -431,7 +431,7 @@ describe("PrivacyGate — document batch facts (T17 #21 WU-C1, SD-9)", () => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent('"informe-a.txt"');
     expect(alert).toHaveTextContent("El PDF no tiene capa de texto.");
-    expect(alert).toHaveTextContent("Cree un nuevo trabajo sin él para continuar.");
+    expect(alert).toHaveTextContent("Crea un nuevo trabajo sin él para continuar.");
   });
 
   it("blocks with the pending count across non-error items while review is incomplete", () => {

@@ -120,7 +120,7 @@ describe("Input start examples (REC-08 #80)", () => {
     expect(draftTextarea()).toHaveValue("");
     fireEvent.click(createButton());
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Hay archivos seleccionados en el borrador. Abra «Archivos y tablas» para revisarlos y crear el trabajo."
+      "Hay archivos seleccionados en el borrador. Abre «Archivos y tablas» para revisarlos y crear el trabajo."
     );
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(draftTextarea()).toHaveValue("");
@@ -146,7 +146,7 @@ describe("Input start examples (REC-08 #80)", () => {
     expect(screen.queryByRole("list", { name: "Archivos seleccionados" })).toBeNull();
     fireEvent.click(createButton());
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Hay texto pegado en el borrador. Abra «Texto clínico» para revisarlo y crear el trabajo."
+      "Hay texto pegado en el borrador. Abre «Texto clínico» para revisarlo y crear el trabajo."
     );
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Archivos seleccionados" })).toBeNull();
