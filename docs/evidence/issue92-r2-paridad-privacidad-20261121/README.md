@@ -62,3 +62,16 @@
 R2 queda conciliada como diagnóstico: un riesgo técnico concreto pendiente de prueba/corrección, sin defectos demostrados en los PDF/ZIP del lote ni en el contenido Safe normalmente descargado. **No se puede cerrar #92** mientras el riesgo de mensaje no acotado permanezca sin resolver o descartar con falsador y mientras R3 (visual, idioma residual y benchmark) carezca de decisión humana.
 
 R3 y R4 solo después de respetar el STOP de R2-01; #93 sigue subordinado a #92. No realizar push/PR/merge/deploy ni cambiar el issue por este informe.
+
+---
+
+## Adenda posterior (21/11/2026) · R2-01 corregido y auditado LOCALMENTE
+
+Esta adenda actualiza el estado operativo del hallazgo que arriba figuraba como pendiente, **sin modificar la evidencia histórica del diagnóstico**. Sil dio GO expreso a los ocho criterios de R2-01 para implementar y auditar *solo localmente*.
+
+- Worktree Herdr nuevo: `/srv/kairos-lab/qualification/laboratorio-rec12-r2-01-xlsx-error-guard-20261121`, rama `work/lab-rec12-r2-01-xlsx-error-guard-20261121` sobre R2 local. Contrato RED propio del diseñador en commit `a0da94e`: dos tests añadidos a `ExportStep.unmount.test.tsx`, **2 fallos esperados** sobre la base, 5 casos anteriores PASS; ambos fallos por muestra de sentinela de error sintético en DOM.
+- Ejecutó DeepSeek V4.1 Flash como IMPLEMENTADOR directo DIA en panel de Herdr. Un solo fichero de producción modificado: `app-v4/src/export/ExportStep.tsx` (dos catch). Safe XLSX y Confidential XLSX ya no consultan `Error.name/message`; generan texto público fijo y comprueban autoridad vigente para no pintar errores de trabajos caducados. La rama TXT del catch compartido recibe texto seguro propio para no etiquetar mal el formato, sin cambiar la descarga de éxito.
+- Las dos pruebas RED pasaron a **GREEN** sin cambiar sus expectativas; testigos de fallo verifican **0 descargas** y ausencia de `Error.name` y `Error.message` sintéticos en DOM completo. El control estático sigue prohibiendo console.* en el código runtime. No se ha probado una fuga clínica real.
+- Auditor Cora reejecutó sobre el candidato: **build PASS; 5 suites Vitest / 76 tests PASS; 9/9 E2E Playwright PASS** (documento, lote y estructurado, puerto aislado); **TypeScript, ESLint, Prettier, check:external source (85 archivos) y git diff --check PASS**. Advertencias conocidas de fuentes pdf.js y tamaño del bundle sin fallos.
+- Revisor ciego `opencode-go/glm-5.3-flash`, solo lectura, independiente de DeepSeek y auditor: **sin hallazgos bloqueantes**. Observación baja: un doble clic Safe podría provocar dos descargas, comportamiento *preexistente*, fuera del contrato R2-01; no se abrió cadena adicional.
+- **Veredicto de auditoría DIA: OK LOCAL de R2-01; 0 REHACER.** Sin push, PR, merge, deploy ni cierre #92; hasta publicación del candidato esta corrección **NO está integrada en `3.0-main`**. Mantener pendientes R3 (fidelidad visual, idioma residual, rendimiento) y R4 acta de #92; no declarar uso con PHI.

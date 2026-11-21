@@ -449,13 +449,20 @@ function StructuredExport({
           structured === null ? null : deriveStructuredSummary(structured.configuration)
         )
       );
-    } catch (error) {
+    } catch {
+      // REC-12 R2-01: an arbitrary exception is not a display authority.
+      // `Error.message`/`Error.name` are writable and unconstrained (a message
+      // can name a source file, a name can carry any text at all), so neither
+      // is ever captured into state or rendered: the visible alert is the
+      // fixed public copy already used by this branch (CODING_STANDARDS §4;
+      // same policy as `batchSafeDiagnostic`). A failure that arrives once the
+      // requested Job/preparation is no longer current — or after the surface
+      // was unmounted — paints nothing, so no stale warning survives onto
+      // another Job. Zero bytes are downloaded either way.
+      if (!isSafeCurrent(requestedJobId, requestedPreparation)) return;
       setXlsxError({
         zone: "safe",
-        message:
-          error instanceof Error
-            ? error.message
-            : "No se pudo generar la salida segura en XLSX a partir del resultado preparado.",
+        message: "No se pudo generar la salida segura en XLSX a partir del resultado preparado.",
       });
     }
   };
@@ -499,13 +506,31 @@ function StructuredExport({
           buildConfidentialXlsxBytes(lib, preparation.output.confidential)
         );
       }
-    } catch (error) {
+    } catch {
+      // REC-12 R2-01: this branch receives BOTH formats, and neither may echo
+      // an arbitrary exception: `Error.message`/`Error.name` are writable and
+      // unconstrained, so an unexpected failure collapses to fixed public copy
+      // per format (CODING_STANDARDS §4; same policy as
+      // `batchConfidentialDiagnostic`). A TXT failure is never reported with
+      // XLSX wording, and vice versa.
+      if (format === "txt") {
+        // Synchronous path: only disposal can make this warning moot.
+        if (disposedRef.current) return;
+        setXlsxError({
+          zone: "confidential",
+          message:
+            "No se pudo generar la auditoría confidencial (.txt) a partir del resultado preparado.",
+        });
+        return;
+      }
+      // XLSX path is awaited: a late failure only reports while the exact
+      // confirmed Job + preparation are still current (never after disposal,
+      // a Job change or a newly blocked/stale preparation).
+      if (!isConfirmationCurrent(requestedJobId, requestedPreparation)) return;
       setXlsxError({
         zone: "confidential",
         message:
-          error instanceof Error
-            ? error.message
-            : "No se pudo generar la auditoría confidencial en XLSX a partir del resultado preparado.",
+          "No se pudo generar la auditoría confidencial en XLSX a partir del resultado preparado.",
       });
     }
   };
