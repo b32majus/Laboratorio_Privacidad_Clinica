@@ -1,0 +1,12 @@
+# Laboratorio de Privacidad Clínica — KairOS HANDOFF
+
+## EMPEZAR AQUÍ
+1. Fecha 2026-11-21. Estado: REC12_92_R1_EVIDENCE_BY_ROW_DOCUMENTED_LOCAL. Sil autorizó continuar desde la conciliación única previa; completada R1 de lectura y documentación; no es recuperación completa ni cierre de #92.
+2. Autoridad GitHub: b32majus/Laboratorio_Privacidad_Clinica, clínica V4 **3.0-main@46bce0a8f8a25ac5c18c41b2303ae2c785246ddd**, PR #140 MERGED, CI postmerge verde; default **main** es otra versión. Issues #92 y #93 OPEN; PR abiertos 0 al inicio. Verificar antes de actuar.
+3. Worktree Herdr propio R1: /srv/kairos-lab/qualification/laboratorio-rec12-r1-evidence-ledger-20261121, rama work/lab-rec12-r1-evidence-ledger-20261121, creada desde origin/3.0-main. Checkout original de Sil y otras worktrees intactos. No tmux/screen ni reinicio de Herdr.
+4. Documentación R1: docs/evidence/issue92-r1-reconciliacion-20261121/README.md + EVIDENCIA_POR_FILA.csv (142 filas). Se cotejaron IDs, rutas y clases contra ledger B3 del SHA histórico 184acc6; ninguna fila recibe PASS por apuntar a un test.
+5. Resumen 142: 100 evidencia relacionada, 1 focal, 23 pendientes históricos disjuntos reclasificados (9 evidencia F4/CI, 6 #93, 2 QA/privacidad, 2 idioma, 2 UX, 1 rendimiento, 1 tipografía), 14 deuda posterior, 2 decisiones supersedidas y 2 decisiones visuales humanas. Referencias de F4-F9 añadidas cuando aplican. 23 filas citan tests que cambiaron desde B3.
+6. Riesgo DISC-02 ya corregido PR #126 y testigos F4/actual; NO implementar de nuevo. QA-002 y PRIV-003 aún no demuestran paridad universal, H-01/PDR-08 y G-HP visual quedan parcialmente pendientes; no considerar apta para PHI.
+7. Siguiente R2: tabla de paridad material QA-002 y canales PRIV-003 con testigos de CI/E2E actuales; SOLO si hay hueco real, proponer un test falsador mínimo y criterios humanos. Si aparece defecto productivo, STOP antes de código. Usar DIA fase de diseño, M/sensible si requiere cambios de privacidad, y respetar GO humano.
+8. R3 exige decisiones humanas: 3 vistas Sophilux vs cerrar #92, español residual, benchmark GAP-01/PERF-002; R4 acta único GO/NO-GO de los 6 criterios #92 sobre SHA final. Solo después #93, y UX en orden acordado.
+9. R1 es exclusivamente documental; no se modificó aplicación, motor, reglas, tests, matriz histórica, CI, GitHub issues, servicios ni despliegue. No push, PR, merge ni deploy. Historial: HANDOFF_HISTORICO_20261121_PRE_R1.md; análisis R0 no publicado en worktree laboratorio-rec12-one-pass-closeout-triage-20261121.
