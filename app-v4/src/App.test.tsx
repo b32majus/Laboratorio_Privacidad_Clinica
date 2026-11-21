@@ -1084,7 +1084,7 @@ describe("App document intake (T06)", () => {
     const alert = await screen.findByRole("alert");
     // REC-08 F1: Spanish presentation (failure + remedy).
     expect(alert).toHaveTextContent(/no se pudo leer/i);
-    expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
+    expect(alert).toHaveTextContent(/inténtalo de nuevo/i);
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
 

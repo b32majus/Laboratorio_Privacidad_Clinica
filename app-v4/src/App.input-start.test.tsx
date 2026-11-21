@@ -541,7 +541,7 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
       new File(["a,b"], "labs.csv"),
     ]);
     expect(alert).toHaveTextContent(/no se pueden combinar/i);
-    expect(alert).toHaveTextContent(/cree un trabajo aparte/i);
+    expect(alert).toHaveTextContent(/crea un trabajo aparte/i);
     expect(alert).not.toHaveTextContent(/cannot be mixed/i);
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
@@ -560,7 +560,7 @@ describe("Input start refusal presentation in Spanish (REC-08 #80 F1)", () => {
     render(<App />);
     const alert = await refuseWith([new File(["no es un docx válido"], "corrupt.docx")]);
     expect(alert).toHaveTextContent(/no se pudo leer/i);
-    expect(alert).toHaveTextContent(/inténtelo de nuevo/i);
+    expect(alert).toHaveTextContent(/inténtalo de nuevo/i);
     expect(alert).not.toHaveTextContent(/could not be parsed/i);
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });
