@@ -869,3 +869,52 @@ describe("PrivacyGate — checkpoint cause discrimination (UX-CLOSEOUT-01 #63)",
     expect(checkpoint.querySelectorAll("p")).toHaveLength(1);
   });
 });
+
+/**
+ * REC-12 F7 — presentation-only contract, 2026-11-21.
+ * Fail-closed facts come from REAL domain Job/ReviewSession; only visible
+ * checkpoint copy is being revised (no new readiness authority).
+ */
+describe("REC-12 F7 professional Spanish checkpoint copy", () => {
+  it("names two pending mandatory decisions factually without trust language", () => {
+    renderGate(buildJob(), buildSession());
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Necesita atención");
+    expect(checkpoint).toHaveTextContent(
+      "Quedan 2 decisiones de revisión obligatorias pendientes."
+    );
+    expect(checkpoint).not.toHaveTextContent(/confíe en esta revisión/i);
+    expect(checkpoint).not.toHaveTextContent(/error de procesamiento/i);
+    expect(screen.getByText("No preparada")).toBeInTheDocument();
+  });
+
+  it("preserves singular grammar for precisely one pending mandatory decision", () => {
+    let review = buildSession();
+    review = applyDecision(review, review.detections[0].id, "accepted");
+    renderGate(buildJob(), review);
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent("Queda 1 decisión de revisión obligatoria pendiente.");
+    expect(checkpoint).not.toHaveTextContent(/confíe en esta revisión/i);
+    expect(checkpoint).not.toHaveTextContent(/error de procesamiento/i);
+    expect(screen.getByText("No preparada")).toBeInTheDocument();
+  });
+
+  it("distinguishes a genuine processing error from pending decisions", () => {
+    const base = buildJob();
+    const job = {
+      ...base,
+      errors: [{ code: "extraction-failed", message: "Fallo de prueba sintético." }],
+    } as Job;
+    renderGate(job, buildSession());
+    const checkpoint = screen.getByRole("region", { name: "Punto de control de la decisión" });
+    expect(checkpoint).toHaveTextContent(
+      "Hay un error de procesamiento que requiere atención antes de preparar la salida."
+    );
+    expect(checkpoint).not.toHaveTextContent(/confíe en esta revisión/i);
+    expect(checkpoint).not.toHaveTextContent(/Quedan 2 decisiones/i);
+    expect(screen.getByRole("list", { name: /errores del trabajo/i })).toHaveTextContent(
+      "Fallo de prueba sintético."
+    );
+    expect(screen.getByText("No preparada")).toBeInTheDocument();
+  });
+});

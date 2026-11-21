@@ -1,6 +1,6 @@
 # REC-12 F7 · Criterios KairOS DIA para H-01 / PDR-08
 
-**Estado: PROPUESTA, pendiente de GO humano de criterios antes de implementar.** Base canónica `3.0-main@4a649fdba442f7a246d02fa81ba15d09efb318a8`. Tamaño **M / sensible** por mensajes de privacidad; vía prevista OpenCode directo con test RED del diseñador y ejecutor distinto. Todo material de prueba sintético, sin datos clínicos reales.
+**Estado: OCHO CRITERIOS RATIFICADOS por GO humano para implementación local (21/11/2026).** Base canónica `3.0-main@4a649fdba442f7a246d02fa81ba15d09efb318a8`. Tamaño **M / sensible** por mensajes de privacidad; vía prevista OpenCode directo con test RED del diseñador y ejecutor distinto. Todo material de prueba sintético, sin datos clínicos reales.
 
 ## Ocho criterios observables para la siguiente unidad
 
@@ -17,4 +17,4 @@
 
 Primer cambio de **presentación exclusivamente**: `app-v4/src/review/BatchReviewView.tsx` (imperativo uniforme) y `app-v4/src/privacy-gate/PrivacyGate.tsx` (seis ramas de mensaje), y los tests directamente afectados; el diseñador escribe el test de aceptación antes de lanzar. Mantener el resto sin cambios. No modificar la matriz `H-01=LOST` ni `PDR-08=PENDING_COMPOSED` a PASS antes de cerrar el barrido de estados y confrontar la auditoría. El barrido G-HP se documenta en F7, pero un ajuste espacial visual requiere decisión humana separada, no forma parte de esta intervención de copy.
 
-**STOP humano actual:** confirmar estos ocho criterios para implementar localmente. Autorizar los criterios **no** concede autorización de push, PR, merge o despliegue.
+**STOP publicación:** los ocho criterios ya están ratificados para DIA local. **No** conceden autorización de push, PR, merge o despliegue.
