@@ -1,0 +1,286 @@
+{
+  "syntheticOnly": true,
+  "generatedAt": "2026-11-21T14:27:10.849Z",
+  "scenarios": [
+    {
+      "scenario": "revision",
+      "viewport": "1440x900",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "revision",
+      "reviewDecisionButtons": {
+        "x": 1064,
+        "y": 540,
+        "width": 318,
+        "height": 184
+      },
+      "reviewFindings": {
+        "x": 721,
+        "y": 440,
+        "width": 312,
+        "height": 510
+      },
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": null,
+      "resultKeepWarning": null,
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "celdas",
+      "viewport": "1440x900",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "celdas",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": {
+        "x": 1043,
+        "y": 526,
+        "width": 339,
+        "height": 184
+      },
+      "cellContent": {
+        "x": 388,
+        "y": 347,
+        "width": 625,
+        "height": 412
+      },
+      "resultPrimary": null,
+      "resultKeepWarning": null,
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "resultado-listo",
+      "viewport": "1440x900",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "resultado",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": {
+        "x": 71,
+        "y": 369,
+        "width": 185,
+        "height": 41
+      },
+      "resultKeepWarning": {
+        "x": 42,
+        "y": 448,
+        "width": 1356,
+        "height": 66
+      },
+      "safePreviewCount": 1,
+      "safeMarkerExists": true,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "resultado-pendiente",
+      "viewport": "1440x900",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "resultado",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": null,
+      "resultKeepWarning": {
+        "x": 42,
+        "y": 448,
+        "width": 1356,
+        "height": 66
+      },
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "resultado-bloqueado",
+      "viewport": "1440x900",
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "resultado",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": null,
+      "resultKeepWarning": {
+        "x": 42,
+        "y": 448,
+        "width": 1356,
+        "height": 66
+      },
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "revision",
+      "viewport": "375x800",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "revision",
+      "reviewDecisionButtons": {
+        "x": 28,
+        "y": 512,
+        "width": 319,
+        "height": 164
+      },
+      "reviewFindings": {
+        "x": 15,
+        "y": 3431,
+        "width": 345,
+        "height": 510
+      },
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": null,
+      "resultKeepWarning": null,
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "celdas",
+      "viewport": "375x800",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "celdas",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": {
+        "x": 27,
+        "y": 501,
+        "width": 321,
+        "height": 168
+      },
+      "cellContent": {
+        "x": 14,
+        "y": 834,
+        "width": 347,
+        "height": 321
+      },
+      "resultPrimary": null,
+      "resultKeepWarning": null,
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "resultado-listo",
+      "viewport": "375x800",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "resultado",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": {
+        "x": 32,
+        "y": 387,
+        "width": 146,
+        "height": 38
+      },
+      "resultKeepWarning": {
+        "x": 14,
+        "y": 605,
+        "width": 347,
+        "height": 77
+      },
+      "safePreviewCount": 1,
+      "safeMarkerExists": true,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "resultado-pendiente",
+      "viewport": "375x800",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "resultado",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": null,
+      "resultKeepWarning": {
+        "x": 14,
+        "y": 605,
+        "width": 347,
+        "height": 77
+      },
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    },
+    {
+      "scenario": "resultado-bloqueado",
+      "viewport": "375x800",
+      "innerWidth": 375,
+      "scrollWidth": 375,
+      "title": "R3 · Maqueta Sophilux B · Revisión, Celdas y Resultado",
+      "activeView": "resultado",
+      "reviewDecisionButtons": null,
+      "reviewFindings": null,
+      "cellDecisionButtons": null,
+      "cellContent": null,
+      "resultPrimary": null,
+      "resultKeepWarning": {
+        "x": 14,
+        "y": 564,
+        "width": 347,
+        "height": 77
+      },
+      "safePreviewCount": 0,
+      "safeMarkerExists": false,
+      "activeFonts": {
+        "inter": true,
+        "cormorant": true
+      }
+    }
+  ]
+}

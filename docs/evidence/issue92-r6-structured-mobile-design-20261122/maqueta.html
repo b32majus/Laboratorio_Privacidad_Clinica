@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>R6 · Propuesta móvil para 32 columnas · Laboratorio de Privacidad Clínica</title>
+<link rel="stylesheet" href="maqueta.css">
+<script src="maqueta.js" defer></script>
+</head>
+<body>
+<div class="desktop-caption" style="display:none">Propuesta R6 exclusiva para composición móvil · ancho de referencia 375 px</div>
+<div class="app">
+<header class="brandbar">
+  <div class="brandline">
+    <svg class="shield" viewBox="0 0 32 40" role="img" aria-label="Identidad visual Laboratorio"><path d="M16 2 L28 7 V19 C28 28 23 34 16 38 C9 34 4 28 4 19 V7 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16 5 V33 M6 19 H26" stroke="currentColor" stroke-width="1.1"/></svg>
+    <div><div class="brand-name">Laboratorio de Privacidad<br><span>Clínica</span></div><div class="brand-sub">CLÍNICA · SOPHILUX</div></div>
+  </div>
+  <div class="header-actions" aria-label="Acciones de sesión (solo demostración)">
+    <button type="button" data-demo-action="Nuevo trabajo">Nuevo trabajo</button>
+    <button type="button" data-demo-action="Borrar sesión">Borrar sesión</button>
+  </div>
+</header>
+<div class="task-meta">
+  <div class="jobline"><strong>Trabajo:</strong> <span>f3-32-columnas.csv</span></div>
+  <div class="meta-row"><span class="privacy">Política: Estándar</span><small>Procesamiento local</small></div>
+</div>
+<main>
+  <div class="kicker">DATOS ESTRUCTURADOS / PREPARACIÓN</div>
+  <h1>Revisar columnas</h1>
+  <p class="lead">Clasifica cada columna antes de preparar la salida.</p>
+  <section class="panel status-card" aria-label="Estado realista del trabajo simulado">
+    <div class="counts">
+      <span class="count-pill"><strong>32</strong> columnas</span>
+      <span class="count-pill warn"><strong>19</strong> pendientes</span>
+      <span class="count-pill">Salida: no preparada</span>
+    </div>
+    <div class="blocked"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2 L19 18 H1 Z" stroke="currentColor" stroke-width="1.6"/><path d="M10 7 V12 M10 14.5 V15.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Exportación estructurada bloqueada</div>
+    <p class="reasonline">17 columnas sin resolver; <strong>Fecha_Visita</strong> y <strong>Fecha_Nacimiento</strong> sin transformación aceptada.</p>
+    <p class="reasonline">ID de paciente: <strong>sin seleccionar</strong> (control único más abajo).</p>
+    <details class="hint-more"><summary>Qué impide continuar</summary><ul><li>Las columnas desconocidas requieren una clasificación explícita.</li><li>Las dos fechas necesitan un tratamiento admitido.</li><li>Hasta resolverlo, no hay salida preparada ni descargas.</li></ul></details>
+  </section>
+
+  <div class="workspace">
+    <section class="panel active-card" id="decision" aria-labelledby="active-name">
+      <div class="card-head"><span class="overline">Decisión activa · <span id="active-position">3 / 32</span></span><span class="tag pending" id="active-status">Requiere revisión</span></div>
+      <h2 class="active-name" id="active-name" tabindex="-1">Fecha_Visita</h2>
+      <dl class="facts">
+        <dt>Clasificación</dt><dd id="active-class">Cuasi-identificador</dd>
+        <dt>Tratamiento efectivo</dt><dd id="active-treatment">Requiere revisión</dd>
+        <dt>Rol de fecha</dt><dd id="active-date">Ninguno</dd>
+      </dl>
+      <div class="rule"></div>
+      <label class="field" for="class-select">Clasificación del revisor para <span data-name>Fecha_Visita</span>
+        <select id="class-select">
+          <option>Desconocido</option><option>Identificador</option><option>Cuasi-identificador</option><option>Sensible</option><option>No sensible</option>
+        </select>
+      </label>
+      <label class="field" for="date-select">Rol de fecha para <span data-name>Fecha_Visita</span>
+        <select id="date-select"><option>Ninguno</option><option>Fecha de visita</option><option>Fecha de nacimiento</option></select>
+      </label>
+      <label class="field" for="action-select">Acción del revisor para <span data-name>Fecha_Visita</span>
+        <select id="action-select" disabled aria-describedby="active-guidance"><option>Requiere revisión</option></select>
+      </label>
+      <p class="guidance" id="active-guidance">La columna continúa pendiente hasta que su clase, rol de fecha y acción admitida estén resueltos. Nunca se conserva automáticamente.</p>
+      <details class="evidence"><summary>Evidencia y detalles detectados</summary><p>Propuesta inicial, confianza y procedencia visibles aquí en la aplicación real. La maqueta no muestra valores de celdas.</p></details>
+      <div class="card-actions">
+        <button type="button" class="action primary" id="next-pending">Ver otra pendiente</button>
+        <a href="#tabla" class="action">Ver 32 columnas</a>
+      </div>
+      <p class="demo-message" id="demo-message" role="status">Solo demostración de jerarquía y selección. No se guardan decisiones.</p>
+    </section>
+    <section class="panel patient-card" aria-labelledby="patient-title">
+      <h2 class="smalltitle" id="patient-title">Autoridad de identificación del paciente</h2>
+      <p class="helper">Se elige una sola columna para todo el trabajo. Todavía no hay ninguna seleccionada.</p>
+      <label class="field" for="patient-id-column">Columna de identificación del paciente
+        <select id="patient-id-column"><option>Sin seleccionar</option><option>NHC</option><option>DNI</option><option>Codigo_Episodio</option></select>
+      </label>
+    </section>
+    <section class="panel table-card" id="tabla" aria-labelledby="table-heading">
+      <div class="sectiontop"><h2 id="table-heading">Comparativa de columnas</h2><span>32 en origen</span></div>
+      <p class="table-lead">Cuatro campos comparables y selección contextual. Desplaza la tabla lateralmente sin mover toda la página.</p>
+      <div class="filters" role="group" aria-label="Filtro visual del prototipo">
+        <button type="button" data-filter="all" aria-pressed="true">Todas (32)</button>
+        <button type="button" data-filter="pending" aria-pressed="false">Pendientes (19)</button>
+      </div>
+      <div class="table-region" role="region" tabindex="0" aria-label="Tabla comparativa de columnas (desplazable horizontalmente)">
+        <table aria-label="Lista de clasificación de columnas"><thead><tr><th scope="col">Columna</th><th scope="col">Clasificación vigente</th><th scope="col">Tratamiento efectivo</th><th scope="col">Estado / acción pendiente</th></tr></thead><tbody id="column-rows"></tbody></table>
+      </div>
+      <p class="table-footer"><strong>Selecciona una columna</strong> para cambiar el contexto del inspector. Esto no acepta decisiones ni modifica la salida.</p>
+    </section>
+  </div>
+  <details class="options"><summary>Opciones de salida</summary><p>Prefijo de ID de estudio, numeración de visitas y datos de salida. En el producto real se mantienen sus controles y validaciones.</p></details>
+  <button type="button" class="bottom-action" disabled>Comprobación de privacidad · no disponible</button>
+  <div class="policy-footer"><strong>Política de privacidad</strong><p>Política actual: Estándar. Su explicación detallada sigue accesible sin ocupar el área principal de decisión.</p></div>
+  <div class="design-note"><strong>Propuesta visual R6.</strong> No es la aplicación real; no procesa información, no autoriza exportaciones y no persiste cambios. El contador 32/19 es un escenario sintético fijo.</div>
+</main>
+</div>
+</body>
+</html>

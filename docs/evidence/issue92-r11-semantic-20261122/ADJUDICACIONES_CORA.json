@@ -1,0 +1,98 @@
+[
+  {
+    "id": "ARCH-006",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "app-v4/src/review/review-domain.test.ts:104; app-v4/src/engine/legacy-modules.d.ts:101",
+    "reason": "El requisito es definir y aplicar el contrato ReviewDecision. Existe el tipo y la prueba aplica modificaciones, restauraciones y persistencia en la sesión; un schema runtime separado NO era exigencia de fuente."
+  },
+  {
+    "id": "CI-001",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "docs/evidence/issue92-r11-semantic-20261122/GITHUB_GATE_SNAPSHOT.txt:3; .github/workflows/ci.yml:35; package.json:44",
+    "reason": "CI exige literalmente npm test completo y GitHub ha pasado validate y e2e, entre otros, sobre la cabeza exacta 8e1fa97 del PR #141. Se corrige la limitación obsoleta de revisor; publicación en #93 es otra cosa."
+  },
+  {
+    "id": "CODE-001",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "package.json:12; eslint.config.mjs:10; .github/workflows/ci.yml:35",
+    "reason": "ESLint, Prettier y typecheck de V4 están configurados y pasan en la validación de CI de este candidato. La deuda de tipado del core JS se mantiene separada en CODE-002."
+  },
+  {
+    "id": "CODE-003",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "app-v4/src/export/ExportStep.tsx:576; e2e/rec05-result.spec.ts:493",
+    "reason": "El requisito de retirar alert() se verifica por búsqueda del código productivo (0 llamadas) y estado de error UI real probado. No requiere inventar una aserción de ausencia futura universal."
+  },
+  {
+    "id": "GOV-002",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "docs/evidence/issue92-r11-semantic-20261122/GITHUB_GATE_SNAPSHOT.txt:12; docs/governance/CANONICAL_AUTHORITY.md:57",
+    "reason": "GitHub confirma 3.0-main protected:true y PR #141 con checks requeridos en verde; que el candidato no esté fusionado pertenece a autorización de publicación, no a branch protection."
+  },
+  {
+    "id": "UX-001",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "docs/audits/2026-09-ux-ui-product-flow-audit.md:1; e2e/ux-closeout-shell.spec.ts:77",
+    "reason": "El objeto del requisito era producir la auditoría SPA/navegación y ejecutar la recuperación coherente con ella. Existe el entregable congelado y E2E comprueba el shell sin etapa ceremonial; NO certifica toda UX universal."
+  },
+  {
+    "id": "UX-007",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "e2e/ux-closeout-shell.spec.ts:77; e2e/rec05-result.spec.ts:493",
+    "reason": "La app V4 carece del disclaimer rojo permanente heredado; sí presenta error contextual contrastado por E2E cuando procede."
+  },
+  {
+    "id": "ARCH-009",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "package.json:8; app-v4/src/App.tsx:1; vite.config.ts:1",
+    "reason": "La implementación candidata ya es SPA Vite + TS + React y el build real pasa. Este es un contrato de composición técnica, no un comportamiento que necesite un test de botón dedicado."
+  },
+  {
+    "id": "ARCH-010",
+    "status": "STRUCTURAL_PASS",
+    "evidence": "app-v4/src/engine/legacy-engine.ts:1; app-v4/src/engine/registry-engine.test.ts:218",
+    "reason": "V4 conserva el core legacy detrás del adaptador instanciable probado, sin migración big-bang. La deuda independiente de singletons internos queda en ARCH-003."
+  },
+  {
+    "id": "H-02",
+    "status": "VISUAL_HUMAN_APPROVED_SCOPED",
+    "evidence": "app-v4/src/visual/sophilux-v1.css:19; docs/evidence/issue92-r3-react-20261122/README.md:1",
+    "reason": "La dirección Sophilux R3 fue aprobada por la persona responsable y está aplicada al shell real. Se conserva el límite: dicha aprobación no significa evaluar todos los estados y flujos futuros."
+  },
+  {
+    "id": "H-03",
+    "status": "ACCEPTED_NONBLOCKING_TARGET_GAP",
+    "evidence": "docs/evidence/issue92-source-completeness/README.md:495; tailwind.config.cjs:18",
+    "reason": "Stage A, 13/10/2026, documenta autorización humana previa de dejar JetBrains Mono como TARGET_GAP NO implementado y NO bloqueante. No es una nueva decisión humana pendiente ni un PASS de tipografía."
+  },
+  {
+    "id": "H-20",
+    "status": "SEMANTIC_PASS",
+    "evidence": "app-v4/src/structured/intake.test.ts:133; app-v4/src/structured/intake.ts:54",
+    "reason": "R11 incorporó prueba con bytes binarios BIFF8 reales generados por SheetJS y pasados al lector productivo .xls; 17/17 pruebas de intake PASS. La revisión inicial se hizo sobre RC1 anterior al test, por ello esta prueba depende del commit db3db11."
+  },
+  {
+    "id": "UX-012",
+    "status": "SEMANTIC_PASS",
+    "evidence": "e2e/rec12-r11-touch-operability.spec.ts:9; e2e/review-productivity.spec.ts:54",
+    "reason": "R11 añadió Playwright real con hasTouch:true a 375px, tap para crear Job, decidir un hallazgo y verificar feedback y sin overflow; 1/1 E2E PASS. Cobertura representativa, no universal táctil."
+  },
+  {
+    "id": "GOV-001",
+    "status": "GOVERNANCE_93",
+    "evidence": "docs/evidence/issue92-r11-semantic-20261122/GITHUB_GATE_SNAPSHOT.txt:14; docs/governance/CANONICAL_AUTHORITY.md:7",
+    "reason": "El default GitHub continúa main frente a canónica 3.0-main: decisión/cambio remoto de autoridad y propiedad humana para #93, no defecto funcional REC-12."
+  },
+  {
+    "id": "GOV-003",
+    "status": "GOVERNANCE_93",
+    "evidence": "README.md:1; package.json:3",
+    "reason": "README/package coinciden en v4.0.0, pero la identidad de versión visible en la SPA no está demostrada. Cerrar documentación de versión y runtime con #93 sin inventar implementación."
+  },
+  {
+    "id": "FUNC-007",
+    "status": "PARTIAL",
+    "evidence": "app-v4/src/review/ReviewWorkspace.tsx:676; app-v4/src/review/ReviewWorkspace.test.tsx:913; app-v4/src/review/ReviewWorkspace.test.tsx:965",
+    "reason": "El revisor omitió el path completo y afirmó que faltaba falsador. EXISTEN 13 pruebas adversariales de offsets, anclas DOM falsificadas/obsoletas, selección externa y texto mutado; rechazan sin estado. Se conserva PARTIAL únicamente porque la letra del requisito de fuente prohibía *cualquier* derivación de offsets mediante DOM, mientras el capturador los usa tras validación contra el texto canónico."
+  }
+]

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "PDR-01",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/ux-closeout-shell.spec.ts:79-80 y :99 y :116 (heading 'Preparar datos' count 0 en texto, documento y lote, con la lista real 'Hallazgos'/'Estado de los documentos del lote' visible); e2e/ux-closeout-shell.spec.ts:157 ('Continuar a la revisión' count 0 en estructurado sin process-as-text, y solo 'Comprobación de privacidad' como acción); app-v4/src/App.tsx:1366-1369 (quiet shell: las acciones contextuales sustituyen la navegación universal de cinco pasos)",
+    "semantic_reason": "Los asserts verifican sobre la app real renderizada que las paradas ceremoniales (Configure no-op de texto/documento/lote y Review no-op de estructurado) nunca se renderizan y el Job aterriza en su trabajo real, para los cuatro tipos canónicos. El código productivo confirma la shell silenciosa sin destino no-op, por lo que el objetivo está soportado directamente por aserción verificable y comportamiento de código.",
+    "residual_gap": "Sin garantía universal: la demostración cubre los estados y composiciones de estas pruebas, no cada composición posible.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-02",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/review-productivity.spec.ts:80-89 (Total: 24 / Pendientes: 24 y la decisión activa '12345670A' con contexto, aceptar y siguiente en viewport sin scroll); e2e/review-productivity.spec.ts:93-135 (Alt+↓ a pendientes, aceptar 'a', modificar 'm' con borrador alertado y aplicado, conservar 'k' con confirmación); e2e/rec05-result.spec.ts:114-134 (driver que decide las 24 pendientes solo con controles reales y termina 'Pendientes: 0')",
+    "semantic_reason": "La revisión entra con una decisión activa inmediata y mantiene trabajo de decisión explícito a volumen realista de 24 detecciones únicas, sin aceptación silenciosa ('Pendientes: 23' tras aceptar) y conservando corrección y navegación. Es soporte directo del requisito en el candidato, no mera existencia de fichero.",
+    "residual_gap": "Volumen representativo (24 hallazgos más una narrativa larga); no se prueba un volumen muy superior ni su rendimiento.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-03",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/review-productivity.spec.ts:137-161 (ruta #81 sobre Range real del texto original, 'Tipo de dato' rellenado por la persona y 'Añadir dato marcado' → 'Dato añadido. Pendiente de revisar'); app-v4/src/review/ReviewWorkspace.tsx:1391-1444 (formulario 'Marcar dato': solo texto seleccionado y tipo libre, sin ningún campo de offsets); app-v4/src/review/review-domain.test.ts:136-169 (addManualDetection preserva decisiones y offsets como autoridad interna)",
+    "semantic_reason": "La interacción ordinaria de marcar un dato faltante usa selección humana del texto original y una categoría escrita; el UI productivo no expone offsets de fuente y el dominio mantiene la procedencia exacta de origen como autoridad interna de ReviewSession sin corromper decisiones previas.",
+    "residual_gap": "ninguno en alcance (la procedencia por offsets queda como autoridad interna aceptada, no como interacción).",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-04",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/StructuredConfigureWorkspace.test.tsx:114-143 (tabla comparativa con clasificación vigente, tratamiento efectivo y estado por columna); app-v4/src/structured/StructuredConfigureWorkspace.tsx:821-900 ('sx-structured-table' con 'Lista de clasificación de columnas' thead/tbody y filtro 'Pendientes (…)', no muro de tarjetas); e2e/rec12-r6-structured-mobile.spec.ts:64-131 (32 columnas/19 pendientes reales a 375 y 320, sin overflow, inspector de decisión activo antes de la tabla y bloqueos visibles)",
+    "semantic_reason": "El workspace estructurado productivo renderiza una tabla comparativa columna × clasificación/tratamiento/estado con inspector contextual, y la densidad 'docenas' está demostrada con un CSV sintético real de 32 columnas y 19 pendientes en móvil y escritorio, sin auto-aceptación al navegar pendientes.",
+    "residual_gap": "La densidad máxima probada es 32 columnas (representativa, no de estrés); el E2E estructurado compuesto usa 7 columnas.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-05",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/batch.spec.ts:191-294 (reconocer error inmediato, retirada con Cancel = cero mutación y Confirm exacto, decisiones ajenas preservadas); e2e/batch.spec.ts:383-473 (lote real de 12 documentos orientable por filtros 'Necesitan atención/Listos/Retirados' con recuentos y feedback entre categorías); e2e/rec87-batch-result.spec.ts:95-196 (recuperación local completa hasta el manifiesto seguro único)",
+    "semantic_reason": "El lote se comporta como cola de trabajo coherente: recuperación local con reconocimiento/retirada confirmada, orientación por recuentos y filtros autoritativos a tamaño realista (12 documentos con 2 fallos locales de lectura) y feedback persistente cuando una fila cambia de categoría.",
+    "residual_gap": "Tamaño realista probado = 12 documentos; no se testan lotes mayores.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-06",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec05-result.spec.ts:309-320 (Result needs-attention con motivo '#result-attention-reason', acción primaria deshabilitada y sin zona secundaria) y :279-283 (ready tras revisión completa); e2e/rec87-batch-result.spec.ts:113-139 (Result bloqueado con cero descargas y Gate visitable) y :172-196 (ready con un manifiesto seguro); app-v4/src/export/batchResultModel.ts:43 (estados factuales ready/needs-attention/blocked); app-v4/src/privacy-gate/PrivacyGate.tsx:88 (la preparación viene del Job, no de la sesión)",
+    "semantic_reason": "El final humano es un Result con estados factuales ready/needs-attention/blocked, la atención restante nombrada y la acción siguiente contextual; el Privacy Gate permanece visitable en el camino y la preparación la comparten la misma autoridad factual (Job/ReviewSession), no una pantalla ceremonial.",
+    "residual_gap": "ninguno en alcance.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-07",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/App.tsx:960-1022 (cabecera solo con 'Nuevo trabajo'/'Borrar sesión' y hechos de trabajo, política y procesamiento local; 'Borrar sesión' con título/ayuda destructiva propia) y :1283-1359 (guía de políticas a demanda tras disclosura real, CORA-84-01); e2e/ux-closeout-shell.spec.ts:264-309 (hechos POLICY-01 descubribles y conscientes del Job a 375/1280); e2e/structured-composed.spec.ts:264-272 (shell silenciosa fail-closed sin Gate/Result mientras la salida no está preparada)",
+    "semantic_reason": "El shell productivo no expone ninguna navegación 'Workspace / Policies / Help'; mantiene los hechos persistentes verdaderos y la guía de políticas contextual a demanda, con el borrado de sesión separado y descrito como destructivo. La quietud está afirmada por ausencia de destinos y por comportamiento fail-closed.",
+    "residual_gap": "La 'tranquilidad' es cualitativa; lo demostrado es la ausencia de nav universal y la disclosura a demanda en las superficies canónicas probadas.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-08",
+    "status": "PARTIAL",
+    "witness": "e2e/rec12-f7-language.spec.ts:21-22 y :57-60 (lang='es', encabezados y avisos españoles, imperativo 'Revisa' presente y 'Revise' count 0); e2e/rec12-f9-spanish-error-states.spec.ts:31-38 y :56-57 y :82-83 (rechazo de formato, lote fallido y bloqueo estructurado en español tuteado con remedio, sin 'Convierta|inténtelo' ni 'Cambie la clasificación'); e2e/input-start.spec.ts:88-90 (alternativa 'Ctrl+V' en español)",
+    "semantic_reason": "El candidato demuestra español profesional en las siete superficies reales (F7) y en los estados reales de error, bloqueo y confirmación confidencial (F9), incluida la corrección del imperativo formal residual. No demuestra cobertura exhaustiva de todos los estados, ARIA, errores de fichero raros ni estados no visitados, que la matriz conserva como VERIFICATION_PENDING.",
+    "residual_gap": "Cobertura de idioma no universal: copia formal residual registrada en el rechazo de entrada mixta y la guía de políticas, passthrough de errores desconocidos y estados extremos sin visitar (registros R7/R9 y fila H-01 de la matriz).",
+    "next_action": "Barrido dirigido de las copias formales residuales y de los estados raros de fichero/ARIA, o decisión humana explícita que acepte ese alcance antes del cierre de #92."
+  },
+  {
+    "id": "PDR-09",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/input-start.spec.ts:396-407 (orden real por bounding-box: textarea antes de 'Uso previsto' y 'Crear trabajo' antes de la región 'Política de privacidad'); e2e/review-productivity.spec.ts:85-89 (decisión activa, contexto, aceptar y siguiente en viewport al entrar, sin desplazamiento); e2e/rec12-r6-structured-mobile.spec.ts:102-107 (inspector de decisión por encima de la autoridad de paciente y de la tabla a 375/320)",
+    "semantic_reason": "La primacía de la tarea sobre evidencia/ayuda/cromo está afirmada por orden visual y visibilidad real en los recorridos de entrada, revisión y estructurado móvil, no solo por existencia de ficheros. La parte estética completa descansa en la aceptación visual humana REC-11 (U1–U7), que este recheck no reemplaza.",
+    "residual_gap": "El juicio estético global queda cubierto por la autoridad visual humana REC-11; este recheck estático solo reafirma los proxies conductuales de jerarquía.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-10",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec05-result.spec.ts:47-64 y :156-213 (24 identificadores únicos sintéticos recorridos hasta el Result con lectura de vuelta de TXT/portapapeles); e2e/rec87-batch-result.spec.ts:56-95 y :178-276 (lote real de 12 con 2 fallos y read-back de contenido del ZIP/PDF consolidado); e2e/rec12-r6-structured-mobile.spec.ts:13-46 y :64-72 (32 columnas reales en un CSV); e2e/review-productivity.spec.ts:80-90 (24 hallazgos a 375 y 1280)",
+    "semantic_reason": "Las afirmaciones de UI material están respaldadas por evidencia renderizada capaz de falsar el claim: 24 detecciones únicas, 32 columnas, lote de 12 con fallos locales y texto largo con verificación de contenido de artefactos reales (TXT, DOCX, ZIP, PDF), no fixtures pequeños que podrían pasar en falso.",
+    "residual_gap": "Densidades representativas, no de estrés máximo; no todas las superficies tienen su propio fixture de densidad dedicado.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-11",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec05-result.spec.ts:192-194 (feedback de éxito 'Texto preparado copiado al portapapeles.') y :493-497 (fallo de PDF perceptible con cero descarga y TXT/DOCX funcionando) y :319-325 (acciones preparadas deshabilitadas y retorno a la revisión con 'Pendientes: 1'/'Aceptadas: 2'); e2e/batch.spec.ts:226-242 (reconocer/retirar con Cancel = cero mutación y estado visible); e2e/review-productivity.spec.ts:93-135 (borrador sin guardar alertado y aplicado, conservar original con confirmación y cancelación)",
+    "semantic_reason": "Las acciones ordinarias producen feedback perceptible (éxito, fallo y estado pendiente) y las decisiones permanecen corregibles/orientables: retorno a la revisión pendiente sin perder trabajo, cancelaciones sin mutación y confirmaciones deliberadas en los recorridos cubiertos (Result único, lote y revisión).",
+    "residual_gap": "Demostrado en los recorridos cubiertos; no es un inventario universal de todas las acciones posibles del producto.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PDR-12",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec05-result.spec.ts:436-469 (Confidencial: primera acción cero descarga, Cancel cero, Confirm exactamente un 'auditoria-confidencial.txt' con cabecera 'CONFIDENTIAL — INTERNAL AUDIT ARTIFACT'); e2e/rec87-batch-result.spec.ts:284-330 (zona confidencial de lote separada tras verificación deliberada, con los cuerpos Safe intactos) y :174-196 (Result ready con una única acción primaria Safe); e2e/structured-composed.spec.ts:224-240 (confirmación confidencial estructurada con la correspondencia solo en el artefacto confidencial)",
+    "semantic_reason": "El Result preparado/compartible y la Auditoría Confidencial identificable son deliberadamente asimétricos: jerarquía desigual (una sola acción primaria Safe), confirmación adicional explícita y reversible para lo confidencial, y la correspondencia original↔preparado presente únicamente en el artefacto confidencial.",
+    "residual_gap": "ninguno en alcance (la autorización de producto Safe/Confidencial sigue siendo la de REC-05/07).",
+    "next_action": "ninguna"
+  }
+]

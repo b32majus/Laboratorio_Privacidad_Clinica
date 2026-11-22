@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>V4 R6 real · comparador Sophilux</title>
+<style>
+:root{color-scheme:light;--ink:#252b30;--rose:#835852;--line:#e9e3de;--paper:#fffdfa}
+*{box-sizing:border-box}body{margin:0;background:#f7f5f2;color:var(--ink);font:14px/1.5 system-ui,sans-serif}header{background:var(--paper);border-bottom:1px solid var(--line);padding:32px max(18px,calc((100vw - 1200px)/2))}
+.kicker{font-weight:800;letter-spacing:.13em;font-size:11px;color:var(--rose)}
+h1{font:500 clamp(30px,4.2vw,56px)/1.07 Georgia,serif;letter-spacing:-.03em;margin:12px 0 17px}
+p{color:#666065;max-width:960px;margin:9px 0}
+nav{display:flex;flex-wrap:wrap;gap:9px;margin-top:17px}
+nav button,nav a{border:1px solid #dbc2bc;border-radius:30px;background:#fff;color:var(--rose);padding:9px 13px;font-size:12px;font-weight:750;text-decoration:none;cursor:pointer}
+nav button[aria-pressed=true]{background:var(--rose);color:#fff;border-color:var(--rose)}
+main{max-width:1280px;margin:auto;padding:22px 16px 55px}
+.frame{background:white;border:1px solid var(--line);border-radius:12px;padding:9px;box-shadow:0 10px 35px #4a383113}
+figure{margin:0}.scroll{overflow:auto;max-height:85vh;overscroll-behavior:contain}.scroll img{display:block;width:1181px;max-width:none;height:auto}
+figcaption{font-size:12px;color:#65595a;padding:10px 4px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.grid section{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px}
+h2{font:600 19px Georgia,serif;margin:0 0 7px}.grid p{font-size:12px}
+.notice{border-left:3px solid var(--rose);padding:12px 15px;background:#f9eee9;font-size:12px;color:#754d46}
+@media(max-width:740px){.grid{grid-template-columns:1fr}.scroll{max-height:730px}}
+</style></head><body>
+<header>
+<div class="kicker">LABORATORIO DE PRIVACIDAD CLÍNICA · REC-12 #92 · R6</div>
+<h1>De R3 a R6: la decisión ahora sí está delante.</h1>
+<p>Comparación de una misma tabla sintética de <strong>32 columnas y 19 pendientes</strong>: V4 R3 anterior → maqueta R6 aprobada → V4 R6 real implementada. La tercera columna es una captura del producto React, no del prototipo.</p>
+<nav>
+<button id="v" aria-pressed="true">Primer pantallazo</button><button id="f" aria-pressed="false">Páginas completas</button>
+<a href="actual/structured-375-full.png">R6 real móvil completo</a>
+<a href="actual/structured-320-viewport.png">R6 real 320 px</a>
+<a href="actual/structured-1440-viewport.png">R6 escritorio</a>
+</nav>
+</header>
+<main>
+<figure class="frame"><div class="scroll"><img id="compare" src="comparaciones/comparativa-r6-react-375-viewport.png" alt="Tres columnas comparativas: V4 R3 anterior, maqueta R6 aprobada y V4 R6 real, móvil de 375 px"></div>
+<figcaption id="capt">Primer pantallazo 375 × 800. Desplaza horizontalmente dentro de la lámina para comparar las tres vistas.</figcaption></figure>
+<div class="grid">
+<section><h2>Lo que mejoró</h2><p>El selector de clasificación aparece aproximadamente a <strong>679 px</strong> con 375 px de ancho y <strong>714 px</strong> con 320 px. La decisión ya no queda detrás de las 32 filas.</p></section>
+<section><h2>Lo que se conserva</h2><p>Cuatro campos comparativos, todas las filas accesibles, una única autoridad de ID de paciente, acciones del dominio, razones reales de bloqueo y separación Safe/Confidential.</p></section>
+<section><h2>Validación técnica</h2><p>Pruebas E2E sobre build Vite, 32/19 como hechos derivados, selección de una sola columna, filtros que no toman decisiones, avisos accesibles por teclado y escritorio alineado.</p></section>
+</div>
+<p class="notice">En R6 no se ha aprobado ni modificado el comportamiento clínico. Las razones de bloqueo completas permanecen accesibles en una lista desplazable y enfocables con el teclado; la salida sigue bloqueada mientras haya pendientes. El diseño anterior R3 se mantiene como testigo congelado.</p>
+</main>
+<script>
+const img=document.getElementById("compare");
+function setMode(mode){img.src="comparaciones/comparativa-r6-react-375-"+mode+".png";document.getElementById("v").setAttribute("aria-pressed",String(mode==="viewport"));document.getElementById("f").setAttribute("aria-pressed",String(mode==="full"));document.getElementById("capt").textContent=mode==="full"?"Páginas completas, tres fuentes. Puedes desplazar la lámina en ambas direcciones.":"Primer pantallazo 375 × 800. Desplaza horizontalmente dentro de la lámina para comparar las tres vistas.";document.querySelector(".scroll").scrollTo({left:0,top:0});}
+document.getElementById("v").addEventListener("click",()=>setMode("viewport"));
+document.getElementById("f").addEventListener("click",()=>setMode("full"));
+</script>
+</body></html>

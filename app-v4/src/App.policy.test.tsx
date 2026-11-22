@@ -14,7 +14,7 @@ import { App } from "./App";
  */
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic policy guidance tests.";
 const POLICY_NAMES = ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"] as const;
-const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
+const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en tu navegador/i;
 const FORBIDDEN_CLAIM =
   /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy|an[oó]nim[oa]|anonimizad|certificad|cumplimient|k-anonimato|privacidad diferencial/i;
 
@@ -71,7 +71,7 @@ describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
       screen.queryByRole("list", { name: "Guía de políticas de privacidad" })
     ).not.toBeInTheDocument();
     expect(guidanceRegion()).toHaveTextContent(
-      /cree un trabajo para ver qué políticas están disponibles para su tipo/i
+      /crea un trabajo para ver qué políticas están disponibles para ese tipo/i
     );
     expect(guidanceItems()).toHaveLength(4);
     // No job kind exists yet, so neither availability state is claimed.

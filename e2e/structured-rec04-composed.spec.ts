@@ -304,6 +304,9 @@ test("composed hospital workbook traverses sheet/header → options → review �
   expect(lines[1].split(",")[1]).toBe("1");
   expect(lines[2].split(",")[1]).toBe("2");
   expect(lines[3].split(",")[1]).toBe("1");
+  // REC12-GAP-06 / human D-021: reviewed Keep on numeric Edad_Num preserves
+  // exact original ages in Safe CSV; DOB-role age-at-visit is a separate rule.
+  expect(lines.map((row) => row.split(",")[7]).slice(1)).toEqual(["34", "34", "41"]);
   expect(safeCsv).toContain("2023-01");
   expect(safeCsv).toContain("QID_001");
   expect(safeCsv).toContain("Gripe A");
@@ -337,6 +340,8 @@ test("composed hospital workbook traverses sheet/header → options → review �
   expect(data["B2"]).toMatchObject({ t: "n", v: 1 });
   expect(data["B3"]).toMatchObject({ t: "n", v: 2 });
   expect(data["H2"]).toMatchObject({ t: "n", v: 34 });
+  expect(data["H3"]).toMatchObject({ t: "n", v: 34 });
+  expect(data["H4"]).toMatchObject({ t: "n", v: 41 });
   expect(data["I2"]).toMatchObject({ t: "b", v: true });
   expect(data["J2"]?.t).toBe("s");
   expect(data["J2"]?.v).toBe("=CMD(1)");

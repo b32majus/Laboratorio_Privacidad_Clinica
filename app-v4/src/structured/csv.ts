@@ -1,32 +1,43 @@
 /**
  * Consolidated CSV parser for V4 structured ingestion (T18 #22, SPEC_V4_BATCH_
- * AND_STRUCTURED.md §8, DEBT STRUCT-003).
+ * AND_STRUCTURED.md §8, DEBT STRUCT-003; REC-12 #92).
  *
  * SPEC §8: "Use a consolidated parser that supports valid quoted multiline
  * fields and delimiter escaping. Do not maintain a line-splitting parser as
  * production authority."
  *
- * This module is the single production CSV authority of the V4 structured
- * surface: a pure-TypeScript RFC-4180-style state machine that handles
- *  - quoted fields spanning multiple lines (embedded \r\n / \n inside quotes);
- *  - escaped double quotes (`""`) inside quoted fields;
- *  - delimiter detection among `,`, `;` and tab (outside quotes, whole input);
- *  - CRLF, LF and lone-CR record ends outside quotes.
+ * `csv-parse` (browser ESM sync build, no injected network capability) is the
+ * single parsing authority of this module: it splits records and fields,
+ * unescapes doubled quotes and preserves quoted multiline content verbatim.
+ * This module only adds the V4 policy on top of it:
  *
- * Fail-closed semantics (D-009): empty input and an unterminated quoted field
- * at EOF are explicit typed failures — never an apparently successful partial
- * table. Empty fields (including quoted `""`) are absence: they become `null`
- * (STRUCT-009), never a placeholder string. Field content is preserved
- * verbatim (no trimming): only structural separators are consumed.
+ *  - delimiter detection from the header width plus record consistency,
+ *    never from a whole-file punctuation count (note text such as
+ *    "observación; control" must not reclassify a comma-delimited file);
+ *  - typed fail-closed failures (D-009): ambiguous separators, rows with more
+ *    columns than the header, malformed quotes and EOF inside a quoted field
+ *    never produce an apparently valid partial table;
+ *  - absence normalization (STRUCT-009): empty and quoted-empty fields become
+ *    `null`; whitespace-only content is preserved verbatim (no trimming);
+ *  - record ends: CRLF and LF are equivalent; a physically empty line is
+ *    skipped (`skip_empty_lines`) while an explicit quoted-empty record
+ *    (`""`) is real absence.
  *
  * Sensitive content is memory-only (D-013): never persisted, logged, or sent
  * anywhere; this module contains no console.* calls and no network I/O.
  */
+import { parse } from "csv-parse/browser/esm/sync";
+
 import { isBlankCell, type StructuredCell, type StructuredGrid } from "./grid";
 
 export type CsvDelimiter = "," | ";" | "\t";
 
-export type CsvParseErrorCode = "csv-empty" | "csv-unterminated-quote";
+export type CsvParseErrorCode =
+  | "csv-empty"
+  | "csv-unterminated-quote"
+  | "csv-malformed"
+  | "csv-ambiguous-delimiter"
+  | "csv-column-mismatch";
 
 export class CsvParseError extends Error {
   readonly code: CsvParseErrorCode;
@@ -40,158 +51,207 @@ export class CsvParseError extends Error {
 
 const DELIMITER_CANDIDATES: readonly CsvDelimiter[] = [",", ";", "\t"];
 
+const BYTE_ORDER_MARK = "\uFEFF";
+
+/** csv-parse codes reported when a quoted field is not closed at all. */
+const QUOTE_NOT_CLOSED = "CSV_QUOTE_NOT_CLOSED";
+
+const ERROR_MESSAGES = {
+  empty: "The CSV input is empty.",
+  "no-records": "The CSV input contains no data records.",
+  "unterminated-quote": "The CSV input ends inside an unterminated quoted field.",
+  malformed: "The CSV contains malformed quoted fields.",
+  "ambiguous-delimiter":
+    "The CSV separator is ambiguous; check the header and choose an unambiguous file.",
+  "column-mismatch": "A CSV row has more columns than the header.",
+} as const;
+
+/** Options every scan of this module uses: local, strict about quotes. */
+function parseOptions(delimiter: CsvDelimiter) {
+  return { delimiter, skip_empty_lines: true, relax_column_count: true };
+}
+
+/** Records the parser reported for one delimiter, or the failure code. */
+type CsvScan = {
+  readonly records: readonly (readonly string[])[];
+  /** csv-parse error code; `undefined` when the full parse succeeded. */
+  readonly errorCode: string | undefined;
+  /** Header width, anchored separately when the full parse fails. */
+  readonly headerWidth: number;
+};
+
+/** One candidate delimiter evaluated against the records it actually yields. */
+type DelimiterEvaluation = {
+  readonly delimiter: CsvDelimiter;
+  /** Field count of the header record (0 when the input has no records). */
+  readonly width: number;
+  /** No quote failure and no record wider than the header. */
+  readonly plausible: boolean;
+  readonly scan: CsvScan;
+};
+
+/** Strip a single leading UTF-8 BOM only; inner content is never altered. */
+function withoutByteOrderMark(text: string): string {
+  return text.startsWith(BYTE_ORDER_MARK) ? text.slice(BYTE_ORDER_MARK.length) : text;
+}
+
+/** The `code` property of a csv-parse failure, when it carries one. */
+function csvErrorCode(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string") return code;
+  }
+  return undefined;
+}
+
 /**
- * Detect the most likely delimiter by counting candidate occurrences OUTSIDE
- * quoted fields across the whole input (not just the first line, which a
- * multiline quoted first field would corrupt). Ties resolve in the order of
- * {@link DELIMITER_CANDIDATES}; an input without any candidate returns `,`.
+ * Parse `text` under one delimiter with the sync csv-parse engine. When the
+ * full parse fails, the header width is re-anchored with a header-only parse
+ * (`to: 1`) so a malformed DATA row cannot erase the width the delimiter
+ * evaluation needs; a header that fails on its own anchors at width 0.
  */
-export function detectCsvDelimiter(text: string): CsvDelimiter {
-  let best: CsvDelimiter = ",";
-  let bestCount = -1;
-  for (const candidate of DELIMITER_CANDIDATES) {
-    const count = countOutsideQuotes(text, candidate);
-    if (count > bestCount) {
+function scanRecords(text: string, delimiter: CsvDelimiter): CsvScan {
+  let records: string[][];
+  let errorCode: string | undefined;
+  try {
+    records = parse(text, parseOptions(delimiter));
+  } catch (error) {
+    errorCode = csvErrorCode(error);
+    records = [];
+  }
+
+  let headerWidth = records[0]?.length ?? 0;
+  if (errorCode !== undefined) {
+    try {
+      const headerOnly = parse(text, { ...parseOptions(delimiter), to: 1 });
+      headerWidth = headerOnly[0]?.length ?? 0;
+    } catch {
+      headerWidth = 0;
+    }
+  }
+
+  return { records, errorCode, headerWidth };
+}
+
+/** Evaluate one candidate delimiter: header width plus record consistency. */
+function evaluateDelimiter(text: string, delimiter: CsvDelimiter): DelimiterEvaluation {
+  const scan = scanRecords(text, delimiter);
+  const width = scan.headerWidth;
+  const plausible =
+    scan.errorCode === undefined && scan.records.every((record) => record.length <= width);
+  return { delimiter, width, plausible, scan };
+}
+
+function evaluateAllDelimiters(text: string): readonly DelimiterEvaluation[] {
+  return DELIMITER_CANDIDATES.map((delimiter) => evaluateDelimiter(text, delimiter));
+}
+
+/**
+ * Pick the best evaluated candidate: the widest header wins (the header, never
+ * note punctuation, decides the separator), then structural plausibility breaks
+ * ties, then declaration order (`,` before `;` before tab), which is the
+ * deterministic legacy tie-break.
+ */
+function bestEvaluation(evaluations: readonly DelimiterEvaluation[]): DelimiterEvaluation {
+  let best = evaluations[0];
+  for (const candidate of evaluations) {
+    if (candidate.width > best.width) {
       best = candidate;
-      bestCount = count;
+      continue;
+    }
+    if (candidate.width === best.width && candidate.plausible && !best.plausible) {
+      best = candidate;
     }
   }
   return best;
 }
 
-function countOutsideQuotes(text: string, delimiter: CsvDelimiter): number {
-  let count = 0;
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    if (char === '"') {
-      if (inQuotes && text[i + 1] === '"') {
-        i += 1; // escaped quote inside quotes
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (!inQuotes && char === delimiter) {
-      count += 1;
+/**
+ * Detect the most likely delimiter from the header: the candidate that yields
+ * the widest header record wins, structural consistency (no quote failure, no
+ * record wider than the header) breaks ties, and the remaining ties resolve in
+ * the order of {@link DELIMITER_CANDIDATES} (`a,b;c\nd,e;f` stays `,`). An
+ * input without any candidate returns `,`. Punctuation inside note cells never
+ * competes with the header, and this helper never throws.
+ */
+export function detectCsvDelimiter(text: string): CsvDelimiter {
+  return bestEvaluation(evaluateAllDelimiters(withoutByteOrderMark(text))).delimiter;
+}
+
+/**
+ * Resolve the delimiter for parsing: unlike {@link detectCsvDelimiter}, two
+ * equally plausible structural readings (same header width, both consistent)
+ * are refused as `csv-ambiguous-delimiter` instead of guessed. Fail-closed:
+ * when every multi-field candidate is invalid, one of them is kept so its
+ * quote or column failure surfaces instead of a single-column reading that
+ * would hide the anomaly.
+ */
+function resolveDelimiter(text: string): DelimiterEvaluation {
+  const evaluations = evaluateAllDelimiters(text);
+  const multiField = evaluations.filter((evaluation) => evaluation.width > 1);
+  const plausible = multiField.filter((evaluation) => evaluation.plausible);
+  if (plausible.length > 0) {
+    const widest = plausible.reduce((max, evaluation) => Math.max(max, evaluation.width), 0);
+    const contenders = plausible.filter((evaluation) => evaluation.width === widest);
+    if (contenders.length > 1) {
+      throw new CsvParseError("csv-ambiguous-delimiter", ERROR_MESSAGES["ambiguous-delimiter"]);
     }
+    return contenders[0];
   }
-  return count;
+  if (multiField.length > 0) {
+    return multiField[0];
+  }
+  return bestEvaluation(evaluations);
 }
 
 /**
  * Parse CSV text into a normalized {@link StructuredGrid}.
  *
  * The first record is the header row; remaining records are data rows. Empty
- * fields are `null` (absence, STRUCT-009). Fully-empty unquoted records
- * (blank lines) are skipped; quoted whitespace-only content is preserved
+ * fields (including quoted `""`) are `null` (absence, STRUCT-009); a data row
+ * shorter than the header is padded with `null` (historic contract). Fully
+ * blank unquoted lines are skipped; quoted whitespace-only content is preserved
  * verbatim.
  *
  * Failures: `csv-empty` (no records at all), `csv-unterminated-quote` (EOF
- * inside a quoted field).
+ * inside a quoted field), `csv-malformed` (malformed quoted fields),
+ * `csv-ambiguous-delimiter` (two equally plausible separators) and
+ * `csv-column-mismatch` (a row with more columns than the header).
  */
 export function parseCsv(text: string, options: { delimiter?: CsvDelimiter } = {}): StructuredGrid {
   if (text.length === 0) {
-    throw new CsvParseError("csv-empty", "The CSV input is empty.");
+    throw new CsvParseError("csv-empty", ERROR_MESSAGES.empty);
   }
 
-  const delimiter = options.delimiter ?? detectCsvDelimiter(text);
-
-  const records: string[][] = [];
-  let fields: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  let fieldWasQuoted = false;
-  let recordHadQuotes = false;
-  let sawAnyChar = false;
-
-  const endField = (): void => {
-    fields.push(field);
-    if (fieldWasQuoted) {
-      recordHadQuotes = true;
-    }
-    field = "";
-    fieldWasQuoted = false;
-  };
-
-  const endRecord = (): void => {
-    endField();
-    const isBlankRecord = !recordHadQuotes && fields.every((value) => value === "");
-    if (!isBlankRecord) {
-      records.push(fields);
-    }
-    fields = [];
-    recordHadQuotes = false;
-    sawAnyChar = true;
-  };
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
-
-    if (inQuotes) {
-      if (char === '"') {
-        if (next === '"') {
-          field += '"';
-          i += 1;
-        } else {
-          inQuotes = false;
-          fieldWasQuoted = true;
-        }
-      } else {
-        field += char;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      if (field === "" && !fieldWasQuoted) {
-        inQuotes = true;
-        fieldWasQuoted = true;
-      } else {
-        // A quote inside an unquoted field or after content: RFC 4180 makes
-        // this malformed; preserve it verbatim instead of guessing (content
-        // fidelity; no silent alteration).
-        field += '"';
-      }
-      continue;
-    }
-
-    if (char === delimiter) {
-      endField();
-      continue;
-    }
-
-    if (char === "\n" || char === "\r") {
-      if (char === "\r" && next === "\n") {
-        i += 1;
-      }
-      endRecord();
-      continue;
-    }
-
-    field += char;
+  const source = withoutByteOrderMark(text);
+  if (source.length === 0) {
+    throw new CsvParseError("csv-empty", ERROR_MESSAGES.empty);
   }
 
-  if (inQuotes) {
-    throw new CsvParseError(
-      "csv-unterminated-quote",
-      "The CSV input ends inside an unterminated quoted field."
-    );
+  const scan = options.delimiter
+    ? scanRecords(source, options.delimiter)
+    : resolveDelimiter(source).scan;
+
+  // A quote failure is never ignored: the table would be incomplete.
+  if (scan.errorCode === QUOTE_NOT_CLOSED) {
+    throw new CsvParseError("csv-unterminated-quote", ERROR_MESSAGES["unterminated-quote"]);
+  }
+  if (scan.errorCode !== undefined) {
+    throw new CsvParseError("csv-malformed", ERROR_MESSAGES.malformed);
   }
 
-  if (field !== "" || fields.length > 0 || fieldWasQuoted || recordHadQuotes) {
-    endRecord();
+  const [header, ...dataRecords] = scan.records;
+  if (!header) {
+    throw new CsvParseError("csv-empty", ERROR_MESSAGES["no-records"]);
   }
 
-  if (records.length === 0) {
-    throw sawAnyChar
-      ? new CsvParseError("csv-empty", "The CSV input contains no data records.")
-      : new CsvParseError("csv-empty", "The CSV input is empty.");
-  }
-
-  const [headers, ...dataRecords] = records;
-  const width = headers.length;
+  const width = header.length;
 
   const rows = dataRecords.map((record) => {
+    if (record.length > width) {
+      // Data would be silently dropped: refuse instead.
+      throw new CsvParseError("csv-column-mismatch", ERROR_MESSAGES["column-mismatch"]);
+    }
     const cells: StructuredCell[] = record.map((value) => (value === "" ? null : value));
     while (cells.length < width) {
       cells.push(null); // ragged short record: missing trailing cells are absence
@@ -199,7 +259,7 @@ export function parseCsv(text: string, options: { delimiter?: CsvDelimiter } = {
     return cells;
   });
 
-  return { headers, rows };
+  return { headers: header, rows };
 }
 
 export { isBlankCell };

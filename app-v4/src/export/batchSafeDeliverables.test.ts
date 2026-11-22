@@ -66,8 +66,8 @@ let pdfjs: PdfJsApi;
 
 beforeAll(async () => {
   const [lib, worker] = await Promise.all([
-    import("pdfjs-dist/legacy/build/pdf.js"),
-    import("pdfjs-dist/legacy/build/pdf.worker.js"),
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
   ]);
   (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
   pdfjs = lib as unknown as PdfJsApi;
@@ -78,7 +78,9 @@ afterAll(() => {
 });
 
 async function extractPdfText(bytes: Uint8Array): Promise<string> {
-  const doc = await pdfjs.getDocument({ data: bytes, isEvalSupported: false }).promise;
+  // pdf.js 4.x takes ownership of `data.buffer` (transfers it to the worker,
+  // detaching it); hand the oracle its own copy so fixture bytes stay reusable.
+  const doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
   const pages: string[] = [];
   for (let index = 1; index <= doc.numPages; index++) {
     const page = await doc.getPage(index);
@@ -89,7 +91,7 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
 }
 
 async function extractPdfPages(bytes: Uint8Array): Promise<number> {
-  const doc = await pdfjs.getDocument({ data: bytes, isEvalSupported: false }).promise;
+  const doc = await pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
   return doc.numPages;
 }
 

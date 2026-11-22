@@ -1,0 +1,14 @@
+# REC-12 R11 external remote snapshot — 2026-11-22T23:20:00+01:00
+# PR141@8e1fa978ef1f5589ee2632c9c1fa5a6f0efa9680
+Analyze (javascript-typescript)	pass	1m15s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074973724/job/137370088452
+Analyze (javascript-typescript)	pass	1m24s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074976455/job/137370096467
+CodeQL	pass	3s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/runs/137370386861
+Secret Scan (gitleaks)	pass	5s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074973749/job/137370088455
+Secret Scan (gitleaks)	pass	6s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074976457/job/137370096252
+e2e	pass	2m22s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074973716/job/137370088683
+e2e	pass	1m54s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074976648/job/137370097191
+validate	pass	1m30s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074973716/job/137370088570
+validate	pass	1m22s	https://github.com/b32majus/Laboratorio_Privacidad_Clinica/actions/runs/45074976648/job/137370097356
+# branch authority
+{"name":"3.0-main","protected":true,"protection_url":"https://api.github.com/repos/b32majus/Laboratorio_Privacidad_Clinica/branches/3.0-main/protection"}
+main

@@ -1,0 +1,37 @@
+{
+  "viewport": 320,
+  "scrollWidth": 320,
+  "pendingCount": 32,
+  "active": "Fecha_Visita",
+  "exportDisabled": true,
+  "activePanel": {
+    "x": 16,
+    "y": 488.15625,
+    "width": 288,
+    "height": 598.734375
+  },
+  "classificationSelect": {
+    "x": 30,
+    "y": 683.203125,
+    "width": 260,
+    "height": 38
+  },
+  "patientAuthority": {
+    "x": 16,
+    "y": 1098.890625,
+    "width": 288,
+    "height": 143.21875
+  },
+  "listTable": {
+    "x": 16,
+    "y": 1254.109375,
+    "width": 288,
+    "height": 1321.609375
+  },
+  "statusBanner": {
+    "x": 16,
+    "y": 284.171875,
+    "width": 288,
+    "height": 191.984375
+  }
+}

@@ -35,9 +35,9 @@ function loadPdfjs(): Promise<PdfJsApi> {
   if (pdfjsSeam === null) {
     pdfjsSeam = (async () => {
       const [lib, worker] = await Promise.all([
-        import("pdfjs-dist/legacy/build/pdf.js"),
+        import("pdfjs-dist/legacy/build/pdf.mjs"),
         // @ts-expect-error: pdfjs-dist legacy worker ships no TypeScript declaration.
-        import("pdfjs-dist/legacy/build/pdf.worker.js"),
+        import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
       ]);
       const libModule = lib as unknown as PdfJsModule;
       const workerModule = worker as unknown as { default?: unknown };

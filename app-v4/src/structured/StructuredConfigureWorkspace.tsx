@@ -44,7 +44,7 @@
  * layout where the table is an explicitly labeled scrollable region and the
  * inspector stacks below it on narrow screens.
  */
-import { useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import {
   STRUCTURED_COLUMN_CLASSES,
@@ -120,6 +120,17 @@ const LOCKED_ACTION_MARKER = "derivado/bloqueado";
 const PATIENT_ID_MARKER = "columna identificadora";
 /** Factual per-row state when nothing is pending (never an output-ready claim). */
 const ROW_SETTLED_LABEL = "Sin pendientes";
+
+/**
+ * Workspace explanation (issue #92 R6): the long paragraph stays the desktop
+ * intro and remains reachable on narrow screens behind the native
+ * "Cómo revisar columnas" disclosure — the text itself is never rewritten.
+ */
+const WORKSPACE_INTRO =
+  "Compara todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y " +
+  "lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puedes cambiar " +
+  "cualquiera. Las columnas con clasificación desconocida siempre requieren revisión y nunca se " +
+  "tratan como seguras para conservar.";
 
 export type StructuredConfigureWorkspaceProps = {
   /**
@@ -223,12 +234,21 @@ export function StructuredConfigureWorkspace(
       <h2 id="configure-step-heading" className="font-display text-xl font-bold text-primary-dark">
         Preparar datos estructurados
       </h2>
-      <p className="mt-1.5 text-sm leading-relaxed">
-        Compare todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y
-        lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puede cambiar
-        cualquiera. Las columnas con clasificación desconocida siempre requieren revisión y nunca se
-        tratan como seguras para conservar.
-      </p>
+      <p className="sx-structured-intro mt-1.5 text-sm leading-relaxed">{WORKSPACE_INTRO}</p>
+      {/*
+        Issue #92 R6: on narrow screens the long intro would push the active
+        decision below the first viewport. The same text stays available here
+        (native keyboard-operable disclosure) and the desktop paragraph above
+        is unchanged.
+      */}
+      <details className="sx-structured-intro-compact mt-1.5 text-sm leading-relaxed">
+        <summary
+          className={`cursor-pointer select-none font-semibold text-primary-dark ${focusRing}`}
+        >
+          Cómo revisar columnas
+        </summary>
+        <p className="mt-1.5 text-neutral-800">{WORKSPACE_INTRO}</p>
+      </details>
 
       {errorMessage !== null && (
         <p
@@ -450,31 +470,37 @@ function ConfigurationView(props: {
   const handleInspectorAction = withSelection(onOverrideAction);
   const handleInspectorDateRole = withSelection(onSetDateRole);
 
+  /**
+   * Issue #92 R6: table-row selection and the next-pending control move
+   * keyboard focus to the inspector heading (the same single inspector). The
+   * ordinary first render never focuses anything, so nothing is stolen on
+   * load; the counter guarantees the effect runs even when the selection does
+   * not change.
+   */
+  const [focusRequest, setFocusRequest] = useState(0);
+  const inspectorHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    if (focusRequest === 0) return;
+    inspectorHeadingRef.current?.focus();
+  }, [focusRequest]);
+  const selectColumnFromComparison = (columnIndex: number): void => {
+    setSelectedColumnIndex(columnIndex);
+    setFocusRequest((request) => request + 1);
+  };
+
   return (
-    <div className="sx-structured-configuration mt-3 space-y-3">
+    <div className="sx-structured-configuration mt-3">
       {/*
-        Issue #85 composed-hierarchy correction (review finding 2): ONE short
-        header band directly under the task heading/intro — compact readiness
-        facts + block-reason alerts and the single patient-ID authority — so
-        the dominant comparison table starts immediately beneath it and stays
-        inside the initial 1280×800 fold. Pure layout/compaction: every fact,
-        control id, callback and fail-closed alert below is unchanged.
+        Issue #92 R6 decision-first composition: ONE grid parent, ONE DOM
+        reading order — factual summary, the single contextual inspector, the
+        single patient-ID authority, then the four-field comparison table (and
+        the unchanged output options). Desktop CSS composes this same DOM into
+        the accepted arrangement (summary beside patient-ID on top, table left,
+        inspector right); nothing is duplicated or re-derived, and every
+        callback remains the canonical one.
       */}
-      <div className="sx-structured-status-band grid items-start gap-x-4 gap-y-2 rounded border border-primary bg-surface-light px-3 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(300px,1.1fr)]">
-        <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
-        <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
-      </div>
       <div className="sx-structured-grid grid items-start gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
-        <ColumnComparisonTable
-          configuration={configuration}
-          patientIdIndex={
-            configuration.patientId.status === "resolved"
-              ? configuration.patientId.columnIndex
-              : null
-          }
-          selectedColumnIndex={selectedColumn?.columnIndex ?? null}
-          onSelectColumn={setSelectedColumnIndex}
-        />
+        <ConfigurationSummary configuration={configuration} exportReadiness={exportReadiness} />
         {selectedColumn !== null && (
           <ColumnInspector
             column={selectedColumn}
@@ -486,33 +512,45 @@ function ConfigurationView(props: {
             otherPendingIndices={configuration.columnsRequiringReview.filter(
               (index) => index !== selectedColumn.columnIndex
             )}
-            onSelectColumn={setSelectedColumnIndex}
+            headingRef={inspectorHeadingRef}
+            onSelectColumn={selectColumnFromComparison}
             onOverrideClass={handleInspectorClass}
             onOverrideAction={handleInspectorAction}
             onSetDateRole={handleInspectorDateRole}
           />
         )}
+        <PatientIdAuthority configuration={configuration} onSelectPatientId={onSelectPatientId} />
+        <ColumnComparisonTable
+          configuration={configuration}
+          patientIdIndex={
+            configuration.patientId.status === "resolved"
+              ? configuration.patientId.columnIndex
+              : null
+          }
+          selectedColumnIndex={selectedColumn?.columnIndex ?? null}
+          onSelectColumn={selectColumnFromComparison}
+        />
+        {outputOptions !== null && outputOptions !== undefined && (
+          <details className="sx-structured-output rounded border border-primary bg-surface-light">
+            {/*
+              Issue #85 composed-hierarchy correction (review finding 2): the
+              bounded output options sit BELOW the dominant comparison table,
+              collapsed behind a native, keyboard-operable disclosure (same
+              pattern as the inspector's evidence disclosure). Nothing is
+              removed: expanding reveals the same controls, ids, hints and
+              fail-closed alerts, and the heading stays the summary label.
+            */}
+            <summary
+              className={`cursor-pointer select-none px-3 py-2 font-display text-base font-bold text-primary-dark ${focusRing}`}
+            >
+              <h3>Opciones de salida</h3>
+            </summary>
+            <div className="px-3 pb-3">
+              <OutputOptionsSection outputOptions={outputOptions} />
+            </div>
+          </details>
+        )}
       </div>
-      {outputOptions !== null && outputOptions !== undefined && (
-        <details className="rounded border border-primary bg-surface-light">
-          {/*
-            Issue #85 composed-hierarchy correction (review finding 2): the
-            bounded output options sit BELOW the dominant comparison table,
-            collapsed behind a native, keyboard-operable disclosure (same
-            pattern as the inspector's evidence disclosure). Nothing is
-            removed: expanding reveals the same controls, ids, hints and
-            fail-closed alerts, and the heading stays the summary label.
-          */}
-          <summary
-            className={`cursor-pointer select-none px-3 py-2 font-display text-base font-bold text-primary-dark ${focusRing}`}
-          >
-            <h3>Opciones de salida</h3>
-          </summary>
-          <div className="px-3 pb-3">
-            <OutputOptionsSection outputOptions={outputOptions} />
-          </div>
-        </details>
-      )}
     </div>
   );
 }
@@ -532,7 +570,10 @@ function ConfigurationSummary(props: {
   const ready = exportReadiness === null ? configuration.exportReady : exportReadiness.ready;
   const reasons = exportReadiness === null ? [] : exportReadiness.reasons;
   return (
-    <section aria-label="Resumen de la configuración estructurada" className="min-w-0">
+    <section
+      aria-label="Resumen de la configuración estructurada"
+      className="sx-structured-summary min-w-0 px-3 py-2"
+    >
       <h3 className="font-display text-sm font-bold text-primary-dark">
         Resumen de la configuración
       </h3>
@@ -558,7 +599,8 @@ function ConfigurationSummary(props: {
         <ul
           role="alert"
           aria-label="Motivos de bloqueo de la exportación estructurada"
-          className="mt-2 list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark"
+          tabIndex={0}
+          className={`mt-2 list-disc space-y-0.5 rounded border border-primary-dark bg-white px-3 py-2 pl-6 text-sm font-semibold text-primary-dark ${focusRing}`}
         >
           {reasons.map((reason, index) => (
             <li key={index}>{localizeStructuredBlockReason(reason)}</li>
@@ -574,7 +616,7 @@ function ConfigurationSummary(props: {
               ? "La exportación estructurada está bloqueada mientras 1 columna requiera revisión."
               : `La exportación estructurada está bloqueada mientras ${pending} columnas requieran revisión.`}{" "}
             Las columnas con clasificación desconocida nunca se conservan ni se exportan tal cual;
-            elija una clase explícita para cada una.
+            elige una clase explícita para cada una.
           </p>
         )
       )}
@@ -597,7 +639,7 @@ function PatientIdAuthority(props: {
   return (
     <section
       aria-label="Autoridad de identificación del paciente"
-      className="min-w-0 border-neutral-300 lg:border-l lg:pl-4"
+      className="sx-structured-patient min-w-0 border-neutral-300 px-3 py-2 lg:border-l lg:pl-4"
     >
       <h3 className="font-display text-sm font-bold text-primary-dark">
         Autoridad de identificación del paciente
@@ -763,11 +805,45 @@ function ColumnComparisonTable(props: {
   onSelectColumn: (columnIndex: number) => void;
 }): ReactElement {
   const { configuration, patientIdIndex, selectedColumnIndex, onSelectColumn } = props;
+  /**
+   * Issue #92 R6: presentation-only row filter. It reads the canonical
+   * pending set and the canonical row list; it never marks a row, changes a
+   * class/action, the patient-ID authority, a block reason or the output. The
+   * full list is always one button away.
+   */
+  const [filter, setFilter] = useState<"all" | "pending">("all");
+  const pendingIndices = new Set(configuration.columnsRequiringReview);
+  const visibleColumns =
+    filter === "pending"
+      ? configuration.columns.filter((column) => pendingIndices.has(column.columnIndex))
+      : configuration.columns;
   return (
     <section className="sx-structured-table min-w-0 rounded border border-primary bg-surface-light px-3 py-2">
       <h3 className="font-display text-base font-bold text-primary-dark">
         Comparativa de columnas
       </h3>
+      <div
+        role="group"
+        aria-label="Filtro de la comparativa de columnas"
+        className="sx-structured-filter mt-2"
+      >
+        <button
+          type="button"
+          aria-pressed={filter === "all"}
+          onClick={() => setFilter("all")}
+          className={focusRing}
+        >
+          Todas ({configuration.columns.length})
+        </button>
+        <button
+          type="button"
+          aria-pressed={filter === "pending"}
+          onClick={() => setFilter("pending")}
+          className={focusRing}
+        >
+          Pendientes ({configuration.columnsRequiringReview.length})
+        </button>
+      </div>
       {/*
         Explicitly labeled, keyboard-focusable scrollable region (issue #85
         375 px contract): the table may scroll horizontally INSIDE this region
@@ -812,7 +888,7 @@ function ColumnComparisonTable(props: {
             </tr>
           </thead>
           <tbody>
-            {configuration.columns.map((column) => (
+            {visibleColumns.map((column) => (
               <ComparisonRow
                 key={column.columnIndex}
                 column={column}
@@ -916,6 +992,8 @@ function ColumnInspector(props: {
   isPatientId: boolean;
   isPending: boolean;
   otherPendingIndices: readonly number[];
+  /** Issue #92 R6: programmatic focus target after table/next-pending selection. */
+  headingRef?: React.Ref<HTMLHeadingElement>;
   onSelectColumn: (columnIndex: number) => void;
   onOverrideClass: (columnIndex: number, columnClass: ColumnClass) => void;
   onOverrideAction?: (columnIndex: number, action: StructuredAction) => void;
@@ -926,6 +1004,7 @@ function ColumnInspector(props: {
     isPatientId,
     isPending,
     otherPendingIndices,
+    headingRef,
     onSelectColumn,
     onOverrideClass,
     onOverrideAction,
@@ -940,7 +1019,13 @@ function ColumnInspector(props: {
       aria-label="Inspector de columna"
       className="sx-structured-inspector rounded border border-primary bg-surface-light p-3 lg:sticky lg:top-4"
     >
-      <h3 className="font-display text-base font-bold text-primary-dark">{columnName}</h3>
+      <h3
+        ref={headingRef}
+        tabIndex={-1}
+        className={`font-display text-base font-bold text-primary-dark ${focusRing}`}
+      >
+        {columnName}
+      </h3>
       {isPatientId && (
         <p className="mt-1 text-xs font-semibold text-primary-dark">{PATIENT_ID_MARKER}</p>
       )}
@@ -985,59 +1070,6 @@ function ColumnInspector(props: {
           </div>
         )}
       </dl>
-
-      {/*
-        Secondary evidence is grouped behind a native <details> disclosure to
-        cut all-at-once density. `<summary>` is a real keyboard control with a
-        visible focus ring; nothing safety-relevant is only here.
-      */}
-      <details className="mt-2 rounded border border-neutral-300 bg-white p-2">
-        <summary
-          className={`cursor-pointer rounded text-sm font-semibold text-primary-dark ${focusRing}`}
-        >
-          Evidencia y detalles detectados de {columnName}
-        </summary>
-        <dl className="mt-2 space-y-1 text-sm text-neutral-800">
-          <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Clase detectada:</dt>
-            <dd>{CLASS_LABELS[column.detectedClass]}</dd>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Acción propuesta:</dt>
-            <dd>{PROPOSAL_LABELS[column.proposedAction]}</dd>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Tipo inferido:</dt>
-            <dd>{TYPE_LABELS[column.inferredType]}</dd>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Confianza:</dt>
-            <dd>{Math.round(column.confidence * 100)}%</dd>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <dt className="font-semibold">Valores no vacíos:</dt>
-            <dd>{column.nonEmptyCount}</dd>
-          </div>
-        </dl>
-
-        <div className="mt-2">
-          <h4 className="text-xs font-bold text-primary-dark">Evidencia</h4>
-          <ul
-            aria-label={`Evidencia de la columna ${columnName}`}
-            className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-700"
-          >
-            {column.evidence.map((item, index) => (
-              <li key={index}>{localizeStructuredEvidence(item)}</li>
-            ))}
-          </ul>
-        </div>
-
-        {onSetDateRole !== undefined && (
-          <p className="mt-2 text-xs text-neutral-700">
-            Solo significado temporal; nunca cambia la clasificación y nunca se infiere.
-          </p>
-        )}
-      </details>
 
       <label htmlFor={selectId} className="mt-3 block text-sm font-semibold text-neutral-800">
         Clasificación del revisor para {columnName}
@@ -1139,20 +1171,84 @@ function ColumnInspector(props: {
         ))}
 
       {/*
+        Secondary evidence is grouped behind a native <details> disclosure to
+        cut all-at-once density. `<summary>` is a real keyboard control with a
+        visible focus ring; nothing safety-relevant is only here. Issue #92 R6
+        keeps it AFTER the decision controls (approved mobile order) so the
+        class selector is not pushed below the first narrow viewport.
+      */}
+      <details className="mt-2 rounded border border-neutral-300 bg-white p-2">
+        <summary
+          className={`cursor-pointer rounded text-sm font-semibold text-primary-dark ${focusRing}`}
+        >
+          Evidencia y detalles detectados de {columnName}
+        </summary>
+        <dl className="mt-2 space-y-1 text-sm text-neutral-800">
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Clase detectada:</dt>
+            <dd>{CLASS_LABELS[column.detectedClass]}</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Acción propuesta:</dt>
+            <dd>{PROPOSAL_LABELS[column.proposedAction]}</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Tipo inferido:</dt>
+            <dd>{TYPE_LABELS[column.inferredType]}</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Confianza:</dt>
+            <dd>{Math.round(column.confidence * 100)}%</dd>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-semibold">Valores no vacíos:</dt>
+            <dd>{column.nonEmptyCount}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-2">
+          <h4 className="text-xs font-bold text-primary-dark">Evidencia</h4>
+          <ul
+            aria-label={`Evidencia de la columna ${columnName}`}
+            className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-neutral-700"
+          >
+            {column.evidence.map((item, index) => (
+              <li key={index}>{localizeStructuredEvidence(item)}</li>
+            ))}
+          </ul>
+        </div>
+
+        {onSetDateRole !== undefined && (
+          <p className="mt-2 text-xs text-neutral-700">
+            Solo significado temporal; nunca cambia la clasificación y nunca se infiere.
+          </p>
+        )}
+      </details>
+
+      {/*
         Resolution acknowledgment + reachable next action (issue #85): when
         the inspected column drops out of the pending set, the inspector says
         so factually and offers the next unresolved column WITHOUT auto-
         acceptance and without ever claiming output readiness from that fact.
       */}
-      {!isPending && otherPendingIndices.length > 0 && (
-        <div className="mt-3 rounded border border-primary/40 bg-white p-2">
-          <p role="status" className="text-sm font-semibold text-neutral-800">
-            Esta columna ya no tiene pendientes.
-          </p>
+      {otherPendingIndices.length > 0 && (
+        <div className={isPending ? "mt-3" : "mt-3 rounded border border-primary/40 bg-white p-2"}>
+          {!isPending && (
+            <p role="status" className="text-sm font-semibold text-neutral-800">
+              Esta columna ya no tiene pendientes.
+            </p>
+          )}
+          {/*
+            Issue #92 R6: the next pending column stays reachable even while
+            THIS column is still pending. It only moves the single inspector
+            selection; it never accepts, classifies or resolves anything.
+          */}
           <button
             type="button"
             onClick={() => onSelectColumn(otherPendingIndices[0])}
-            className={`mt-2 rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${focusRing}`}
+            className={`rounded border border-primary-dark px-3 py-1.5 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white ${
+              isPending ? "mt-0" : "mt-2"
+            } ${focusRing}`}
           >
             Ir a la siguiente columna pendiente
           </button>

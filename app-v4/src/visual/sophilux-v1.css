@@ -1047,10 +1047,13 @@
 }
 .sophilux-shell .sx-structured-task .sx-structured-configuration,
 .sophilux-shell .sx-structured-task .sx-structured-grid > *,
-.sophilux-shell .sx-structured-task .sx-structured-status-band > * {
+.sophilux-shell .sx-structured-task .sx-structured-summary,
+.sophilux-shell .sx-structured-task .sx-structured-patient,
+.sophilux-shell .sx-structured-task .sx-structured-filter {
   min-width: 0;
 }
-.sophilux-shell .sx-structured-task .sx-structured-status-band,
+.sophilux-shell .sx-structured-task .sx-structured-summary,
+.sophilux-shell .sx-structured-task .sx-structured-patient,
 .sophilux-shell .sx-structured-task .sx-structured-table,
 .sophilux-shell .sx-structured-task .sx-structured-inspector,
 .sophilux-shell .sx-structured-task .sx-structured-workspace > section[aria-label] {
@@ -1059,10 +1062,39 @@
   background: var(--sx-paper);
   box-shadow: var(--sx-shadow);
 }
+/* Issue #92 R6: one grid parent, decision-first mobile reading order. */
 .sophilux-shell .sx-structured-task .sx-structured-grid {
-  grid-template-columns: minmax(0, 1.85fr) minmax(310px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 14px;
+}
+/* The long intro is desktop prose; narrow screens keep it in the disclosure. */
+.sophilux-shell .sx-structured-task .sx-structured-intro {
+  display: none;
+}
+.sophilux-shell .sx-structured-task .sx-structured-intro-compact {
+  display: block;
+}
+/* Presentation-only row filter (never a second domain state). */
+.sophilux-shell .sx-structured-task .sx-structured-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.sophilux-shell .sx-structured-task .sx-structured-filter button {
+  border: 1px solid var(--sx-rose-line);
+  border-radius: 99px;
+  background: var(--sx-paper);
+  color: var(--sx-rose-deep);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+.sophilux-shell .sx-structured-task .sx-structured-filter button[aria-pressed="true"] {
+  background: var(--sx-rose-deep);
+  border-color: var(--sx-rose-deep);
+  color: var(--sx-paper);
 }
 .sophilux-shell .sx-structured-task .sx-structured-table [aria-pressed="true"] {
   outline: 2px solid var(--sx-rose-deep);
@@ -1073,9 +1105,89 @@
   min-width: 0;
 }
 @media (max-width: 1023px) {
-  .sophilux-shell .sx-structured-task .sx-structured-grid,
-  .sophilux-shell .sx-structured-task .sx-structured-status-band {
-    grid-template-columns: minmax(0, 1fr);
+  .sophilux-shell .sx-structured-task .sx-structured-workspace > h2 {
+    font-size: clamp(20px, 6.4vw, 30px);
+  }
+  /* Decision-first density on narrow screens; every fact and reason stays. */
+  .sophilux-shell .sx-structured-task .sx-structured-summary,
+  .sophilux-shell .sx-structured-task .sx-structured-patient {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-summary h3,
+  .sophilux-shell .sx-structured-task .sx-structured-patient h3,
+  .sophilux-shell .sx-structured-task .sx-structured-inspector h3 {
+    font-size: 14px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-summary dl {
+    font-size: 12px;
+    gap: 1px 12px;
+  }
+  /*
+   * Issue #92 R6: the real block reasons stay rendered and accessible, but the
+   * alert box scrolls inside a capped height so the active decision and its
+   * first class selector stay inside the initial mobile viewport.
+   */
+  .sophilux-shell .sx-structured-task .sx-structured-summary ul[role="alert"] {
+    max-height: 52px;
+    overflow-y: auto;
+    font-size: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-inspector dl {
+    font-size: 12.5px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-inspector label {
+    font-size: 12px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-inspector details {
+    font-size: 12px;
+  }
+}
+@media (min-width: 1024px) {
+  .sophilux-shell .sx-structured-task .sx-structured-intro {
+    display: block;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-intro-compact,
+  .sophilux-shell .sx-structured-task .sx-structured-filter {
+    display: none;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 14px;
+    row-gap: 14px;
+  }
+  /* Top band: summary and the single patient-ID authority as adjacent halves. */
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-summary {
+    grid-column: 1 / span 6;
+    grid-row: 1;
+    align-self: stretch;
+    margin-right: -7px;
+    padding-right: calc(0.75rem + 7px);
+    border-right: 0;
+    border-radius: 13px 0 0 13px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-patient {
+    grid-column: 7 / span 6;
+    grid-row: 1;
+    align-self: stretch;
+    margin-left: -7px;
+    padding-left: calc(1rem + 7px);
+    border-radius: 0 13px 13px 0;
+  }
+  /* Accepted desktop arrangement: table left, inspector right, same row. */
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-table {
+    grid-column: 1 / span 8;
+    grid-row: 2;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-inspector {
+    grid-column: 9 / span 4;
+    grid-row: 2;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-output {
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 }
 
@@ -1188,14 +1300,16 @@
   grid-column: 1 / -1;
   min-width: 0;
 }
-.sophilux-shell .sx-result-task .sx-result-workspace > header {
+.sophilux-shell .sx-result-task .sx-result-workspace > header,
+.sophilux-shell .sx-result-task .sx-r3-single-overview > header {
   grid-column: 1;
   padding: 22px;
   border: 1px solid var(--sx-rose-line);
   border-radius: 14px;
   background: linear-gradient(125deg, var(--sx-paper), var(--sx-rose-soft));
 }
-.sophilux-shell .sx-result-task .sx-result-workspace > header h2 {
+.sophilux-shell .sx-result-task .sx-result-workspace > header h2,
+.sophilux-shell .sx-result-task .sx-r3-single-overview > header h2 {
   font-family: var(--sx-serif);
   font-size: clamp(38px, 3.5vw, 50px);
   line-height: 1.03;
@@ -1234,6 +1348,359 @@
   }
   .sophilux-shell .sx-result-task .sx-result-workspace > header,
   .sophilux-shell .sx-result-task .sx-result-workspace > section:first-of-type {
+    grid-column: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* REC-12 #92 R3: approved Sophilux B V1 hierarchy for the real        */
+/* Review, processed cells and Result. Presentation only: no review,   */
+/* output or privacy authority is introduced here.                     */
+/* ------------------------------------------------------------------ */
+
+/* Review: compact progress/filters in a secondary zone, findings first. */
+.sophilux-shell .sx-review-task .sx-r3-review-tools {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools > section {
+  border: 1px solid var(--sx-line);
+  border-radius: 13px;
+  background: var(--sx-paper);
+  box-shadow: var(--sx-shadow);
+  padding: 12px;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools h3 {
+  color: var(--sx-ink);
+  font-family: var(--sx-serif);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools dl > div {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools dl dt {
+  color: var(--sx-ink-soft);
+  font-weight: 650;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools dl dd {
+  margin: 0;
+  color: var(--sx-ink);
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools dl > dt {
+  flex: 1 1 100%;
+  margin-top: 2px;
+  color: var(--sx-ink-soft);
+  font-weight: 650;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools [role="group"] button {
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-review-tools select {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.sophilux-shell .sx-review-task .sx-r3-findings-first ul[aria-label="Hallazgos"] {
+  max-height: 510px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Approved R3 composition at the two-column breakpoint: progress and filters
+ * form one compact strip above the three review areas (as in the accepted
+ * mock), so both long cards stop pushing the findings list out of the
+ * first viewport. Every progress fact and every filter control stays
+ * rendered, visible and operable; nothing collapses behind a disclosure.
+ */
+@media (min-width: 1024px) {
+  .sophilux-shell .sx-review-task .sx-review-grid {
+    grid-template-areas:
+      "tools tools tools"
+      "document findings inspector";
+  }
+
+  .sophilux-shell .sx-review-task .sx-review-findings {
+    display: contents;
+  }
+
+  .sophilux-shell .sx-review-task .sx-review-findings > .sx-r3-review-tools {
+    grid-area: tools;
+    grid-template-columns: minmax(0, 1.3fr) minmax(420px, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .sophilux-shell .sx-review-task .sx-review-findings > .sx-r3-findings-first {
+    grid-area: findings;
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  /* One compact strip: the type filter sits beside its label instead of
+     adding two more stacked rows, so the strip never grows needlessly. */
+  .sophilux-shell .sx-review-task .sx-r3-review-tools > section {
+    padding: 10px 12px;
+  }
+
+  .sophilux-shell .sx-review-task .sx-r3-review-tools dl {
+    gap: 2px 10px;
+  }
+
+  .sophilux-shell .sx-review-task .sx-r3-review-tools [aria-label="Filtros de hallazgos"] {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 10px;
+    align-content: start;
+  }
+
+  .sophilux-shell .sx-review-task .sx-r3-review-tools [aria-label="Filtros de hallazgos"] h3,
+  .sophilux-shell
+    .sx-review-task
+    .sx-r3-review-tools
+    [aria-label="Filtros de hallazgos"]
+    [role="group"] {
+    grid-column: 1 / -1;
+  }
+
+  .sophilux-shell .sx-review-task .sx-r3-review-tools [aria-label="Filtros de hallazgos"] label {
+    display: flex;
+    align-items: center;
+    margin-top: 6px;
+  }
+
+  .sophilux-shell .sx-review-task .sx-r3-review-tools [aria-label="Filtros de hallazgos"] select {
+    margin-top: 6px;
+    padding: 2px 6px;
+    height: 30px;
+  }
+}
+
+/* Cells: processed summary beside reprocessing; active work before prose. */
+.sophilux-shell .sx-cells-task .sx-r3-cells-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sophilux-shell .sx-cells-task .sx-r3-cells-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sophilux-shell .sx-cells-task .sx-r3-cells-compact > div {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sophilux-shell .sx-cells-task .sx-r3-cells-compact dt {
+  color: var(--sx-ink-soft);
+  font-weight: 650;
+}
+
+.sophilux-shell .sx-cells-task .sx-r3-cells-compact dd {
+  margin: 0;
+  color: var(--sx-ink);
+}
+
+/* Result: the authorized prepared Safe payload, complete and scrollable. */
+.sophilux-shell .sx-result-task .sx-r3-safe-preview {
+  min-width: 0;
+  margin-top: 16px;
+  border: 1px solid var(--sx-rose-line);
+  border-radius: 13px;
+  background: var(--sx-paper-muted);
+  padding: 14px 16px;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-safe-preview h4 {
+  color: var(--sx-rose-deep);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-safe-preview pre {
+  margin: 10px 0 0;
+  max-height: 320px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: var(--sx-ink);
+  font-family: var(--sx-sans);
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Approved R3 Result composition: the hero and the single factual state block
+ * share one full-width overview (title left, state right, never an empty
+ * column); below it the material body composes the real warnings full-width,
+ * the primary action full-width, the Safe preview as the main left panel, the
+ * alternative formats as the secondary right panel, and the return action last.
+ */
+.sophilux-shell .sx-result-task .sx-result-workspace.sx-r3-single-workspace {
+  display: block;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.85fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.sophilux-shell
+  .sx-result-task
+  .sx-result-workspace.sx-r3-single-workspace
+  > section.sx-r3-single-content {
+  margin-top: 18px;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-overview > header p:last-child {
+  max-width: 46ch;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--sx-rose-line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sx-sage) 9%, var(--sx-paper));
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-state h3 {
+  color: var(--sx-ink);
+  font-size: clamp(24px, 2.2vw, 30px);
+  line-height: 1.15;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-state span {
+  background: transparent;
+  color: var(--sx-rose-deep);
+  padding: 0;
+  letter-spacing: 0.14em;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+  grid-auto-flow: row dense;
+  gap: 16px 20px;
+  align-items: start;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-body > * {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-note,
+.sophilux-shell .sx-result-task .sx-r3-single-kept,
+.sophilux-shell .sx-result-task .sx-r3-single-primary,
+.sophilux-shell .sx-result-task .sx-r3-single-feedback,
+.sophilux-shell .sx-result-task .sx-r3-single-return {
+  grid-column: 1 / -1;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-return {
+  justify-self: start;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-primary > div {
+  margin-top: 10px;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-formats {
+  grid-column: 2;
+  border: 1px solid var(--sx-line);
+  border-radius: 13px;
+  background: var(--sx-paper);
+  padding: 14px 16px;
+}
+
+.sophilux-shell .sx-result-task .sx-r3-single-body > .sx-r3-safe-preview {
+  grid-column: 1;
+  margin-top: 0;
+}
+
+/* R3 Result at the accepted stacked breakpoint: the full-width hero, the state
+   block, the factual Keep warning and the primary action stay inside the first
+   viewport; the body becomes one column in the documented DOM order. */
+@media (max-width: 1023px) {
+  .sophilux-shell .sx-result-task .sx-result-workspace {
+    gap: 12px;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-overview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-overview > header.sx-r3-result-hero {
+    padding: 14px 16px;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-overview > header.sx-r3-result-hero h2 {
+    font-size: clamp(30px, 8vw, 38px);
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-overview > header.sx-r3-result-hero p:last-child {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-state {
+    padding: 14px 16px;
+    gap: 6px;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-state h3 {
+    font-size: 22px;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .sophilux-shell .sx-result-task .sx-r3-single-formats,
+  .sophilux-shell .sx-result-task .sx-r3-single-body > .sx-r3-safe-preview {
     grid-column: 1;
   }
 }

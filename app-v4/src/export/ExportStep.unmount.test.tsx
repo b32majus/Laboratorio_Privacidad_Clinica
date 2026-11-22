@@ -381,3 +381,60 @@ describe("REC-07 prefactor #79 — Structured export unmount disposal", () => {
     }
   });
 });
+
+// REC-12 R2-01 — designer-owned adversarial contract (Sil GO, 21/11/2026).
+// Unlike expected typed errors, a writable Error.name/message may contain
+// arbitrary text. Neither Safe nor Confidential XLSX may echo it in the DOM.
+describe("REC-12 R2-01 — unexpected XLSX exceptions never enter the visible DOM", () => {
+  const cases = [
+    {
+      name: "Safe",
+      request: "Descargar salida estructurada segura (.xlsx)",
+      publicMessage:
+        "No se pudo generar la salida segura en XLSX a partir del resultado preparado.",
+    },
+    {
+      name: "Confidential",
+      request: "Descargar auditoría confidencial estructurada (.xlsx)",
+      publicMessage:
+        "No se pudo generar la auditoría confidencial en XLSX a partir del resultado preparado.",
+    },
+  ] as const;
+
+  for (const scenario of cases) {
+    it(`${scenario.name} XLSX refuses a planted unexpected exception without bytes or source text in DOM`, async () => {
+      const captured = captureDownloads();
+      const sentinelName = "NOMBRE_SINTETICO_XLSX_ERROR";
+      const sentinelMessage = "NHC_FICTICIO_928164_ERROR_EN_XLSX";
+      const rejected = Object.assign(new Error(sentinelMessage), { name: sentinelName });
+      // Rejection is deliberately before any XLSX bytes are constructed.
+      xlsxGate.suspend = () => Promise.reject(rejected);
+      render(
+        <ExportStep
+          job={structuredJobFor("r2-adversarial", true)}
+          review={null}
+          structured={structuredReadyInput()}
+        />
+      );
+
+      try {
+        fireEvent.click(screen.getByRole("button", { name: scenario.request }));
+        if (scenario.name === "Confidential") {
+          // The first click is only a warning; the failure happens after confirmation.
+          expect(captured.downloads).toHaveLength(0);
+          fireEvent.click(
+            screen.getByRole("button", { name: "Confirmar descarga confidencial (.xlsx)" })
+          );
+        }
+        await flushAsyncWork();
+        expect(captured.downloads).toHaveLength(0);
+        expect(screen.getByRole("alert")).toHaveTextContent(scenario.publicMessage);
+        const wholeDom = document.documentElement.outerHTML;
+        expect(wholeDom).not.toContain(sentinelName);
+        expect(wholeDom).not.toContain(sentinelMessage);
+      } finally {
+        captured.restore();
+      }
+    });
+  }
+});

@@ -5,7 +5,7 @@
  * build artifact. The V4 runtime never imports it — the worker is served as
  * the governed same-origin asset /vendor/pdf.worker.min.js.
  */
-declare module "pdfjs-dist/legacy/build/pdf.worker.js" {
+declare module "pdfjs-dist/legacy/build/pdf.worker.mjs" {
   const workerModule: unknown;
   export default workerModule;
 }

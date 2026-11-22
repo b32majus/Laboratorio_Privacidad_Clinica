@@ -18,6 +18,17 @@ Rules enforced by the repository:
   (`app-v4/src/input/pdfjs-loader.ts`) loads `/vendor/pdf.min.js` lazily on
   first PDF use and points the worker at `/vendor/pdf.worker.min.js` (both
   same-origin).
+- pdf.js is pdfjs-dist **4.10.38** (CVE-2024-4367 / GHSA-wgrm-67xf-hhpq
+  fixed; patched release line, Node >= 20). Upstream 4.x ships ESM only, so:
+  `lib/pdf.min.js` is a deterministic esbuild IIFE build (`global pdfjsLib`,
+  the API the adapter expects, including `GlobalWorkerOptions.workerSrc`)
+  derived from the installed `pdfjs-dist/legacy/build/pdf.mjs`;
+  `lib/pdf.worker.min.js` is a byte-exact copy of the installed
+  `pdfjs-dist/legacy/build/pdf.worker.min.mjs` (ESM content kept under the
+  existing `.js` filename because pdf.js instantiates it as a same-origin
+  module worker and the served MIME type for `.js` is JavaScript). The exact
+  reproduction command and hashes are recorded in
+  `scripts/ci/vendor-manifest.json`.
 - SheetJS is NEVER bundled into the V4 application chunks. The structured
   Excel adapter (`app-v4/src/structured/xlsx-loader.ts`, T18 #22) loads
   `/vendor/xlsx.full.min.js` lazily on first Excel use (same-origin, governed

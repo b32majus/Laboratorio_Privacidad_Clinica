@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>REC-12 R3 · Comparador Sophilux</title>
+  <style>
+  :root{color-scheme:light;--rose:#835852;--rose-soft:#f6ebe7;--paper:#fffdfa;--canvas:#f7f5f2;--ink:#252b30;--line:#e9e3de}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+  header{padding:38px max(23px,calc((100vw - 1200px)/2));background:linear-gradient(135deg,#f9efeb,#fffdfa);border-bottom:1px solid #ead6d0}
+  header .kicker{font-size:11px;font-weight:750;letter-spacing:.19em;color:var(--rose)}
+  h1,h2{font-family:Georgia,serif;letter-spacing:-.035em}h1{font-size:clamp(35px,4vw,60px);line-height:1.02;font-weight:500;margin:13px 0}
+  header p{max-width:830px;color:#605e60}
+  .main{max-width:1220px;margin:0 auto;padding:24px 20px 85px}
+  nav{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 20px}
+  nav a,.links a{display:inline-flex;padding:9px 15px;text-decoration:none;border:1px solid #d8c2bb;border-radius:99px;background:white;color:var(--rose);font-size:12px;font-weight:700}
+  nav a:hover,.links a:hover{background:var(--rose-soft)}
+  section{padding:28px 0 38px;border-bottom:1px solid #d9d0cc}
+  h2{font-size:38px;line-height:1.1;font-weight:500;margin:5px 0 10px}
+  h3{font-size:15px;margin:20px 0 8px}
+  p{max-width:900px}
+  .hint{color:#6c6766;font-size:12px}
+  .shot{margin:14px 0 24px;padding:12px;background:white;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 26px #3e27230b}
+  .shot img{width:100%;display:block;height:auto;border-radius:5px}
+  .shot figcaption{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;padding:11px 3px 0;color:#5d5554}
+  .shot a{color:var(--rose);font-weight:750;text-decoration:none}
+  .mobile-scroll{overflow-x:auto;overscroll-behavior-inline:contain}
+  .mobile-scroll img{width:1170px;max-width:none;height:auto}
+  .links{display:flex;flex-wrap:wrap;gap:8px;margin:17px 0}
+  .states{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .states figure{margin:0;background:var(--paper);padding:12px;border:1px solid var(--line);border-radius:12px}
+  .states img{display:block;width:100%;height:auto}
+  .states figcaption{font-size:11px;color:#6c6766;margin-top:8px}
+  .warning{font-size:12px;color:#754a28;padding:13px;background:#fbf3e3;border:1px solid #ead6b1;border-radius:9px}
+  @media(max-width:700px){.states{grid-template-columns:1fr 1fr}header{padding:28px 19px}h2{font-size:32px}.main{padding:18px 14px 60px}}
+  @media(max-width:440px){.states{grid-template-columns:1fr}.mobile-scroll img{width:1170px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="kicker">LABORATORIO DE PRIVACIDAD CLÍNICA · REC-12 / R3</div>
+  <h1>Tres pantallas. Una misma intención.</h1>
+  <p>Comparación de la <b>composición Sophilux B V1 aprobada</b> (12/10), la aplicación real documentada en F8 y la propuesta de redistribución R3. La columna del maestro ilustra el diseño; no simula las decisiones ni las autorizaciones del producto V4.</p>
+  <nav><a href="#revision">Revisión</a><a href="#celdas">Celdas</a><a href="#resultado">Resultado</a><a href="maqueta.html?vista=revision">Abrir maqueta navegable</a></nav>
+</header>
+<div class="main">
+  <p class="warning"><b>Pendiente de aprobación humana.</b> Este documento no indica que la interfaz React se haya modificado. El contrato congelado sigue intacto; se han utilizado datos exclusivamente ficticios. Las capturas son estados comparables por tipo y viewport, no una equivalencia de contenido literal (el maestro V1 usa pocos ejemplos y V4/R3 usan densidad realista).</p>
+  <section id="revision">
+    <h2>01. Revisión</h2>
+    <p>Documento prominente + <b>Hallazgos en primera pantalla</b> + inspector contextual. Progreso y filtros permanecen como controles secundarios. Densidad R3: 24 detecciones sin aceptación automática.</p>
+    <div class="links"><a href="maqueta.html?vista=revision">Probar composición de Revisión</a><a href="capturas/revision-375-completa.png">Ver móvil completo</a></div>
+    <h3>Escritorio · 1440 × 900</h3>
+    <figure class="shot"><a href="comparaciones/revision-1440-comparacion.png"><img alt="Tres columnas: maestro aprobado, V4 F8, propuesta R3 en Revisión a 1440" src="comparaciones/revision-1440-comparacion.png"></a><figcaption>Maestro → V4 en F8 → Propuesta R3 <a href="comparaciones/revision-1440-comparacion.png">Ampliar imagen</a></figcaption></figure>
+    <h3>Móvil · 375 × 800</h3>
+    <figure class="shot"><div class="mobile-scroll"><a href="comparaciones/revision-375-comparacion.png"><img alt="Maestro, V4 F8 y propuesta R3 en Revisión a 375" src="comparaciones/revision-375-comparacion.png"></a></div><figcaption>Desliza horizontalmente para comparar; decisión visible primero en móvil. <a href="comparaciones/revision-375-comparacion.png">Ampliar</a></figcaption></figure>
+  </section>
+  <section id="celdas">
+    <h2>02. Texto libre en celdas</h2>
+    <p>La celda activa, su contenido y la decisión vuelven a ser el centro. Se conserva la cola real y el contexto de reprocesamiento, pero no se obliga a leer una explicación extensa antes de actuar. Dos celdas, cuatro detecciones.</p>
+    <div class="links"><a href="maqueta.html?vista=celdas">Probar composición de Celdas</a><a href="capturas/celdas-375-completa.png">Ver móvil completo</a></div>
+    <h3>Escritorio · 1440 × 900</h3>
+    <figure class="shot"><a href="comparaciones/celdas-1440-comparacion.png"><img alt="Maestro, V4 F8 y propuesta R3 en Celdas a 1440" src="comparaciones/celdas-1440-comparacion.png"></a><figcaption>Maestro → V4 en F8 → Propuesta R3 <a href="comparaciones/celdas-1440-comparacion.png">Ampliar imagen</a></figcaption></figure>
+    <h3>Móvil · 375 × 800</h3>
+    <figure class="shot"><div class="mobile-scroll"><a href="comparaciones/celdas-375-comparacion.png"><img alt="Maestro, V4 F8 y propuesta R3 en Celdas a 375" src="comparaciones/celdas-375-comparacion.png"></a></div><figcaption>El inspector aparece primero, con celda y contexto identificados. <a href="comparaciones/celdas-375-comparacion.png">Ampliar</a></figcaption></figure>
+  </section>
+  <section id="resultado">
+    <h2>03. Resultado</h2>
+    <p>Estado + acción contextual + advertencia de original conservado + <b>vista previa del Safe preparado</b>, con Auditoría confidencial separada. Si el estado es Pendiente o Bloqueado no se crea vista previa ni se presenta una salida disponible.</p>
+    <div class="links"><a href="maqueta.html?vista=resultado&estado=ready">Ver Listo</a><a href="maqueta.html?vista=resultado&estado=needs">Ver Pendiente</a><a href="maqueta.html?vista=resultado&estado=blocked">Ver Bloqueado</a></div>
+    <h3>Escritorio · 1440 × 900 · Estado Listo</h3>
+    <figure class="shot"><a href="comparaciones/resultado-1440-comparacion.png"><img alt="Maestro, V4 F8 y propuesta R3 en Resultado Listo a 1440" src="comparaciones/resultado-1440-comparacion.png"></a><figcaption>Maestro → V4 en F8 → Propuesta R3 <a href="comparaciones/resultado-1440-comparacion.png">Ampliar imagen</a></figcaption></figure>
+    <h3>Móvil · 375 × 800 · Estado Listo</h3>
+    <figure class="shot"><div class="mobile-scroll"><a href="comparaciones/resultado-375-comparacion.png"><img alt="Maestro, V4 F8 y propuesta R3 en Resultado Listo a 375" src="comparaciones/resultado-375-comparacion.png"></a></div><figcaption>CTA de salida y aviso de original conservado en primer viewport. <a href="comparaciones/resultado-375-comparacion.png">Ampliar</a></figcaption></figure>
+    <h3>Otros estados: Pendiente y Bloqueado</h3>
+    <div class="states">
+      <figure><a href="capturas/resultado-listo-375.png"><img alt="Resultado móvil Listo con estado verde y aviso" src="capturas/resultado-listo-375.png"></a><figcaption>Listo · Safe visible cuando corresponde</figcaption></figure>
+      <figure><a href="capturas/resultado-pendiente-375.png"><img alt="Resultado móvil Pendiente con salida no disponible" src="capturas/resultado-pendiente-375.png"></a><figcaption>Pendiente · sin texto Safe en DOM</figcaption></figure>
+      <figure><a href="capturas/resultado-bloqueado-375.png"><img alt="Resultado móvil Bloqueado sin descarga" src="capturas/resultado-bloqueado-375.png"></a><figcaption>Bloqueado · no se ofrecen descargas</figcaption></figure>
+    </div>
+  </section>
+  <p class="hint">La maqueta reproduce tokens y componentes de Sophilux B V1. Las imágenes de referencia y F8 proceden del repositorio y se incorporan solamente a estas láminas para facilitar su revisión. No hay cambio de producto ni datos clínicos reales.</p>
+</div>
+</body>
+</html>

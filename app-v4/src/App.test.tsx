@@ -44,7 +44,7 @@ vi.mock("./domain/job", async (importOriginal) => {
 });
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
-const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
+const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en tu navegador/i;
 
 /**
  * Quiet shell (issue #84): the five-step pipeline navigation is gone. Task
@@ -112,8 +112,8 @@ async function seedRealPdfJs(): Promise<void> {
   // Same seam as the adapter tests: in the jsdom/Node environment pdf.js runs
   // a fake worker on the main thread via the documented pdfjsWorker global.
   const [pdfjs, worker] = await Promise.all([
-    import("pdfjs-dist/legacy/build/pdf.js"),
-    import("pdfjs-dist/legacy/build/pdf.worker.js"),
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
   ]);
   (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
   window.pdfjsLib = pdfjs as unknown as PdfJsLib;
@@ -492,7 +492,7 @@ describe("App input workspace (UX-PILOT-01 #52)", () => {
     selectFiles([new File(["nota"], "historia.txt")]);
     fireEvent.click(screen.getByRole("button", { name: "Crear trabajo" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Use una sola entrada por trabajo: texto pegado o archivos, no ambos."
+      "Usa una sola entrada por trabajo: texto pegado o archivos, no ambos."
     );
     expect(screen.getByText("Aún no hay trabajo")).toBeInTheDocument();
   });

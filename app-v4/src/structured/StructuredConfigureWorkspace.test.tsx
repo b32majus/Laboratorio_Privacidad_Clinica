@@ -110,6 +110,17 @@ function actionSelect(header: string): HTMLSelectElement | null {
 
 afterEach(cleanup);
 
+// REC-12 PDR-08: visible guidance uses the same second-person voice as the UI.
+it("uses second-person Spanish in both desktop and mobile column guidance", () => {
+  renderHarness();
+  const intros = screen.getAllByText(/Compara todas las columnas de la tabla/);
+  expect(intros).toHaveLength(2);
+  for (const intro of intros) {
+    expect(intro).toHaveTextContent("puedes cambiar cualquiera");
+    expect(intro).not.toHaveTextContent(/Compare todas|puede cambiar cualquiera/);
+  }
+});
+
 describe("StructuredConfigureWorkspace — comparative four-field display from domain facts", () => {
   it("shows the four approved factual fields for every column without any disclosure", () => {
     renderHarness();
@@ -340,6 +351,8 @@ describe("StructuredConfigureWorkspace — Unknown review + export gate", () => 
     expect(facts).toHaveTextContent("Columnas que requieren revisión: 2");
     expect(facts).toHaveTextContent("Exportación estructurada preparada: No");
     expect(screen.getByRole("alert")).toHaveTextContent(/exportación estructurada está bloqueada/i);
+    expect(screen.getByRole("alert")).toHaveTextContent("elige una clase explícita");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("elija una clase explícita");
 
     // Neither review-required column is KEEP: the effective classes stay put
     // and the canonical export gate stays closed.

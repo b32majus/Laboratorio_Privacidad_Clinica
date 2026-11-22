@@ -427,7 +427,7 @@ export function App() {
       // mutual-exclusion message is authored in Spanish directly.
       setInputError({
         kind: "text",
-        message: "Use una sola entrada por trabajo: texto pegado o archivos, no ambos.",
+        message: "Usa una sola entrada por trabajo: texto pegado o archivos, no ambos.",
       });
       return;
     }
@@ -1063,7 +1063,7 @@ export function App() {
               </select>
             </label>
             <p>
-              El procesamiento se ejecuta localmente en su navegador; el contenido del trabajo
+              El procesamiento se ejecuta localmente en tu navegador; el contenido del trabajo
               permanece en este dispositivo.
             </p>
             <details className="sx-session-help">
@@ -1921,7 +1921,7 @@ function InputStep(props: {
       setPasteError(null);
     } catch {
       setPasteError(
-        "No se pudo leer el portapapeles en este navegador. Pegue con Ctrl+V directamente en el campo de texto."
+        "No se pudo leer el portapapeles en este navegador. Pega con Ctrl+V directamente en el campo de texto."
       );
     } finally {
       setPasteBusy(false);
@@ -2074,8 +2074,8 @@ function InputStep(props: {
                     </section>
 
                     <p className="mt-2 text-sm leading-relaxed sx-muted">
-                      Lee el contenido actual del portapapeles en este navegador. También puede usar
-                      Ctrl+V directamente en el campo de texto.
+                      Lee el contenido actual del portapapeles en este navegador. También puedes
+                      usar Ctrl+V directamente en el campo de texto.
                     </p>
                   </details>
                 </section>
@@ -2265,7 +2265,7 @@ function StepUnavailableState({
         </p>
       )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Este paso no está disponible para el estado actual del trabajo. Vuelva a un paso disponible
+        Este paso no está disponible para el estado actual del trabajo. Vuelve a un paso disponible
         con las acciones de tarea o los controles de sesión de arriba.
       </p>
     </section>

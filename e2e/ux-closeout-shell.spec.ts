@@ -274,7 +274,7 @@ for (const width of [375, 1280]) {
     await expandPolicyGuidance(page);
     await expect(list.getByRole("listitem")).toHaveCount(4);
     await expect(region).toContainText(
-      "Cree un trabajo para ver qué políticas están disponibles para su tipo."
+      "Crea un trabajo para ver qué políticas están disponibles para ese tipo."
     );
 
     // Text job: all four entries, all four available (REC-02), current policy.

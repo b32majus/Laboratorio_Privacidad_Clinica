@@ -1,0 +1,48 @@
+{
+  "innerWidth": 320,
+  "scrollWidth": 320,
+  "inspector": {
+    "x": 16,
+    "y": 565.390625,
+    "width": 288,
+    "height": 456
+  },
+  "classification": {
+    "x": 29,
+    "y": 714.390625,
+    "width": 262,
+    "height": 30
+  },
+  "summary": {
+    "x": 16,
+    "y": 387.390625,
+    "width": 288,
+    "height": 164
+  },
+  "patient": {
+    "x": 16,
+    "y": 1035.390625,
+    "width": 288,
+    "height": 276
+  },
+  "table": {
+    "x": 16,
+    "y": 1325.390625,
+    "width": 288,
+    "height": 1760.5
+  },
+  "intro": {
+    "x": 16,
+    "y": 352.640625,
+    "width": 288,
+    "height": 22.75
+  },
+  "workspace": {
+    "x": 16,
+    "y": 324.53125,
+    "width": 288,
+    "height": 2841.359375
+  },
+  "selected": "Fecha_Visita",
+  "pendingTableRows": 32
+}

@@ -2,6 +2,8 @@
 
 > Registro vivo con trazabilidad histórica. No borrar deuda al implementarla: marcarla como resuelta y enlazar PR/commit.
 >
+> **DECISIONES HUMANAS POSTERIORES REC-12 R12 (22/11/2026):** las ocho excepciones finales y su tratamiento aprobado, motivo, prueba, límite y disparador de reapertura están centralizados en [RESOLUCION_8_EXCEPCIONES.md](evidence/issue92-r12-exceptions-20261122/RESOLUCION_8_EXCEPCIONES.md). `STRUCT-003` se corrige antes de cerrar #92; `H-01`/`PDR-08` comparten barrido de lenguaje; cinco excepciones arquitectónicas aceptadas **con límites**, no convertidas a `DONE` literal. Las filas históricas de este archivo permanecen sin reescritura.
+>
 > **RECONCILIACIÓN 2026-10-04:** este registro dejó de ser fiable como backlog por sí solo: mezclaba cierres técnicos estrechos con paridad de producto y contenía estados caducados. La autoridad de planificación actual es `docs/START_HERE.md` → `docs/RECOVERY_MASTER_PLAN_2026-10.md` → `docs/audits/2026-10-recovery-traceability-matrix.md`. Las filas se conservan para trazabilidad; un `DONE` histórico no implica que una capacidad de producto más amplia esté recuperada.
 
 ## Convenciones

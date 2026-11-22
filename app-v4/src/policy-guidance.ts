@@ -55,7 +55,7 @@ export const POLICY_AVAILABILITY_LABELS: Readonly<Record<"available" | "unavaila
 
 /** Honest note shown before any job exists (no job kind to evaluate). */
 export const NO_JOB_AVAILABILITY_NOTE =
-  "Cree un trabajo para ver qué políticas están disponibles para su tipo.";
+  "Crea un trabajo para ver qué políticas están disponibles para ese tipo.";
 
 function isTypedPolicyFailure(error: unknown): boolean {
   return error instanceof PolicyError || error instanceof StructuredDateAgePolicyError;
