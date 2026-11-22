@@ -1047,10 +1047,13 @@
 }
 .sophilux-shell .sx-structured-task .sx-structured-configuration,
 .sophilux-shell .sx-structured-task .sx-structured-grid > *,
-.sophilux-shell .sx-structured-task .sx-structured-status-band > * {
+.sophilux-shell .sx-structured-task .sx-structured-summary,
+.sophilux-shell .sx-structured-task .sx-structured-patient,
+.sophilux-shell .sx-structured-task .sx-structured-filter {
   min-width: 0;
 }
-.sophilux-shell .sx-structured-task .sx-structured-status-band,
+.sophilux-shell .sx-structured-task .sx-structured-summary,
+.sophilux-shell .sx-structured-task .sx-structured-patient,
 .sophilux-shell .sx-structured-task .sx-structured-table,
 .sophilux-shell .sx-structured-task .sx-structured-inspector,
 .sophilux-shell .sx-structured-task .sx-structured-workspace > section[aria-label] {
@@ -1059,10 +1062,39 @@
   background: var(--sx-paper);
   box-shadow: var(--sx-shadow);
 }
+/* Issue #92 R6: one grid parent, decision-first mobile reading order. */
 .sophilux-shell .sx-structured-task .sx-structured-grid {
-  grid-template-columns: minmax(0, 1.85fr) minmax(310px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 14px;
+}
+/* The long intro is desktop prose; narrow screens keep it in the disclosure. */
+.sophilux-shell .sx-structured-task .sx-structured-intro {
+  display: none;
+}
+.sophilux-shell .sx-structured-task .sx-structured-intro-compact {
+  display: block;
+}
+/* Presentation-only row filter (never a second domain state). */
+.sophilux-shell .sx-structured-task .sx-structured-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.sophilux-shell .sx-structured-task .sx-structured-filter button {
+  border: 1px solid var(--sx-rose-line);
+  border-radius: 99px;
+  background: var(--sx-paper);
+  color: var(--sx-rose-deep);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+.sophilux-shell .sx-structured-task .sx-structured-filter button[aria-pressed="true"] {
+  background: var(--sx-rose-deep);
+  border-color: var(--sx-rose-deep);
+  color: var(--sx-paper);
 }
 .sophilux-shell .sx-structured-task .sx-structured-table [aria-pressed="true"] {
   outline: 2px solid var(--sx-rose-deep);
@@ -1073,9 +1105,89 @@
   min-width: 0;
 }
 @media (max-width: 1023px) {
-  .sophilux-shell .sx-structured-task .sx-structured-grid,
-  .sophilux-shell .sx-structured-task .sx-structured-status-band {
-    grid-template-columns: minmax(0, 1fr);
+  .sophilux-shell .sx-structured-task .sx-structured-workspace > h2 {
+    font-size: clamp(20px, 6.4vw, 30px);
+  }
+  /* Decision-first density on narrow screens; every fact and reason stays. */
+  .sophilux-shell .sx-structured-task .sx-structured-summary,
+  .sophilux-shell .sx-structured-task .sx-structured-patient {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-summary h3,
+  .sophilux-shell .sx-structured-task .sx-structured-patient h3,
+  .sophilux-shell .sx-structured-task .sx-structured-inspector h3 {
+    font-size: 14px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-summary dl {
+    font-size: 12px;
+    gap: 1px 12px;
+  }
+  /*
+   * Issue #92 R6: the real block reasons stay rendered and accessible, but the
+   * alert box scrolls inside a capped height so the active decision and its
+   * first class selector stay inside the initial mobile viewport.
+   */
+  .sophilux-shell .sx-structured-task .sx-structured-summary ul[role="alert"] {
+    max-height: 52px;
+    overflow-y: auto;
+    font-size: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-inspector dl {
+    font-size: 12.5px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-inspector label {
+    font-size: 12px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-inspector details {
+    font-size: 12px;
+  }
+}
+@media (min-width: 1024px) {
+  .sophilux-shell .sx-structured-task .sx-structured-intro {
+    display: block;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-intro-compact,
+  .sophilux-shell .sx-structured-task .sx-structured-filter {
+    display: none;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 14px;
+    row-gap: 14px;
+  }
+  /* Top band: summary and the single patient-ID authority as adjacent halves. */
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-summary {
+    grid-column: 1 / span 6;
+    grid-row: 1;
+    align-self: stretch;
+    margin-right: -7px;
+    padding-right: calc(0.75rem + 7px);
+    border-right: 0;
+    border-radius: 13px 0 0 13px;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-patient {
+    grid-column: 7 / span 6;
+    grid-row: 1;
+    align-self: stretch;
+    margin-left: -7px;
+    padding-left: calc(1rem + 7px);
+    border-radius: 0 13px 13px 0;
+  }
+  /* Accepted desktop arrangement: table left, inspector right, same row. */
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-table {
+    grid-column: 1 / span 8;
+    grid-row: 2;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-inspector {
+    grid-column: 9 / span 4;
+    grid-row: 2;
+  }
+  .sophilux-shell .sx-structured-task .sx-structured-grid > .sx-structured-output {
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 }
 
