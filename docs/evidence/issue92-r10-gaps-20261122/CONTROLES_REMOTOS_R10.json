@@ -1,0 +1,58 @@
+{
+  "observed_utc": "2026-11-22T19:05:05+00:00",
+  "origin": {
+    "url": "https://laboratorio-privacidad-clinica.onrender.com/",
+    "method": "HEAD",
+    "status": "HTTP/2 200 ",
+    "assertions": {
+      "status_200": true,
+      "referrer_no_referrer": true,
+      "frame_ancestors_none": true,
+      "connect_self": true,
+      "x_frame_deny": true
+    },
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "referrer_policy": "no-referrer",
+    "x_frame_options": "DENY"
+  },
+  "github": {
+    "repo": "b32majus/Laboratorio_Privacidad_Clinica",
+    "branch": "3.0-main",
+    "sha": "46bce0a8f8a25ac5c18c41b2303ae2c785246ddd",
+    "protected": true,
+    "default_branch": "main",
+    "runs": {
+      "ci": {
+        "run_id": 44903478299,
+        "conclusion": "success",
+        "headSha": "46bce0a8f8a25ac5c18c41b2303ae2c785246ddd"
+      },
+      "codeql": {
+        "run_id": 44903478279,
+        "conclusion": "success",
+        "headSha": "46bce0a8f8a25ac5c18c41b2303ae2c785246ddd"
+      },
+      "secret_scan": {
+        "run_id": 44903478292,
+        "conclusion": "success",
+        "headSha": "46bce0a8f8a25ac5c18c41b2303ae2c785246ddd"
+      }
+    },
+    "dependabot_alerts": {
+      "state": "DISABLED_REPORTED",
+      "github_message": "Dependabot alerts are disabled for this repository.",
+      "api_success": false
+    }
+  },
+  "coverage": {
+    "collector_dependencies": [],
+    "source_line_branch_coverage_measured": false
+  },
+  "limits": [
+    "Public HEAD proves headers at time of request, not deployed HEAD after future R10 merge",
+    "GitHub runs apply to remote SHA only",
+    "Dependabot alert status differs from .github/dependabot.yml weekly update configuration",
+    "No code coverage measurement or dependency change performed",
+    "No patient data, no GitHub mutations"
+  ]
+}
