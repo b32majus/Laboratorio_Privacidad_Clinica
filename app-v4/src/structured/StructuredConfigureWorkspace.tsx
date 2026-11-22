@@ -616,7 +616,7 @@ function ConfigurationSummary(props: {
               ? "La exportación estructurada está bloqueada mientras 1 columna requiera revisión."
               : `La exportación estructurada está bloqueada mientras ${pending} columnas requieran revisión.`}{" "}
             Las columnas con clasificación desconocida nunca se conservan ni se exportan tal cual;
-            elija una clase explícita para cada una.
+            elige una clase explícita para cada una.
           </p>
         )
       )}

@@ -351,6 +351,8 @@ describe("StructuredConfigureWorkspace — Unknown review + export gate", () => 
     expect(facts).toHaveTextContent("Columnas que requieren revisión: 2");
     expect(facts).toHaveTextContent("Exportación estructurada preparada: No");
     expect(screen.getByRole("alert")).toHaveTextContent(/exportación estructurada está bloqueada/i);
+    expect(screen.getByRole("alert")).toHaveTextContent("elige una clase explícita");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("elija una clase explícita");
 
     // Neither review-required column is KEEP: the effective classes stay put
     // and the canonical export gate stays closed.
