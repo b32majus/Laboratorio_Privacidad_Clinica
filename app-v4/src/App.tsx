@@ -2074,7 +2074,7 @@ function InputStep(props: {
                     </section>
 
                     <p className="mt-2 text-sm leading-relaxed sx-muted">
-                      Lee el contenido actual del portapapeles en este navegador. También puede usar
+                      Lee el contenido actual del portapapeles en este navegador. También puedes usar
                       Ctrl+V directamente en el campo de texto.
                     </p>
                   </details>

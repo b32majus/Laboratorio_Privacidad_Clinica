@@ -206,6 +206,14 @@ describe("Input start examples (REC-08 #80)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// REC-12 PDR-08: clipboard assistance keeps the same second-person voice.
+it("uses second-person Spanish in clipboard help", () => {
+  render(<App />);
+  const help = screen.getByText(/Lee el contenido actual del portapapeles/);
+  expect(help).toHaveTextContent("También puedes usar");
+  expect(help).not.toHaveTextContent("También puede usar");
+});
+
 // REC-08 evidence 2: Pegar clipboard convenience with Ctrl+V fallback.
 // ---------------------------------------------------------------------------
 describe("Input start Pegar (REC-08 #80)", () => {
