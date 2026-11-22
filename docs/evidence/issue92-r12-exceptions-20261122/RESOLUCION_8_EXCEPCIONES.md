@@ -38,9 +38,15 @@
 `id;nota\nSYN-002;TA, FC, IMC, HbA1c, glucosa` → antes elegía coma.
 Es daño de integridad, no cuestión estética ni solo deuda.
 
-**Decisión:** sustituir **la autoridad de parseo** por `csv-parse/browser/esm/sync` (paquete `csv-parse` MIT, versión fijada por lock, sin terceros en tiempo de ejecución); detectar separador por cabecera + consistencia de registros, no puntuación de las notas; rechazar interpretaciones verdaderamente ambiguas, no adivinar; mantener multiline/escaped quotes, espacios, nulls, header y orden; fallar tipado ante filas sobrantes, quoting inválido, entrada vacía; mantener límites de tamaño y la propagación `readStructuredFile`.
+**Implementación:** corregido en rama R12, commit `a4dfce3` sobre RC1; sustituida **la autoridad de parseo** por `csv-parse/browser/esm/sync` (paquete `csv-parse` MIT, versión fijada por lock, sin terceros en tiempo de ejecución); detectar separador por cabecera + consistencia de registros, no puntuación de las notas; rechazar interpretaciones verdaderamente ambiguas, no adivinar; mantener multiline/escaped quotes, espacios, nulls, header y orden; fallar tipado ante filas sobrantes, quoting inválido, entrada vacía; mantener límites de tamaño y la propagación `readStructuredFile`.
 
 **Incidente de selección de librería (R12):** la primera implementación basada en Papa Parse pasó 49 tests pero fue rechazada por `npm run check:external`: el bundle incluía `XMLHttpRequest` (regla `dist-xmlhttprequest`). **No se relajó el control**. Se autorizó dentro del mismo alcance usar la variante browser ESM pura de `csv-parse`, que debe superar build + privacy guard; NO atribuir su éxito antes de tener evidencia del gate.
+
+**Evidencia ejecutada (R12):** `npm test` 92 suites, **1582/1582 PASS**; unitarias del CSV/ingesta/mapeo 49/49; 3/3 Playwright nuevos sobre CSV real; **16/16** E2E focales de idioma/estructurado/CSV; `npm run build`, `npm run check:external` (0 violaciones y 0 excepciones), formato, TypeScript y lint PASS; auditoría de dependencias de producción 0 vulnerabilidades. **GitHub debe verificar de nuevo el SHA final** (no se hereda el verde de la versión anterior).
+
+**Auditoría independiente DIA (revisor ciego DeepSeek V4.1 Flash; implementador final GLM): OK sobre commit 25dfe65, equivalente por cherry-pick a a4dfce3. El revisor ejecutó casos adversariales complementarios sin modificar el código. Su OK incluye dos observaciones P2 no bloqueantes que deben conservarse**:
+- Una fila constituida solo por separadores sin comillas (ejemplo: cabecera A,B,C; fila ,,; fila 1,2,3) ahora se interpreta como fila vacía y da 2 filas; antes el parser artesanal la omitía y daba 1. Esta semántica es observable y NO debe ocultarse bajo el concepto genérico de «fila vacía»; al adaptar un CSV institucional o si aparecen diferencias en recuentos, decidir expresamente si el contrato exige retener el registro vacío o eliminarlo. No hay truncado de columnas ni fuga por esa diferencia.
+- En prueba sintética de tamaño cercano al límite de 1 000 000 caracteres, los tres barridos de delimitador produjeron una pausa síncrona aproximada de 1 segundo en el entorno del auditor, NO una cifra contractual del producto. Reabrir PERF-002/medición compuesta si en navegador real esa pausa degrada el uso; no prometer que el Worker cubra la lectura.
 
 **Pruebas obligatorias:** `app-v4/src/structured/csv.test.ts` con coma, punto y coma, tab, multiline, doble quote, vacío `""`, CRLF/LF, BOM, ambigüedad y fila sobrante; `intake.test.ts` del adaptador real; `professional-spanish-f9.test.ts` para explicación de fallos; Playwright de entrada y vista comparativa sobre al menos los dos falsadores, con inspección del número y nombre de columnas; CI completa después de integrar. Evidencia de corrección a añadir al cumplir el gate (commit SHA y E2E reales). **No dar por cerrado hasta verde final.**
 
@@ -68,7 +74,7 @@ Es daño de integridad, no cuestión estética ni solo deuda.
 
 **Decisión:** aceptar deuda acotada de importación/carga de exportadores; **no afirmar que son todos lazy**. La deuda de medición React+Worker `REC12-GAP-01` se aceptó previamente y es **distinta**: no utilizarla para declarar PERF-002 solucionado. No reorganizar bundles ahora sin baseline ni beneficio observable.
 
-**Testigos:** `docs/evidence/issue92-r3-performance-disposition-20261122.md` y `npm run build`; `app-v4/src/export/ExportStep.tsx`, `batchSafeDeliverables.ts`. **Disparador:** medición de inicio/render/móvil desfavorable, umbral de rendimiento acordado y superado, dependencia nueva significativa, adopción operativa con usuarios. Reabrir con benchmark de ruta V4 y plan de splitting, manteniendo integridad/confirmaciones de descargas.
+**Testigos:** `docs/evidence/issue92-r3-performance-disposition-20261122.md` y `npm run build`; `app-v4/src/export/ExportStep.tsx`, `batchSafeDeliverables.ts`. **Disparador:** medición de inicio/render/móvil desfavorable, umbral de rendimiento acordado y superado, dependencia nueva significativa, adopción operativa con usuarios. Particularmente, el nuevo parser CSV hace tres evaluaciones síncronas de separadores: el revisor observó alrededor de un segundo con corpus sintético de 1 MB; medir la latencia visible antes de optimizar. Reabrir con benchmark de ruta V4 y plan de splitting, manteniendo integridad/confirmaciones de descargas.
 
 ### 6. CODE-002 · Tipado en núcleo legacy
 
@@ -81,6 +87,8 @@ Es daño de integridad, no cuestión estética ni solo deuda.
 ### 7. H-01 · Español del producto completo
 
 **Literal:** lenguaje del producto; R11 probó español en superficies principales F7/F9 pero no todos los casos de error, ARIA y ayudas. Se corrigieron textos de guía y portapapeles en R11 y después el imperativo visible `elija` → `elige` en aviso de exportación bloqueada con test 25/25.
+
+**Evidencia R12:** commit `ca5bde9` sustituye el último imperativo formal visible «elija» por «elige», protegido por RED→GREEN 25/25. El mapper incorpora tres errores CSV en español con test. Playwright F7/F9 comprueba entrada, revisión, lotes, errores, configuración estructurada, puerta de privacidad y Resultado Safe/Confidential (incluidos en 16/16 E2E). Barrido de patrones formales visibles en el código productivo sin nuevos casos confirmados, no exhaustividad universal.
 
 **Decisión:** corrección y barrido dirigido de las superficies reales y casos relevantes: Input, Configure, Review, Privacy Gate y Result; estado listo/bloqueado/error, ARIA, tooltips, descargas Safe/Confidential, fallos de lectura y mensajes de CSV nuevos. No traducir identificadores técnicos ni texto del paciente. Mantener segunda persona y acción concreta, sin inventar promesas de anonimato.
 
@@ -97,7 +105,8 @@ Es daño de integridad, no cuestión estética ni solo deuda.
 ## Cadena de decisión, entrega y auditoría
 
 - **Base original:** PR #141 `40781aedc15c2835b036ce5517155f1755a21d80` con CI 92 suites/1572 unit y 114 E2E PASS. **No es el SHA de las correcciones R12**.
-- **R12 (se irá completando al acabar):** aprobar arquitectura de las ocho en este documento; corregir CSV en DIA M sensible (sin PHI); ejecutar unidad + E2E; revisión única de implementación con segundo revisor ciego de otra familia; corregir idioma con tests dirigidos; gate remoto del SHA final.
+- **Commits R12:** microcopy `ca5bde9`, aprobación documentada `6e266d1`, parser corregido `a4dfce3` (cherry-pick de `25dfe65`); la publicación en PR #141 deberá revalidarse con SHA nuevo.
+- **R12:** decisiones humanas registradas; CSV corregido sin datos reales (DIA M sensible; implementador DeepSeek, **1 REHACER** acotado por Papa Parse/XHR, reparado por GLM sin relajar CI), 16 E2E dirigidos y 1582 pruebas locales verdes. Revisión independiente ciega **OK** sobre 25dfe65 con dos observaciones P2 documentadas en STRUCT-003 y PERF-002. **Pendiente** CI remoto sobre SHA final del PR, no confundir verde local con aprobación de publicación.
 - **Dictamen final de #92 distinto de la decisión de estas ocho:** 206/206 requisitos de origen y 142/142 conciliados en R11. Para cerrar #92 aún exigen aprobación funcional humana **G-HP4/G-HP8** sobre densidad/flujo/Result/Safe/Confidential, documentada en el expediente R11; y criterios de origen que no se puedan sustituir por aceptación arquitectónica sin evidencia.
 - **No modificar el histórico:** matriz R11 y DEBT_REGISTER original no se reescriben ni eliminan. Registrar los resultados posteriores por enlace a esta disposición y commits verificables. #93 controla governance, publicación, headers, cobertura/Dependabot; no está incluido en la aprobación de estas ocho excepciones.
 
