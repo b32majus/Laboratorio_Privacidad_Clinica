@@ -110,6 +110,17 @@ function actionSelect(header: string): HTMLSelectElement | null {
 
 afterEach(cleanup);
 
+// REC-12 PDR-08: visible guidance uses the same second-person voice as the UI.
+it("uses second-person Spanish in both desktop and mobile column guidance", () => {
+  renderHarness();
+  const intros = screen.getAllByText(/Compara todas las columnas de la tabla/);
+  expect(intros).toHaveLength(2);
+  for (const intro of intros) {
+    expect(intro).toHaveTextContent("puedes cambiar cualquiera");
+    expect(intro).not.toHaveTextContent(/Compare todas|puede cambiar cualquiera/);
+  }
+});
+
 describe("StructuredConfigureWorkspace — comparative four-field display from domain facts", () => {
   it("shows the four approved factual fields for every column without any disclosure", () => {
     renderHarness();

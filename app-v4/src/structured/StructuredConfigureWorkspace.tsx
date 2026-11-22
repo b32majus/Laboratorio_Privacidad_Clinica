@@ -127,8 +127,8 @@ const ROW_SETTLED_LABEL = "Sin pendientes";
  * "Cómo revisar columnas" disclosure — the text itself is never rewritten.
  */
 const WORKSPACE_INTRO =
-  "Compare todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y " +
-  "lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puede cambiar " +
+  "Compara todas las columnas de la tabla: su clasificación vigente, su tratamiento efectivo y " +
+  "lo que queda pendiente. Las clases son propuestas con confianza y evidencia; puedes cambiar " +
   "cualquiera. Las columnas con clasificación desconocida siempre requieren revisión y nunca se " +
   "tratan como seguras para conservar.";
 
