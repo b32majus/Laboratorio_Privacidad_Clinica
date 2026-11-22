@@ -1,0 +1,127 @@
+{
+  "source": "docs/audits/2026-09-privacy-functional-code-audit.md",
+  "source_section": "§6 P1Q-04 — Faltan E2E de los contratos críticos",
+  "target_candidate": "19a661c (R7), in new R8 worktree",
+  "run": "E2E_PORT=4320, Playwright production build; 6 specs, 22 tests, 2 workers, retries 0",
+  "run_result": "22/22 PASS",
+  "scope": "13 source obligations, NOT 13 independent E2E test cases nor universal recovery/QA certification",
+  "cases": [
+    {
+      "id": 1,
+      "source_text": "paste → process → review → copy",
+      "source_line": 365,
+      "witness_spec": "e2e/rec05-result.spec.ts",
+      "witness_case": "high-volume pasted text reaches one ready Result and Copy + a secondary Safe format",
+      "claim_observed": "Pega texto sintético largo, crea Job, completa revisión, copia y compara bytes Copiar/TXT",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 2,
+      "source_text": "modificación aparece en salida",
+      "source_line": 366,
+      "witness_spec": "e2e/review-export.spec.ts",
+      "witness_case": "review decisions drive the export gate and the canonical Safe Output",
+      "claim_observed": "DNI modificado se exige por expectedSafeOutput independiente y bytes Safe TXT",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 3,
+      "source_text": "restore aparece en salida",
+      "source_line": 367,
+      "witness_spec": "e2e/review-export.spec.ts",
+      "witness_case": "review decisions drive the export gate and the canonical Safe Output",
+      "claim_observed": "Correo restaurado/conservado por decisión explícita aparece en Safe y se advierte",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 4,
+      "source_text": "entidad manual aparece en salida",
+      "source_line": 368,
+      "witness_spec": "e2e/review-export.spec.ts",
+      "witness_case": "review decisions drive the export gate and the canonical Safe Output",
+      "claim_observed": "Marcado manual de enalapril entra en ReviewSession, se modifica y aparece Safe",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 5,
+      "source_text": "safe export bloqueado con review pendiente",
+      "source_line": 369,
+      "witness_spec": "e2e/review-export.spec.ts",
+      "witness_case": "review decisions drive the export gate and the canonical Safe Output",
+      "claim_observed": "Revisión pendiente presenta bloqueo del Gate; sólo revisión completada libera salida",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 6,
+      "source_text": "PDF textual",
+      "source_line": 370,
+      "witness_spec": "e2e/pdf.spec.ts",
+      "witness_case": "a text-layer PDF extracts its text and reaches review",
+      "claim_observed": "PDF con capa textual muestra texto exacto del fixture en revisión",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 7,
+      "source_text": "PDF escaneado produce warning",
+      "source_line": 371,
+      "witness_spec": "e2e/pdf.spec.ts",
+      "witness_case": "a scanned PDF without text layer fails explicitly and creates no job",
+      "claim_observed": "PDF escaneado sin capa provoca alerta española y no crea Job; fail-closed",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 8,
+      "source_text": "batch con fallo conserva el fallo",
+      "source_line": 372,
+      "witness_spec": "e2e/batch.spec.ts",
+      "witness_case": "a failed batch item stays visible and never blocks the rest of the batch silently",
+      "claim_observed": "PDF corrupto queda visible como Error, bloqueo factual y recuperación de otros ítems",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 9,
+      "source_text": "navegar batch no equivale a revisar",
+      "source_line": 373,
+      "witness_spec": "e2e/batch.spec.ts",
+      "witness_case": "navigation never fabricates review completion and a reviewed batch has no fabricated output",
+      "claim_observed": "Navegar entre dos documentos deja ambos pendientes; luego aceptar cambia estado",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 10,
+      "source_text": "UNKNOWN estructurado requiere review",
+      "source_line": 374,
+      "witness_spec": "e2e/structured-composed.spec.ts",
+      "witness_case": "composed structured Job traverses Configure → Review → Privacy Gate → Export",
+      "claim_observed": "UNKNOWN y roles sin resolver muestran 3 pendientes, no existe salida lista previa",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 11,
+      "source_text": "safe export no contiene PII fixture",
+      "source_line": 375,
+      "witness_spec": "e2e/review-export.spec.ts",
+      "witness_case": "review decisions drive the export gate and the canonical Safe Output",
+      "claim_observed": "Safe TXT no contiene DNI/teléfono/NHC sin autorizar; correo expresamente conservado sí aparece, conforme D-024",
+      "disposition": "D024_CONDICIONA_LITERAL"
+    },
+    {
+      "id": 12,
+      "source_text": "confidential export está marcado",
+      "source_line": 376,
+      "witness_spec": "e2e/review-export.spec.ts",
+      "witness_case": "review decisions drive the export gate and the canonical Safe Output",
+      "claim_observed": "Etiqueta visible Confidencial y cabecera inmutable del artefacto; confirmación antes de descarga",
+      "disposition": "DIRECTA"
+    },
+    {
+      "id": 13,
+      "source_text": "cero requests de red fuera del origen clínico",
+      "source_line": 377,
+      "witness_spec": "e2e/network-invariant.spec.ts",
+      "witness_case": "the critical flow issues zero unexpected external requests",
+      "claim_observed": "Flujo normal con networkRecorder sin violaciones; suite añade falsadores fetch y XHR",
+      "disposition": "DIRECTA"
+    }
+  ]
+}
