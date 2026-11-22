@@ -427,7 +427,7 @@ export function App() {
       // mutual-exclusion message is authored in Spanish directly.
       setInputError({
         kind: "text",
-        message: "Use una sola entrada por trabajo: texto pegado o archivos, no ambos.",
+        message: "Usa una sola entrada por trabajo: texto pegado o archivos, no ambos.",
       });
       return;
     }
