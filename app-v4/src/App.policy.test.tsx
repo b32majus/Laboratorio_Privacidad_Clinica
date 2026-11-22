@@ -14,7 +14,7 @@ import { App } from "./App";
  */
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic policy guidance tests.";
 const POLICY_NAMES = ["Estándar", "IA externa", "Investigación longitudinal", "Estricta"] as const;
-const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
+const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en tu navegador/i;
 const FORBIDDEN_CLAIM =
   /anonymous|anonymi[sz]ed|GDPR|LOPDGDD|certified|complian(t|ce)|k-anonymity|differential privacy|an[oó]nim[oa]|anonimizad|certificad|cumplimient|k-anonimato|privacidad diferencial/i;
 

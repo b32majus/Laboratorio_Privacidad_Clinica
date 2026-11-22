@@ -44,7 +44,7 @@ vi.mock("./domain/job", async (importOriginal) => {
 });
 
 const SYNTHETIC_NOTE = "Synthetic clinical note for deterministic tests.";
-const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en su navegador/i;
+const LOCAL_ONLY_FACT = /el procesamiento se ejecuta localmente en tu navegador/i;
 
 /**
  * Quiet shell (issue #84): the five-step pipeline navigation is gone. Task

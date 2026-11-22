@@ -1063,7 +1063,7 @@ export function App() {
               </select>
             </label>
             <p>
-              El procesamiento se ejecuta localmente en su navegador; el contenido del trabajo
+              El procesamiento se ejecuta localmente en tu navegador; el contenido del trabajo
               permanece en este dispositivo.
             </p>
             <details className="sx-session-help">
