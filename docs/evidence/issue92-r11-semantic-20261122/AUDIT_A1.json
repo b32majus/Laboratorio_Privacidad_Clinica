@@ -1,0 +1,354 @@
+[
+  {
+    "id": "PRIV-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "vite.config.ts:6-12 (root app-v4, outDir ../dist); render.yaml:49 (CSP default-src 'self', connect-src 'self', object-src 'none'); scripts/ci/check-external-resources.mjs:130-148 y 156-168 (denylist y carga remota en fuente) y 207-214 (APIs de red en dist); e2e/network-invariant.spec.ts:18-50 (cero peticiones externas en el flujo crítico) y 93-114 (fetch/XHR plantados detectados)",
+    "semantic_reason": "El origen clínico construido es solo la SPA V4 y la CSP junto con check:external prohíben recursos remotos tanto en fuente como en dist; el E2E exige cero violaciones y puede discrepar con peticiones plantadas. Es soporte directo del requisito de eliminar recursos de terceros del origen clínico.",
+    "residual_gap": "Siguen empaquetados assets de terceros servidos en el mismo origen (pdf.js y SheetJS en app-v4/public/vendor) bajo manifiesto SHA-256; no son orígenes externos, pero son código de terceros en el origen.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRIV-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/output/safe-output.ts:29-33 (SafeOutput solo kind/text); app-v4/src/output/confidential-audit.ts:105-114 (ConfidentialAudit con mapping/trace/restoredEntries); app-v4/src/output/confidential-audit.test.ts:274-286 (separación estructural sobre la misma sesión); app-v4/src/output/safe-output.test.ts:184-199 (ningún dato de auditoría en la forma Safe); e2e/review-export.spec.ts:288-300 (dos descargas distintas)",
+    "semantic_reason": "Safe Output y Confidential Audit son módulos y formas de datos separados por construcción, y los tests comprueban que una forma no puede portar los datos de la otra sobre la misma sesión completada. La separación material está demostrada, no solo el nombre.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/output/safe-output.test.ts:144-151 (output.text byte-igual a getFinalText); e2e/review-export.spec.ts:266 (el TXT descargado es toBe(expectedSafeOutput()) calculado desde el estado revisado); app-v4/src/export/singleResultModel.test.ts:86-95 (ready solo con correspondencia válida y texto canónico)",
+    "semantic_reason": "La exportación y la copia se derivan de getFinalText de la ReviewSession y el E2E compara los bytes del fichero con un texto esperado independiente calculado desde las decisiones revisadas. El requisito de derivar export/copy de la versión realmente revisada está soportado.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/batch.spec.ts:144-150 (navegar entre documentos deja ambos en 'Requiere revisión'); app-v4/src/useJobSession.ts:151-160 (review.complete se deriva de canFinalize(review), no de navegar/exportar); app-v4/src/review/review-domain.test.ts:73-83 (getFinalText fail-closed con decisiones pendientes)",
+    "semantic_reason": "La navegación no toca decisiones y la completitud del Job es un espejo derivado de canFinalize, de modo que exportar no puede marcar revisado mientras queden decisiones obligatorias. El E2E demuestra el comportamiento de navegación y el código lo hace estructural para la exportación.",
+    "residual_gap": "No hay una aserción E2E específica de que abrir el Result sin decidir no mute el estado; la garantía es estructural (estado derivado), no un test dedicado.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/age-recognizer.test.ts:47-63 (EDAD:anios con offsets exactos); app-v4/src/engine/age-operator.test.ts:71-94 (banding de décadas y nunca el valor exacto); app-v4/src/engine/policy.ts:131 (EDAD → AGE_GENERALIZE); app-v4/src/engine/legacy-recognizers.ts:428,437 (AgeRecognizer en el pipeline productivo)",
+    "semantic_reason": "Hay reconocedor y operador de edad con tests de offsets, bandas pediátricas, límites y falsos positivos, y ambos están cableados al pipeline productivo con la política EDAD→age-generalize. El detector/operador de edad en texto libre está materialmente implementado.",
+    "residual_gap": "La calidad se apoya en el corpus sintético de QA-001; no es una garantía de cobertura universal de expresiones de edad en español.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "COPY-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/check-positioning-copy.mjs:84-86 (patrones que fallan k-anonimato, privacidad diferencial y certificación); scripts/ci/check-positioning-copy.mjs:46-55 (escanea HTML, README, GUIA y fuentes app-v4); package.json:34,44 (check:positioning dentro de npm test); .github/workflows/ci.yml:36 (npm test en CI)",
+    "semantic_reason": "Un gate determinista prohíbe explícitamente las fórmulas de k-anonimato y privacidad diferencial en las superficies visibles y forma parte de npm test ejecutado en CI. No se encontraron claims de ese tipo en el código productivo.",
+    "residual_gap": "El gate es léxico sobre patrones auditados; no demuestra semánticamente que no exista cualquier paráfrasis no contemplada.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/input-limits.ts:23,55-71 (límite 1.000.000 de unidades UTF-16 y fallo tipado input-too-large); app-v4/src/engine/legacy-engine.ts:139-142 (lanza antes de invocar el core); app-v4/src/engine/input-limits.test.ts:32-41 (rechaza una unidad por encima con hechos completos); app-v4/src/processing-outcome.ts:45-48 (clasificación input-too-large)",
+    "semantic_reason": "El texto sobredimensionado se rechaza con un fallo tipado y accionable antes de llegar al core heredado que truncaría, y el test fija el límite exacto y el contenido del error. El bloqueo explícito sustituye materialmente al truncado silencioso.",
+    "residual_gap": "El límite se mide en unidades UTF-16 (1.000.000), no en MB; el core heredado conserva su truncado interno, inalcanzable desde V4 por el guard previo.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-005",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/date-semantics.test.ts:49-56 (roles de fecha por cues explícitos); app-v4/src/engine/policy.ts:157-164 (external-ai→DATE_GENERALIZE, longitudinal-research→DATE_SHIFT); app-v4/src/engine/initial-processing-context.ts:97 (dateShift con semilla del Job); e2e/policy-guidance.spec.ts:136 (01/2024) y 154-157 (fecha desplazada, distinta del origen y no 'Visita')",
+    "semantic_reason": "Se separan semántica de roles de fecha y política por perfil, y el date shifting longitudinal usa un offset estable por Job con evidencia unitaria y E2E. La cláusula de diferenciar semántica/política y diseñar date shifting está demostrada.",
+    "residual_gap": "La consistencia de intervalos se prueba con fixtures acotados; no hay garantía sobre calendarios o rangos no contemplados.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/review-session.contract.test.mjs:156-176 (getFinalText fail-closed y texto canónico tras decisiones); scripts/ci/review-session.contract.test.mjs:407-416 (inmutabilidad: nueva sesión, original intacta); app-v4/src/review/review-domain.ts:4 (js/domain/review-session.js es la ÚNICA autoridad de revisión)",
+    "semantic_reason": "Todas las superficies consumen la misma ReviewSession y el contrato prueba puerta de exportación, composición exacta e inmutabilidad. La sesión es la autoridad de revisión, con espejos derivados en el Job y no autoridades paralelas.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/useJobSession.ts:95-98 (la ReviewSession es estado de dominio, nunca UI local); scripts/ci/review-session.contract.test.mjs:90-96 (dominio libre de document/window); app-v4/src/review/ReviewWorkspace.test.tsx:685-694 (selección sola no registra decisión); ReviewWorkspace.tsx solo emite data-source-start como ancla de presentación",
+    "semantic_reason": "Las decisiones, el progreso y el texto final viven en la ReviewSession de dominio y la selección en la UI no crea decisiones; el DOM solo lleva anclas de offset para renderizar. El estado de revisión ya no es autoridad en DOM/datasets.",
+    "residual_gap": "La UI mantiene estado transitorio (selección, filtros, borradores) y anclas data-source-start, que no son autoridad de decisión.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-006",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/review-domain.test.ts:130-171 (añadir detección manual conserva las tres decisiones previas y los offsets y compone el texto final); e2e/review-export.spec.ts:199-213 (tras revisión completa, añadir marcado mantiene el trabajo y deja 1 pendiente: Total 5, Manuales 1)",
+    "semantic_reason": "El test de dominio demuestra que addManualDetection devuelve la misma sesión con las decisiones previas intactas y solo añade la nueva detección, y el E2E confirma que el progreso anterior sobrevive a la marca manual. No hay pérdida de progreso.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FUNC-007",
+    "status": "PARTIAL",
+    "witness": "app-v4/src/review/ReviewWorkspace.tsx:684-700 (la captura de selección recorre data-source-start y valida cursor contiguo y texto contra originalText); app-v4/src/review/review-domain.test.ts:130-171 (la composición usa offsets canónicos de la sesión); ReviewWorkspace.test.tsx:83-105 (la selección se hace sobre anclas reales del DOM)",
+    "semantic_reason": "La composición de decisiones y texto final usa offsets canónicos y la captura manual valida el rango contra el texto original, pero el mapeo selección→offset sigue leyendo data-source-start del DOM. La cláusula histórica 'ninguna reconstrucción de offsets desde DOM' no se cumple de forma absoluta.",
+    "residual_gap": "El DOM sigue siendo la fuente de offsets para marcar entidades manuales; la validación es defensiva pero no hay un oráculo que plante anclas fabricadas u obsoletas y exija rechazo.",
+    "next_action": "Añadir un falsador que plante data-source-start fabricado/obsoleto y exija que la captura se rechace sin crear decisión."
+  },
+  {
+    "id": "FILE-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/input/extract.ts:253-259 (rechazo tipado unsupported-format para .doc con mensaje que nombra los formatos soportados); app-v4/src/input/extract.test.ts:233-240 (fallo explícito con /.doc/); app-v4/src/App.tsx:76,126 (extensiones aceptadas y texto visible sin .doc)",
+    "semantic_reason": "El .doc ya no se anuncia en la entrada de ficheros y el dispatcher lo rechaza con un error tipado que explica la conversión, con test unitario. El soporte .doc está corregido/eliminado.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "FILE-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/input/extract.ts:223 (pdf-no-text-layer cuando el PDF no tiene texto extraíble); app-v4/src/input/extract.test.ts:206-214 (PDF válido sin operadores de texto); e2e/pdf.spec.ts:36-49 (alerta en español y ningún Job fabricado)",
+    "semantic_reason": "La ausencia de capa de texto se convierte en un fallo tipado propio y el E2E demuestra que el PDF escaneado se rechaza sin crear trabajo. La detección de PDFs escaneados/sin text layer está soportada de extremo a extremo.",
+    "residual_gap": "La detección se basa en ausencia de texto extraíble, no en clasificar la imagen como escaneo; un PDF con capa de texto parcial se trata como extraíble.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRIV-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/check-external-resources.mjs:244-246,783-789 (regla que falla ante cualquier console.* en app-v4/src runtime) y 956-958 (caso plantado); búsqueda en app-v4/src productivo sin llamadas console.*; app-v4/src/engine/worker/engine.worker.ts:12 (el worker no registra contenido)",
+    "semantic_reason": "No existe ninguna llamada console.* en el código productivo V4 y un gate determinista falla si se introduce una, con falsador propio. No hay ruta activa que registre PHI ni resultados.",
+    "residual_gap": "El core heredado js/core/processor.js:91 conserva un console.warn no-PHI (mensaje fijo) y la regla CI no escanea js/ ni el bundle dist; su rama de truncado es inalcanzable desde V4 por el guard de tamaño.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "BATCH-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/batch.spec.ts:94-95 (corrupt.pdf permanece listado con 'Error'), 110-115 (recuento 'Con error: 1' y alerta que nombra el fichero), 191-232 (reconocer/retirar actúan solo sobre el fallido y no fabrican readiness)",
+    "semantic_reason": "Un documento fallido sigue visible en la lista del lote, cuenta como error en el gate y bloquea la salida sin desaparecer del estado, con recuperación acotada sobre ese ítem. El requisito de mantener los fallidos dentro del batch está demostrado.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "BATCH-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/check-storage-policy.mjs:12-16,100-112 (prohíbe sessionStorage/localStorage en app-v4/src productivo); e2e/rec12-b3-witness.spec.ts:56-65 (localStorage, sessionStorage e IndexedDB vacíos y recarga sin recuperación); e2e/batch.spec.ts:383 (lote real de 12 documentos)",
+    "semantic_reason": "El estado del lote vive en memoria en useJobSession y un guard determinista impide cualquier uso de sessionStorage/localStorage en el código productivo V4, con E2E que comprueba almacenamiento vacío tras el flujo. La dependencia de sessionStorage está eliminada.",
+    "residual_gap": "El guard cubre app-v4/src; no certifica APIs de almacenamiento futuras ni código heredado no usado por V4.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "BATCH-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/review-domain.test.ts:531-555 (la misma identidad conserva 'Paciente 1' en dos documentos y una nueva toma 'Paciente 2'); app-v4/src/useJobSession.ts:363-395 (contexto inicial del Job, promoción a shared y encadenado por ítem)",
+    "semantic_reason": "El contexto se encadena explícitamente entre documentos y el test demuestra consistencia real de pseudónimos y contadores entre dos documentos, no solo la existencia del helper. La consistencia entre documentos está soportada.",
+    "residual_gap": "La prueba directa cubre pseudónimos; el estado de fechas compartido se apoya en initial-processing-context.ts:97 y sus tests, no en esta misma prueba.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "BATCH-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/registry-engine.test.ts:423-446 (identidad de métodos y claves de AsignadorSustitutos intacta tras procesar en fresh y shared); app-v4/src/engine/legacy-engine.ts:8-21 (nunca reemplaza métodos; solo resetea, lee y siembra campos públicos); ausencia de js/batch-module.js",
+    "semantic_reason": "El adaptador V4 no sustituye métodos del asignador y un oráculo compara las funciones y la forma del módulo antes y después de procesar; el módulo batch heredado que hacía el monkey patch ya no existe. El monkey patch está eliminado.",
+    "residual_gap": "El adaptador sigue sembrando los mapas mutables del singleton para reconciliar el contexto autoritativo; es estado, no parcheo de funciones.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/classification.ts:195 (unknown→review-required) y 250-254 (requiresReview=true); app-v4/src/structured/classification.test.ts:32-42 (nunca keep); e2e/structured.spec.ts:55-58 (bloqueo por 1 columna) y 60-62 (solo la clasificación explícita libera la exportación)",
+    "semantic_reason": "UNKNOWN se mapea siempre a review-required y el E2E demuestra que la exportación estructurada queda bloqueada hasta que el revisor clasifica la columna. La regla 'UNKNOWN requiere revisión, no KEEP' está soportada en dominio y en la superficie real.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/patient-id.test.ts:25-44 (solo la columna seleccionada; ninguna candidata se auto-selecciona); app-v4/src/structured/study-id.test.ts:69-76 (PAC_001 determinista) y 173-194 (ID_ESTUDIO en Safe con correspondencia Confidential); app-v4/src/structured/patient-id.ts:9-18 (autoridad única)",
+    "semantic_reason": "La autoridad de patient ID es exactamente la columna seleccionada, con fallo tipado si no existe, y la emisión determinista de ID_ESTUDIO conserva la correspondencia solo en Confidential. Hay una única autoridad de identidad y está probada.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-003",
+    "status": "PARTIAL",
+    "witness": "app-v4/src/structured/csv.ts:9-26 (parser propio TypeScript con state machine); app-v4/src/structured/csv.test.ts:58-73 (multilínea correcto) y 128-135 (falsador contra un parser line-splitting)",
+    "semantic_reason": "El fallo material de multilínea está corregido y hay una única autoridad CSV que no divide por líneas, pero sigue siendo un parser propio mantenido en el repo. La sustitución por el parser consolidado que pedía la auditoría congelada no se ha hecho.",
+    "residual_gap": "No hay decisión humana que acepte el parser propio como cierre del requisito de 'parser consolidado'.",
+    "next_action": "Sustituir por una librería CSV consolidada con tests de paridad, o registrar decisión humana explícita que acepte el parser propio como cumplimiento."
+  },
+  {
+    "id": "STRUCT-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/column-profile.ts:61-78 (muestreo uniforme de valores no vacíos en toda la columna); app-v4/src/structured/column-profile.test.ts:30-35 (no se deja engañar por la primera fila) y 36-45 (varios valores distribuidos)",
+    "semantic_reason": "El perfilador muestrea hasta 12 valores no vacíos espaciados por todo el rango y hay un test específico contra la inferencia basada solo en la primera fila. La inferencia con muestra distribuida está soportada.",
+    "residual_gap": "Es muestreo determinista, no estadística; columnas muy heterogéneas pueden requerir revisión humana, que el modelo de confianza expone.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-005",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/date-age-policy.ts:131-144 (ninguna acción keep; external-ai/longitudinal usan shift por paciente); app-v4/src/structured/date-age-policy.test.ts:93-103 (no existe acción keep/identity) y 123-133 (toda celda de visita no vacía se transforma)",
+    "semantic_reason": "La tabla de política estructurada no ofrece keep para la fecha de visita y el test recorre el fixture externo exigiendo transformación de cada celda no vacía. La fecha exacta de visita no se mantiene por defecto en perfiles externos.",
+    "residual_gap": "Los valores no parseables se enrutan a revisión visible en lugar de transformarse; es el comportamiento fail-closed declarado, no un keep silencioso.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-006",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/date-age.ts:228-276 (deriva edad completada en el evento desde nacimiento y fecha de visita); app-v4/src/structured/date-age.test.ts:78-93 (usa la fecha histórica, no hoy) y 114-123 (evento previo al nacimiento falla a revisión)",
+    "semantic_reason": "La edad se calcula contra la fecha de visita/evento, con límite de cumpleaños y fallo a revisión si el evento precede al nacimiento; el test fija que no se usa la fecha actual. La semántica pedida está demostrada.",
+    "residual_gap": "Requiere una fecha de nacimiento y una de evento parseables; si faltan, la ausencia se conserva o se enruta a revisión.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-007",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/intake.ts:203-205 (libro multi-hoja devuelve sheet-required y exige selección explícita); app-v4/src/structured/intake.test.ts:140-147 (nombres de hoja y estado sheet-required); app-v4/src/structured/excel.ts:101-114 (sin hoja seleccionada falla sheet-not-selected, nunca cae a la primera hoja)",
+    "semantic_reason": "Un libro con varias hojas no se parsea hasta que el humano elige una, y el adaptador Excel exige el nombre de hoja sin fallback silencioso. La selección de hoja está implementada y probada con un fixture multi-hoja.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-008",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/excel-serial.ts:13-24,33-45 (normalización 1899-12-30 con rango y fallo cerrado); app-v4/src/structured/excel-serial.test.ts:14-32 (serial moderno, ancla 61, límite, bisiesto y rechazos); app-v4/src/structured/excel.ts:332 (se aplica a celdas numéricas reales)",
+    "semantic_reason": "Los seriales de fecha Excel se convierten a ISO con ancla documentada, rango soportado y rechazo de valores fuera de rango o no finitos, y la conversión está cableada en la lectura real de celdas. La normalización está soportada.",
+    "residual_gap": "No cubre el sistema de fechas 1904 de Excel; el rango válido excluye seriales antiguos por decisión fail-closed.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "STRUCT-009",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/codify.ts:25-40 (blanco→null y nunca entra en el mapa de categorías); app-v4/src/structured/codify.test.ts:10-27 (ausencia y no código para blanco) y 41-46 (posición del blanco preservada)",
+    "semantic_reason": "La codificación trata null/''/ausente como ausencia, no le asigna código y conserva la posición; el test adversarial comprueba que el mapa no recibe el blanco. No se codifican valores vacíos.",
+    "residual_gap": "Una cadena de solo espacios se considera contenido y se codifica; es una decisión explícita documentada, no un vacío estructural.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "COPY-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/check-positioning-copy.mjs:84-103 (prohíbe claims de anonimización como función y de cumplimiento) y 69 (exige 'seudonimización' en terminos.html); ausencia de 'anonim' en app-v4/src productivo; README.md:118 ('no certifica anonimización ni cumplimiento normativo')",
+    "semantic_reason": "La UI productiva usa vocabulario de preparación/seudonimización y un gate prohíbe las fórmulas que presenten la anonimización como capacidad, además de exigir el término en los términos. No se atribuye anonimización demostrable.",
+    "residual_gap": "Las páginas informativas conservan el descargo 'la anonimización final recae en la persona usuaria' (index.html:465, guia.html:30), permitido como limitación y no como claim de producto.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-003",
+    "status": "PARTIAL",
+    "witness": "js/core/managers/AsignadorSustitutos.js:5-12 (objeto singleton con Map y contadores mutables de módulo); app-v4/src/engine/registry-engine.test.ts:218-228 (fresh no filtra estado entre ejecuciones); app-v4/src/engine/legacy-engine.ts:282-295 (siembra explícita del estado del contexto en el singleton)",
+    "semantic_reason": "V4 expone un engine instanciable y un ProcessingContext explícito que aíslan el estado entre documentos, pero el core heredado sigue conteniendo managers singleton mutables. La sustitución completa de singletons por estado instanciable no está hecha.",
+    "residual_gap": "Los singletons del core persisten; V4 los aísla por contexto, no los sustituye.",
+    "next_action": "Sustituir los managers singleton del core por estado inyectado, o registrar deuda aceptada explícita para el resto del core heredado."
+  },
+  {
+    "id": "ARCH-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/recognizer-registry.ts:1-24 (contratos de reconocimiento sin transformación); app-v4/src/engine/operator-registry.ts:1-22 (transformación y política separadas); app-v4/src/engine/recognizer-registry.test.ts:27-35; app-v4/src/engine/operator-registry.test.ts:68-78",
+    "semantic_reason": "Reconocedores y operadores tienen registros y contratos separados, y el reconocedor no elige transformación; la política resuelve categoría→operador en su propia tabla. La separación exigida está soportada.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-005",
+    "status": "PARTIAL",
+    "witness": "app-v4/src/domain/job.ts:87-95 (Detection mínimo: id, categoryId, confidence); contraste con app-v4/src/review/review-domain.ts:63-69 (ReviewDetection rico de js/domain/review-session.js)",
+    "semantic_reason": "Existe un contrato rico de detección en la autoridad de revisión, pero el Detection del Job sigue siendo el placeholder mínimo declarado pendiente de cableado. El contrato completo pedido no está definido en el dominio Job.",
+    "residual_gap": "Job.detections no transporta spans, banda de confianza, razones ni requiresReview; el contrato rico vive en la sesión.",
+    "next_action": "Definir el Detection completo en el dominio Job, o declarar con decisión humana que la ReviewSession es el contrato único de detección."
+  },
+  {
+    "id": "ARCH-006",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/legacy-modules.d.ts:101-105 (ReviewDecision con status pending/accepted/modified/restored, replacement y note); js/domain/review-session.js:282-347 (applyDecision valida ids y estados y persiste la decisión); app-v4/src/review/review-domain.ts:63-66 (re-export tipado)",
+    "semantic_reason": "ReviewDecision está definido de forma tipada y la autoridad runtime lo valida y persiste en el mapa de decisiones de la sesión. El contrato existe y es operativo, no solo documental.",
+    "residual_gap": "La definición vive en declaraciones ambientales sobre JS; no hay schema runtime independiente.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-007",
+    "status": "SEMANTIC_PASS",
+    "witness": "docs/legacy-retirement/RETIRED_SURFACES.md:13 (review.html y js/shared/review-ui.js retirados y sustituidos por ReviewWorkspace); app-v4/src/App.tsx:1158 (un único ReviewWorkspace); e2e/review-productivity.spec.ts:55 (flujo de revisión sobre la app real)",
+    "semantic_reason": "Las páginas y el script de revisión heredados ya no existen en el árbol y la única superficie de revisión es el ReviewWorkspace V4, ejercitado por E2E. La duplicación review.html/review-ui.js está eliminada.",
+    "residual_gap": "No hay un test estructural dedicado que impida reintroducir una página duplicada; check:links/positioning vigilan la entrada canónica.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-008",
+    "status": "SEMANTIC_PASS",
+    "witness": "docs/legacy-retirement/RETIRED_SURFACES.md:14-15 (batch-review-legacy y batch-structured-legacy retirados, sustituidos por batch nativo V4 y workspace estructurado); ausencia de esos ficheros en el árbol; e2e/batch.spec.ts:81 y e2e/structured.spec.ts:22 como paridad V4",
+    "semantic_reason": "Las superficies batch legacy ya no existen y sus capacidades viven en el lote nativo y el workspace estructurado V4, con E2E de paridad. La retirada está materializada en este candidato.",
+    "residual_gap": "La evidencia de retirada es histórica y de ausencia de ficheros; no hay un guard automático específico contra reintroducirlos.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "CI-001",
+    "status": "SEMANTIC_PASS",
+    "witness": ".github/workflows/ci.yml:35-36 (paso 'Canonical npm test' ejecuta npm test, que incluye check:positioning y test:v4); package.json:44 (cadena completa); .github/workflows/ci.yml:74-75 (suite Playwright crítica)",
+    "semantic_reason": "El workflow de GitHub Actions ejecuta literalmente npm test, cadena que contiene check:positioning y la suite Vitest de V4, además de la suite E2E crítica. La afirmación histórica de que CI no ejecutaba la cadena completa ya no describe el workflow actual.",
+    "residual_gap": "No se ha verificado aquí una ejecución remota verde sobre RC1@8e1fa97; las verificaciones R7/R10 documentadas corresponden a otros SHA y a PR #141.",
+    "next_action": "Registrar en #93 una ejecución remota verde de CI/E2E sobre el SHA publicado."
+  },
+  {
+    "id": "CI-002",
+    "status": "SEMANTIC_PASS",
+    "witness": ".github/workflows/ci.yml:36 (npm test incluye check:external); package.json:44; scripts/ci/check-external-resources.mjs:17-35 (alcance fuente+dist), 207-214 (APIs de red en dist), 956-958 (falsador con console plantado) y 987-1006 (bypass de end-tag)",
+    "semantic_reason": "CI ejecuta check:external dentro de npm test; el checker prohíbe tokens de terceros, cargas remotas y APIs de red en dist, y su self-test demuestra que detecta payloads plantados. El check de cero recursos externos está presente y cableado a CI.",
+    "residual_gap": "La exención por identidad de vendor permite APIs de red latentes en copias byte-idénticas de assets gobernados; no autoriza endpoints externos y las reglas de carga remota siguen aplicando.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "QA-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/ground-truth/v4-ground-truth.test.ts:54-83 (gate del corpus y bands EDAD), 104-174 (falsadores de recall, precisión, banda y span); app-v4/src/engine/ground-truth/config.json (umbrales 1/1/0); corpus verificado con 35 casos core y 4 adversariales",
+    "semantic_reason": "Hay un corpus anotado por tiers, métricas por tipo y falsadores que hacen fallar el gate ante un fallo plantado de detección o banda. El requisito de corpus ground-truth con precision/recall/FNR sobre el motor productivo está soportado, con alcance sintético declarado.",
+    "residual_gap": "Es un gate de regresión sintético, no una nota universal de calidad en español; los casos adversariales se reportan y no gatean.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "QA-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/review-export.spec.ts:266 (Safe byte-exacto), e2e/pdf.spec.ts:36 (PDF escaneado), e2e/batch.spec.ts:81 (fallo de lote), e2e/structured-composed.spec.ts:126 (flujo estructurado compuesto), e2e/network-invariant.spec.ts:18 (red); docs/evidence/issue92-r8-qa002-original13-20261122/SOURCE_TO_E2E_13.json (13/13 contratos P1Q-04 con testigo existente)",
+    "semantic_reason": "Los 13 contratos críticos originales P1Q-04 tienen testigo Playwright existente, los flujos compuestos de Result, PDF, lote y estructurado están cubiertos y la suite corre en CI. La obligación de suite Playwright de flujos críticos está materialmente presente.",
+    "residual_gap": "La última corrida conjunta documentada es R8@3728f0b (22/22), no RC1@8e1fa97; el caso #11 depende de D-024 y la paridad compuesta ampliada de las 18 preguntas R2 no está certificada.",
+    "next_action": "Ejecutar y registrar la suite crítica completa sobre el SHA publicado antes del cierre de #92."
+  },
+  {
+    "id": "QA-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/network-invariant.spec.ts:18-50 (flujo crítico con cero violaciones) y 93-114 (fetch y XHR plantados detectados); e2e/harness/fixtures.ts:29-38 (el fixture falla el test ante violaciones no esperadas); app-v4/src/testing/network-invariant.test.tsx:44-70 (fetches plantados en jsdom)",
+    "semantic_reason": "El fixture de Playwright falla automáticamente cualquier petición externa no esperada y el spec añade falsadores con fetch y XHR plantados; el test de componente hace lo mismo en jsdom. El invariante E2E de red está soportado por oráculos que pueden discrepar.",
+    "residual_gap": "Cubre fetch/XHR/WebSocket/sendBeacon que el monitor intercepta; no prueba la ausencia de toda fuga futura por canales no interceptados.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PERF-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/production-engine.ts:20-31 (Worker cuando el entorno lo ofrece); app-v4/src/useJobSession.ts:90 (loader de producción por defecto); app-v4/src/engine/worker/worker-engine.ts:130 (new Worker del engine); app-v4/src/engine/worker/worker-engine.test.ts:74-94 (resultados idénticos al engine in-process)",
+    "semantic_reason": "El loader de producción crea un Web Worker real y reutiliza uno por sesión, y el test demuestra que los resultados son idénticos al engine en proceso con fallo cerrado ante errores del worker. El engine/batch corre detrás de Worker en producción.",
+    "residual_gap": "En entornos sin Worker (jsdom) cae al seam in-process por diseño; no se mide latencia de interfaz.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PERF-002",
+    "status": "PARTIAL",
+    "witness": "app-v4/src/input/extract.ts:160 (mammoth por import dinámico); app-v4/src/engine/engine-seam.ts:40 (registry-engine dinámico); app-v4/src/structured/xlsx-loader.ts:71-90 (SheetJS por script same-origin bajo demanda); app-v4/src/export/ExportStep.tsx:59-60 (docx-builder y dependencias de exportación importadas estáticamente)",
+    "semantic_reason": "Los parsers pesados sí son dinámicos (DOCX, engine, pdf.js/SheetJS), pero los exportadores DOCX/PDF/ZIP se importan estáticamente en el bundle del Result. La carga diferida de exportadores no está demostrada y la responsividad compuesta no se mide.",
+    "residual_gap": "No hay prueba de lazy para todos los exportadores; GAP-01 aceptó solo la deuda de medición, no la falta de lazy load.",
+    "next_action": "Medir el bundle y hacer dinámicos los exportadores pesados (pdf-lib, JSZip, docx), o registrar decisión humana que acote la deuda."
+  },
+  {
+    "id": "PERF-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/dictionary-index.test.mjs:49-55 (mismo Set reutilizado entre llamadas) y 88-103 (paridad de detección con el índice cacheado); js/core/utils/DictionaryIndex.js (índice normalizado memoizado)",
+    "semantic_reason": "El índice normalizado se precomputa y memoiza, y el test demuestra reutilización, paridad de detección e invalidación al recargar diccionarios. El requisito de DictionaryIndex normalizado precomputado está soportado.",
+    "residual_gap": "Cubre los diccionarios usados por los detectores probados; no es un benchmark de memoria ni de todos los diccionarios.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PERF-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/conflict-resolution.test.mjs:79-97 (paridad con la referencia por carácter en disjuntos, anidados, adyacentes y duplicados) y 123-140 (fixture denso de cientos de solapamientos); js/core/processor.js:232 (resolveConflicts por intervalos)",
+    "semantic_reason": "La resolución por intervalos se compara contra una referencia independiente por carácter, incluida la adyacencia como no colisión y la prioridad por tipo, con falsadores de variantes rotas. El requisito de resolver conflictos por intervalos está soportado.",
+    "residual_gap": "La evidencia es de paridad funcional determinista; no incluye un benchmark de rendimiento del resolver.",
+    "next_action": "ninguna"
+  }
+]

@@ -1,0 +1,338 @@
+[
+  {
+    "id": "H-01",
+    "status": "PARTIAL",
+    "witness": "e2e/rec12-f7-language.spec.ts:22,59; e2e/rec12-f9-spanish-error-states.spec.ts:31-35",
+    "semantic_reason": "Los testigos recorren superficies reales (entrada, revisión, comprobación, resultado y lote) y exigen encabezados, avisos y errores en español con «Revisa»/«Pega», no solo la existencia de un fichero. Cubren estados representativos, no todas las variantes de idioma.",
+    "residual_gap": "Sin cobertura exhaustiva de errores raros, tooltips/ARIA, variantes de descarga y algún imperativo formal aislado.",
+    "next_action": "Ampliar el testigo F7/F9/R7 a esos estados o aceptar explícitamente el alcance idiomático."
+  },
+  {
+    "id": "H-02",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/visual/sophilux-v1.css:19-34; app-v4/src/App.tsx:948",
+    "semantic_reason": "El shell real importa y aplica los tokens aprobados (canvas cálido, rosa, serif Cormorant y sans Inter) bajo `.sophilux-shell`, no una maqueta aparte. La dirección B y el maestro Sophilux constan aprobados por autoridad humana en docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md:311.",
+    "residual_gap": "La conformidad estética final es perceptiva y humana; este dictamen no revalida una a una las capturas R3/R6.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-03",
+    "status": "HUMAN_REQUIRED",
+    "witness": "app-v4/src/privacy-gate/PrivacyGate.tsx:504; tailwind.config.cjs:18-20",
+    "semantic_reason": "Los valores técnicos siguen usando `font-mono` de Tailwind y no existe JetBrains Mono instalado/importado (la carpeta fonts solo contiene Inter, Cormorant y Material Symbols). Adoptar o descartar esa tipografía es una decisión de diseño humana que no consta registrada.",
+    "residual_gap": "Brecha visual propuesta sin supersesión humana registrada.",
+    "next_action": "Sil debe aceptar la adopción o la supersesión de JetBrains Mono antes de implementar."
+  },
+  {
+    "id": "H-04",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/App.input-start.test.tsx:172-193",
+    "semantic_reason": "El test demuestra que los tres botones cargan exactamente el texto de los JSON canónicos en el borrador y que elegir un ejemplo no crea trabajo ni navegación de tarea. La fuente es ejemplos/*.json importada en synthetic-examples.ts:12-14.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-05",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/App.input-start.test.tsx:210-228,471-490",
+    "semantic_reason": "Los asserts prueban lectura de portapapeles con cero red/almacenamiento/trabajo, fallback español Ctrl+V y rechazo de respuestas tardías sobre texto, ejemplo, selector o drop posteriores. Un drop sin ficheros conserva la selección previa.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-06",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/review-export.spec.ts:61-62; app-v4/src/App.test.tsx:176-180",
+    "semantic_reason": "El recorrido real escribe en el campo de texto y crea el trabajo; la cabecera muestra «Texto pegado» sin exponer el tipo interno. Pegar/escribir texto libre sigue siendo el camino ordinario al Job.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-07",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/input/extract.test.ts:130-158; e2e/pdf.spec.ts:23-33",
+    "semantic_reason": "Hay extracción real de TXT, DOCX (mammoth) y PDF con texto, con fallos tipados para corruptos y PDF sin capa de texto. El E2E confirma que el PDF con capa llega a revisión con su texto exacto.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-08",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/input/extract.test.ts:233-240; app-v4/src/App.input-start.test.tsx:451-467",
+    "semantic_reason": "La extracción rechaza `.doc` con fallo explícito y la UI no lo anuncia: el `accept` solo lista .txt/.pdf/.docx/.csv/.xls/.xlsx y el drop de `.doc` se rechaza. La retirada del claim es deliberada y verificable.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-09",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/ReviewWorkspace.test.tsx:700-759",
+    "semantic_reason": "Tres tests separados demuestran aceptar (cambia progreso y preview desde la sesión), modificar (cambia el texto final exacto, no solo el DOM) y conservar original (decisión completada visible y filtrable).",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-10",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/ReviewWorkspace.test.tsx:761-804",
+    "semantic_reason": "El test demuestra selección de texto original sin offsets visibles, categoría libre española, un único dato manual pendiente y preservación de las decisiones existentes. El dato añadido queda pendiente de revisión y aparece en el inspector.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-11",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/output/clipboard.test.ts:38-47,95-105; e2e/rec05-result.spec.ts:189-205",
+    "semantic_reason": "La copia usa solo la Clipboard API y el E2E lee el portapapeles real y compara el payload con el TXT seguro descargado a volumen realista. El test de fuente confirma que no hay fallback oculto ni segundo canal de contenido.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-12",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/output/pdf-builder.test.ts:183-215; e2e/rec05-result.spec.ts:399-409,476-497",
+    "semantic_reason": "El builder rechaza caracteres no representables sin sustituir ni descartar, y el E2E verifica cero descarga ante U+03B1 mientras TXT/DOCX siguen funcionando. Un PDF representable se lee de vuelta con el texto seguro.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-13",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/output/safe-output.test.ts:144-152; e2e/rec05-result.spec.ts:198-205",
+    "semantic_reason": "El texto de salida es byte-igual al texto final canónico de la sesión y el TXT descargado (`texto-preparado.txt`) coincide con el payload seguro copiado, sin identificadores crudos.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-14",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/batch.spec.ts:81-131",
+    "semantic_reason": "El recorrido de lote con tres documentos muestra lista de estado por documento, progreso y un fallo visible por nombre que no oculta ni bloquea en silencio al resto. El procesamiento sigue siendo un Job nativo de lote.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-15",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/useJobSession.test.tsx:1240-1249; app-v4/src/engine/promote-shared-context.test.ts:15-28",
+    "semantic_reason": "El contexto de procesamiento compartido conserva el pseudónimo entre documentos (mismo original → mismo alias) y da el siguiente contador a un original nuevo, sin reiniciar por documento. El helper puro fija la promoción sin inventar opciones.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-16",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/batch.spec.ts:222-260; app-v4/src/useJobSession.test.tsx:1202-1249",
+    "semantic_reason": "El E2E demuestra reconocimiento y retirada con confirmación que solo afectan al fallo y conservan decisiones ajenas; el test de sesión demuestra reintento acotado que restaura revisión y consistencia. La distinción retirado/completado se mantiene visible.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-17",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/export/batchSafeDeliverables.test.ts:287-304; e2e/rec87-batch-result.spec.ts:245-260",
+    "semantic_reason": "El PDF consolidado se construye con índice («Documento N»), páginas de índice y secciones con cuerpos seguros reales; los centinelas de nombre o contenido confidencial no aparecen. Los ordinales son deterministas y nunca nombres de origen.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-18",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec87-batch-result.spec.ts:203-243; app-v4/src/export/batchSafeDeliverables.test.ts:235-257",
+    "semantic_reason": "El ZIP real contiene un PDF por documento completado con nombre ordinal `documento-seguro-NN.pdf`, y el texto leído de cada entrada es el cuerpo seguro sin identidad de origen. Los fallos retirados no producen cuerpo.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-19",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/export/batchResultModel.test.ts:149-178; e2e/rec87-batch-result.spec.ts:178-193",
+    "semantic_reason": "El CSV `resumen-lote-seguro.csv` emite una fila por índice original, conserva `error,retirado` y no filtra nombres, contenido ni correspondencia. El E2E de 12 documentos verifica las 13 líneas exactas y la ausencia de identificadores.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-20",
+    "status": "PARTIAL",
+    "witness": "app-v4/src/structured/intake.test.ts:100-116; app-v4/src/structured/intake.ts:54",
+    "semantic_reason": "CSV y XLSX están probados con parseo real, campos multilínea y workbook; `.xls` solo figura aceptado por extensión en el conjunto de workbooks. No hay fixture ni assert que lea un `.xls` binario real.",
+    "residual_gap": "Subcláusula .xls anunciada sin prueba de lectura real.",
+    "next_action": "Añadir fixture y prueba de un .xls real o retirar .xls de los formatos anunciados."
+  },
+  {
+    "id": "H-21",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/header-row.test.ts:62-107,176-195; app-v4/src/structured/intake.test.ts:302-315",
+    "semantic_reason": "El detector inspecciona como máximo 10 filas, exige 3 celdas textuales, elige un candidato único y bloquea con `header-row-required` si hay ambigüedad, sin asumir la primera fila. El workbook con metadatos del hospital resuelve la cabecera real y descarta las filas previas.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-22",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/intake.test.ts:140-147,181-192",
+    "semantic_reason": "Un workbook multi-hoja devuelve `sheet-required` con los nombres, y una hoja desconocida falla tipada mostrando las disponibles. La selección explícita es obligatoria y no hay elección silenciosa de la primera hoja.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-23",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/study-id.test.ts:173-194,241-258",
+    "semantic_reason": "La preparación materializa `ID_ESTUDIO` en la columna elegida con `PAC_001…` determinista, y un oráculo plantado confirma que ningún ID original aparece en Safe. La correspondencia original↔estudio queda solo en Confidential.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-24",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/study-id.test.ts:69-84,173-194",
+    "semantic_reason": "Filas repetidas del mismo paciente reutilizan un único ID determinista y las nuevas toman el siguiente; la materialización conserva esa agrupación en la salida. El orden de aparición, no el ordenado, manda.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-25",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/study-id.test.ts:41-66; app-v4/src/structured/output-preparation.test.ts:118-133",
+    "semantic_reason": "El prefijo en blanco resuelve a PAC y un prefijo válido solo cambia el texto del token, no la agrupación ni el orden. Un prefijo fórmula `=CMD` bloquea tipadamente sin artefacto Safe.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-26",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/output-preparation.test.ts:136-166,188-201",
+    "semantic_reason": "`Visita_Num` numera 1,2,… por paciente en el orden de filas actual, se sitúa tras `ID_ESTUDIO` y desaparece al desactivarlo. Un encabezado conflictivo bloquea en vez de sobrescribir.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-27",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/output-preparation.test.ts:282-306; app-v4/src/structured/xlsx-export.test.ts:176-187; e2e/structured-rec04-composed.spec.ts:234-238",
+    "semantic_reason": "El resumen deriva filas totales y, con autoridad de paciente, únicos/vinculadas/media sin pretender cronología; el E2E muestra el bloque «Datos de salida estructurada» con pacientes cuando hay selección. La hoja Summary del XLSX Safe lleva esos hechos sin datos sensibles.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-28",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/xlsx-export.test.ts:141-158,255-270; app-v4/src/export/ExportStep.unmount.test.tsx:271-305",
+    "semantic_reason": "El XLSX se lee de vuelta con cabeceras/filas/orden/blancos y tipos, sin originales ni correspondencia, y las fórmulas quedan como texto literal. La ruta asíncrona no descarga nada si la superficie se desmonta.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-29",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/xlsx-export.test.ts:203-245",
+    "semantic_reason": "El libro confidencial abre con READ_FIRST y el aviso canónico, luego la correspondencia autorizada y metadatos de política/totales; no arrastra contenido clínico Safe-only. Es byte-determinista y falla cerrado con entrada inválida.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-30",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/free-text-engine.test.ts:55-84; app-v4/src/structured/free-text-preparation.test.ts:121-160,212-243",
+    "semantic_reason": "`process-as-text` ejecuta cada celda no vacía por el motor productivo y crea una ReviewSession por celda con contexto compartido. Safe lee `getFinalText` y bloquea con razones si hay celdas sin procesar, pendientes, fallidas o de política obsoleta.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-31",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/action-authority.test.ts:34-48,82-116,188-230,248-260",
+    "semantic_reason": "Clase y Acción son autoridades separadas: Identifier elimina, Sensitive conserva, cuasi/Unknown bloquean hasta acción aceptada, paciente/fecha quedan bloqueados y la pseudonimización de centro produce QID deterministas. Una cuasi sin resolver bloquea con razón exacta.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-32",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/policy-guidance.test.ts:37-57; e2e/policy-guidance.spec.ts:36-51",
+    "semantic_reason": "Los cuatro identificadores de política están disponibles y seleccionables en texto/documento/lote y estructurado, y el E2E comprueba las opciones habilitadas y la guía «Disponible» en la app real. La guía describe el comportamiento por familia.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-33",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/date-longitudinal.test.ts:94-146; e2e/policy-guidance.spec.ts:144-163",
+    "semantic_reason": "Un único desplazamiento compartido recorre el conjunto enlazado, conserva intervalos y orden, y el E2E muestra una fecha propuesta distinta y con formato correcto bajo Longitudinal Research. El override puntual se prueba aparte.",
+    "residual_gap": "El E2E no reafirma intervalos entre varios documentos; eso queda en el test unitario.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-34",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/low-confidence-queue.test.tsx:81-136",
+    "semantic_reason": "El candidato de baja confianza es una detección real marcada, aparece en cola/filtro y su estado pendiente bloquea la compuerta hasta que se declina o se aplica. La cola se guía por el marcador explícito, no por el número de confianza.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-35",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/privacy-gate/PrivacyGate.test.tsx:132-145",
+    "semantic_reason": "La vista de comprobación rinde el mensaje de bloqueo con el número de decisiones pendientes y recuentos factuales tras completar la revisión. La autoridad de disponibilidad se conserva aunque su presentación como destino autónomo esté supersedida (PDR-06).",
+    "residual_gap": "La presentación concreta es deliberadamente abierta; no hay un test de destino «Privacy Gate» separado.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-36",
+    "status": "SUPERSEDED",
+    "witness": "docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md:282-294",
+    "semantic_reason": "La autoridad humana V1 fija que el workspace manda, que no se exige un destino permanente Workspace y que la navegación global exacta no queda congelada. Las funciones subyacentes (trabajo accesible, política/ayuda descubrible, Nuevo trabajo) siguen exigidas, no así la navegación igualitaria Workspace/Policies/Help.",
+    "residual_gap": "ninguno en alcance; el shell exacto sigue abierto por decisión humana.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-37",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/ReviewWorkspace.test.tsx:327-365; e2e/review-productivity.spec.ts:94-126",
+    "semantic_reason": "A/M/K/F y Alt+↓/↑ están implementados y probados sobre la entidad actual, con ayuda en español, protección de foco/IME/repetidos y no mutación al cancelar. Esto contradice el «no dedicated shortcuts» histórico; la navegación de pendientes también se ejerce en E2E.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-38",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/ux-closeout-shell.spec.ts:170-217; e2e/input-start.spec.ts:334-351",
+    "semantic_reason": "Los estados cambiados se comprueban sin desbordamiento horizontal a 375/768/1280 y la entrada a 375/1280, con capturas y controles alcanzables. Es una matriz representativa, no una promesa de todas las pantallas.",
+    "residual_gap": "No hay matriz exhaustiva de cada pantalla a los tres anchos.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-39",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/network-invariant.spec.ts:29-50; render.yaml:47-49; app-v4/src/engine/worker/worker-engine.ts:130",
+    "semantic_reason": "El flujo crítico completo corre con cero peticiones externas y el monitor detecta peticiones plantadas (fetch/XHR/WebSocket/beacon). El despliegue clínico sirve CSP same-origin con worker-src 'self' y el motor se instancia en un Worker.",
+    "residual_gap": "La CSP se aplica en el hosting; la garantía local se apoya en el oráculo de red.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-40",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/ground-truth/v4-ground-truth.test.ts:54-83,572-591",
+    "semantic_reason": "El corpus sintético se ejecuta sobre el pipeline productivo y verifica spans, bandas de edad, todas las clases y métricas por tipo/slice (precisión, recall, FNR, F1) con falsadores que ponen el oráculo en rojo. Es una garantía de regresión acotada, no una nota universal de calidad del español.",
+    "residual_gap": "No demuestra calidad sobre datos reales ni cobertura fuera del corpus declarado.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-41",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/ReviewWorkspace.test.tsx:469-540; app-v4/src/review/ReviewWorkspace.tsx:1354",
+    "semantic_reason": "Conservar un identificador directo o incierto exige confirmación contextual explícita; Cancelar y los cambios de entidad/sesión no mutan la ReviewSession. El texto de confirmación avisa de que el original identificable permanecerá en el resultado preparado.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "H-42",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec05-result.spec.ts:436-464; app-v4/src/export/ExportStep.batchConfidential.test.tsx:260-357",
+    "semantic_reason": "La auditoría confidencial es una zona separada y marcada; el primer clic solo muestra la confirmación y no descarga, Cancelar deja cero descargas y Confirmar produce exactamente una. En lote, la autorización muere si cambia job/sesión/readiness o se desmonta.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  }
+]

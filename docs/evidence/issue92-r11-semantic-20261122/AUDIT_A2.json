@@ -1,0 +1,354 @@
+[
+  {
+    "id": "SUPPLY-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "scripts/ci/vendor-manifest.json:2-26 (entradas lib/jspdf, mammoth, pdf.min.js, pdf.worker.min.js con sha256 y version exactas); scripts/ci/check-vendor-manifest.mjs:84-89 (hash SHA-256 real comparado contra el fichero); package.json:29,44 (check:vendor integrado en npm test)",
+    "semantic_reason": "El vendor manifest declara hashes SHA-256 y versiones de los bundles vendoreados y el checker determinista falla si el hash real no coincide, formando parte de la suite npm test. El requisito de manifest con hashes/versiones está soportado en código productivo y aserción verificable.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "CODE-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "package.json:12-14 (lint:v4, format:v4, format:check:v4); eslint.config.mjs:10-11 (extends tseslint.configs.recommended); .prettierrc.json",
+    "semantic_reason": "Existen scripts productivos de ESLint y Prettier para app-v4, con config ESLint 9 + typescript-eslint y fichero de reglas Prettier. La pareja de herramientas exigida está materialmente presente y cableada a npm.",
+    "residual_gap": "El alcance de lint/format declarado cubre app-v4; js/ heredado no está incluido en lint:v4/format:v4.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "CODE-002",
+    "status": "PARTIAL",
+    "witness": "tsconfig.json (raíz del proyecto); app-v4/src completamente TypeScript; negativo: grep '@ts-check' sobre js/ = 0 coincidencias",
+    "semantic_reason": "La rama V4 cumple el objetivo vía TypeScript (tsconfig.json y todo app-v4/src en TS), pero el núcleo heredado conservado en js/ es JavaScript sin JSDoc ni @ts-check. El requisito literal no está demostrado sobre esa superficie conservada.",
+    "residual_gap": "Núcleo JS conservado sin tipado declarado; solo tipado indirecto detrás de adaptadores (p. ej. app-v4/src/engine/legacy-engine.ts).",
+    "next_action": "Deuda post-recuperación conservada: decidir si se declara aceptada explícitamente o se tipa el núcleo js/ con JSDoc/@ts-check."
+  },
+  {
+    "id": "CODE-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "negativo: grep 'alert(' sobre app-v4/src y js/ = 0 coincidencias; app-v4/src/export/ExportStep.tsx:576,605 (estados role=\"alert\" contextuales); app-v4/src/privacy-gate/PrivacyGate.tsx:7 (estado bloqueado como mensaje role=\"alert\")",
+    "semantic_reason": "No existe ningún alert() en el código activo ni en el núcleo conservado; los bloqueos se comunican con estados de UI tipados y accesibles (role=\"alert\"/\"status\" contextuales). El requisito de sustitución está demostrado por ausencia verificable + testigos de reemplazo.",
+    "residual_gap": "La ausencia es verificable por búsqueda en el candidato actual, no una garantía universal futura.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "GOV-001",
+    "status": "PARTIAL",
+    "witness": "docs/governance/CANONICAL_AUTHORITY.md:7-10 (rama canónica 3.0-main; default GitHub sigue main; cambio de default es acción humana remota); verificación en vivo 2026-11-22: git ls-remote --symref origin HEAD → 'ref: refs/heads/main' (b1c25e9), 3.0-main en 46bce0a",
+    "semantic_reason": "La rama canónica 3.0-main existe y es la autoridad documentada, pero el HEAD por defecto del remoto sigue siendo main, tal como declara la propia CANONICAL_AUTHORITY.md. La consolidación queda a medio hacer por diseño de gobernanza humana.",
+    "residual_gap": "La rama por defecto de GitHub no es 3.0-main; el cambio es acción remota de propiedad humana.",
+    "next_action": "GO humano para cambiar el default branch a 3.0-main (o decisión registrada de mantener main como default)."
+  },
+  {
+    "id": "GOV-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "GitHub API /repos/b32majus/Laboratorio_Privacidad_Clinica/branches/3.0-main (lectura de solo lectura 2026-11-22): protected:true, protection.required_status_checks enforcement 'everyone' con checks validate, e2e, Analyze (javascript-typescript), Secret Scan (gitleaks); docs/governance/CANONICAL_AUTHORITY.md:57",
+    "semantic_reason": "La protección de rama de 3.0-main con checks requeridos se verificó directamente contra la API de GitHub en la fecha de esta auditoría, no por registro histórico. El objetivo 'branch protection y CI required' está materialmente satisfecho en el remoto.",
+    "residual_gap": "El candidato local RC1@8e1fa97 aún no está fusionado en 3.0-main@46bce0a; eso pertenece a la publicación humana.",
+    "next_action": "ninguna (fusión/publicación = decisión humana)"
+  },
+  {
+    "id": "GOV-003",
+    "status": "PARTIAL",
+    "witness": "README.md:1,7 (v4.0); package.json:3 (\"version\": \"4.0.0\"); negativo: grep '4.0' sobre app-v4/src y app-v4/index.html = 0 coincidencias",
+    "semantic_reason": "README y package.json están alineados en 4.0, verificable en líneas reales. No se ha localizado ningún marcador de versión en la superficie runtime (SPA), por lo que el tercer término del objetivo no queda demostrado.",
+    "residual_gap": "Sin superficie de versión runtime identificada en app-v4.",
+    "next_action": "Decidir si 'runtime' exige un marcador visible en la SPA o declarar el cierre con esa interpretación."
+  },
+  {
+    "id": "DOC-001",
+    "status": "GOVERNANCE_93",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:76 (fila congelada: 'Documentation/debt authority needs final rewrite against recovered product')",
+    "semantic_reason": "La reescritura final de la especificación técnica debe reconciliarse contra el producto ya fusionado; es cierre de gobierno/publicación, no un PASS de #92. La fila congelada lo declara explícitamente OPEN_GOVERNANCE.",
+    "residual_gap": "Reescritura de documentación pendiente de cierre #93.",
+    "next_action": "Ejecutar la reconciliación documental bajo #93 contra el producto fusionado."
+  },
+  {
+    "id": "UX-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "docs/audits/2026-09-ux-ui-product-flow-audit.md:1-8 (auditoría UX/UI y modelo de producto de 674 líneas; referencia 3.0-main; conclusión ejecutiva sobre modelo multipágina heredado)",
+    "semantic_reason": "La auditoría completa SPA/app-shell y navegación existe como documento de autoridad con contenido sustantivo y es el entregable del objetivo. Se cita como evidencia congelada, no como garantía de estados futuros.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/ux-closeout-shell.spec.ts:111 ('document-batch job: direct Review landing'), :176 (quiet-shell landing de un text job); render.yaml:8-10 (routes: rewrite /* → /index.html, el origen clínico sirve la SPA directamente)",
+    "semantic_reason": "El E2E comprueba que los tipos de job aterrizan directamente en Review/workspace sin doble landing, y render.yaml declara el fallback SPA que sirve el workspace como primera superficie. La eliminación de la doble landing está demostrada en el candidato real.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/domain/job.ts:323-356 (inferJobKind: inferencia determinista text/document/document-batch/structured, fail-closed con empty-input/input-too-large/ambiguous-input); e2e/input-start.spec.ts:49,67 (entrada unificada y operable)",
+    "semantic_reason": "El código productivo infiere el tipo de entrada de forma determinista y fail-closed, exactamente el núcleo del objetivo; el E2E acompaña el flujo de entrada. La subcláusula residual 'override cuando sea necesario' no está implementada por decisión deliberada.",
+    "residual_gap": "La subcláusula de override genérico está superseída deliberadamente por D-019 (docs/shaping/CURRENT_DECISIONS.md:168, propuesto 2026-10-07, ratificado 2026-10-10).",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/App.test.tsx:1551 ('never renders Premium framing anywhere in the V4 batch flow (UX-004)'); e2e/batch.spec.ts:81,133,191,383 (batch como Job normal: fallos visibles, navegación sin completar review, orientación de cola de 12 documentos)",
+    "semantic_reason": "Hay un aserto positivo literal de que el framing Premium/Activar no aparece en el flujo batch de V4, más contratos E2E que demuestran batch como capacidad natural del Job. El objetivo está cubierto por aserción y comportamiento.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-005",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/rec12-r3-sophilux.spec.ts:2-4 ('user-approved Sophilux B V1 hierarchy implemented in REAL V4', 24 hallazgos reales, geometría y sin overflow); docs/evidence/issue91-u1/README.md + capturas 1440/375 (serie human-accepted issue91-u1..u7)",
+    "semantic_reason": "El sistema visual Sophilux B V1 unificado se demuestra sobre V4 real con geometría comprobable y capturas de las siete superficies aprobadas por humano. La unificación está soportada por testigo visual humano + aserción E2E.",
+    "residual_gap": "No certifica todos los estados/layouts posibles; la verificación compuesta final es del cierre de REC-12.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-006",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/review-export.spec.ts:73-78 (gate fail-closed: mensaje español 'La descarga segura está bloqueada mientras 4 decisiones... pendientes'); e2e/rec05-result.spec.ts:271,318,330 (needs-attention mantiene acciones preparadas indisponibles y cero descargas)",
+    "semantic_reason": "El E2E demuestra el comportamiento real: con decisiones pendientes la exportación segura está bloqueada con mensaje explícito, y un Result needs-attention mantiene las acciones preparadas indisponibles. El gate antes de completar el Privacy Gate está demostrado en el candidato renderizado.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-007",
+    "status": "SEMANTIC_PASS",
+    "witness": "negativo: grep 'alert(' y 'disclaimer' sobre app-v4/src = 0 coincidencias; contextual: app-v4/src/export/ExportStep.tsx:1101 (role='alert'/'status' según feedback), app-v4/src/privacy-gate/PrivacyGate.tsx:7 (mensaje de estado bloqueado)",
+    "semantic_reason": "No existe ningún disclaimer permanente en el código activo; los avisos operan como mensajes contextuales ligados al estado (role=\"alert\"/\"status\" en Gate y Export). La sustitución por aviso contextual está demostrada por ausencia verificable + testigos de reemplazo.",
+    "residual_gap": "La ausencia total no es demostrable universalmente; es evidencia sobre el candidato actual.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-008",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/policy-guidance.test.ts:37,51 (las cuatro políticas disponibles en text/document/document-batch y structured), :134-164 (texto por política: Standard/Strict/External AI/Longitudinal); app-v4/src/App.policy.test.tsx:96,130,146 (disponibilidad en la UI real)",
+    "semantic_reason": "Las aserciones cubren que ninguna política queda opaca o sin mapear: las cuatro están disponibles por familia de job y su guía explica el comportamiento real derivado de las autoridades del motor. El objetivo está demostrado por aserciones semánticas sobre el comportamiento.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-009",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/ReviewWorkspace.tsx:511-515 (única workspace con panes document/findings/inspector); app-v4/src/review/ReviewWorkspace.test.tsx:613 (lista de detecciones con tipo y estado), :700 (decisiones mutan la sesión desde esa superficie)",
+    "semantic_reason": "El modelo de cards/action bar/modal fragmentado está reemplazado por una única ReviewWorkspace con un solo inspector; los tests verifican lista, progreso y decisiones sobre esa superficie única. El objetivo está demostrado por estructura de código y aserciones.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-010",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/ux-closeout-shell.spec.ts:170-174 (sin overflow horizontal en 375/768/1280), :215-232 (móvil: ruta directa a controles de decisión); e2e/review-productivity.spec.ts:54,183 (flujos a 375/1280, layout apilado inspector-primero)",
+    "semantic_reason": "Los E2E comprueban layouts reales a 375/768/1280 sin overflow y la ruta explícita móvil al inspector, cubriendo las tres familias de layout pedidas. La demostración es sobre estados de cierre concretos, no universal.",
+    "residual_gap": "Los anchos cubiertos son 375/768/1280 sobre estados cambiados/closeout; no es cobertura de todas las superficies en todos los estados.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-011",
+    "status": "SEMANTIC_PASS",
+    "witness": "e2e/gate-export-ux.spec.ts:217 (pares de texto normal cumplen WCAG AA sobre fondo compuesto renderizado), :253-285 (helper de contraste falsable con violación plantada), :149 (controles primarios alcanzables por teclado con foco visible)",
+    "semantic_reason": "El contraste del primary operativo se demuestra con cálculo WCAG AA sobre el fondo realmente compuesto, y el helper es falsable (detecta la violación plantada); el foco visible está asertado por teclado. El objetivo está demostrado con evidencia calculada, no solo con tokens.",
+    "residual_gap": "La verificación de contraste cubre los pares cambiados en Gate/Export, no cada combinación de color posible.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-012",
+    "status": "PARTIAL",
+    "witness": "e2e/input-start.spec.ts:67 (ejemplos operables por teclado), :223-227 (Tab nativo alcanza el input de ficheros con foco visible); e2e/review-productivity.spec.ts:54 (flujos de revisión por teclado a 375/1280); negativo: grep 'hasTouch|isMobile|touchscreen' sobre e2e/ y configs = 0 coincidencias",
+    "semantic_reason": "La accesibilidad por teclado está demostrada con aserciones concretas en los flujos nucleares, sin acción esencial solo-hover. La mitad 'touch' del objetivo solo está cubierta indirectamente por eventos de puntero en Playwright, sin emulación touch real (hasTouch) en ningún spec.",
+    "residual_gap": "No hay test con emulación touch (isMobile/hasTouch) que demuestre operabilidad táctil literal.",
+    "next_action": "Si se exige el literal touch: un test focal con hasTouch sobre un flujo nuclear (entrada y decisión), sin ampliar alcance."
+  },
+  {
+    "id": "UX-013",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/ReviewWorkspace.tsx:476-504 (Alt+↓/↑ navega pendientes; A acepta, M enfoca sustitución, K conservar, F marca selección, con inhibiciones de foco/IME/repetición); app-v4/src/review/ReviewWorkspace.test.tsx:327 ('uses A/M/K plus pending arrows only on the current entity'), :394 (refusa IME/repetición/modificadores), :420 (F exige selección válida); e2e/review-productivity.spec.ts:94 (Alt+ArrowDown real)",
+    "semantic_reason": "El registro histórico OPEN_RECOVERY ('never implemented') está materialmente desactualizado: el dispatcher productivo implementa A/M/K/F y navegación de pendientes Alt+↓/↑, con tests de componente e E2E reales sobre el candidato. El objetivo está demostrado en código y aserción.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-014",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/low-confidence-queue.test.tsx:81 ('the queue selects exactly the marked candidate'), :98 ('pending blocks the gate, decline restores source'), :137 (filtro/inspector con motivo); app-v4/src/review/low-confidence-review.test.ts:65 (candidato profesional pendiente lowConfidence en el camino de dominio)",
+    "semantic_reason": "Los tests demuestran que los candidatos low-confidence son una cola de revisión visible y de primera clase, con hechos de gate (pendiente bloquea la exportación) e integridad de offsets. El objetivo está demostrado por comportamiento compuesto y componente.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-015",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/StructuredConfigureWorkspace.test.tsx:113-114 (display comparativo de cuatro campos por columna), :197 (inspector contextual), :336 (gate fail-closed Unknown nunca KEEP); e2e/rec12-r6-structured-mobile.spec.ts:66-69 (32 columnas/19 pendientes), :95 (375/320)",
+    "semantic_reason": "La configuración de columnas es un workspace de clasificación comparativo con inspector contextual, probado a densidad realista (32 columnas) y en móvil. El semántico de clasificación está demostrado; la paridad compuesta final de salida estructurada sigue siendo evidencia de cierre REC-12.",
+    "residual_gap": "La paridad de salida estructurada compuesta pertenece al cierre de #92, no a esta fila.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "UX-016",
+    "status": "SUPERSEDED",
+    "witness": "docs/HUMAN_PRODUCT_DESIGN_AUTHORITY_V1.md:282 ('The workspace is the product. The shell must stay quiet enough that the active task dominates.'), :288-290 ('destructive session clearing is distinct and may be secondary'; 'internal job type is not persistent user context unless it materially helps a task'; 'current use/policy remains discoverable')",
+    "semantic_reason": "La autoridad humana de diseño de producto (HPD V1, 2026-10-05) dejó de exigir visibilidad permanente de job/policy/local-only/clear-session y exige shell tranquila con descubribilidad y borrado destructivo separado. La fila se registra como superseída por esa decisión exacta; no implica que la fila original esté implementada.",
+    "residual_gap": "La composición quiet-shell que conserva esas funciones es materia de REC-09, no de esta fila.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-009",
+    "status": "SEMANTIC_PASS",
+    "witness": "package.json:8-10 (build:v4/dev:v4/preview:v4 sobre vite), :59-60 (dependencias react/react-dom); vite.config.ts en raíz; tsconfig.json",
+    "semantic_reason": "La SPA V4 es efectivamente Vite + TypeScript + React: scripts de build/dev/preview con Vite, React declarado como dependencia y proyecto TypeScript. El objetivo está demostrado en la configuración productiva real, no solo en registro.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "ARCH-010",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/legacy-engine.ts:1-10 ('Composes the legacy brownfield privacy core (js/core + js/data) behind the V4 V4PrivacyEngine interface... without any monkey patching'); núcleo conservado en js/core, js/data, js/modular-processor.js",
+    "semantic_reason": "El núcleo heredado se conserva y se compone detrás de un adaptador V4 sin reescritura big-bang ni monkey patching, tal como declara el propio adaptador productivo. El objetivo de migración por adaptador está demostrado en el código activo.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "HOST-001",
+    "status": "GOVERNANCE_93",
+    "witness": "render.yaml:6-9 (solo salida estática dist servida; D-014 local-first, D-015); docs/audits/2026-10-recovery-traceability-matrix.md:95 (PARTIAL congelado; topología final a registrar)",
+    "semantic_reason": "La separación entre superficie de marketing/docs y origen clínico es demostrable en la configuración de despliegue (solo dist estático), pero el registro explícito de la topología de orígenes final pertenece al cierre de gobierno/publicación #93. No es PASS de #92.",
+    "residual_gap": "Registro explícito de la topología de orígenes externos final pendiente de #93.",
+    "next_action": "Ejecutar smoke final de origen/deployment y registrar topología bajo #93."
+  },
+  {
+    "id": "HOST-002",
+    "status": "GOVERNANCE_93",
+    "witness": "render.yaml:42-72 (headers declarados como configuración runtime autoritativa: Content-Security-Policy:48, X-Content-Type-Options:56, Strict-Transport-Security:72); package.json:20 (check:headers sobre ese fichero)",
+    "semantic_reason": "El target estático con security headers está declarado y ejercido localmente a través del harness que parsea el propio render.yaml; la comprobación final contra el origen realmente desplegado pertenece a #93. No se da PASS de #92 por no re-verificar el despliegue remoto.",
+    "residual_gap": "Smoke/headers finales sobre el origen desplegado tras #92.",
+    "next_action": "Ejecutar smoke y verificación de headers contra el origen final bajo #93."
+  },
+  {
+    "id": "HOST-003",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:97 ('OPEN_OPERATIONS... Spain/LaLiga multi-tenant availability risk has not been fully operationally closed')",
+    "semantic_reason": "La evaluación del riesgo de disponibilidad (LaLiga/bloqueo de IP compartida) es una operación post-recuperación, fuera del alcance de paridad de recuperación, con disposición explícita en la matriz congelada. Se conserva como futuro sin cierre automático.",
+    "residual_gap": "Riesgo operativo abierto post-recuperación.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "HOST-004",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:98 ('Cloudflare experiment is optional and not required to recover product parity')",
+    "semantic_reason": "El experimento controlado con Cloudflare está declarado opcional y no necesario para la paridad de recuperación en la matriz congelada. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Experimento futuro opcional.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "HOST-005",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:99 ('Dedicated-IP/VPS fallback is resilience planning, not recovery parity')",
+    "semantic_reason": "El fallback a origen/IP propia es planificación de resiliencia, no paridad de recuperación, según la disposición explícita de la matriz congelada. Fuera del alcance de recuperación.",
+    "residual_gap": "Planificación de resiliencia futura.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-001",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/date-longitudinal.test.ts:94,118 (ORACLE 1: un único offset estable; ORACLE 2: conserva intervalos y orden ascendente), :213 (ORACLE 5: engine compuesto desplaza todas las FECHA entre documentos con un offset compartido); app-v4/src/App.policy.test.tsx:206 (UI: Longitudinal produce fecha desplazada que preserva intervalos)",
+    "semantic_reason": "Los oráculos longitudinales demuestran exactamente el requisito material: un offset consistente por Job que preserva orden e intervalos, tanto a nivel de motor compuesto como en la UI. El date shifting consistente está demostrado por aserción verificable.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRODUCT-002",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/patient-pseudonyms.test.ts:65 ('never consults detectarGenero while producing a replacement'), :93 ('the value is gender-independent'), :112 (pacientes del mismo género reciben valores distintos), :145 (mismo contexto/índice entre documentos)",
+    "semantic_reason": "Los tests demuestran que los pseudónimos son deterministas, estables por identidad y sin inferencia de género (el generador nunca consulta detectarGenero y es independiente del argumento género). El requisito está demostrado por oráculos negativos y positivos.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRODUCT-003",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/engine/policy.test.ts:108,121 (perfil congelado y completo para cada política aceptada), :149,164 (FECHA→date-generalize solo external-ai / date-shift solo longitudinal-research), :188 (cada categoría mapea a operadores registrados en el registry productivo); app-v4/src/policy-guidance.test.ts:37,51",
+    "semantic_reason": "Los perfiles de política existen como autoridad del motor congelada y determinista, con mapping completo por categoría a operadores reales y fail-closed ante ids desconocidos. El objetivo está demostrado por aserciones sobre el comportamiento productivo.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRODUCT-004",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/review/low-confidence-review.test.ts:65,92 (cola compuesta en el camino de dominio con integridad de offsets); app-v4/src/review/low-confidence-queue.test.tsx:81,137 (cola visible y compuesta, filtro/inspector con motivo)",
+    "semantic_reason": "La bandeja de candidatos low-confidence/descartados existe como cola de revisión visible con estado de dominio compuesto, integridad de offsets y hechas de gate. El requisito está demostrado por tests de dominio y componente sobre el candidato.",
+    "residual_gap": "ninguno en alcance",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRODUCT-005",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/privacy-gate/PrivacyGate.test.tsx:132 (mensaje bloqueado con cuenta de pendientes), :193 (aviso por original conservado), :236 (nunca puntuación/anonimato/certificación); e2e/review-export.spec.ts:73-78 (gate bloquea la descarga segura con pendientes en app real)",
+    "semantic_reason": "El Privacy Gate existe como computación autoritativa de readiness con mensajes factuales, demostrada en componente y en E2E real. La implicación histórica de pantalla independiente fue superseída por el modelo Result (PDR-06) sin debilitar el gate.",
+    "residual_gap": "La representación humana del ending pertenece a PDR-06/REC-11, no a esta fila.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRODUCT-006",
+    "status": "SEMANTIC_PASS",
+    "witness": "app-v4/src/structured/classification.test.ts:22,32,63 (identifier/sensitive por patrón y contenido, UNKNOWN→Review Required nunca KEEP, nunca insensitive automático); app-v4/src/structured/action-authority.test.ts:34,50,58,82,101 (remove/pseudonymize/keep/review-required; paciente-ID y fecha bloqueados por autoridad superior)",
+    "semantic_reason": "La taxonomía de clasificación está implementada con modelo fail-closed (UNKNOWN nunca KEEP) y la autoridad Class→Action separada D-021 está demostrada con combinaciones tipadas y cerradas. El objetivo está demostrado por aserciones semánticas sobre el código productivo.",
+    "residual_gap": "La paridad compuesta de salida estructurada es evidencia de cierre REC-12, no de esta fila.",
+    "next_action": "ninguna"
+  },
+  {
+    "id": "PRODUCT-007",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:106 ('ARX-lite risk analysis was explicitly a later capability, not v3 parity')",
+    "semantic_reason": "El análisis de riesgo ARX-lite (unicidad/clases de equivalencia) fue declarado explícitamente capacidad posterior, no paridad v3, en la matriz congelada. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Capacidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-008",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:107 ('Institutional dictionaries/plugin recognizers are future extensibility, not baseline recovery')",
+    "semantic_reason": "Los plugins de recognizer y diccionarios institucionales están declarados como extensibilidad futura, no recuperación base, en la matriz congelada. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Extensibilidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-009",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:108 ('Local NER was explicitly optional/later')",
+    "semantic_reason": "El NER local fue declarado opcional/posterior en la disposición congelada. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Capacidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-010",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:109 ('Local OCR was explicitly later; current scan detection correctly fails closed')",
+    "semantic_reason": "El OCR local fue declarado explícitamente posterior; el estado actual falla de forma cerrada ante PDFs escaneados (fila congelada). Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Capacidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-011",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:110 ('FHIR adapter was explicitly later')",
+    "semantic_reason": "El adaptador FHIR JSON fue declarado explícitamente posterior en la disposición congelada. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Capacidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-012",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:111 ('Layout-preserving PDF redaction is future; REC-05 restores safe PDF report/export without claiming layout-preserving redaction')",
+    "semantic_reason": "La reconstrucción/redacción manteniendo layout es futuro declarado; REC-05 restauró el PDF seguro sin reclamar redacción que preserve el layout. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Capacidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  },
+  {
+    "id": "PRODUCT-013",
+    "status": "FUTURE",
+    "witness": "docs/audits/2026-10-recovery-traceability-matrix.md:112 ('Encrypted/HMAC study IDs are future; deterministic in-Job Study IDs required by current structured spec are REC-03 and do not require HMAC')",
+    "semantic_reason": "La correspondencia cifrada/HMAC de study IDs es futuro declarado; los Study IDs deterministas en-Job exigidos por la especificación actual son materia de REC-03 y no requieren HMAC. Fuera del alcance de recuperación con autoridad explícita.",
+    "residual_gap": "Capacidad futura declarada.",
+    "next_action": "ninguna (fuera de #92)"
+  }
+]

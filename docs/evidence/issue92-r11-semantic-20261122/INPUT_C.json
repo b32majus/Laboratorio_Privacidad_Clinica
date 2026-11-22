@@ -1,0 +1,134 @@
+[
+  {
+    "id": "PDR-01",
+    "section": "C",
+    "source_line": "167",
+    "objective_verbatim": "Visible flow follows human work; no ceremonial/no-op phase.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Text/document `Configure` can be no-op; structured can reach a no-op Review summary; universal stepper exposes pipeline topology. | Preserve internal pipeline; rendered composed journey must prove no no-op destination.",
+    "witnesses_r1_existing": "e2e/ux-closeout-shell.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-02",
+    "section": "C",
+    "source_line": "168",
+    "objective_verbatim": "Review is decision work and remains productive at realistic detection volume.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Current Review is metric/filter heavy and enters without an immediately active decision; high-volume explicit workflow is not yet proven. | Realistic synthetic long document / dozens of detections; no silent acceptance; correction/undo preserved.",
+    "witnesses_r1_existing": "e2e/review-productivity.spec.ts;e2e/rec05-result.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-03",
+    "section": "C",
+    "source_line": "169",
+    "objective_verbatim": "Manual missed-entity marking uses human selection/category, never source offsets.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "#81 has closed the offset-based ordinary interaction, with exact source provenance, pending-only Add, cancellation/stale refusal and next-action review. | PR #111, `3.0-main@e576fbb6cb920dbdb5dfb7e8b149f389420a6a20`; source offsets remain ReviewSession internal authority.",
+    "witnesses_r1_existing": "app-v4/src/review/review-domain.test.ts;e2e/review-productivity.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-04",
+    "section": "C",
+    "source_line": "170",
+    "objective_verbatim": "Structured uses a comparative column × interpretation/treatment/state workspace rather than repeated equal-weight cards.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Current card wall does not scale and hides cross-column comparison. | REC-03/04 structured semantics stay unchanged; test with dozens of columns and visible blockers/effective treatment.",
+    "witnesses_r1_existing": "app-v4/src/structured/StructuredConfigureWorkspace.test.tsx;e2e/structured-composed.spec.ts",
+    "status_r9_evidence": "TESTIGO_FOCAL_R6",
+    "new_reconciliation": "R6 inspected four-column comparative table and first viewport active inspector; mobile real capture + E2E"
+  },
+  {
+    "id": "PDR-05",
+    "section": "C",
+    "source_line": "171",
+    "objective_verbatim": "Batch behaves as a coherent work queue with local recovery and orientation at realistic batch size.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "REC-06 is canonical: #78 provides local recovery/disposition actions and #86 adds presentation-only queue orientation with authoritative counts, preserved review state and persistent feedback at realistic density. | Closed by #78 + #86. PR #97 merged #86 at `3.0-main@2941b666007062ad1c4aa8e967046705864e143d`; evidence includes a 16-item component fixture and 12-document real-app journey. REC-07 may now compose batch Result/output on this authority.",
+    "witnesses_r1_existing": "e2e/batch.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-06",
+    "section": "C",
+    "source_line": "172",
+    "objective_verbatim": "Human ending is `Result`: readiness, remaining attention and contextual next action; Privacy Gate remains authority underneath.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Single text/document and batch now have canonical Result models and their accepted Safe/Confidential deliverables. Batch readiness remains factually derived; Privacy Gate and Result agree on Safe summary readiness and on session-aware Confidential availability. | REC-05 published the single-item Result via PR #76. #87 / PR #100 adds batch ready / needs-attention / blocked; #88 / PR #102 adds the Safe ZIP/PDF hierarchy; #89 / PR #104 completes the separate batch Confidential zone behind deliberate confirmation, with the same factual availability authority consumed by Gate and Result.",
+    "witnesses_r1_existing": "e2e/rec05-result.spec.ts;e2e/rec87-batch-result.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-07",
+    "section": "C",
+    "source_line": "173",
+    "objective_verbatim": "Shell/policy guidance stay quiet and contextual; exact `Workspace / Policies / Help` nav is not mandatory.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Current shell exposes persistent diagnostic facts and full policy cards below operational work. | Preserve discoverability/current use/local-processing fact and destructive clear-session separation.",
+    "witnesses_r1_existing": "e2e/ux-closeout-shell.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-08",
+    "section": "C",
+    "source_line": "174",
+    "objective_verbatim": "Spanish professional language is a foundation from the first reworked surface.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "REC-08 Input, REC-09 keep-original confirmation, REC-10 #90/PR #120 and F7 #139 restored Spanish across main V4 surfaces; REC-12 F8 rechecked seven real views at 1440/375, and F9 covered actual invalid-input, failed-batch, Unknown structured blocker and Safe/Confidential Result confirmation states with accessible Spanish labels. The prior assertion that other main surfaces remain in English is outdated, but full all-state/ARIA/file-error locale coverage has not been proved. | Source REC-10 PR #120; F7 PR #139 and `e2e/rec12-f7-language.spec.ts`; F8 `docs/evidence/issue92-f8/H01_PDR08_STATE_LEDGER.md`, `COMPARADOR_F8.html`, visual E2E 2/2; F9 `e2e/rec12-f9-spanish-error-states.spec.ts` 4/4 and 6 mapping unit tests, with rendered-state errors/remedies and separate Confidential confirmation. Naming of native technical identifiers remains legitimate; residual formal copy in App mixed-input refusal and policy guidance, unknown error pass-through and unvisited edge states mean VERIFICATION_PENDING, not universal resolution.",
+    "witnesses_r1_existing": "e2e/input-start.spec.ts;e2e/rec05-result.spec.ts;e2e/rec12-f7-language.spec.ts;e2e/rec12-f9-spanish-error-states.spec.ts",
+    "status_r9_evidence": "TESTIGO_FOCAL_R7_PARCIAL",
+    "new_reconciliation": "Spanish real cases R7 positive, exhaustive locale/ARIA variants not established"
+  },
+  {
+    "id": "PDR-09",
+    "section": "C",
+    "source_line": "175",
+    "objective_verbatim": "Visual hierarchy/density are functional: primary task outranks evidence/help/chrome.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "REC-08 established prominent add-information actions; REC-09 established focused, recoverable Review decisions; REC-11 now closes the coherent seven-surface Sophilux task-first composition at desktop/mobile sizes through human visual approval. | REC-11 #91 / PR #121, `3.0-main@3db54e0af099d3bb10e4ecb4205f955cdb26029b`: accepted U1–U7 captures and bounded responsive/keyboard E2E evidence; earlier PR #107 and #109 protect the Input/Review interaction prerequisites. REC-12 must still validate the complete product journey, not infer full recovery solely from visual PASS.",
+    "witnesses_r1_existing": "e2e/input-start.spec.ts;e2e/ux-closeout-shell.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-10",
+    "section": "C",
+    "source_line": "176",
+    "objective_verbatim": "Realistic-density rendered evidence is required for material UI claims.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Existing small fixtures can pass while representations fail at real scale. | Evidence must be capable of falsifying the claim: dozens of detections/columns, multi-doc batch with failure, long text where relevant. REC-05 canonically demonstrates this with a 24-detection pasted-text review and a long clinical narrative through Result (PR #76). REC-06 adds a 16-item component work-queue fixture plus a 12-document real-app batch journey with local failures/orientation (PR #97).",
+    "witnesses_r1_existing": "e2e/rec05-result.spec.ts;e2e/batch.spec.ts;e2e/rec87-batch-result.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-11",
+    "section": "C",
+    "source_line": "177",
+    "objective_verbatim": "Ordinary actions provide perceptible feedback and decisions remain correctable/orientable.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "REC-09 #82 proves Cancel/no-mutation, Confirm/current-decision, stale-context refusal and mobile return-to-detections for its touched Review action; other journeys remain open. | REC-09 #82 / PR #109 adds explicit review-confirm/cancel/context-change and retained next-action evidence; remaining candidates must show pending/success/failure where relevant and return/correction without losing unrelated work. REC-05's canonical Result slice proves Copy success feedback, deterministic PDF-only failure and return to a still-pending review without losing accepted decisions (PR #76). REC-06 proves retry/acknowledge/removal feedback remains perceptible across queue-category changes and that filter changes preserve active decisions plus unrelated successful work (PR #97).",
+    "witnesses_r1_existing": "e2e/rec05-result.spec.ts;e2e/batch.spec.ts;e2e/review-productivity.spec.ts;e2e/rec87-batch-result.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  },
+  {
+    "id": "PDR-12",
+    "section": "C",
+    "source_line": "178",
+    "objective_verbatim": "Prepared/shareable Result and identifiable Confidential Audit are deliberately asymmetric.",
+    "verdict_historical": "NO_VERDICT_COLUMN",
+    "rationale_historical": "Single-item and batch Safe/Confidential separation, deliberate confirmation and unequal hierarchy are canonical from REC-05/07; REC-11 now adds the accepted seven-view Sophilux Result composition to that existing domain authority. | Product authorization remains with REC-05 (#76) and REC-07 (#102/#104); human-approved REC-11 #91 / PR #121 brings scoped Result visual evidence (`docs/evidence/issue91-u7/`) without changing Safe/Confidential readiness. REC-12 still owns composed end-to-end verification.",
+    "witnesses_r1_existing": "e2e/rec05-result.spec.ts;e2e/rec87-batch-result.spec.ts",
+    "status_r9_evidence": "TESTIGO_PREVIO_SIN_RECHECK_R9",
+    "new_reconciliation": "Existing linked test may support part of objective, but not semantically reverified here"
+  }
+]
