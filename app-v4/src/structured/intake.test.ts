@@ -25,7 +25,7 @@ const repoLibPath = path.join(
 );
 
 type XlsxAuthoringLib = XlsxLib & {
-  write(workbook: unknown, options: { type: "array"; bookType: "xlsx" }): ArrayBuffer;
+  write(workbook: unknown, options: { type: "array"; bookType: "xlsx" | "biff8" }): ArrayBuffer;
   utils: XlsxLib["utils"] & {
     book_new(): Record<string, unknown>;
     book_append_sheet(workbook: Record<string, unknown>, sheet: unknown, name: string): void;
@@ -137,6 +137,25 @@ describe("readStructuredFile — CSV through the consolidated parser", () => {
 });
 
 describe("readStructuredFile — workbook sheet selection (SPEC §9)", () => {
+  it("reads genuine BIFF8 .xls workbook bytes, not only the advertised extension", async () => {
+    window.XLSX = XLSX;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([
+        ["NHC", "Diagnostico", "Edad_Num"],
+        ["SINT-001", "Gripe A", 34],
+      ]),
+      "Datos"
+    );
+    const bytes = XLSX.write(wb, { type: "array", bookType: "biff8" });
+    const outcome = await readStructuredFile(bytesFile("hospital.xls", bytes));
+    expect(outcome.status).toBe("parsed");
+    if (outcome.status !== "parsed") return;
+    expect(outcome.grid.headers).toEqual(["NHC", "Diagnostico", "Edad_Num"]);
+    expect(outcome.grid.rows).toEqual([["SINT-001", "Gripe A", 34]]);
+  });
+
   it("requests an explicit sheet for a multi-sheet workbook", async () => {
     window.XLSX = XLSX;
     const outcome = await readStructuredFile(bytesFile("labs.xlsx", buildWorkbookBytes()));
