@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REC-12 R5 · Estructurado móvil — contraste de evidencia</title>
+<style>
+:root{color-scheme:light;--ink:#302b29;--line:#e7d9d1;--rose:#a56a61;--stone:#faf7f4}
+*{box-sizing:border-box}body{margin:0;background:#f7f1ed;color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:30px clamp(18px,4vw,62px);border-bottom:1px solid var(--line);background:white}
+h1{font:normal clamp(25px,3vw,37px)/1.15 Georgia,serif;margin:0 0 10px}p{max-width:1100px;margin:6px 0}
+.kicker{letter-spacing:.13em;color:var(--rose);font-weight:700;font-size:12px;margin-bottom:10px}
+.note{font-size:13px;color:#655b54}.toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px}
+button{font:inherit;background:white;border:1px solid var(--rose);border-radius:50px;padding:8px 16px;cursor:pointer;color:#7f4a43}
+button[aria-pressed="true"]{background:#774c45;color:white}
+main{padding:22px clamp(12px,3vw,40px) 38px;display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:18px;max-width:1700px;margin:auto}
+section{background:white;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+section h2{font:normal 23px Georgia,serif;margin:18px 16px 4px}section .desc{margin:0 16px 14px;min-height:65px;font-size:13px;color:#605650}
+.frame{background:#f0e9e4;overflow:auto;max-height:900px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;justify-content:center;align-items:flex-start}
+.frame img{display:block;width:375px;max-width:none;height:auto;box-shadow:0 3px 18px #0001}
+.foot{padding:12px 16px 16px;font-size:13px;color:#635853}
+footer{padding:14px clamp(18px,4vw,62px) 32px;font-size:12px;color:#71645e}
+@media(max-width:950px){main{grid-template-columns:1fr;max-width:460px}section .desc{min-height:auto}.frame{max-height:800px} }
+</style></head>
+<body>
+<header><div class="kicker">LABORATORIO DE PRIVACIDAD CLÍNICA · REC-12 / R5</div>
+<h1>Estructurado · 32 columnas · 375 px</h1>
+<p>Comparación de <strong>referencia de diseño</strong>, evidencia U4 y V4 con R3 incorporado. La primera columna es la <strong>referencia de estilo Sophilux</strong>, no el mismo escenario de 32 columnas. U4 y R3 sí representan una tabla sintética de 32 columnas.</p>
+<div class="toolbar"><span>Capturas de U4 y R3:</span><button id="viewport" aria-pressed="true">Primeros 800 px</button><button id="full" aria-pressed="false">Página completa con scroll</button></div>
+<p class="note">Las imágenes son capturas reales ya existentes; este archivo solo compara, no ejecuta la aplicación ni modifica datos. Puedes desplazar cada pantalla por separado.</p>
+</header>
+<main>
+<section><h2>01 · Sophilux aprobado</h2><p class="desc">Referencia de lenguaje visual y jerarquía editorial. <strong>Estado distinto</strong>; no usar como prueba de paridad pixel a pixel ni de clasificación de 32 columnas.</p>
+<div class="frame"><img src="imagenes/01-maestro-estilo-375.png" alt="Diseño de referencia Sophilux aprobado para Estructurado móvil"></div><p class="foot">Contrato estético de Sophilux B V1, sin claims de funcionalidad actual.</p></section>
+<section><h2>02 · U4 anterior</h2><p class="desc">Evidencia real U4 con 32 columnas y clasificación: referencia histórica del problema de densidad a 375 px.</p>
+<div class="frame"><img id="u4" src="imagenes/02-u4-32-columnas-375-viewport.png" alt="Evidencia U4 real de vista Estructurado móvil con 32 columnas"></div><p class="foot">32 columnas sintéticas. Documento y inspector solo se ven al seguir desplazándose en captura completa.</p></section>
+<section><h2>03 · V4 tras R3</h2><p class="desc">Mismo tipo de trabajo: <strong>32 columnas y 19 pendientes</strong>. Las mejoras R3 aprobadas eran Revisión, Celdas y Resultado, no esta tabla.</p>
+<div class="frame"><img id="r3" src="imagenes/03-r3-32-columnas-375-viewport.png" alt="Captura real R3 de vista Estructurado móvil con 32 columnas"></div><p class="foot"><strong>Medidas R3:</strong> primer viewport 375×800; tabla desde y≈1.111, inspector desde y≈2.847; sin overflow horizontal. Pendiente decisión de ergonomía, no defectos de motor.</p></section>
+</main>
+<footer>Fuente: Sophilux B V1 previews · issue91-u4 · issue92-r3-react actual. Solo datos sintéticos. No se ha creado una nueva propuesta de interfaz ni se ha autorizado una implementación React.</footer>
+<script>
+const buttons=[document.getElementById("viewport"),document.getElementById("full")];
+function setMode(full){const suffix=full?"full":"viewport";document.getElementById("u4").src="imagenes/02-u4-32-columnas-375-"+suffix+".png";document.getElementById("r3").src="imagenes/03-r3-32-columnas-375-"+suffix+".png";buttons[0].setAttribute("aria-pressed",String(!full));buttons[1].setAttribute("aria-pressed",String(full));document.querySelectorAll(".frame").forEach(el=>el.scrollTop=0);}
+buttons[0].addEventListener("click",()=>setMode(false));buttons[1].addEventListener("click",()=>setMode(true));
+</script>
+</body></html>
