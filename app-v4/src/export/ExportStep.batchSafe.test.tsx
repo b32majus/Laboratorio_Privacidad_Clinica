@@ -91,8 +91,8 @@ let pdfjs: PdfJsApi;
 
 beforeAll(async () => {
   const [lib, worker] = await Promise.all([
-    import("pdfjs-dist/legacy/build/pdf.js"),
-    import("pdfjs-dist/legacy/build/pdf.worker.js"),
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
   ]);
   (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
   pdfjs = lib as unknown as PdfJsApi;

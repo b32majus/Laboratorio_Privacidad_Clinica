@@ -82,8 +82,8 @@ async function seedRealPdfJs(): Promise<PdfJsLib> {
   // a fake worker on the main thread instead, so the worker message handler is
   // provided through the documented `globalThis.pdfjsWorker` seam.
   const [pdfjs, worker] = await Promise.all([
-    import("pdfjs-dist/legacy/build/pdf.js"),
-    import("pdfjs-dist/legacy/build/pdf.worker.js"),
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
   ]);
   (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
   const lib = pdfjs as unknown as PdfJsLib;

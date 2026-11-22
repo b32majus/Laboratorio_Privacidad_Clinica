@@ -112,8 +112,8 @@ async function seedRealPdfJs(): Promise<void> {
   // Same seam as the adapter tests: in the jsdom/Node environment pdf.js runs
   // a fake worker on the main thread via the documented pdfjsWorker global.
   const [pdfjs, worker] = await Promise.all([
-    import("pdfjs-dist/legacy/build/pdf.js"),
-    import("pdfjs-dist/legacy/build/pdf.worker.js"),
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
   ]);
   (globalThis as { pdfjsWorker?: unknown }).pdfjsWorker = worker;
   window.pdfjsLib = pdfjs as unknown as PdfJsLib;
