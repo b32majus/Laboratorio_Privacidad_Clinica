@@ -761,90 +761,113 @@ function FilterProgressPane(props: {
 
   return (
     <div className="sx-review-findings min-w-0 space-y-4">
-      <section
-        aria-label="Filtros y progreso de la revisión"
-        className="rounded border border-primary bg-surface-light p-3"
-      >
-        <h3 className="font-display text-base font-bold text-primary-dark">Progreso</h3>
-        {progress && (
-          <dl
-            role="status"
-            aria-label="Progreso de la revisión"
-            className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
-          >
-            <dt className="font-semibold">Total:</dt>
-            <dd> {progress.total}</dd>
-            <dt className="font-semibold">Pendientes:</dt>
-            <dd> {progress.pending}</dd>
-            <dt className="font-semibold">Decididos:</dt>
-            <dd> {progress.decided}</dd>
-            <dt className="font-semibold">Aceptadas:</dt>
-            <dd> {progress.accepted}</dd>
-            <dt className="font-semibold">Modificadas:</dt>
-            <dd> {progress.modified}</dd>
-            <dt className="font-semibold">Original conservado:</dt>
-            <dd> {progress.restored}</dd>
-            <dt className="font-semibold">Manuales:</dt>
-            <dd> {progress.manual}</dd>
-            <dt className="font-semibold">Baja confianza:</dt>
-            <dd> {progress.lowConfidence}</dd>
-            <dt className="col-span-2 mt-1 font-semibold">
-              Todas las decisiones obligatorias completadas: {progress.canFinalize ? "sí" : "no"}
-            </dt>
-          </dl>
-        )}
-      </section>
-
-      <section
-        aria-label="Filtros de hallazgos"
-        className="rounded border border-primary bg-surface-light p-3"
-      >
-        <h3 className="font-display text-base font-bold text-primary-dark">Filtros</h3>
-        <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Filtrar por estado">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter.value}
-              type="button"
-              aria-pressed={filters.status === filter.value}
-              onClick={() => onFilterStatus(filter.value)}
-              className={`rounded border px-2 py-1 text-xs font-semibold ${
-                filters.status === filter.value
-                  ? "border-primary-dark bg-primary-dark text-white"
-                  : "border-primary bg-white text-primary-dark hover:bg-surface-light"
-              } ${focusRing}`}
+      {/*
+        #92 R3 approved hierarchy: the factual progress and the filters stay
+        present and operable, but compact and in a secondary zone, so two long
+        cards never push the findings list away from the first viewport.
+      */}
+      <div className="sx-r3-review-tools">
+        <section
+          aria-label="Filtros y progreso de la revisión"
+          className="rounded border border-primary bg-surface-light p-3"
+        >
+          <h3 className="font-display text-base font-bold text-primary-dark">Progreso</h3>
+          {progress && (
+            <dl
+              role="status"
+              aria-label="Progreso de la revisión"
+              className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
             >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-        <label
-          htmlFor="filter-by-type"
-          className="mt-3 block text-sm font-semibold text-neutral-800"
+              <div>
+                <dt className="font-semibold">Total:</dt>
+                <dd> {progress.total}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Pendientes:</dt>
+                <dd> {progress.pending}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Decididos:</dt>
+                <dd> {progress.decided}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Aceptadas:</dt>
+                <dd> {progress.accepted}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Modificadas:</dt>
+                <dd> {progress.modified}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Original conservado:</dt>
+                <dd> {progress.restored}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Manuales:</dt>
+                <dd> {progress.manual}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Baja confianza:</dt>
+                <dd> {progress.lowConfidence}</dd>
+              </div>
+              <dt className="col-span-2 mt-1 font-semibold">
+                Todas las decisiones obligatorias completadas: {progress.canFinalize ? "sí" : "no"}
+              </dt>
+            </dl>
+          )}
+        </section>
+
+        <section
+          aria-label="Filtros de hallazgos"
+          className="rounded border border-primary bg-surface-light p-3"
         >
-          Filtrar por tipo
-        </label>
-        <select
-          id="filter-by-type"
-          value={filters.type ?? ""}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-            onFilterType(event.target.value === "" ? null : event.target.value)
-          }
-          className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
-        >
-          <option value="">Todos los tipos</option>
-          {detectionTypes(session).map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
-      </section>
+          <h3 className="font-display text-base font-bold text-primary-dark">Filtros</h3>
+          <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Filtrar por estado">
+            {STATUS_FILTERS.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                aria-pressed={filters.status === filter.value}
+                onClick={() => onFilterStatus(filter.value)}
+                className={`rounded border px-2 py-1 text-xs font-semibold ${
+                  filters.status === filter.value
+                    ? "border-primary-dark bg-primary-dark text-white"
+                    : "border-primary bg-white text-primary-dark hover:bg-surface-light"
+                } ${focusRing}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          <label
+            htmlFor="filter-by-type"
+            className="mt-3 block text-sm font-semibold text-neutral-800"
+          >
+            Filtrar por tipo
+          </label>
+          <select
+            id="filter-by-type"
+            value={filters.type ?? ""}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              onFilterType(event.target.value === "" ? null : event.target.value)
+            }
+            className={`mt-1 w-full rounded border border-primary bg-white px-2 py-1 text-sm ${focusRing}`}
+          >
+            <option value="">Todos los tipos</option>
+            {detectionTypes(session).map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </section>
+      </div>
 
       <section
         aria-label="Lista de hallazgos"
         ref={props.detectionListRef}
         tabIndex={-1}
-        className={`rounded border border-primary bg-surface-light p-3 ${focusRing}`}
+        className={`sx-r3-findings-first rounded border border-primary bg-surface-light p-3 ${focusRing}`}
       >
         <h3 className="font-display text-base font-bold text-primary-dark">Hallazgos</h3>
         {detections.length === 0 ? (

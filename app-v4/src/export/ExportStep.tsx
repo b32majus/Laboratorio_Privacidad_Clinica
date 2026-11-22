@@ -540,7 +540,7 @@ function StructuredExport({
 
   return (
     <section className="sx-result-workspace" aria-labelledby="export-step-heading">
-      <header className="max-w-3xl">
+      <header className="sx-r3-result-hero max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
           Resultado
         </p>
@@ -1122,7 +1122,7 @@ function BatchResult({
       aria-labelledby="export-step-heading"
       data-result-state={view.state}
     >
-      <header className="max-w-3xl">
+      <header className="sx-r3-result-hero max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
           Resultado
         </p>
@@ -1731,7 +1731,9 @@ function SingleItemResult({
     <p
       role={feedback.status === "error" ? "alert" : "status"}
       id="result-action-feedback"
-      className={feedback.status === "error" ? blockedNote : "mt-3 text-sm text-neutral-700"}
+      className={`sx-r3-single-feedback ${
+        feedback.status === "error" ? blockedNote : "mt-3 text-sm text-neutral-700"
+      }`}
     >
       {feedback.message}
     </p>
@@ -1743,7 +1745,7 @@ function SingleItemResult({
   const keptOriginalsNode = view.keptOriginals.length > 0 && (
     <section
       aria-labelledby="result-kept-originals-heading"
-      className="mt-3 rounded border border-amber-500 bg-amber-50 px-3 py-2"
+      className="mt-3 rounded border border-amber-500 bg-amber-50 px-3 py-2 sx-r3-single-kept"
     >
       <h4 id="result-kept-originals-heading" className="text-sm font-bold text-neutral-800">
         Originales conservados deliberadamente
@@ -1760,40 +1762,58 @@ function SingleItemResult({
 
   return (
     <section
-      className="sx-result-workspace"
+      className="sx-result-workspace sx-r3-single-workspace"
       aria-labelledby="export-step-heading"
       data-result-state={view.state}
     >
-      <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
-          Resultado
-        </p>
-        <h2
-          id="export-step-heading"
-          className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
-        >
-          Resultado
-        </h2>
-        <p className="mt-2 text-base leading-relaxed text-neutral-700">{intro}</p>
-      </header>
+      {/*
+        #92 R3 approved Result hierarchy: ONE full-width overview carries the
+        material heading and the single factual state block, so the hero can
+        never leave an empty column beside it. The material body below composes
+        the real warnings, the primary action, the Safe preview (main, left) and
+        the alternative formats (secondary, right), in that order.
+      */}
+      <div className="sx-r3-single-overview">
+        <header className="sx-r3-result-hero">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">
+            Resultado
+          </p>
+          <h2
+            id="export-step-heading"
+            className="mt-1 font-display text-3xl font-bold tracking-tight text-primary-dark"
+          >
+            Resultado
+          </h2>
+          <p className="mt-2 text-base leading-relaxed text-neutral-700">{intro}</p>
+        </header>
 
-      <section aria-labelledby="result-state-heading" className={zoneCard}>
-        <div className="border-b border-primary/30 px-4 py-3">
+        <section aria-labelledby="result-state-heading" className="sx-r3-single-state">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className={`${zoneBadge} bg-primary-dark`}>Resultado</span>
             <h3 id="result-state-heading" className={zoneHeading}>
               {stateLabel}
             </h3>
           </div>
-        </div>
-        <div className="p-4">
+        </section>
+      </div>
+
+      <section className={`${zoneCard} sx-r3-single-content`}>
+        <div className="p-4 sx-r3-single-body">
           {view.state === "needs-attention" && view.attentionMessage !== null && (
-            <p role="status" id="result-attention-reason" className={blockedNote}>
+            <p
+              role="status"
+              id="result-attention-reason"
+              className={`${blockedNote} sx-r3-single-note`}
+            >
               {view.attentionMessage}
             </p>
           )}
           {view.state === "blocked" && view.blockedMessage !== null && (
-            <p role="alert" id="result-blocked-reason" className={blockedNote}>
+            <p
+              role="alert"
+              id="result-blocked-reason"
+              className={`${blockedNote} sx-r3-single-note`}
+            >
               {view.blockedMessage}
             </p>
           )}
@@ -1802,7 +1822,10 @@ function SingleItemResult({
 
           {view.state === "ready" && safeText !== null ? (
             <>
-              <section aria-labelledby="result-primary-heading" className="mt-4">
+              <section
+                aria-labelledby="result-primary-heading"
+                className="mt-4 sx-r3-single-primary"
+              >
                 <h4
                   id="result-primary-heading"
                   className="text-sm font-bold uppercase tracking-wide text-neutral-700"
@@ -1830,7 +1853,35 @@ function SingleItemResult({
                 </div>
               </section>
 
-              <section aria-labelledby="result-secondary-heading" className="mt-4">
+              {/*
+                #92 R3 approved hierarchy: the prepared Safe payload is previewed
+                ONLY for an authorized `ready` result, exactly as `deriveSingleResultView`
+                produced it (never reconstructed, sanitized or truncated) and below
+                the hero, the factual kept-original warning and the primary action.
+                A `needs-attention`/`blocked` result never creates this zone or any
+                Safe content in the DOM.
+              */}
+              {view.state === "ready" && safeText !== null && (
+                <section
+                  role="region"
+                  aria-label="Vista previa de salida Safe"
+                  className="sx-r3-safe-preview mt-4"
+                >
+                  <h4 className="text-sm font-bold uppercase tracking-wide text-neutral-700">
+                    Vista previa de salida Safe
+                  </h4>
+                  <p className="mt-1 text-sm leading-relaxed text-neutral-700">
+                    Contenido completo del texto preparado. Puede incluir originales conservados
+                    deliberadamente.
+                  </p>
+                  <pre>{safeText}</pre>
+                </section>
+              )}
+
+              <section
+                aria-labelledby="result-secondary-heading"
+                className="mt-4 sx-r3-single-formats"
+              >
                 <h4
                   id="result-secondary-heading"
                   className="text-sm font-bold uppercase tracking-wide text-neutral-700"
@@ -1863,7 +1914,7 @@ function SingleItemResult({
               </section>
             </>
           ) : (
-            <div className="mt-1">
+            <div className="mt-1 sx-r3-single-primary">
               <div>
                 {material === "text" ? (
                   <button
@@ -1904,7 +1955,7 @@ function SingleItemResult({
             type="button"
             onClick={() => onReturnToReview?.()}
             data-variant="return"
-            className={secondaryButton}
+            className={`${secondaryButton} sx-r3-single-return`}
           >
             Volver a la revisión
           </button>

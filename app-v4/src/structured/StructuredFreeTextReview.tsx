@@ -102,67 +102,84 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
       <h2 id="review-step-heading" className="font-display text-xl font-bold text-primary-dark">
         Revisión
       </h2>
-      <p className="mt-2 max-w-3xl text-base leading-relaxed">
-        {routedCount === 1
-          ? "1 columna se dirige a través del motor de privacidad de texto. Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión que la revisión de texto."
-          : `${routedCount} columnas se dirigen a través del motor de privacidad de texto. Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión que la revisión de texto.`}{" "}
-        La salida preparada permanece bloqueada hasta que se decide cada sesión de celda y se
-        resuelve cada error de procesamiento.
-      </p>
 
       {freeText === null ? (
-        <div className="mt-3 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800">
-          <p role="status">
-            Las celdas de texto libre todavía no se han procesado. El procesamiento ejecuta el motor
-            de texto bajo la política de privacidad de este trabajo y crea una sesión de revisión
-            por cada celda no vacía.
-          </p>
-          <button
-            type="button"
-            onClick={run}
-            disabled={running}
-            className={`mt-2 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
-          >
-            {running ? "Procesando celdas de texto libre…" : "Procesar celdas de texto libre"}
-          </button>
-          {runError !== null && (
-            <p role="alert" className="mt-2 font-semibold text-primary-dark">
-              {localizeDomainErrorMessage(runError)}
-            </p>
-          )}
-        </div>
-      ) : (
         <>
-          <dl
-            role="status"
-            aria-label="Progreso de la revisión de texto libre"
-            className="mt-3 grid max-w-3xl grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
-          >
-            <dt className="font-semibold">Celdas:</dt>
-            <dd> {freeText.cells.length}</dd>
-            <dt className="font-semibold">Decisiones pendientes:</dt>
-            <dd> {pendingTotal}</dd>
-            <dt className="font-semibold">Celdas con error:</dt>
-            <dd> {failedTotal}</dd>
-            <dt className="font-semibold">Revisión de texto libre preparada:</dt>
-            <dd> {ready ? "Sí" : "No"}</dd>
-          </dl>
+          <p className="mt-2 max-w-3xl text-base leading-relaxed">
+            {routedCount === 1
+              ? "1 columna se dirige a través del motor de privacidad de texto. Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión que la revisión de texto."
+              : `${routedCount} columnas se dirigen a través del motor de privacidad de texto. Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión que la revisión de texto.`}{" "}
+            La salida preparada permanece bloqueada hasta que se decide cada sesión de celda y se
+            resuelve cada error de procesamiento.
+          </p>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 max-w-3xl rounded border border-primary bg-surface-light px-3 py-2 text-sm text-neutral-800">
+            <p role="status">
+              Las celdas de texto libre todavía no se han procesado. El procesamiento ejecuta el
+              motor de texto bajo la política de privacidad de este trabajo y crea una sesión de
+              revisión por cada celda no vacía.
+            </p>
             <button
               type="button"
               onClick={run}
               disabled={running}
-              className={`rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
+              className={`mt-2 rounded bg-primary-dark px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
             >
-              {running ? "Reprocesando…" : "Reprocesar celdas de texto libre"}
+              {running ? "Procesando celdas de texto libre…" : "Procesar celdas de texto libre"}
             </button>
+            {runError !== null && (
+              <p role="alert" className="mt-2 font-semibold text-primary-dark">
+                {localizeDomainErrorMessage(runError)}
+              </p>
+            )}
           </div>
-          {runError !== null && (
-            <p role="alert" className="mt-2 max-w-3xl font-semibold text-primary-dark">
-              {localizeDomainErrorMessage(runError)}
-            </p>
-          )}
+        </>
+      ) : (
+        <>
+          {/*
+            #92 R3 approved hierarchy: the processed summary and reprocessing
+            share one compact row, so the active cell work starts inside the
+            first viewport; the extended explanation moves below it.
+          */}
+          <div className="sx-r3-cells-tools mt-3 min-w-0">
+            <dl
+              role="status"
+              aria-label="Progreso de la revisión de texto libre"
+              className="sx-r3-cells-compact grid max-w-3xl grid-cols-2 gap-x-4 gap-y-1 text-sm text-neutral-800"
+            >
+              <div>
+                <dt className="font-semibold">Celdas:</dt>
+                <dd> {freeText.cells.length}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Decisiones pendientes:</dt>
+                <dd> {pendingTotal}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Celdas con error:</dt>
+                <dd> {failedTotal}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Revisión de texto libre preparada:</dt>
+                <dd> {ready ? "Sí" : "No"}</dd>
+              </div>
+            </dl>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={run}
+                disabled={running}
+                className={`rounded border border-primary-dark px-4 py-2 text-sm font-semibold text-primary-dark hover:bg-surface-dark hover:text-white disabled:cursor-wait disabled:opacity-60 ${focusRing}`}
+              >
+                {running ? "Reprocesando…" : "Reprocesar celdas de texto libre"}
+              </button>
+            </div>
+            {runError !== null && (
+              <p role="alert" className="max-w-3xl font-semibold text-primary-dark">
+                {localizeDomainErrorMessage(runError)}
+              </p>
+            )}
+          </div>
 
           <div className="sx-cells-grid mt-4">
             <nav aria-label="Celdas de texto libre" className="sx-cells-queue mt-4 max-w-3xl">
@@ -232,6 +249,15 @@ export function StructuredFreeTextReview(props: StructuredFreeTextReviewProps): 
               )}
             </div>
           </div>
+
+          <p className="mt-3 max-w-3xl text-sm leading-relaxed">
+            {routedCount === 1
+              ? "1 columna se dirige a través del motor de privacidad de texto."
+              : `${routedCount} columnas se dirigen a través del motor de privacidad de texto.`}{" "}
+            Cada celda no vacía es su propia sesión de revisión, con la misma semántica de decisión
+            que la revisión de texto. La salida preparada permanece bloqueada hasta que se decide
+            cada sesión de celda y se resuelve cada error de procesamiento.
+          </p>
         </>
       )}
 
