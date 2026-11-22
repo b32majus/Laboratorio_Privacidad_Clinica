@@ -1,0 +1,105 @@
+{
+  "candidate": "3728f0b",
+  "source_matrix": "docs/audits/2026-10-recovery-traceability-matrix.md",
+  "source_r1": "docs/evidence/issue92-r1-reconciliacion-20261121/EVIDENCIA_POR_FILA.csv",
+  "total_rows": 142,
+  "sections": {
+    "A": 88,
+    "B": 42,
+    "C": 12
+  },
+  "evidence_status_counts": {
+    "TESTIGO_PREVIO_SIN_RECHECK_R9": 104,
+    "TESTIGO_FOCAL_R8": 7,
+    "DEUDA_O_FUTURO_CONSERVADO": 14,
+    "CONTROL_REMOTO_VERIFICADO_R7": 2,
+    "EVIDENCIA_PARCIAL_CON_DEUDA": 1,
+    "DECISION_HUMANA_O_GOV_PENDIENTE": 1,
+    "CIERRE_GOBERNANZA_93": 3,
+    "TESTIGO_HUMANO_VISUAL_R3_R6": 2,
+    "CANDIDATO_POSITIVO_R9_CONTRADICE_MATRIZ": 1,
+    "TESTIGO_FOCAL_R6": 2,
+    "SUPERSESSION_HUMANA_PREVIA": 2,
+    "TESTIGO_FOCAL_R7_PARCIAL": 2,
+    "TARGET_VISUAL_NO_SUPERSEDED": 1
+  },
+  "missing_witness_files_count": 0,
+  "rows_with_empty_r1_witness": [
+    "COPY-001",
+    "COPY-002",
+    "CI-001",
+    "CI-002",
+    "SUPPLY-001",
+    "CODE-001",
+    "CODE-002",
+    "CODE-003",
+    "GOV-001",
+    "GOV-002",
+    "GOV-003",
+    "DOC-001",
+    "UX-001",
+    "UX-005",
+    "UX-007",
+    "ARCH-009",
+    "ARCH-010",
+    "HOST-001",
+    "HOST-002",
+    "HOST-003",
+    "HOST-004",
+    "HOST-005",
+    "PRODUCT-007",
+    "PRODUCT-008",
+    "PRODUCT-009",
+    "PRODUCT-010",
+    "PRODUCT-011",
+    "PRODUCT-013",
+    "H-02",
+    "H-03"
+  ],
+  "candidate_positive_specific": [
+    "BATCH-001",
+    "CI-001",
+    "FILE-002",
+    "FUNC-001",
+    "FUNC-002",
+    "GOV-002",
+    "H-01",
+    "H-02",
+    "PDR-04",
+    "PDR-08",
+    "QA-002",
+    "QA-003",
+    "STRUCT-001",
+    "UX-005",
+    "UX-013",
+    "UX-015"
+  ],
+  "known_discrepancies": [
+    {
+      "id": "UX-013",
+      "previous_claim": "shortcuts never implemented",
+      "current_fact": "real Review keyboard dispatcher + test"
+    },
+    {
+      "id": "GOV-002",
+      "previous_claim": "3.0-main not protected",
+      "current_fact": "GitHub branch protected by required checks"
+    },
+    {
+      "id": "CI-001",
+      "previous_claim": "CI does not run npm test",
+      "current_fact": "workflow and 2026-11-21 remote run did run full npm test"
+    },
+    {
+      "id": "QA-002",
+      "previous_claim": "13 P1Q-04 cases non-enumerable",
+      "current_fact": "R8 source lines 365-377 and 22/22 composed E2E"
+    },
+    {
+      "id": "PERF-002",
+      "previous_claim": "heavy parsers/exporters fully lazy",
+      "current_fact": "composed memory/responsiveness not proven, partial only"
+    }
+  ],
+  "limitation": "This is NOT 142 clauses functionally reverified. 142 verbatim original objectives+historic status+existing file references are reconciled; statuses distinguish direct focal corroboration from mere witness pointers."
+}
