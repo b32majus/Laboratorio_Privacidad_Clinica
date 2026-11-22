@@ -9,13 +9,13 @@
 | ID | Resolución APROBADA | Estado técnico a acreditar | ¿Qué cambia ahora? | ¿Qué la reabre? |
 |---|---|---|---|---|
 | `FUNC-007` | **Equivalencia técnica acotada** | Aceptada con 13 falsadores previos | No refactor DOM por requisito puramente literal | Modificar selección/render/anclas o demostrar offset incorrecto, marca fuera de fuente, corrupción de ReviewSession |
-| `STRUCT-003` | **Corrección obligatoria, NO aceptar deuda** | PENDIENTE hasta E2E/CI verde | Parser consolidado CSV y no-guess en ambiguos | Cualquier CSV válido interpreta separador equivocado, columna sobrante silenciada, quote parcial aceptado |
+| `STRUCT-003` | **Corrección obligatoria, NO aceptar deuda** | CORREGIDO y E2E locales PASS; CI del SHA final es puerta de cierre | Parser consolidado CSV y no-guess en ambiguos | Cualquier CSV válido interpreta separador equivocado, columna sobrante silenciada, quote parcial aceptado |
 | `ARCH-003` | **Deuda técnica aislada** | Aceptada con contratos de aislamiento vigentes | No reescribir core legado | Cambio en managers/worker/contexto, paralelismo, contaminación entre Jobs o pseudónimos inconsistentes |
 | `ARCH-005` | **Equivalencia de contrato y autoridad** | Aceptada: `ReviewSession` es autoridad | No duplicar Detection en Job | Nuevo consumidor confía en `Job.detections` o hay desajuste entre Job/revisión/resultados |
 | `PERF-002` | **Deuda de lazy-load delimitada** | Aceptada sin llamar «lazy» a exportadores | No optimizar sin medición | Fallo perceptible en inicio/móvil, métricas por encima de presupuesto aprobado, ampliación de exportadores |
 | `CODE-002` | **Deuda de tipado del JS legado** | Aceptada con fachada tipada TS/CI | No reescritura global del núcleo | Cambios en JS heredado sin tipos/test de contrato o errores de shape, ampliación sustancial del core |
-| `H-01` | **Corrección + barrido dirigido** | PENDIENTE hasta evidencia final de idioma | Corregir imperativos/localizar rechazos claves | Nueva UI, código de error, ARIA, tooltip, flujo/idioma formal que escape al barrido |
-| `PDR-08` | **Mismo cierre técnico y testigos que H-01** | PENDIENTE hasta cobertura dirigida | No duplicar arreglos ni suites | Nuevo estado o interacción con lenguaje inglés/formal, comprensión humana insatisfactoria |
+| `H-01` | **Corrección + barrido dirigido** | CORREGIDO con F7/F9 y barrido dirigido PASS; sin cobertura universal | Corregir imperativos/localizar rechazos claves | Nueva UI, código de error, ARIA, tooltip, flujo/idioma formal que escape al barrido |
+| `PDR-08` | **Mismo cierre técnico y testigos que H-01** | COBERTURA DIRIGIDA PASS, compartida con H-01 | No duplicar arreglos ni suites | Nuevo estado o interacción con lenguaje inglés/formal, comprensión humana insatisfactoria |
 
 **Interpretación de estados:** `ACEPTADA_CON_LIMITES` no es `SEMANTIC_PASS` literal ni cumplimiento normativo; `CORRECCION_PENDIENTE` no es cierre. Ninguna de las cinco aceptaciones elimina el riesgo ni la obligación de reevaluarlo ante su disparador.
 
@@ -40,7 +40,7 @@ Es daño de integridad, no cuestión estética ni solo deuda.
 
 **Implementación:** corregido en rama R12, commit `a4dfce3` sobre RC1; sustituida **la autoridad de parseo** por `csv-parse/browser/esm/sync` (paquete `csv-parse` MIT, versión fijada por lock, sin terceros en tiempo de ejecución); detectar separador por cabecera + consistencia de registros, no puntuación de las notas; rechazar interpretaciones verdaderamente ambiguas, no adivinar; mantener multiline/escaped quotes, espacios, nulls, header y orden; fallar tipado ante filas sobrantes, quoting inválido, entrada vacía; mantener límites de tamaño y la propagación `readStructuredFile`.
 
-**Incidente de selección de librería (R12):** la primera implementación basada en Papa Parse pasó 49 tests pero fue rechazada por `npm run check:external`: el bundle incluía `XMLHttpRequest` (regla `dist-xmlhttprequest`). **No se relajó el control**. Se autorizó dentro del mismo alcance usar la variante browser ESM pura de `csv-parse`, que debe superar build + privacy guard; NO atribuir su éxito antes de tener evidencia del gate.
+**Incidente de selección de librería (R12):** la primera implementación basada en Papa Parse pasó 49 tests pero fue rechazada por `npm run check:external`: el bundle incluía `XMLHttpRequest` (regla `dist-xmlhttprequest`). **No se relajó el control**. Se autorizó dentro del mismo alcance usar la variante browser ESM pura de `csv-parse`, que superó build + privacy guard (0 violaciones, 0 excepciones), E2E dirigidos y unitarias; el alcance de la prueba sigue siendo el SHA indicado.
 
 **Evidencia ejecutada (R12):** `npm test` 92 suites, **1582/1582 PASS**; unitarias del CSV/ingesta/mapeo 49/49; 3/3 Playwright nuevos sobre CSV real; **16/16** E2E focales de idioma/estructurado/CSV; `npm run build`, `npm run check:external` (0 violaciones y 0 excepciones), formato, TypeScript y lint PASS; auditoría de dependencias de producción 0 vulnerabilidades. **GitHub debe verificar de nuevo el SHA final** (no se hereda el verde de la versión anterior).
 
