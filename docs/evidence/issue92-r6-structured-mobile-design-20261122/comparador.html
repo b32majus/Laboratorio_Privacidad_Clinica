@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>R6 Sophilux · Estructurado móvil · propuesta vs V4</title>
+<style>
+:root{color-scheme:light;--bg:#f7f5f2;--paper:#fffdfa;--line:#e9e3de;--ink:#252b30;--soft:#62666b;--rose:#835852;--line-rose:#e8d6d0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--paper);border-bottom:1px solid var(--line);padding:34px max(18px,calc((100vw - 1260px)/2))}
+.kicker{letter-spacing:.18em;font-size:11px;color:var(--rose);font-weight:800}
+h1{font:500 clamp(32px,4.4vw,60px)/1.02 Georgia,serif;margin:12px 0 18px;letter-spacing:-.04em}
+p{max-width:950px;color:var(--soft);margin:6px 0 11px}
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin:19px 0 7px}
+.actions a,.actions button{display:inline-flex;align-items:center;justify-content:center;border:1px solid #d8c1ba;border-radius:99px;background:var(--paper);color:var(--rose);padding:9px 15px;text-decoration:none;font-weight:750;font-size:12px;cursor:pointer}
+.actions a.primary{color:#fff;background:var(--rose);border-color:var(--rose)}
+.actions button[aria-pressed="true"]{color:#fff;background:#403231;border-color:#403231}
+main{max-width:1300px;padding:27px 15px 60px;margin:auto}
+.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--rose);font-weight:800}
+figure{margin:11px 0 0;background:#fff;padding:10px;border:1px solid var(--line);border-radius:12px;box-shadow:0 7px 30px #6a41370c}
+.compare-frame{max-width:100%;overflow:auto;max-height:82vh;overscroll-behavior:contain;background:#f2eeeb}
+.compare-frame img{display:block;width:1181px;max-width:none;height:auto}
+figcaption{padding:12px 5px 2px;font-size:12px;color:var(--soft)}
+.notes{margin-top:23px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.note{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px}
+.note h2{margin:0 0 6px;font:600 18px Georgia,serif;color:var(--ink)}.note p{font-size:12px;margin:0}
+.warning{border-left:3px solid var(--rose);padding:9px 15px;background:#fbf4f1;margin-top:17px;font-size:12px;color:#73574d}
+@media(max-width:800px){.notes{grid-template-columns:1fr}.compare-frame{max-height:680px}main{padding:20px 10px}.actions a,.actions button{font-size:11px}}
+</style>
+</head>
+<body>
+<header>
+<div class="kicker">LABORATORIO DE PRIVACIDAD CLÍNICA / REC-12 / R6</div>
+<h1>Estructurado móvil: trabajar primero, recorrer después.</h1>
+<p>Propuesta de composición para <strong>32 columnas y 19 pendientes</strong>. Se comparan el maestro Sophilux aprobado (referencia de estilo, <strong>otro estado</strong>), la V4 actual de R3 y la nueva maqueta R6. R6 todavía no está implementada en React.</p>
+<div class="actions">
+<a class="primary" href="maqueta.html" title="Abrir la propuesta navegable de 32 columnas">Abrir maqueta R6</a>
+<button id="btn-viewport" type="button" aria-pressed="true">Primer pantallazo</button>
+<button id="btn-full" type="button" aria-pressed="false">Páginas completas</button>
+<a href="capturas/r6-375-full.png">Ver captura R6 completa</a>
+<a href="referencias/v4-r3-estructurado-375-full.png">Ver V4 actual completa</a>
+</div>
+</header>
+<main>
+<div class="eyebrow">Comparación visual · móvil 375 px</div>
+<figure>
+<div class="compare-frame"><img id="comparison" src="comparaciones/comparativa-r6-375-viewport.png" alt="Tres columnas: estilo Sophilux aprobado con otro estado; V4 real R3 con 32 columnas y 19 pendientes; propuesta R6 con decisión activa en el primer viewport"></div>
+<figcaption id="figure-caption">Primer pantallazo a 375 × 800. La imagen permite desplazarse horizontalmente para inspeccionar las tres columnas.</figcaption>
+</figure>
+<div class="notes">
+<section class="note"><h2>Lo que cambia</h2><p>La columna seleccionada y sus controles de clasificación, rol y acción aparecen antes de la tabla larga. El selector queda en torno a <strong>627 px</strong> de altura.</p></section>
+<section class="note"><h2>Lo que no cambia</h2><p>La tabla conserva sus <strong>cuatro campos</strong> y todas las columnas. Se mantiene una única autoridad de ID de paciente, el bloqueo, el significado de las acciones y los detalles accesibles.</p></section>
+<section class="note"><h2>Qué requiere decisión</h2><p>La maqueta propone navegación entre pendientes y un filtro visual. Son exclusivamente de presentación; cualquier implementación real deberá reutilizar el estado canónico, sin crear una segunda revisión.</p></section>
+</div>
+<div class="warning">El maestro aprobado no tiene el mismo conjunto de datos que R6. Las imágenes comparan identidad y jerarquía, no una igualdad píxel a píxel ni una prueba de funcionamiento. Todos los datos de la maqueta son sintéticos.</div>
+</main>
+<script>
+const image=document.getElementById("comparison");
+const viewport=document.getElementById("btn-viewport");
+const full=document.getElementById("btn-full");
+function show(mode){
+image.src="comparaciones/comparativa-r6-375-"+mode+".png";
+viewport.setAttribute("aria-pressed",String(mode==="viewport"));
+full.setAttribute("aria-pressed",String(mode==="full"));
+document.getElementById("figure-caption").textContent=mode==="full"?"Páginas completas a 375 px; desplaza vertical y horizontalmente dentro de la imagen.":"Primer pantallazo a 375 × 800. Desplaza horizontalmente para inspeccionar las tres columnas.";
+document.querySelector(".compare-frame").scrollTo({top:0,left:0});
+}
+viewport.addEventListener("click",()=>show("viewport"));
+full.addEventListener("click",()=>show("full"));
+</script>
+</body></html>
