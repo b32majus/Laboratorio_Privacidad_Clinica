@@ -71,7 +71,7 @@ describe("Policy guidance before a job exists (POLICY-01 #56)", () => {
       screen.queryByRole("list", { name: "Guía de políticas de privacidad" })
     ).not.toBeInTheDocument();
     expect(guidanceRegion()).toHaveTextContent(
-      /cree un trabajo para ver qué políticas están disponibles para su tipo/i
+      /crea un trabajo para ver qué políticas están disponibles para ese tipo/i
     );
     expect(guidanceItems()).toHaveLength(4);
     // No job kind exists yet, so neither availability state is claimed.
