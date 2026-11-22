@@ -1921,7 +1921,7 @@ function InputStep(props: {
       setPasteError(null);
     } catch {
       setPasteError(
-        "No se pudo leer el portapapeles en este navegador. Pegue con Ctrl+V directamente en el campo de texto."
+        "No se pudo leer el portapapeles en este navegador. Pega con Ctrl+V directamente en el campo de texto."
       );
     } finally {
       setPasteBusy(false);
@@ -2265,7 +2265,7 @@ function StepUnavailableState({
         </p>
       )}
       <p className="mt-2 max-w-2xl text-base leading-relaxed">
-        Este paso no está disponible para el estado actual del trabajo. Vuelva a un paso disponible
+        Este paso no está disponible para el estado actual del trabajo. Vuelve a un paso disponible
         con las acciones de tarea o los controles de sesión de arriba.
       </p>
     </section>

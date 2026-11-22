@@ -1,0 +1,24 @@
+section,id,tratamiento_R1,estado_evidencia_R7,testigo_focal_o_fuente,limite_material_pendiente
+A,PRIV-003,QA_PRIVACIDAD,PARIDAD_ACOTADA,R2 10 canales; R2-01 guardias XLSX; R4 recorrido; sin ausencia universal de fuga,Completar cotejo semantico PRIV-003 con cada canal del producto final
+A,BATCH-004,EVIDENCIA_F4_CI,TESTIGO_PREVIO_R4,R4 e2e/rec87-batch-result.spec.ts lote 12 con 2 errores,No reejecutado en R7 ni revalidada clausula fila a fila
+A,ARCH-007,EVIDENCIA_F4_CI,TESTIGO_PREVIO_R5,R5 reconciliacion flujo Review V4; pruebas unitarias y E2E en R4,Sin reinterpretar auditoria previa como cierre universal
+A,ARCH-008,EVIDENCIA_F4_CI,TESTIGO_PREVIO_R5,R5 reconciliacion batch legacy retirado; codigo V4 activo,Sin inspeccion especifica adicional R7
+A,CI-001,EVIDENCIA_F4_CI,REMOTE_POSITIVE_CURRENT,CI workflow ejecuta npm test completo; run 44903478299 validate SUCCESS SHA 46bce0a,El CI remoto no ejecuta commits locales R6/R7 aun no publicados
+A,QA-002,QA_PRIVACIDAD,SOURCE_PARITY_PARTIAL,R2 PARIDAD_QA002.csv 18 preguntas; F7/F9+R7 9/9 escenarios idioma; R4 46/47 suite,Los 13 criticos originales no estan enumerados; no afirmar 13/13 ni paridad exhaustiva
+A,PERF-002,PERF,PERF_DEBT_NOT_PASSED,Benchmarks core por tamaños; GAP-01 compuesta aceptada post-recuperacion,Ni 100% lazy de exporters ni responsividad/memoria V4 compuesta acreditados
+A,CODE-001,EVIDENCIA_F4_CI,TESTIGO_PREVIO_LOCAL_CI,ESLint y Prettier locales R6 y R7; CI validate SUCCESS remoto,No renombrar todas las clausulas como PASS con mera ruta existente
+A,CODE-003,EVIDENCIA_F4_CI,TESTIGO_PREVIO_R5,V4 usa errores renderizados/estados; alert legacy retirados,No nueva prueba específica de todas las ramas raras en R7
+A,GOV-001,GOBERNANZA_93,GOVERNANCE_OPEN,GitHub API: default_branch=main; rama canonica funcional documentada 3.0-main,"Cambio de rama por defecto es decision humana, no autorizado aqui"
+A,GOV-002,GOBERNANZA_93,REMOTE_CONTROL_VERIFIED,"GitHub 3.0-main protected=true; required validate,e2e,CodeQL,Secret Scan; enforcement everyone",Aun no hay PR de commits R6/R7 para probar checks sobre candidato final
+A,GOV-003,GOBERNANZA_93,VERSION_PREV_R5,"R5 verifica README/package/runtime 4.0, sin cambio en R7",Revalidacion integral de entrega final/documentacion va a #93
+A,DOC-001,GOBERNANZA_93,GOVERNANCE_93_PENDING,"Arquitectura V4 documentada y HANDOFF vigente, no documento final reconciliado",Reescritura final contra producto fusionado esta pendiente #93
+A,UX-001,UX,UX_TESTIGO_PREVIO_R4,E2E ux-closeout-shell y R3/R6 pantallas reales,No equivale a evaluacion humana de cada estado UI
+A,UX-002,EVIDENCIA_F4_CI,TESTIGO_PREVIO_R4,E2E app-shell aterriza directamente en tarea sin landing intermedia,No nueva reejecucion en R7
+A,UX-007,UX,UX_TESTIGO_PREVIO_R5,Avisos contextuales presentes en V4 y estados F9,No barrido humano universal de intrusividad
+A,ARCH-009,EVIDENCIA_F4_CI,CODE_FACT_CURRENT,app-v4 Vite TypeScript React; build V4 R7 PASS,No migracion/documentacion final publicada
+A,ARCH-010,EVIDENCIA_F4_CI,CODE_FACT_CURRENT,Core modular JS mantiene adapter V4; no big bang rewrite,No se reaudito codigo legacy en R7
+A,HOST-001,GOBERNANZA_93,GOVERNANCE_93_PENDING,V4 build mismo origen sin terceros; marketing separado en repo,Topologia real de origen definitivo y headers requiren smoke de #93
+A,HOST-002,GOBERNANZA_93,GOVERNANCE_93_PENDING,Render Static y headers testificados previamente; origen definitivo aun pendiente,No atribuir pruebas del origen previo al candidato no publicado
+B,H-01,IDIOMA,FOCAL_R7_POSITIVE_PARTIAL,R7 2/2 E2E RED->GREEN; F7/F9 7/7; errores clipboard/estructurado y accesibilidad,No traduce marcador canonico CONFIDENTIAL ni cierra todas las variantes raras
+B,H-03,TIPOGRAFIA,TARGET_GAP_NOT_SUPERSEDED,font-mono existente; JetBrains Mono no importada,No hay supersesion humana que convierta automaticamente el target gap en PASS
+C,PDR-08,IDIOMA,FOCAL_R7_POSITIVE_PARTIAL,9/9 E2E profesionales sobre V4 real; tres imperativos corregidos,Resto de errores/ARIA/tooltips no demostrado exhaustivamente

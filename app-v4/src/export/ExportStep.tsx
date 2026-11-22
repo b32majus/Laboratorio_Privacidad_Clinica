@@ -552,7 +552,7 @@ function StructuredExport({
         </h2>
         <p className="mt-2 text-base leading-relaxed text-neutral-700">
           A partir de esta configuración estructurada se producen dos entregables independientes,
-          que se descargan por separado. Descargue solo el que su destino esté autorizado a recibir.
+          que se descargan por separado. Descarga solo el que su destino esté autorizado a recibir.
         </p>
       </header>
 
