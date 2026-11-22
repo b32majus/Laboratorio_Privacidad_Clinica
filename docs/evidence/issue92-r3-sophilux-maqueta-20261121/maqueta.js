@@ -160,10 +160,15 @@
       '<p class="footnote r3-result-footnote">Maqueta ilustrativa. La interfaz real decide permisos y formatos por material y estado; aquí no se procesan ni exportan datos.</p>'
     ].join("");
   }
-  const builders = { revision, celdas, resultado };
   function render(scrollToTop) {
     document.body.dataset.activeView = activeView;
-    main.innerHTML = builders[activeView]();
+    if (activeView === "revision") {
+      main.innerHTML = revision();
+    } else if (activeView === "celdas") {
+      main.innerHTML = celdas();
+    } else {
+      main.innerHTML = resultado();
+    }
     document.querySelector("#sample-label").textContent = activeView === "revision" ?
       "Texto de ejemplo · 24 detecciones" : activeView === "celdas" ?
       "Tabla de ejemplo · 2 celdas" : "Resultado · ejemplo sintético";
@@ -184,8 +189,8 @@
   document.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    if (button.dataset.view) { activeView = button.dataset.view; render(true); return; }
-    if (button.dataset.state) { resultState = button.dataset.state; activeView = "resultado"; render(true); return; }
+    if (button.dataset.view && screens.includes(button.dataset.view)) { activeView = button.dataset.view; render(true); return; }
+    if (button.dataset.state && states.includes(button.dataset.state)) { resultState = button.dataset.state; activeView = "resultado"; render(true); return; }
     if (button.dataset.finding) {
       const previousListScroll = main.querySelector(".r3-findings-list")?.scrollTop || 0;
       currentFinding = Number(button.dataset.finding);
