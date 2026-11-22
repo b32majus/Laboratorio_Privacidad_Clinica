@@ -100,6 +100,17 @@ export function localizeDomainErrorMessage(message: string): string {
   if (message === "The CSV input ends inside an unterminated quoted field.") {
     return "La entrada CSV termina dentro de un campo entrecomillado sin cerrar.";
   }
+  if (
+    message === "The CSV separator is ambiguous; check the header and choose an unambiguous file."
+  ) {
+    return "No se puede identificar con seguridad el separador del CSV. Revisa la fila de encabezados y utiliza un archivo sin ambigüedad.";
+  }
+  if (message === "The CSV contains malformed quoted fields.") {
+    return "El CSV contiene campos entrecomillados incorrectos. Corrige el archivo antes de continuar.";
+  }
+  if (message === "A CSV row has more columns than the header.") {
+    return "Una fila del CSV contiene más columnas que la cabecera. Corrige el archivo antes de continuar.";
+  }
 
   // ── Workbook parsing (structured/excel, structured/header-row) ─────────
   if (message === "The Excel file contains no sheets.") {

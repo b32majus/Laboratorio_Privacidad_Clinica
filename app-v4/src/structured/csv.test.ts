@@ -141,3 +141,68 @@ describe("parseCsv", () => {
     expect(consolidated.rows[0][2]).toContain("\n");
   });
 });
+
+// REC-12 #92 STRUCT-003: genuinely valid alternative delimiters in unquoted
+// note cells MUST NOT reclassify the CSV column separator from the header.
+describe("REC-12 R12 delimiter authority + fail closed", () => {
+  it("preserves comma-delimited clinical notes containing several semicolons", () => {
+    const text = "id,nota\nSYN-001,observación; antecedente; control; cita";
+    expect(detectCsvDelimiter(text)).toBe(",");
+    expect(parseCsv(text)).toEqual({
+      headers: ["id", "nota"],
+      rows: [["SYN-001", "observación; antecedente; control; cita"]],
+    });
+  });
+
+  it("preserves semicolon-delimited notes containing more commas than headers", () => {
+    const text = "id;nota\nSYN-002;TA, FC, IMC, HbA1c, glucosa";
+    expect(detectCsvDelimiter(text)).toBe(";");
+    expect(parseCsv(text)).toEqual({
+      headers: ["id", "nota"],
+      rows: [["SYN-002", "TA, FC, IMC, HbA1c, glucosa"]],
+    });
+  });
+
+  it("handles tab-delimited rows with both commas and semicolons inside values", () => {
+    const text = "id\tnota\nSYN-003\tTSH, ferritina; revisar; comprobar";
+    expect(detectCsvDelimiter(text)).toBe("\t");
+    expect(parseCsv(text).rows[0]).toEqual(["SYN-003", "TSH, ferritina; revisar; comprobar"]);
+  });
+
+  it("refuses ambiguous headers instead of guessing whether comma or semicolon is the delimiter", () => {
+    expect(() => parseCsv("A,B;C\n1,2;3")).toThrowError(CsvParseError);
+    try {
+      parseCsv("A,B;C\n1,2;3");
+      expect.unreachable("ambiguous delimiters must be refused");
+    } catch (error) {
+      expect((error as CsvParseError).code).toBe("csv-ambiguous-delimiter");
+    }
+  });
+
+  it("refuses a row with more cells than the header instead of silently losing data", () => {
+    expect(() => parseCsv("A,B\nuno,dos,tres", { delimiter: "," })).toThrowError(CsvParseError);
+    try {
+      parseCsv("A,B\nuno,dos,tres", { delimiter: "," });
+      expect.unreachable("surplus fields must be refused");
+    } catch (error) {
+      expect((error as CsvParseError).code).toBe("csv-column-mismatch");
+    }
+  });
+
+  it("refuses malformed CSV quotes instead of fabricating a successful grid", () => {
+    try {
+      parseCsv('A,B\n"hola"basura,2');
+      expect.unreachable("malformed quoted cell must be refused");
+    } catch (error) {
+      expect((error as CsvParseError).code).toBe("csv-malformed");
+    }
+  });
+
+  it("preserves a single quoted empty field record, but skips genuinely empty lines", () => {
+    expect(parseCsv('A\n\n""\n\n').rows).toEqual([[null]]);
+  });
+
+  it("handles a UTF-8 BOM without prefixing the first header", () => {
+    expect(parseCsv("\uFEFFA,B\nuno,dos").headers).toEqual(["A", "B"]);
+  });
+});

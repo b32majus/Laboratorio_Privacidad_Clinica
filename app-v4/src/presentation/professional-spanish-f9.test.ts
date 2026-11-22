@@ -49,6 +49,22 @@ describe("REC-12 F9 professional Spanish typed error mapping", () => {
     );
   });
 
+  it("explains ambiguous or malformed CSV to a user in professional Spanish", () => {
+    expect(
+      localizeDomainErrorMessage(
+        "The CSV separator is ambiguous; check the header and choose an unambiguous file."
+      )
+    ).toBe(
+      "No se puede identificar con seguridad el separador del CSV. Revisa la fila de encabezados y utiliza un archivo sin ambigüedad."
+    );
+    expect(localizeDomainErrorMessage("The CSV contains malformed quoted fields.")).toBe(
+      "El CSV contiene campos entrecomillados incorrectos. Corrige el archivo antes de continuar."
+    );
+    expect(localizeDomainErrorMessage("A CSV row has more columns than the header.")).toBe(
+      "Una fila del CSV contiene más columnas que la cabecera. Corrige el archivo antes de continuar."
+    );
+  });
+
   it("unknown domain errors remain unchanged, not translated or swallowed", () => {
     expect(localizeDomainErrorMessage("NEW_TYPED_REASON_UNRECOGNISED_F9")).toBe(
       "NEW_TYPED_REASON_UNRECOGNISED_F9"

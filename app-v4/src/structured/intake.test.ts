@@ -58,6 +58,29 @@ function textFile(name: string, text: string): SourceFileLike {
   return { name, text: async () => text };
 }
 
+it("REC-12 STRUCT-003: the public CSV intake selects the header separator, not note punctuation", async () => {
+  const comma = await readStructuredFile(
+    textFile("synthetic-comma.csv", "id,nota\nSYN-001,observación; control; revisión; consulta")
+  );
+  expect(comma).toEqual({
+    status: "parsed",
+    grid: {
+      headers: ["id", "nota"],
+      rows: [["SYN-001", "observación; control; revisión; consulta"]],
+    },
+  });
+  const semi = await readStructuredFile(
+    textFile("synthetic-semicolon.csv", "id;nota\nSYN-002;TA, FC, IMC, HbA1c, glucosa")
+  );
+  expect(semi).toEqual({
+    status: "parsed",
+    grid: {
+      headers: ["id", "nota"],
+      rows: [["SYN-002", "TA, FC, IMC, HbA1c, glucosa"]],
+    },
+  });
+});
+
 function bytesFile(name: string, bytes: ArrayBuffer): SourceFileLike {
   return { name, arrayBuffer: async () => bytes };
 }
